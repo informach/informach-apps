@@ -1,11 +1,14 @@
 import "server-only";
 import { and, eq } from "@informach/db";
 import {
-  recreioDirectedInviteWorldApprovals as approvals,
-  recreioDirectedInviteGuardianApprovals as guardians,
   type recreioDirectedSpaceInvites as invites,
+  recreioDirectedInviteWorldApprovals as memberApprovals,
+  recreioDirectedInviteGuardianApprovals as memberGuardians,
   recreioSpaceMembers as members,
   recreioMinorProtection as protection,
+  recreioVisitInviteWorldApprovals as visitApprovals,
+  recreioVisitInviteGuardianApprovals as visitGuardians,
+  type recreioSpaceVisitInvites as visitInvites,
 } from "@informach/db/schema";
 import { MundoIdSchema } from "@informach/recreio";
 import type { ConviteDirigido } from "@informach/recreio/contrato";
@@ -53,12 +56,20 @@ export function conferirRevisoesDoConvite(
   );
 }
 
-export async function aprovacoesDoConvite(
+type ConviteParaAprovacao =
+  | { forma: "membro"; convite: ConviteDoMundo }
+  | { forma: "visita"; convite: typeof visitInvites.$inferSelect };
+
+async function aprovacoesNoNamespace(
   tx: Transacao,
   ctx: ContextoDeConvite,
-  convite: ConviteDoMundo,
+  pedido: ConviteParaAprovacao,
 ) {
-  if (convite.state !== "pending") return { mundo: false, origem: false, destino: false };
+  const { convite } = pedido,
+    approvals = pedido.forma === "membro" ? memberApprovals : visitApprovals,
+    guardians = pedido.forma === "membro" ? memberGuardians : visitGuardians;
+  if (convite.state !== "pending" && !(pedido.forma === "visita" && convite.state === "accepted"))
+    return { mundo: false, origem: false, destino: false };
   const parentais = await tx.select().from(guardians).where(eq(guardians.inviteId, convite.id));
   const parental = (atual: ContextoDeConvite["origem"]) => {
     const fato = atual.fato;
@@ -94,11 +105,15 @@ export async function aprovacoesDoConvite(
       (decisao.membro.role === "coadmin" && perfil.kind === "adult");
     const propriaParticipacao =
       decisao.membro.state === "active" &&
-      decisao.membro.id === convite.invitedByMemberId &&
+      decisao.membro.id ===
+        (pedido.forma === "membro"
+          ? pedido.convite.invitedByMemberId
+          : pedido.convite.hostMemberId) &&
       decisao.membro.role === "member" &&
       ctx.mundo.membersInvite === "yes" &&
-      decisao.membro.participation !== null &&
-      decisao.membro.participation === convite.participation;
+      (pedido.forma === "visita" ||
+        (decisao.membro.participation !== null &&
+          decisao.membro.participation === pedido.convite.participation));
     const [protecao] =
       decisao.recibo.actorKind === "responsavel"
         ? await tx.select().from(protection).where(eq(protection.profileId, perfil.id))
@@ -129,6 +144,21 @@ export async function aprovacoesDoConvite(
       !(conta?.banned && (!conta.banExpiresAt || conta.banExpiresAt > agora));
   }
   return { mundo, origem: parental(ctx.origem), destino: parental(ctx.destino) };
+}
+
+export function aprovacoesDoConvite(
+  tx: Transacao,
+  ctx: ContextoDeConvite,
+  convite: ConviteDoMundo,
+) {
+  return aprovacoesNoNamespace(tx, ctx, { forma: "membro", convite });
+}
+export function aprovacoesDaVisita(
+  tx: Transacao,
+  ctx: ContextoDeConvite,
+  convite: typeof visitInvites.$inferSelect,
+) {
+  return aprovacoesNoNamespace(tx, ctx, { forma: "visita", convite });
 }
 
 export function resumoDoConvite(

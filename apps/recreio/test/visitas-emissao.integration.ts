@@ -2,6 +2,7 @@ import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
   recreioVisitInviteWorldApprovals as approvals,
+  recreioGameSessions as games,
   recreioVisitInviteGuardianApprovals as guardianApprovals,
   recreioSpaceVisitInvites as invites,
   recreioSpaceMembers as members,
@@ -14,6 +15,7 @@ import {
 import {
   RECIBOS_DE_VISITA_POR_PERFIL_MAX,
   ReciboDeConviteDeVisitaSchema,
+  ResultadoDaDecisaoDeVisitaSchema,
 } from "@informach/recreio/contrato";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
@@ -28,8 +30,11 @@ import {
   aprovarVisitaDoMenor,
   aprovarVisitaDoMundo,
   emitirConviteDeVisita,
+  encerrarVisitaDoMenor,
+  responderConviteDeVisita,
 } from "@/features/visitas/service";
 import { env } from "@/lib/env";
+import { conceder } from "../scripts/concessoes";
 import { aposentarInstancias, eventosCom, type Jogador, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia, OUTRO_JOGO } from "./jogo-apoio";
 import { pedir } from "./rotas";
@@ -162,6 +167,330 @@ async function menorConvidado(aguardaMundo = false) {
     };
   return { c, familia, dono, recibo, pedido };
 }
+
+it("aceites concorrentes criam uma concessão auditada sem tornar visitante membro ou admitir pelo protocolo antigo", async () => {
+  const c = await cenario(),
+    recibo = await emitirConviteDeVisita(c.autor, c.pedido),
+    antes = await db.select().from(members).where(eq(members.spaceId, c.mundoId)),
+    pedido = { conviteId: recibo.conviteId, acao: "aceitar" },
+    [a, b] = await Promise.all([
+      responderConviteDeVisita(c.alvo, pedido),
+      responderConviteDeVisita(c.alvo, pedido),
+    ]);
+  expect(ResultadoDaDecisaoDeVisitaSchema.parse(a)).toEqual(b);
+  expect(a.convite.estado).toBe("accepted");
+  expect(a.visita).toMatchObject({ estado: "active", expiraEm: recibo.expiraEm });
+  expect(await db.select().from(visits).where(eq(visits.inviteId, recibo.conviteId))).toHaveLength(
+    1,
+  );
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toEqual(antes);
+  expect(
+    (await eventosCom("inviteId", recibo.conviteId)).filter(
+      (e) => e.eventType === "recreio.visit_invite_accepted",
+    ),
+  ).toHaveLength(1);
+  const sessao = await entrarNoJogo(c.destino, OUTRO_JOGO, { suportaVisitas: true });
+  expect((await abrirPelaRota(sessao, c.mundoId)).status).toBe(403);
+  await expect(
+    c.instancia.cliente.verificarEntrada({
+      mundoId: c.mundoId,
+      cerca: c.posse.cerca,
+      sid: sessao.sid,
+      perfilId: c.destino.perfil.id,
+    }),
+  ).rejects.toMatchObject({ codigo: "NAO_MEMBRO" });
+});
+
+it("aceite aguarda a decisão atual do mundo e não atribui cobrança ou participação ao aprovador", async () => {
+  const r = await mundoPendente(),
+    pedido = { conviteId: r.recibo.conviteId, acao: "aceitar" };
+  await expect(responderConviteDeVisita(r.c.alvo, pedido)).rejects.toMatchObject({
+    code: "PEDIDO",
+  });
+  await aprovarVisitaDoMundo(r.dono.nativo, r.dono.gestor.perfil.id, r.pedido);
+  expect((await responderConviteDeVisita(r.c.alvo, pedido)).visita?.estado).toBe("active");
+});
+
+it("aceite que atravessa o prazo durante a auditoria reverte convite e concessão", async () => {
+  const c = await cenario(),
+    recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+  await db.execute(
+    sql`create function audit.prazo_aceite_visita_teste() returns trigger language plpgsql as $$ begin if new.event_type='recreio.visit_invite_accepted' then perform pg_sleep(1.3); end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger prazo_aceite_visita_teste before insert on audit.events for each row execute function audit.prazo_aceite_visita_teste()`,
+  );
+  try {
+    await db
+      .update(presences)
+      .set({ expiresAt: new Date(Date.now() + 1100) })
+      .where(eq(presences.id, c.presenca.presencaId));
+    await expect(
+      responderConviteDeVisita(c.alvo, { conviteId: recibo.conviteId, acao: "aceitar" }),
+    ).rejects.toMatchObject({ code: "PEDIDO" });
+  } finally {
+    await db.execute(sql`drop trigger prazo_aceite_visita_teste on audit.events`);
+    await db.execute(sql`drop function audit.prazo_aceite_visita_teste()`);
+  }
+  expect((await db.select().from(invites).where(eq(invites.id, recibo.conviteId)))[0]?.state).toBe(
+    "pending",
+  );
+  expect(await db.select().from(visits).where(eq(visits.inviteId, recibo.conviteId))).toHaveLength(
+    0,
+  );
+});
+
+it("aceite inconsistente é falha explícita, sem fabricar concessão para recuperar recibo", async () => {
+  const c = await cenario(),
+    recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+  await db
+    .update(invites)
+    .set({ state: "accepted", finishedAt: new Date() })
+    .where(eq(invites.id, recibo.conviteId));
+  await expect(
+    responderConviteDeVisita(c.alvo, { conviteId: recibo.conviteId, acao: "aceitar" }),
+  ).rejects.toThrow("Convite de visita e concessão não correspondem ao mesmo aceite.");
+  expect(await db.select().from(visits).where(eq(visits.inviteId, recibo.conviteId))).toHaveLength(
+    0,
+  );
+});
+
+it("redução própria continua possível em mundo excluído logicamente", async () => {
+  const c = await cenario(),
+    recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+  await db.update(spaces).set({ status: "deleted" }).where(eq(spaces.id, c.mundoId));
+  const resposta = await responderConviteDeVisita(c.alvo, {
+    conviteId: recibo.conviteId,
+    acao: "recusar",
+  });
+  expect(resposta.convite.estado).toBe("declined");
+  expect(resposta.visita).toBeNull();
+});
+
+it("visita aceita de ex-membro conserva a participação antiga encerrada", async () => {
+  const c = await cenario(),
+    [antigo] = await db
+      .insert(members)
+      .values({
+        spaceId: c.mundoId,
+        profileId: c.destino.perfil.id,
+        role: "member",
+        state: "former",
+        invitedByMemberId: c.prova.hostMemberId,
+      })
+      .returning();
+  if (!antigo) throw new Error("Membro fixture ausente");
+  const recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+  expect(
+    (await responderConviteDeVisita(c.alvo, { conviteId: recibo.conviteId, acao: "aceitar" }))
+      .visita?.estado,
+  ).toBe("active");
+  expect((await db.select().from(members).where(eq(members.id, antigo.id)))[0]?.state).toBe(
+    "former",
+  );
+});
+
+it("aceite infantil exige aprovação própria e cobertura; aprovação não compra acesso", async () => {
+  const r = await menorConvidado(),
+    pedido = { conviteId: r.recibo.conviteId, acao: "aceitar" };
+  await aprovarVisitaDoMenor(r.familia.autor, r.pedido);
+  await expect(responderConviteDeVisita(r.familia.referencia, pedido)).rejects.toMatchObject({
+    codigo: "ACESSO_NEGADO",
+  });
+  await conceder({ email: r.familia.conta.email, tier: "family", dias: 30, motivo: "teste" });
+  expect((await responderConviteDeVisita(r.familia.referencia, pedido)).visita?.estado).toBe(
+    "active",
+  );
+  expect(
+    await db.select().from(members).where(eq(members.profileId, r.familia.perfil.id)),
+  ).toHaveLength(0);
+});
+
+it("pagar sem aprovação parental não concede a visita", async () => {
+  const r = await menorConvidado();
+  await conceder({ email: r.familia.conta.email, tier: "family", dias: 30, motivo: "teste" });
+  await expect(
+    responderConviteDeVisita(r.familia.referencia, {
+      conviteId: r.recibo.conviteId,
+      acao: "aceitar",
+    }),
+  ).rejects.toMatchObject({ code: "PEDIDO" });
+});
+
+it.each(["gestao", "politica", "aprovacao", "presenca", "bloqueio"] as const)(
+  "aceite relê %s sem atualizar silenciosamente a prova",
+  async (tipo) => {
+    const c = await cenario(),
+      recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+    if (tipo === "gestao")
+      await db.update(spaces).set({ managementRevision: 2 }).where(eq(spaces.id, c.mundoId));
+    if (tipo === "politica")
+      await db
+        .update(profiles)
+        .set({ policyVersion: 2 })
+        .where(eq(profiles.id, c.destino.perfil.id));
+    if (tipo === "aprovacao")
+      await db
+        .update(approvals)
+        .set({ managementRevision: 2 })
+        .where(eq(approvals.inviteId, recibo.conviteId));
+    if (tipo === "presenca")
+      await c.instancia.cliente.atestarPresenca({
+        mundoId: c.mundoId,
+        operacao: "sair",
+        cerca: c.posse.cerca,
+        presencaId: c.presenca.presencaId,
+      });
+    if (tipo === "bloqueio")
+      await protegerContato(c.autor, {
+        perfilId: c.destino.perfil.id,
+        bloqueado: true,
+        silenciado: false,
+      });
+    await expect(
+      responderConviteDeVisita(c.alvo, { conviteId: recibo.conviteId, acao: "aceitar" }),
+    ).rejects.toMatchObject({
+      code: tipo === "gestao" || tipo === "politica" ? "CONFLITO" : "PEDIDO",
+    });
+    expect(
+      await db.select().from(visits).where(eq(visits.inviteId, recibo.conviteId)),
+    ).toHaveLength(0);
+    expect(
+      (await db.select().from(invites).where(eq(invites.id, recibo.conviteId)))[0]?.state,
+    ).toBe("pending");
+  },
+);
+
+it("somente o destinatário aceita e concessão ativa não é substituída por outro convite", async () => {
+  const c = await cenario(),
+    recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+  await expect(
+    responderConviteDeVisita(c.autor, { conviteId: recibo.conviteId, acao: "aceitar" }),
+  ).rejects.toMatchObject({ code: "PEDIDO" });
+  const primeira = await responderConviteDeVisita(c.alvo, {
+      conviteId: recibo.conviteId,
+      acao: "aceitar",
+    }),
+    outro = await emitirConviteDeVisita(c.autor, { ...c.pedido, pedidoId: crypto.randomUUID() });
+  await expect(
+    responderConviteDeVisita(c.alvo, { conviteId: outro.conviteId, acao: "aceitar" }),
+  ).rejects.toMatchObject({ code: "CONFLITO" });
+  expect((await db.select().from(visits).where(eq(visits.spaceId, c.mundoId)))[0]?.id).toBe(
+    primeira.visita?.visitaId,
+  );
+});
+
+it.each(["recusar", "revogar"] as const)(
+  "%s é redução gratuita da própria ponta com modos desligados",
+  async (acao) => {
+    const c = await cenario(),
+      recibo = await emitirConviteDeVisita(c.autor, c.pedido),
+      autor = acao === "recusar" ? c.alvo : c.autor;
+    env.RECREIO_VISITS_MODE = "off";
+    env.RECREIO_SOCIAL_MODE = "off";
+    await db.execute(
+      sql`update recreio.entitlements set starts_at=clock_timestamp()-interval '1 hour',ends_at=clock_timestamp()-interval '1 minute' where group_id=(select group_id from recreio.profiles where id=${autor.perfilId})`,
+    );
+    const a = await responderConviteDeVisita(autor, { conviteId: recibo.conviteId, acao }),
+      b = await responderConviteDeVisita(autor, { conviteId: recibo.conviteId, acao });
+    expect(a).toEqual(b);
+    expect(a.convite.estado).toBe(acao === "recusar" ? "declined" : "revoked");
+    expect(a.visita).toBeNull();
+  },
+);
+
+it("revogar visita aceita não encerra o anfitrião ou a partida do destinatário em outro mundo", async () => {
+  const c = await cenario(),
+    recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+  await responderConviteDeVisita(c.alvo, { conviteId: recibo.conviteId, acao: "aceitar" });
+  const outroMundo = await mundoDe(c.destino, OUTRO_JOGO),
+    outraSessao = await entrarNoJogo(c.destino, OUTRO_JOGO);
+  expect((await abrirPelaRota(outraSessao, outroMundo)).status).toBe(200);
+  const posse = await c.instancia.cliente.reivindicarPosse(outroMundo);
+  await c.instancia.cliente.verificarEntrada({
+    mundoId: outroMundo,
+    cerca: posse.cerca,
+    sid: outraSessao.sid,
+    perfilId: c.destino.perfil.id,
+  });
+  const resposta = await responderConviteDeVisita(c.autor, {
+    conviteId: recibo.conviteId,
+    acao: "revogar",
+  });
+  expect(resposta.convite.estado).toBe("accepted");
+  expect(resposta.visita?.estado).toBe("revoked");
+  expect((await db.select().from(games).where(eq(games.id, c.sessao.sid)))[0]?.endedAt).toBeNull();
+  expect(
+    (await db.select().from(games).where(eq(games.id, outraSessao.sid)))[0]?.endedAt,
+  ).toBeNull();
+  env.RECREIO_VISITS_MODE = "off";
+  expect(
+    await responderConviteDeVisita(c.alvo, { conviteId: recibo.conviteId, acao: "aceitar" }),
+  ).toEqual(resposta);
+});
+
+it("responsável sem jogador encerra a concessão do menor sem plano ou presença do outro", async () => {
+  const r = await menorConvidado();
+  await aprovarVisitaDoMenor(r.familia.autor, r.pedido);
+  await conceder({ email: r.familia.conta.email, tier: "family", dias: 30, motivo: "teste" });
+  await responderConviteDeVisita(r.familia.referencia, {
+    conviteId: r.recibo.conviteId,
+    acao: "aceitar",
+  });
+  await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.c.sessao.token });
+  await r.c.instancia.cliente.atestarPresenca({
+    mundoId: r.c.mundoId,
+    operacao: "sair",
+    cerca: r.c.posse.cerca,
+    presencaId: r.c.presenca.presencaId,
+  });
+  await db.execute(
+    sql`update recreio.entitlements set starts_at=clock_timestamp()-interval '1 hour',ends_at=clock_timestamp()-interval '1 minute' where group_id=(select group_id from recreio.profiles where id=${r.familia.perfil.id})`,
+  );
+  env.RECREIO_VISITS_MODE = "off";
+  env.RECREIO_SOCIAL_MODE = "off";
+  const entrada = { conviteId: r.recibo.conviteId, perfilId: r.familia.perfil.id, confirmo: true },
+    a = await encerrarVisitaDoMenor(r.familia.autor, entrada),
+    b = await encerrarVisitaDoMenor(r.familia.autor, entrada);
+  expect(a).toEqual(b);
+  expect(a.visita?.estado).toBe("revoked");
+  await expect(encerrarVisitaDoMenor(await nativo(r.c.origem), entrada)).rejects.toMatchObject({
+    code: "PEDIDO",
+  });
+});
+
+it.each(["aceite", "saida"] as const)(
+  "auditoria recusada reverte %s sem fabricar concessão ou encerramento",
+  async (tipo) => {
+    const c = await cenario(),
+      recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+    if (tipo === "saida")
+      await responderConviteDeVisita(c.alvo, { conviteId: recibo.conviteId, acao: "aceitar" });
+    await db.execute(
+      sql`create function audit.decisao_visita_teste() returns trigger language plpgsql as $$ begin if new.event_type in ('recreio.visit_invite_accepted','recreio.visit_closed') then raise exception 'audit unavailable'; end if; return new; end $$`,
+    );
+    await db.execute(
+      sql`create trigger decisao_visita_teste before insert on audit.events for each row execute function audit.decisao_visita_teste()`,
+    );
+    try {
+      await expect(
+        responderConviteDeVisita(c.alvo, {
+          conviteId: recibo.conviteId,
+          acao: tipo === "aceite" ? "aceitar" : "recusar",
+        }),
+      ).rejects.toBeInstanceOf(AuditPersistenceError);
+    } finally {
+      await db.execute(sql`drop trigger decisao_visita_teste on audit.events`);
+      await db.execute(sql`drop function audit.decisao_visita_teste()`);
+    }
+    expect(
+      (await db.select().from(invites).where(eq(invites.id, recibo.conviteId)))[0]?.state,
+    ).toBe(tipo === "aceite" ? "pending" : "accepted");
+    const concessoes = await db.select().from(visits).where(eq(visits.inviteId, recibo.conviteId));
+    expect(concessoes).toHaveLength(tipo === "aceite" ? 0 : 1);
+    if (tipo === "saida") expect(concessoes[0]?.state).toBe("active");
+  },
+);
 
 it("gestor sem plano aprova visita pendente com login próprio recente e um só evento", async () => {
   const r = await mundoPendente(),

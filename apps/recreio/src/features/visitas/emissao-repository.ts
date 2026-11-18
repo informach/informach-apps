@@ -8,12 +8,11 @@ import {
   recreioSpaceMembers as members,
   recreioSpaces as spaces,
 } from "@informach/db/schema";
-import { ErroDoRecreio, MundoIdSchema, podeConvidar } from "@informach/recreio";
+import { ErroDoRecreio, podeConvidar } from "@informach/recreio";
 import {
   CONVITES_DE_VISITA_PENDENTES_MAX,
   type NovoConviteDeVisita,
   RECIBOS_DE_VISITA_POR_PERFIL_MAX,
-  type ReciboDeConviteDeVisita,
 } from "@informach/recreio/contrato";
 import type { AutorDeMundos } from "@/features/autoridade-de-jogo/mundos-repository";
 import {
@@ -23,16 +22,9 @@ import {
 import { comJogadorSocial } from "@/features/social/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { comJogadorEAnfitriaoNaVisita } from "./contexto-repository";
+import { reciboDoConviteDeVisita as recibo } from "./recibos";
 
 type Convite = typeof invites.$inferSelect;
-const recibo = (convite: Convite, jogo: string): ReciboDeConviteDeVisita => ({
-  conviteId: convite.id,
-  mundoId: MundoIdSchema.parse(convite.spaceId),
-  jogo,
-  estado: convite.state,
-  criadoEm: convite.createdAt.toISOString(),
-  expiraEm: convite.expiresAt.toISOString(),
-});
 function hashDoPedido(autor: AutorDeMundos, pedido: NovoConviteDeVisita) {
   return createHash("sha256")
     .update("recreio:visit-invite:v1\n")

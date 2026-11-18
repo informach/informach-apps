@@ -24,9 +24,10 @@ nos oito gates `44230126377`, com 858 integrações e upgrades 179→201/191→2
 Negociação anterior `92c2010b` também passou nos oito gates. Retenção e índices
 `566c1d3a` passaram nos oito gates `44231363456`, com 864 integrações e upgrades
 179→202/191→202. Contexto `468008de` passou nos oito gates `44232334360`, com
-873 integrações. Emissão `fb75f103` passou em 892 integrações e sete gates;
-E2E em execução. Aprovações nativas de visita na candidata seguinte, sem
-concessão ou endpoint de visitante. Visitas e operação F5 permanecem pendentes. Migrations 0191–0201
+873 integrações. Emissão `fb75f103` concluiu os oito gates `44233704383`, com
+892 integrações; aprovações `42900ed9` concluíram os oito gates `44235115992`.
+Aceite/concessão e redução gratuita na candidata seguinte, sem admissão ou
+endpoint de visitante. Visitas e operação F5 permanecem pendentes. Migrations 0191–0201
 geradas no GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).

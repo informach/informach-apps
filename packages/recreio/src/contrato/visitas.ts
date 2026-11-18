@@ -33,3 +33,25 @@ export const AprovacaoDoMundoParaVisitaSchema = z.strictObject({
   confirmo: z.literal(true),
 });
 export type AprovacaoDoMundoParaVisita = z.infer<typeof AprovacaoDoMundoParaVisitaSchema>;
+export const RespostaAConviteDeVisitaSchema = z.strictObject({
+  conviteId: UuidSchema,
+  acao: z.enum(["aceitar", "recusar", "revogar"]),
+});
+/** Recibo da concessão, sem token ou garantia de admissão atual. */
+export const ReciboDeVisitaSchema = z.strictObject({
+  visitaId: UuidSchema,
+  mundoId: MundoIdSchema,
+  estado: z.enum(["active", "revoked", "expired"]),
+  expiraEm: z.iso.datetime(),
+});
+export type ReciboDeVisita = z.infer<typeof ReciboDeVisitaSchema>;
+export const ResultadoDaDecisaoDeVisitaSchema = z.strictObject({
+  convite: ReciboDeConviteDeVisitaSchema,
+  visita: ReciboDeVisitaSchema.nullable(),
+});
+export type ResultadoDaDecisaoDeVisita = z.infer<typeof ResultadoDaDecisaoDeVisitaSchema>;
+export const EncerramentoParentalDeVisitaSchema = z.strictObject({
+  conviteId: UuidSchema,
+  perfilId: PerfilIdSchema,
+  confirmo: z.literal(true),
+});

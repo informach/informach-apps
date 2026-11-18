@@ -458,3 +458,42 @@ mundo infantil, adulto alheio, versão/consentimento divergentes e dois
 rollbacks de auditoria. Amizade e aprovação social usam os serviços reais;
 papéis de gestão no mundo são fixtures SQL explícitas. Ainda sem concessão,
 entrada de visitante, interface ou rota pública. Gates desta candidata pendentes.
+
+Aprovações `42900ed9` concluíram os oito gates `44235115992`; emissão anterior
+`fb75f103` também concluiu os oito gates `44233704383`. A próxima candidata
+acrescenta aceite/concessão e redução, sem admissão de jogo.
+
+## Concessão e redução candidatas
+
+Aceite pertence ao destinatário atual, com cobertura de jogo, amizade,
+conteúdo, versões/gerações, decisões de mundo e de cada menor relidas junto
+do anfitrião/posse atuais. Cria `world_visits`, conserva prazo e presença
+originais e não cria membro ou SID. Uma concessão ativa por visitante/mundo;
+outra precisa ser encerrada antes. Vencida é expirada com evento estrito antes
+de nova concessão, na mesma transação. Aceite, concessão e auditoria revertem
+juntos se qualquer prova vencer ou a auditoria falhar.
+
+Provas parentais/de mundo usam o mesmo validador tipado dos convites de membro,
+com tabelas separadas; só a visita permite decisão direta de membro com
+`membersInvite=yes` sem participação opaca. O validador de visita também
+admite estado aceito para a futura revalidação contínua, sem mudar o leitor
+legado de membros. Retorno do aceite é recibo, sem token ou promessa de entrada.
+
+Revogação pela origem, recusa/saída pelo destinatário e redução do responsável
+atual por seu menor não exigem plano, amizade, presença da outra ponta ou modo
+habilitado. Não tomam autoridade da outra família. Conservam o fato de aceite
+e encerram só a concessão própria; até mundo excluído logicamente permite essa
+redução. Não encerram o anfitrião nem uma partida da pessoa em outro mundo.
+Repetição recupera o fato anterior, sem alongar/reabrir. Leitor mantém trava no
+recibo para não observar metade de expurgo; aceite sem concessão é falha
+operacional explícita, sem fabricar dados para dizer que houve sucesso.
+
+Vinte integrações candidatas cobrem concorrência/replay, protocolo legado
+recusando visitante, decisões/cobertura independentes, prova de gestão/política/
+aprovação/presença/bloqueio atual, destinatário correto, concessão anterior,
+redução gratuita, partida alheia preservada, proteção parental, expiração no
+commit, dois rollbacks de auditoria, inconsistência explícita, mundo excluído
+e ex-membro sem restauração. Role/histórico/inconsistência são fixtures SQL
+identificadas; não comprovam o fluxo de exclusão F7. SDK/HTTP, ponte de SID de
+visitante, abertura/renovação/checkpoint/encerramento na instância e interface
+ainda pendentes. Nenhuma visita de jogo é admitida por este incremento.
