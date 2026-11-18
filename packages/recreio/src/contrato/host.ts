@@ -312,7 +312,8 @@ export interface ClienteDoHostComPresencas extends ClienteDoHostComSalvamento {
   /**
    * Entrada somente após a conexão real do membro; saída ao desconectar.
    * Resposta é recibo técnico. Perder a resposta não autoriza repetir a conexão
-   * ou admitir visitantes; recuperação exige repetir explicitamente a mesma chave.
+   * ou admitir visitantes. Sem conexão, recuperar só por consultarPresenca e sair;
+   * repetir entrada com a mesma chave exige que a conexão ainda esteja viva.
    */
   atestarPresenca(
     pedido: AtestadoDePresenca & {

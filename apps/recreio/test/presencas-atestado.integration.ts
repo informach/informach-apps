@@ -17,6 +17,7 @@ import {
   type RenovacaoDePresenca,
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
+import { criarPresencaDaConexao } from "@informach/recreio/host";
 import { afterEach, expect, it, vi } from "vitest";
 import { comJogadorNoConvite } from "@/features/mundos/convites-dirigidos-contexto-repository";
 import { limparPresencasDeAnfitriao } from "@/features/presencas/retencao-repository";
@@ -190,6 +191,59 @@ async function cenario(jogo = OUTRO_JOGO, opcoes = { cliente: true, instancia: t
   return { jogador, mundoId, sessao, instancia, host, pedido, caminho, headers };
 }
 type Cenario = Awaited<ReturnType<typeof cenario>>;
+it.each(["tardia", "perdida"] as const)(
+  "produtor encerra presença real após resposta %s e desconexão, sem terminar o SID",
+  async (resposta) => {
+    const c = await cenario();
+    let conectado = true;
+    const { operacao: _operacao, ...pedido } = c.pedido;
+    const produtor = criarPresencaDaConexao({
+      entrada: { mundoId: c.mundoId, ...pedido },
+      estaConectado: () => conectado,
+      host: {
+        consultarPresenca: (p) => c.instancia.cliente.consultarPresenca(p),
+        async atestarPresenca(p) {
+          const recibo = await c.instancia.cliente.atestarPresenca(p);
+          if (p.operacao === "entrar") {
+            conectado = false;
+            env.RECREIO_VISITS_MODE = "off";
+            if (resposta === "perdida") throw new Error("Resposta HTTP descartada após commit");
+          }
+          return recibo;
+        },
+      },
+    });
+    if (resposta === "perdida")
+      await expect(produtor.atualizar()).rejects.toThrow("Resposta HTTP descartada após commit");
+    else await produtor.atualizar();
+    await produtor.encerrar();
+    expect(produtor.concluida).toBe(true);
+    expect(produtor.renovacao()).toBeNull();
+    const linhas = await db.select().from(presences).where(eq(presences.spaceId, c.mundoId));
+    expect(linhas).toHaveLength(1);
+    const linha = linhas[0];
+    if (!linha) throw new Error("Presença real ausente");
+    expect(linha).toMatchObject({
+      state: "closed",
+      closeReason: "left",
+      clientKey: pedido.chaveDeEntrada,
+    });
+    expect(
+      (await db.select().from(sessions).where(eq(sessions.id, c.sessao.sid)))[0]?.endedAt,
+    ).toBeNull();
+    expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+    expect(
+      (await eventosCom("presenceId", linha.id)).filter(
+        (e) => e.eventType === "recreio.host_presence_started",
+      ),
+    ).toHaveLength(1);
+    expect(
+      (await eventosCom("presenceId", linha.id)).filter(
+        (e) => e.eventType === "recreio.host_presence_closed",
+      ),
+    ).toHaveLength(1);
+  },
+);
 const entrar = (c: Cenario) => atestarPresenca(c.host, c.mundoId, c.pedido);
 const saida = (c: Cenario, presencaId: string) => ({
   operacao: "sair",

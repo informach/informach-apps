@@ -804,3 +804,31 @@ continuam usando seus transportes reais. Serve para observação de fatos e
 interface, sem alegar medição de latência do fetch do navegador. Referência:
 [Playwright: contexto HTTP isolado](https://playwright.dev/docs/api-testing#context-request-vs-global-request).
 Nova qualificação necessária.
+
+## Produtor de presença por conexão candidato
+
+`packages/recreio/src/host/presenca-da-conexao.ts` mantém uma única chave
+de entrada por conexão física já admitida. Não possui timers ou retry
+automático. Serializa atestados, conserva a intenção de sair durante uma
+resposta em voo e relê a conexão depois de consultar/atestar. Recuperar uma
+entrada incerta depois de desconectar usa apenas consulta e saída; ausência
+na consulta não encerra a pendência. Recibo fechado é terminal nesse produtor.
+Saída com resposta divergente ou sem prova continua pendente e propaga erro.
+
+O pedido de renovação só é exposto enquanto o socket/participação ainda está
+atual. O host deverá agrupá-los após renovar as posses, limitar pendências e
+manter as recuperações negativas depois da saída. O helper não admite
+visitantes e não substitui a conferência integral das APIs do Recreio.
+
+Regressões candidatas incluem desconexão durante a entrada, resposta perdida,
+consulta ausente seguida de commit tardio, tentativa de reabrir produtor
+encerrado e saída incerta. Duas integrações usam HTTP/rotas/PostgreSQL reais,
+descartando a resposta somente depois do commit para provar fechamento único,
+auditoria atômica e preservação do SID/membro. Runtime real, UI e jornadas
+de visita continuam pendentes. Sem migração adicional ou implantação.
+
+Próximos passos desse incremento: ligar o produtor ao servidor interno do
+contador e ao bit negociado no SDK; agrupar renovação após posse, fechar ao
+desconectar e recuperar pendências sem criar presença. Depois integrar entrada
+de visitante sem alocar mundo, prazo monotônico nos comandos e encerramento
+com persistência comprovada. Rodar os oito gates no GitHub a cada candidata.

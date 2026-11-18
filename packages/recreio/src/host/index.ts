@@ -15,5 +15,10 @@ export type {
 } from "../contrato/host";
 export type { SessaoVerificada, VerificadorDeSessao } from "../contrato/tokens";
 export { criarClienteDoHost, type OpcoesDoClienteDoHost } from "./cliente";
+export {
+  criarPresencaDaConexao,
+  type OpcoesDaPresencaDaConexao,
+  type PresencaDaConexao,
+} from "./presenca-da-conexao";
 export { prazoLocalDaVisita } from "./tempo-visita";
 export { criarVerificadorDeSessao, type OpcoesDoVerificador } from "./verificador";

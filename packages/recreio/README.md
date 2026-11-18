@@ -273,6 +273,23 @@ O relógio da plataforma falsa é manual (`avancar(ms)`), para testar vencimento
 
 A implementação real passa pela mesma suíte de `./testing/conformidade` que a falsa: `apps/recreio/test/conformidade.integration.ts` roda a suíte com o `criarClienteDoHost` chamando as rotas do app.
 
+## Presença física do anfitrião em homologação
+
+`criarPresencaDaConexao` no subpath `/host` representa uma conexão física já
+admitida. Recebe a chave estável dessa entrada e uma função que consulta o
+socket/participação atuais; relê essa função depois das esperas. O chamador
+mantém o produtor, chama `atualizar` no batimento e agrupa `renovacao()` em
+pedidos de até 64. Desconectar ou chamar `encerrar` impede qualquer nova
+atestação positiva nesse produtor, inclusive se a resposta anterior chegar
+depois. Resposta perdida é consultada pela chave original; `null` conserva
+a pendência, pois não prova que uma transação em voo não vá gravar.
+
+O recibo não é autorização de visitante nem confirmação de salvamento.
+Renovação perdida/expirada exige encerrar o produtor anterior antes de criar
+outro para uma conexão ainda real. O jogo não deve remover uma pendência
+incerta só porque o transporte falhou. Runtime e jornadas continuam em
+implementação; esse helper não ativa visitas no Morada.
+
 ## Preparação da responsabilidade com aceite
 
 O contrato de encerramento também reconhece `permissions_changed`. O host
