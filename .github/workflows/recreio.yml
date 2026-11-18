@@ -11,6 +11,10 @@ on:
         description: Homologar Checkout e webhook reais em modo de teste e banco descartável
         type: boolean
         default: false
+      sandbox_plans:
+        description: Homologar APIs de agenda, renovação, cancelamento e estorno com relógio de teste (sem Checkout nativo)
+        type: boolean
+        default: false
       sandbox_apply:
         description: Criar somente produtos/preços/portal Sandbox ausentes
         type: boolean
@@ -48,12 +52,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: recreio-${{ github.ref }}-${{ inputs.sandbox_journey && 'stripe-journey' || inputs.sandbox_catalog && 'stripe-catalog' || 'verification' }}
+  group: recreio-${{ github.ref }}-${{ inputs.sandbox_plans && 'stripe-plans' || inputs.sandbox_journey && 'stripe-journey' || inputs.sandbox_catalog && 'stripe-catalog' || 'verification' }}
   cancel-in-progress: true
 
 jobs:
   sandbox-catalog:
-    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_catalog && !inputs.sandbox_journey
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_catalog && !inputs.sandbox_journey && !inputs.sandbox_plans
     name: Recreio / catálogo Stripe Sandbox real
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -82,7 +86,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   sandbox-journey:
-    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_journey
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_journey && !inputs.sandbox_plans
     name: Recreio / jornada Stripe Sandbox real
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -142,8 +146,39 @@ jobs:
             ${{ runner.temp }}/recreio-stripe-local-catalog.json
           if-no-files-found: warn
           retention-days: 7
+  sandbox-plans:
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_plans
+    name: Recreio / APIs Stripe com relógio de teste
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
+      STRIPE_SECRET_KEY: ${{ secrets.RECREIO_STRIPE_SANDBOX_SECRET_KEY }}
+      STRIPE_EXPECTED_ACCOUNT: ${{ inputs.sandbox_account }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - run: pnpm --filter @informach/billing test -- src/__tests__/stripe-plans.test.ts src/__tests__/stripe-recreio-plans.test.ts
+      - name: Provar APIs e limpar apenas os recursos do próprio relógio
+        run: pnpm --filter @informach/recreio-app homologar:stripe-agendas
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recreio-stripe-provider-plans-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/recreio-stripe-provider-plans.json
+            ${{ runner.temp }}/recreio-stripe-plans-catalog.json
+          if-no-files-found: warn
+          retention-days: 7
   verify:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.sandbox_catalog && !inputs.sandbox_journey)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.sandbox_catalog && !inputs.sandbox_journey && !inputs.sandbox_plans)
     name: Recreio / ${{ matrix.gate }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
