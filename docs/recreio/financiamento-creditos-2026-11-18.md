@@ -170,3 +170,9 @@ os identificadores gerados têm até 58 bytes. Novos testes exercitam FKs de
 período/contrato/owner, ponteiro atual, fontes, duplicação, retenção e valores/
 datas inválidos. São fixtures de integridade SQL, sem alegar prova monetária
 ou autorização de acesso. Precisam da rodada remota desta fonte.
+
+`43b680fc`/`44408230466`: três cenários SQL e os testes financeiros anteriores
+passaram; o cenário de FK encontrou primeiro a chave única porque duas fixtures
+usavam o mesmo hash sintético. Cada fixture passa a gerar seu próprio hash;
+o teste conserva a exigência de erro de FK para verificar a proteção pretendida,
+em vez de aceitar uma recusa por outra constraint. Sem alteração da DDL.

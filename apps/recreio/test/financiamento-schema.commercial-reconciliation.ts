@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { db, eq, sql } from "@informach/db";
 import {
   recreioFundingCaptures as captures,
@@ -37,8 +37,9 @@ async function fixture() {
     .from(periods)
     .where(eq(periods.subscriptionId, contrato.subscriptionId));
   if (!periodo) throw new Error("Native paid period absent");
+  const observationId = randomUUID();
   const row = {
-    id: randomUUID(),
+    id: observationId,
     paymentPeriodId: periodo.id,
     subscriptionId: contrato.subscriptionId,
     provider: "stripe",
@@ -50,7 +51,7 @@ async function fixture() {
     fundingStatus: "verified",
     fundedUntil: periodo.periodEnd,
     policyVersion: "sql-funding-fixture-v1",
-    evidenceHash: "a".repeat(64),
+    evidenceHash: createHash("sha256").update(observationId).digest("hex"),
     firstObservedAt: new Date(),
   } satisfies typeof observations.$inferInsert;
   await db.insert(observations).values(row);
