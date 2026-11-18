@@ -25,6 +25,7 @@ import {
   emitirIngresso,
   renovarSessao,
   sairDaSessao,
+  sessaoDeJogoDoToken,
   trocarIngresso,
 } from "@/features/sessao-de-jogo/service";
 import {
@@ -33,6 +34,7 @@ import {
   pedirAmizade,
   protegerContato,
 } from "@/features/social/service";
+import { traduzirRecusaDeVisita } from "@/features/visitas/http";
 import { limparSessoesVisitantesOrfas } from "@/features/visitas/orfas-repository";
 import { mundoAtualDaVisita } from "@/features/visitas/pagina-repository";
 import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
@@ -55,6 +57,7 @@ import {
   cabecalhosDoHost,
   claimsDe,
   entrarNoJogo,
+  MORADA,
   mundoDe,
   novaInstancia,
   OUTRO_JOGO,
@@ -125,6 +128,62 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it.each(["emitir", "aceitar", "recusar", "revogar"] as const)(
+  "SDK de outro jogo não executa %s nem recupera recibo da visita",
+  async (operacao) => {
+    const c = await cenario(),
+      origem = operacao === "emitir" || operacao === "revogar";
+    if (origem) await sairDaSessao(c.host.token);
+    const outraPartida = await entrarNoJogo(origem ? c.origem : c.destino, MORADA),
+      autor = await sessaoDeJogoDoToken(outraPartida.token),
+      [convite] = await db.select().from(invites).where(eq(invites.id, c.convite.conviteId)),
+      [antes] = await db.select().from(visits).where(eq(visits.id, c.visitaId));
+    if (!convite || !antes) throw new Error("Recibo fixture ausente");
+    const pedido = {
+      mundoId: c.mundoId,
+      perfilId: c.destino.perfil.id,
+      presencaId: c.presenca.presencaId,
+      pedidoId: convite.clientKey,
+    };
+    const operacaoRemota =
+      operacao === "emitir"
+        ? emitirConviteDeVisita(autor, pedido)
+        : responderConviteDeVisita(autor, { conviteId: convite.id, acao: operacao });
+    await expect(operacaoRemota.catch(traduzirRecusaDeVisita)).rejects.toMatchObject({
+      codigo: operacao === "emitir" ? "SESSAO_INVALIDA" : "SEM_PERMISSAO",
+    });
+    expect((await db.select().from(invites).where(eq(invites.id, convite.id)))[0]).toEqual(convite);
+    expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]).toEqual(antes);
+    // O recibo próprio da conta continua disponível pela autoridade nativa.
+    if (operacao === "emitir")
+      expect(await emitirConviteDeVisita(c.autor, pedido)).toEqual({
+        ...c.convite,
+        estado: "accepted",
+      });
+    if (operacao === "aceitar")
+      expect(
+        (await responderConviteDeVisita(c.alvo, { conviteId: convite.id, acao: "aceitar" })).visita
+          ?.visitaId,
+      ).toBe(c.visitaId);
+    await sairDaSessao(outraPartida.token);
+    const mesmaPartida = await entrarNoJogo(origem ? c.origem : c.destino, OUTRO_JOGO),
+      mesmoJogo = await sessaoDeJogoDoToken(mesmaPartida.token);
+    if (operacao === "emitir")
+      expect(await emitirConviteDeVisita(mesmoJogo, pedido)).toEqual({
+        ...c.convite,
+        estado: "accepted",
+      });
+    else {
+      const resultado = await responderConviteDeVisita(mesmoJogo, {
+        conviteId: convite.id,
+        acao: operacao,
+      });
+      expect(resultado.convite.conviteId).toBe(convite.id);
+      expect(resultado.visita?.estado).toBe(operacao === "aceitar" ? "active" : "revoked");
+    }
+  },
+);
 
 it("prévia nativa confere concessão sem emitir SID, vínculo ou membro e sem revelar o anfitrião", async () => {
   const c = await cenario();

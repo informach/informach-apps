@@ -40,8 +40,11 @@ Vínculo preparado e guarda local `238610bd` passou nos oito gates
 nos oito gates `44254851686`, com 1010 integrações. Prévia `e8e7a38b` teve
 1016 integrações aprovadas e uma falha de fixture (`falha` em vez de `erro`
 na liberação de posse), também barrando tipos/builds. Corrigida na candidata
-atual junto à desistência antes de admissão por prova persistida, sem consumir
-a concessão ou inventar ACK. UI, jornada completa e operação F5 permanecem
+`065212cd` junto à desistência antes de admissão por prova persistida, sem
+consumir a concessão ou inventar ACK. Qualidade e 1021 integrações com upgrades
+179→204/191→204 aprovados em `44257846279`, E2E ainda em curso na consulta.
+Escopo do jogo do bearer na recuperação/redução de visitas é a candidata atual.
+UI, jornada completa e operação F5 permanecem
 pendentes. Migrations 0191–0203 geradas no
 GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).

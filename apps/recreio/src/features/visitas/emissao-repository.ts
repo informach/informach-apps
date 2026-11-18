@@ -48,7 +48,11 @@ export function recuperarTentativaDeVisita(autor: AutorDeMundos, pedido: NovoCon
       .from(invites)
       .innerJoin(spaces, eq(spaces.id, invites.spaceId))
       .where(
-        and(eq(invites.originProfileId, autor.perfilId), eq(invites.clientKey, pedido.pedidoId)),
+        and(
+          eq(invites.originProfileId, autor.perfilId),
+          eq(invites.clientKey, pedido.pedidoId),
+          "sid" in autor ? eq(spaces.gameId, autor.jogo) : undefined,
+        ),
       );
     return anterior
       ? conferirRecibo(

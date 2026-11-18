@@ -53,12 +53,17 @@ export function recuperarDecisaoConcluida(autor: AutorDeMundos, conviteId: strin
       "PEDIDO",
       "Convite não disponível.",
     );
-    if (convite.state === "pending") return null;
     const [mundo] = await tx
       .select({ jogo: spaces.gameId })
       .from(spaces)
       .where(eq(spaces.id, convite.spaceId));
     if (!mundo) throw new Error("Convite de visita sem mundo correspondente.");
+    assertAllowed(
+      !("sid" in autor) || mundo.jogo === autor.jogo,
+      "PEDIDO",
+      "Convite não disponível.",
+    );
+    if (convite.state === "pending") return null;
     return decisaoDaVisitaSobTrava(tx, convite, mundo.jogo);
   });
 }

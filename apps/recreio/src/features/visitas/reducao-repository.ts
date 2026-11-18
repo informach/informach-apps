@@ -16,12 +16,14 @@ import type { Transacao } from "@/lib/repository";
 import { type ConviteDeVisita, decisaoDaVisitaSobTrava } from "./resposta-repository";
 
 type Redutor = { perfilId: PerfilId; contaId: string | null; tipo: "jogador" | "responsavel" };
-async function travarMundoDoRecibo(tx: Transacao, pista: ConviteDeVisita) {
+async function travarMundoDoRecibo(tx: Transacao, pista: ConviteDeVisita, jogo?: string) {
   // Redução própria continua possível depois de arquivo/exclusão lógica do mundo.
   const [mundo] = await tx
     .select({ id: spaces.id })
     .from(spaces)
-    .where(eq(spaces.id, pista.spaceId))
+    .where(
+      and(eq(spaces.id, pista.spaceId), jogo === undefined ? undefined : eq(spaces.gameId, jogo)),
+    )
     .for("update");
   assertAllowed(mundo, "PEDIDO", "Convite não disponível.");
 }
@@ -147,7 +149,7 @@ export async function encerrarConviteDeVisitaNoBanco(
   assertAllowed(pista, "PEDIDO", "Convite não disponível.");
   return comConsultaSocialNoMundo(
     autor,
-    (tx) => travarMundoDoRecibo(tx, pista),
+    (tx) => travarMundoDoRecibo(tx, pista, "sid" in autor ? autor.jogo : undefined),
     (tx, ctx) =>
       reduzirSobTrava(
         tx,

@@ -1014,3 +1014,25 @@ de posse, cujo contrato é `erro`. Isso também bloqueou tipos/builds dos gates
 de navegador. A fixture foi corrigida no incremento atual; não foi alterado
 o contrato para acomodar o teste. Toda a candidata exige nova qualificação.
 Sem migração adicional ou implantação de produção.
+
+## Escopo do jogo nos recibos e reduções, candidato
+
+A revisão das APIs novas identificou que recuperar a emissão, recuperar um
+aceite concluído e reduzir uma visita exigiam o perfil próprio, mas ainda
+permitiam usar o bearer de outro jogo desse mesmo perfil. A candidata vincula
+essas operações também ao jogo do token. Recuperação de emissão filtra o jogo
+na consulta; recuperação de decisão confere antes de devolver inclusive a
+ausência de conclusão; redução confere ao travar o mundo, antes de gravar.
+Não acrescenta trava de mundo depois da de perfil na leitura de recibos.
+
+A autoridade nativa continua própria da conta/perfil ou responsável atuais,
+sem converter o bearer em autorização global. Quatro integrações usam tokens
+reais de outro jogo para provar recusa de emissão/replay, aceite, recusa e
+revogação com recibo/concessão intactos. Conferem também recuperação nativa e
+operação válida com token do mesmo jogo; nenhuma negativa é tomada como
+sucesso operacional. Esses endpoints de visita ainda não foram publicados.
+
+Desistência/prévia corrigidas `065212cd` têm qualidade e 1021 integrações
+aprovadas em `44257846279`, incluindo preservação 179→204/191→204. E2E ainda
+em curso na última consulta. A correção de escopo exige nova rodada completa.
+Sem migração adicional ou implantação de produção.
