@@ -21,9 +21,10 @@ import { adultoDoTeste } from "./teste-apoio";
 export async function fixtureDeCheckout(
   extensao?: (request: Request) => Promise<Response | null>,
   comJogador = false,
+  produtoId = "recreio_individual_monthly",
 ) {
   const adulto = await adultoDoTeste(comJogador);
-  const pedido = pedidoDaCompra();
+  const pedido = pedidoDaCompra(produtoId);
   const recibo = await prepararMinhaCompra(adulto.autor, pedido);
   const sessions: {
     id: string;

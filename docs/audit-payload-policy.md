@@ -16,6 +16,14 @@
 
 Preferir sempre identificadores e estado transacional:
 
+`recreio.plan_change_quoted`, `recreio.plan_change_accepted` e
+`recreio.plan_change_closed` registram apenas `app`, `groupId`, `planChangeId`,
+`subscriptionId` interno quando necessário, `revision` e `state`. O ator fica
+no campo próprio. Valores, seleção de perfis e termos financeiros permanecem
+no recibo comercial; não duplicar nomes, datas de nascimento, dados de cartão,
+respostas do provedor ou URLs financeiras na auditoria. Fechar uma cotação
+sem tentativa não comprova cancelamento de uma operação enviada.
+
 - IDs internos: `userId`, `organizationId`, `sessionId`, `subscriptionId`, `invoiceId`, `deliveryId`, `messageKey`.
 - Classificadores: `category`, `status`, `role`, `reason`, `classification`, `providerEvent`, `source`.
 - Chaves de correlação de provider quando não forem secretas: `providerMessageId`, `stripeEventId`, `checkoutSessionId`.

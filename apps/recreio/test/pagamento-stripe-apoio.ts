@@ -91,35 +91,42 @@ function dados(f: Checkout) {
 /** SDK and PG are real; all remote financial responses remain inside fixture
  * HTTP. No payment is sent to Stripe and no sandbox settlement is claimed.
  */
-export async function fixtureDePagamento(comJogador = false) {
+export async function fixtureDePagamento(
+  comJogador = false,
+  produtoId = "recreio_individual_monthly",
+) {
   let financeiro: ReturnType<typeof dados> | null = null;
   let indisponivel = false;
   const list = (data: unknown[]) => ({ object: "list", data, has_more: false, url: "/fixture" });
-  const f: Checkout = await fixtureDeCheckout(async (request) => {
-    if (request.method !== "GET") return null;
-    const url = new URL(request.url);
-    let resposta: unknown;
-    if (url.pathname === "/v1/subscriptions") {
-      expect(url.searchParams.get("customer")).toBe(f.providerCustomerId);
-      if (indisponivel) throw new TypeError("Fixture financial provider unavailable");
-      resposta = list(financeiro ? [financeiro.assinatura] : []);
-    } else if (financeiro && url.pathname === `/v1/subscriptions/${financeiro.assinatura.id}`) {
-      if (indisponivel) throw new TypeError("Fixture financial provider unavailable");
-      resposta = financeiro.assinatura;
-    } else if (financeiro && url.pathname === "/v1/invoices") {
-      expect(url.searchParams.get("subscription")).toBe(financeiro.assinatura.id);
-      resposta = list(financeiro.pago ? [financeiro.fatura] : []);
-    } else if (financeiro && url.pathname === "/v1/invoice_payments") {
-      expect(url.searchParams.get("invoice")).toBe(financeiro.fatura.id);
-      resposta = list([financeiro.alocacao]);
-    } else if (financeiro && url.pathname === `/v1/payment_intents/${financeiro.pagamento.id}`)
-      resposta = financeiro.pagamento;
-    else if (financeiro && url.pathname === `/v1/invoices/${financeiro.fatura.id}/lines`)
-      resposta = list([financeiro.linha]);
-    else if (financeiro && url.pathname === "/v1/disputes") resposta = list(financeiro.disputas);
-    else return null;
-    return Response.json(resposta, { headers: { "request-id": "req_financial_fixture" } });
-  }, comJogador);
+  const f: Checkout = await fixtureDeCheckout(
+    async (request) => {
+      if (request.method !== "GET") return null;
+      const url = new URL(request.url);
+      let resposta: unknown;
+      if (url.pathname === "/v1/subscriptions") {
+        expect(url.searchParams.get("customer")).toBe(f.providerCustomerId);
+        if (indisponivel) throw new TypeError("Fixture financial provider unavailable");
+        resposta = list(financeiro ? [financeiro.assinatura] : []);
+      } else if (financeiro && url.pathname === `/v1/subscriptions/${financeiro.assinatura.id}`) {
+        if (indisponivel) throw new TypeError("Fixture financial provider unavailable");
+        resposta = financeiro.assinatura;
+      } else if (financeiro && url.pathname === "/v1/invoices") {
+        expect(url.searchParams.get("subscription")).toBe(financeiro.assinatura.id);
+        resposta = list(financeiro.pago ? [financeiro.fatura] : []);
+      } else if (financeiro && url.pathname === "/v1/invoice_payments") {
+        expect(url.searchParams.get("invoice")).toBe(financeiro.fatura.id);
+        resposta = list([financeiro.alocacao]);
+      } else if (financeiro && url.pathname === `/v1/payment_intents/${financeiro.pagamento.id}`)
+        resposta = financeiro.pagamento;
+      else if (financeiro && url.pathname === `/v1/invoices/${financeiro.fatura.id}/lines`)
+        resposta = list([financeiro.linha]);
+      else if (financeiro && url.pathname === "/v1/disputes") resposta = list(financeiro.disputas);
+      else return null;
+      return Response.json(resposta, { headers: { "request-id": "req_financial_fixture" } });
+    },
+    comJogador,
+    produtoId,
+  );
   const find = f.provider.findCheckoutSession;
   if (!find) throw new Error("Fixture Stripe provider lacks Checkout reads");
   const runtimeFinanceiro: RuntimeDeConciliacao = {

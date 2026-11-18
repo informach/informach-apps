@@ -10,6 +10,21 @@ import {
 import { decidirComCobertura, tierDoProduto } from "./cobertura";
 import type { AssinaturaLida, FatosDoGrupo, FatosLidos } from "./repository";
 
+/** Financial proof independent of courtesy coverage or the existence of a player. */
+export function limiteFinanceiroDaAssinatura(lida: AssinaturaLida, agora: Date) {
+  return limiteDoPagamentoConciliado(
+    {
+      ...lida.financeiro,
+      status: lida.status,
+      inicioDoPeriodo: lida.inicioDoPeriodo,
+      fimDoPeriodo: lida.fimDoPeriodo,
+      fimDoTeste: lida.fimDoTeste,
+      cancelaEm: lida.cancelaEm,
+    },
+    agora,
+  );
+}
+
 function assinaturaDoGrupo(lida: AssinaturaLida | null, agora: Date): AssinaturaDoGrupo | null {
   if (!lida) return null;
   const produto = PRODUCTS.find((item) => item.app === "recreio" && item.id === lida.productId);
@@ -21,17 +36,7 @@ function assinaturaDoGrupo(lida: AssinaturaLida | null, agora: Date): Assinatura
       tier,
       inicioDoPeriodo: lida.inicioDoPeriodo,
       fimDoPeriodo: lida.fimDoPeriodo,
-      pagamentoConfirmadoAte: limiteDoPagamentoConciliado(
-        {
-          ...lida.financeiro,
-          status: lida.status,
-          inicioDoPeriodo: lida.inicioDoPeriodo,
-          fimDoPeriodo: lida.fimDoPeriodo,
-          fimDoTeste: lida.fimDoTeste,
-          cancelaEm: lida.cancelaEm,
-        },
-        agora,
-      ),
+      pagamentoConfirmadoAte: limiteFinanceiroDaAssinatura(lida, agora),
       fimDoTeste: lida.fimDoTeste,
       cancelaEm: lida.cancelaEm,
     }
