@@ -97,3 +97,16 @@ reabre o mesmo mundo pelos dois jogadores. Não insere membros, convites ou
 aprovações por SQL. Captura mobile está na allowlist do workflow. Os gates
 dessa candidata ainda precisam executar; visitas e homologação F5 permanecem
 abertas.
+
+Jornada `3680d2f15f26301187134842ce0d95c401e9449f` aprovada nos oito gates
+`44220010016`: 785 integrações/84 arquivos, cinco testes administrativos,
+upgrades 179→198/191→198 e 38 E2E. A jornada nova executou em 34 segundos,
+contra a instância real do contador: responsável sem jogador propôs, adulto
+aceitou pelo próprio login e ambos os jogadores reabriram com o progresso.
+
+Captura `sucessao-menor-mobile.png` (87741 bytes) conferida visualmente em
+390 px: pessoa escolhida, consequência e confirmação legíveis, sem corte
+horizontal. Artefato `14390718509`, fonte `3680d2f1`, ZIP SHA-256
+`ee7458d13121e0a71f9aba7362751aee2bf770fc30c40c06169d4d3a02ac664e`.
+Esse aceite de código/CI não é implantação ou homologação comercial; F5
+continua com visitas e operação pendentes.

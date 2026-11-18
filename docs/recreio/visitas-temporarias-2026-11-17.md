@@ -67,3 +67,27 @@ posses ou membros referenciados. As colunas não concedem acesso por si só.
 
 Nenhuma tabela desta fundação foi criada em produção. F6–F11 continuam com
 seus próprios critérios; os gates desta frente não encerram a plataforma.
+
+## Geração conferida da presença
+
+Run `44221393949`, fonte `62150c6e6dd2cabec4518915c7e28723a2c82a95`, artefato
+`14390189204`; ZIP SHA-256
+`35bd94cc12d21819f970654ee5609a3581c19e7b64330d71632666474c73e908`.
+SQL somente aditivo, FKs sobre constraints/índices únicos já existentes,
+nomes explícitos curtos e CHECK de encerramento com NULL recusado. Prefixo
+do journal e predecessor do snapshot conferidos; cópia intacta por bytes/SHA:
+
+- `0198_skinny_captain_britain.sql`: 4660 bytes,
+  `4aa7976f1d8f08a9c0aad9edb68f44e235e491e4fe86f951a4e4310d779a77a8`.
+- Snapshot: 888950 bytes,
+  `5a30bcdc995fdd072bcb672cde5d99080dcb618bcf9ad2d4f946bbd0779b98ea`.
+- Journal: 30079 bytes,
+  `aa040b62e4cf6cd3f812c66042d42f4513081864f3bfe18c734c4f37dc21755a`.
+
+Dezesseis integrações candidatas criam sessão/mundo/posse/entrada pelas APIs
+reais e exercitam FKs, não duplicação, disputa de presença ativa, encerramento
+com campos NULL, TTL/janela/retenção, hash e nova identidade após encerrar.
+A inserção de teste da presença é direta no PostgreSQL: ainda não comprova
+atestado por servidor, visita, renovação, revogação ou funcionamento de tela.
+Esses testes ainda precisam executar no GitHub. Journal candidato com 199
+entradas; nenhuma alteração operacional ou migration foi aplicada em produção.

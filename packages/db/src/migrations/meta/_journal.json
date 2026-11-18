@@ -1387,6 +1387,13 @@
       "when": 1794966343743,
       "tag": "0197_loving_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 198,
+      "version": "7",
+      "when": 1794967916613,
+      "tag": "0198_skinny_captain_britain",
+      "breakpoints": true
     }
   ]
 }
