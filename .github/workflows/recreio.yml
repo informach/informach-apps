@@ -67,6 +67,7 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
       - run: pnpm --filter @informach/recreio-app exec tsx scripts/sandbox-catalogo.ts
         env:
           RECREIO_SANDBOX_RECEIPT_PATH: ${{ runner.temp }}/recreio-stripe-sandbox.json
