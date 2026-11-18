@@ -11,6 +11,7 @@ import { conferirCatalogoDoRecreio, produtosDoRecreio } from "@/features/cobranc
 import { emailDoPagante } from "@/features/cobranca/clientes-repository";
 import type { RuntimeDeConciliacao } from "@/features/cobranca/conciliacao-runtime";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
+import type { RuntimeDoWebhook } from "@/features/cobranca/webhook-service";
 import { env } from "./env";
 import { assertAllowed } from "./errors";
 import { packageLogger } from "./observability";
@@ -110,4 +111,13 @@ export function getRuntimeDaConciliacao(): RuntimeDeConciliacao {
   const lerCheckout = provider.findCheckoutSession;
   assertAllowed(lerCheckout, "INDISPONIVEL", "A conferência financeira não está disponível.");
   return { modo: "dev", produtos, leitor, conferirCatalogo, lerCheckout };
+}
+
+export function getRuntimeDoWebhook(): RuntimeDoWebhook {
+  const { provider, leitor } = getComposicao();
+  return {
+    modo: "dev",
+    verificar: provider.verifyWebhookSignature,
+    clienteDoEvento: leitor.eventCustomerId,
+  };
 }

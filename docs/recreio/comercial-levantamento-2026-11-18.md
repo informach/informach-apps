@@ -55,6 +55,16 @@ autenticação e modo desligado; jornada financeira usa dois pagantes reais no
 banco e dois transportes Stripe fechados para provar sucesso parcial sem ocultar
 a falha. Ainda aguarda qualificação e configuração do cron, sem implantação.
 
+A candidata de webhook recebe corpo original limitado a 1 MiB, confere a
+assinatura Stripe, modo, recurso e cliente Recreio antes da admissão. Usa recibo
+mínimo no billing sob escopo nativo por modo, sem payload bruto ou dados fiscais,
+com fila, auditoria e corte das SIDs na mesma transação. Notificação positiva
+nunca projeta assinatura ou confirma fatura; adversa mantém revisão até leitura
+completa. Duplicata não corta acesso recuperado; falha de auditoria reverte
+também o recibo, permitindo nova entrega. Seis jornadas com HMAC real do SDK,
+PostgreSQL e transporte fechado estão em qualificação. Não são prova de entrega
+externa Stripe, e o endpoint não foi configurado no provedor ou em produção.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

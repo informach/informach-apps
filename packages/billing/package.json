@@ -38,7 +38,8 @@
     "./sweepers": "./src/sweepers.ts",
     "./webhooks": "./src/webhooks/index.ts",
     "./payment-facts": "./src/payment-facts.ts",
-    "./user-payment-snapshots": "./src/user-payment-snapshots.ts"
+    "./user-payment-snapshots": "./src/user-payment-snapshots.ts",
+    "./user-provider-events": "./src/user-provider-events.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

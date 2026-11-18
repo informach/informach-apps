@@ -306,12 +306,14 @@ export function createStripePaymentFactReader(config: {
         return object.customer.id;
       if ("charge" in object && typeof object.charge === "string") {
         const charge = await stripe.charges.retrieve(object.charge);
+        conferirModo(charge);
         return typeof charge.customer === "string"
           ? charge.customer
           : (charge.customer?.id ?? null);
       }
       if ("payment_intent" in object && typeof object.payment_intent === "string") {
         const payment = await stripe.paymentIntents.retrieve(object.payment_intent);
+        conferirModo(payment);
         return typeof payment.customer === "string"
           ? payment.customer
           : (payment.customer?.id ?? null);

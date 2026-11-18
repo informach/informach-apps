@@ -131,6 +131,13 @@ Não registrar dados fiscais, períodos completos, valores, corpos do provedor,
 e-mail ou URLs. Confirmação financeira, estado e corte das SIDs compartilham
 a transação; uma tentativa falha não atualiza a última confirmação.
 
+`recreio.billing_provider_event_received` registra somente `app`, `groupId`,
+`providerMode`, `receiptId`, `eventType` e `adverse`, com ator técnico nulo,
+na mesma transação da fila e do corte de acesso. O recibo mínimo no domínio
+billing usa chave `recreio-native:<modo>:<evento>`, sem corpo bruto, assinatura,
+dados fiscais ou contato. Notificação positiva agenda leitura completa; não
+confirma pagamento. Replay admitido não suspende uma conta já recuperada.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/
