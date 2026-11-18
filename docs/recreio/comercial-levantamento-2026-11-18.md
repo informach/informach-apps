@@ -121,6 +121,14 @@ metadados ausentes e modo alheio em contrato/fatura. Três provas SQL adicionais
 cobrem vínculo sem tentativa, expiração incompatível e duplicidade de assinatura.
 Ainda aguardam gates; webhook, conciliação e admissão por pagamento seguem abertos.
 
+CI compartilhado `44303897143`/`4f735856` passou os consumidores anteriores e a
+integração comum do Recreio, mas falhou no `trial-setup`: três etapas novas não
+tinham o override de `DATABASE_URL` e usaram PG 16/5432 em vez do PG 18/5433 já
+provisionado. Cada etapa passa a apontar explicitamente ao serviço próprio;
+o teste negativo de PG 16 permanece e nenhum timeout é removido. Contrato do
+limite em [PostgreSQL 17](https://www.postgresql.org/docs/17/runtime-config-client.html#GUC-TRANSACTION-TIMEOUT).
+O CI antigo não é aprovação integral; a configuração corrigida exige nova execução.
+
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não
   atualiza confirmação. A fila precisa atender outros pagantes após uma falha.
