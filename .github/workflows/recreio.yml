@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, trial-setup, trial-experiment, trial-ui, e2e, checkpoint, cliente, longa, versoes, equipe]
+        gate: [quality, integration, trial-setup, trial-experiment, trial-ui, trial-play, e2e, checkpoint, cliente, longa, versoes, equipe]
     services:
       postgres:
         image: postgres:18-alpine
@@ -115,7 +115,7 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
@@ -123,6 +123,8 @@ jobs:
         run: pnpm --filter @informach/recreio-app e2e:equipe
       - if: matrix.gate == 'trial-ui'
         run: pnpm --filter @informach/recreio-app e2e:trial-setup
+      - if: matrix.gate == 'trial-play'
+        run: pnpm --filter @informach/recreio-app e2e:trial-experiment
       - if: matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
         env:
@@ -224,6 +226,16 @@ jobs:
           path: |
             apps/recreio/tmp/telas/teste-consentimento-mobile.png
             apps/recreio/tmp/telas/teste-recibo-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic first-session screens
+        if: always() && matrix.gate == 'trial-play'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-teste-inicio-telas-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/teste-mundo-preparado-mobile.png
+            apps/recreio/tmp/telas/teste-primeira-sessao-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic staff queue screen

@@ -9,9 +9,9 @@ ensaio pago ou venda. F5 foi implantado com recursos desligados em `d014bd90`,
 
 `2a8fa076` passou nos nove gates `44285538484`, incluindo consentimento nativo
 e retirada, modos reais `off`/`setup`, integridade SQL e regressões. A interface
-`0523217f`, `44289414523`, acrescenta página própria sem exigir jogador; seu
-gate `trial-ui` passou com duas contas, recarga, retirada e ausência de perfil,
-concessão, SID ou claim. Outros gates dessa fonte ainda em andamento.
+`0523217f`, `44289414523`, acrescenta página própria sem exigir jogador e passou
+nos dez gates. `trial-ui` comprovou duas contas, recarga, retirada e ausência de
+perfil, concessão, SID ou claim.
 
 A candidata seguinte acrescenta ingresso elegível distinto de gameplay e
 início da concessão apenas na abertura transacional da primeira SID. O ciclo
@@ -19,7 +19,23 @@ financeiro precede contas → grupo → perfil → aparelho; não se autentica o
 pagante por representação. O savepoint reverte a concessão também nas recusas
 retornadas pelo kernel. Recibo/auditoria só são inseridos depois da SID real.
 Gate próprio `trial-experiment` cobre o modo real, sem ligar teste nos testes
-antigos de falta de acesso. As novas provas ainda precisam ser executadas.
+antigos de falta de acesso. As nove provas passaram em `90310297`; a compilação
+rejeitou o alargamento de `cohort` para string. O retorno foi tipado com a união
+fechada, sem cast. O primeiro ensaio `4d1c65a6` também encontrou duas fixtures
+incorretas: chave UUID no lugar de 32 bytes base64url e lookup do catálogo
+sintético ainda fechado no array original. Ambas foram corrigidas, preservando
+as validações reais. `4d1c65a6`/`90310297`/`96bebae0` tiveram as execuções
+substituídas canceladas; não são fontes integralmente aprovadas.
+`7865be4f`, `44291557541`, repete as nove provas com sucesso; outros gates em curso.
+
+A etapa seguinte fecha a preparação do mundo antes da primeira sessão: prévia,
+criação e leitura do próprio mundo podem usar a elegibilidade consentida sem
+concessão, claim ou cronômetro. Convites, participação em outro mundo e chamadas
+do SDK permanecem no kernel completo. As travas de mundo/criador continuam antes
+do perfil. A estante distingue essa preparação do acesso já concedido.
+Uma prova adicional de servidor e a jornada `trial-play` com o contador físico
+cobrem preparar → abrir SID → jogar → salvar → reabrir, sem reiniciar o teste.
+Essas novas provas ainda precisam executar; não comprovam diversão do Morada.
 F6 não foi implantado; não houve teste gratuito ou cobrança em produção.
 
 ## Contratos confirmados

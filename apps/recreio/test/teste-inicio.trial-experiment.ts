@@ -13,7 +13,14 @@ import {
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it, vi } from "vitest";
 import { avaliarAcesso } from "@/features/acesso/service";
+import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
+import {
+  criarConvite,
+  criarMundo,
+  detalheAtualDoMundo,
+  listarMundos,
+} from "@/features/mundos/service";
 import { consultarSupervisao, salvarSupervisao } from "@/features/politicas/service";
 import {
   aprovarPareamento,
@@ -70,6 +77,34 @@ async function preparado() {
 }
 
 describe("início real, único e atômico do teste", () => {
+  it("preparar o próprio mundo não inicia teste e não concede autoridade para convite", async () => {
+    const p = await preparado();
+    const autor = {
+      perfilId: p.jogador.perfil.id,
+      sessaoDeAparelhoId: p.autor.sessaoDeAparelhoId,
+      jogo: "morada",
+    };
+    expect(await conferirAberturaDoJogo(autor, autor.jogo)).toBe(true);
+    const mundo = await criarMundo(autor, { nome: "Mundo antes do teste" });
+    expect(await listarMundos(autor)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: mundo.id })]),
+    );
+    expect(await detalheAtualDoMundo(autor, autor.jogo, mundo.id)).toMatchObject({ id: mundo.id });
+    expect(await estado(p)).toEqual({ claims: [], grants: [] });
+    expect(await avaliarAcesso({ profileId: p.jogador.perfil.id })).toMatchObject({
+      podeJogar: false,
+    });
+    await expect(criarConvite(autor, mundo.id, { forma: "member" })).rejects.toMatchObject({
+      codigo: "ACESSO_NEGADO",
+    });
+    await retirarConsentimentoDoTeste(p.autor, p.consentimento.id);
+    expect(await conferirAberturaDoJogo(autor, autor.jogo)).toBe(false);
+    await expect(criarMundo(autor, { nome: "Outra casa" })).rejects.toMatchObject({
+      codigo: "ACESSO_NEGADO",
+    });
+    expect(await estado(p)).toEqual({ claims: [], grants: [] });
+  });
+
   it("consentimento e ingresso não começam prazo; a primeira SID fixa a coorte e o replay não a estende", async () => {
     const p = await preparado();
     expect(await estado(p)).toEqual({ claims: [], grants: [] });

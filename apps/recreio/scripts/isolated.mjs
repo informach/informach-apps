@@ -26,20 +26,22 @@ if (
     "trial-setup",
     "trial-experiment",
     "e2e-trial-setup",
+    "e2e-trial-experiment",
     "e2e",
     "versoes",
     "equipe",
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, trial-setup, trial-experiment, e2e-trial-setup, e2e, versoes or equipe",
+    "Choose integration, trial-setup, trial-experiment, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const trialExperiment = mode === "trial-experiment";
 const jornadaDoTeste = mode === "e2e-trial-setup";
+const jornadaDoInicio = mode === "e2e-trial-experiment";
 const versoes = mode === "versoes";
 const equipe = mode === "equipe";
-const e2e = mode === "e2e" || versoes || equipe || jornadaDoTeste;
+const e2e = mode === "e2e" || versoes || equipe || jornadaDoTeste || jornadaDoInicio;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -115,11 +117,12 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
-  RECREIO_TRIAL_MODE: trialExperiment
-    ? "experiment"
-    : trialSetup || jornadaDoTeste
-      ? "setup"
-      : "off",
+  RECREIO_TRIAL_MODE:
+    trialExperiment || jornadaDoInicio
+      ? "experiment"
+      : trialSetup || jornadaDoTeste
+        ? "setup"
+        : "off",
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
   RECREIO_VISITS_MODE: "on",
@@ -201,7 +204,7 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
-    if (!versoes && !equipe && !jornadaDoTeste)
+    if (!versoes && !equipe && !jornadaDoTeste && !jornadaDoInicio)
       run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
     // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
@@ -236,6 +239,7 @@ try {
           "test",
           ...(equipe ? ["--config", "playwright.equipe.config.ts"] : []),
           ...(jornadaDoTeste ? ["--config", "playwright.teste.config.ts"] : []),
+          ...(jornadaDoInicio ? ["--config", "playwright.teste-inicio.config.ts"] : []),
           ...process.argv.slice(3),
         ],
         app,

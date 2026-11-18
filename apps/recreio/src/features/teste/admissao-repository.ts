@@ -43,6 +43,7 @@ export type CapacidadeProvisoriaDeIngresso = {
 async function comPreparacao<T>(
   referencia: Referencia,
   executar: (tx: Transacao, preparacao: Preparacao | null) => Promise<Resultado<T>>,
+  antesDoPerfil?: (tx: Transacao) => Promise<void>,
 ): Promise<Resultado<T>> {
   if (env.RECREIO_TRIAL_MODE !== "experiment") return db.transaction((tx) => executar(tx, null));
   const pista = await pistaDoGrupoDoTeste(referencia);
@@ -56,6 +57,7 @@ async function comPreparacao<T>(
       const identidade = await prepararIdentidadeDoJogo(tx, referencia, async (t, contaId) => {
         preparacao.pagante = await travarGrupoDoTeste(t, referencia, pista, contaId);
       });
+      await antesDoPerfil?.(tx);
       const antesDoAparelho = (t: Transacao) =>
         travar(t, `recreio:game_sessions:perfil:${referencia.perfilId}`);
       const contexto = await admitirAparelhoAtual(tx, referencia, identidade, antesDoAparelho);
@@ -110,6 +112,44 @@ export function comIngressoParaTeste<T>(
         : null,
     ),
   );
+}
+
+/** Preparação limitada de mundo: não concede gameplay, não grava claim e não
+ * inicia prazo. Só os serviços de criar/listar/consultar mundo usam este contexto.
+ * Convites, participação, dados e instâncias continuam exigindo acesso pleno.
+ */
+export async function comPreparacaoDeMundo<T>(
+  referencia: Referencia,
+  antesDoPerfil: (tx: Transacao) => Promise<void>,
+  executar: (tx: Transacao, contexto: Contexto) => Promise<T>,
+): Promise<T> {
+  const resultado = await comPreparacao<T>(
+    referencia,
+    async (tx, preparacao) => {
+      await tx.execute(sql`set local transaction_timeout='15s'`);
+      await tx.execute(sql`set local statement_timeout='5s'`);
+      await tx.execute(sql`set local lock_timeout='2s'`);
+      let contexto: Contexto;
+      if (preparacao) contexto = preparacao.contexto;
+      else {
+        const identidade = await prepararIdentidadeDoJogo(tx, referencia);
+        await antesDoPerfil(tx);
+        const atual = await admitirAparelhoDeJogo(tx, referencia, identidade, async () => {});
+        if (!atual.admitida) return atual;
+        contexto = atual;
+      }
+      const valor = await executar(tx, contexto);
+      await contexto.conferirPrazo();
+      return { admitida: true, valor };
+    },
+    antesDoPerfil,
+  );
+  if (!resultado.admitida) {
+    if (resultado.erro.codigo === "ACESSO_PERDIDO")
+      throw new ErroDoRecreio("ACESSO_NEGADO", resultado.erro.detalhe);
+    throw resultado.erro;
+  }
+  return resultado.valor;
 }
 
 class TesteNaoIniciado extends Error {
