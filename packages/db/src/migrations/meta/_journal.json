@@ -1429,6 +1429,13 @@
       "when": 1794979715727,
       "tag": "0203_demonic_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 204,
+      "version": "7",
+      "when": 1794995817059,
+      "tag": "0204_nappy_jasper_sitwell",
+      "breakpoints": true
     }
   ]
 }

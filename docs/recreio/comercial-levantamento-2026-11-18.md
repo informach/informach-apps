@@ -97,6 +97,23 @@ a chave referenciada antes da FK. A correção gera primeiro somente a identidad
 única e depois, sobre esse snapshot, a tabela do recibo. Não editar SQL gerado
 para inverter instruções; nenhum desses artefatos foi aplicado em produção.
 
+A geração somente da identidade foi revisada em `44280590355`, fonte
+`4ad92e70`, artefato `14416199335`: ZIP 63719 bytes/SHA-256
+`5b5dd412050451d5bfae8b0e698b9b3c6699a3ec9b3ec1258bfdcb86941a0810`.
+Copiados intactos após conferir origem, cada tamanho/hash, predecessor do
+snapshot e prefixo inteiro do journal:
+
+- `0204_nappy_jasper_sitwell.sql`: 149 bytes,
+  `ce61b915b186970f3772197e2890a3ce9b30f2951dda51bd7b3b772e9e845643`.
+- `0204_snapshot.json`: 931446 bytes,
+  `4d37e66a39460a914f02e737a6147d738b2f0f7e23299c03b8a5be9c1dcaad6b`.
+- `_journal.json`: 30966 bytes,
+  `54ef96a569a9437fe6bc025ca600353ac9566532174ab09a957b58a8282a1eaf`.
+
+0204 acrescenta somente a UNIQUE, sem DML/backfill. A tabela do recibo agora
+volta ao schema para gerar 0205 sobre esse predecessor. Ainda exige os gates
+de upgrade e execução; sem migration ou concessão de teste em produção.
+
 1. Prazo finito: candidata `4a46a3dd`, oito gates de Recreio aprovados em
    `44276622593`; o CI compartilhado do catálogo seguinte também cobre os
    testes puros. Não implantada.
