@@ -115,7 +115,7 @@ export async function fixtureDeCheckout() {
       resposta = sessions.find((s) => s.id === url.pathname.split("/").pop());
     } else if (request.method === "POST" && url.pathname === "/v1/checkout/sessions") {
       const body = new URLSearchParams(await request.text());
-      const id = `cs_test_${sessions.length + 1}_native`;
+      const id = `cs_test_${recibo.id.replaceAll("-", "")}_${sessions.length + 1}_native`;
       const intentId = body.get("metadata[checkout_intent_id]");
       if (!intentId) throw new Error("Native authorization absent from HTTP request");
       expect(body.get("subscription_data[metadata][checkout_intent_id]")).toBe(intentId);
