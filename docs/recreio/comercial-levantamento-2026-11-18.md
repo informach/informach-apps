@@ -47,6 +47,14 @@ Os padrões dos consumidores legados são preservados. A composição nativa de
 conciliação passa a reutilizar catálogo, modo e clientes do Checkout; ainda não
 há cron/webhook implantado. Novas regressões de prazo aguardam gates remotos.
 
+A candidata operacional expõe `POST /api/jobs/conciliacao`, exclusivo do segredo
+do agendador, com modo desligado explícito. Conta as reservas, confirmações,
+revisões e falhas técnicas; resposta parcial é 503 e execução falha em `ops`.
+Falha de um pagante não interrompe o atendimento do seguinte. Gate comum cobre
+autenticação e modo desligado; jornada financeira usa dois pagantes reais no
+banco e dois transportes Stripe fechados para provar sucesso parcial sem ocultar
+a falha. Ainda aguarda qualificação e configuração do cron, sem implantação.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

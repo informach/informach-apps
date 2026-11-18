@@ -9,6 +9,10 @@ import {
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import { avaliarAcesso } from "@/features/acesso/service";
+import {
+  ConciliacaoIncompleta,
+  criarRotinaDeConciliacao,
+} from "@/features/cobranca/conciliacao-job";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
 import { consultarMinhaCompra } from "@/features/cobranca/service";
@@ -238,4 +242,51 @@ describe("conciliação nativa com origem, períodos e resultado duráveis", () 
       await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
     },
   );
+  it("falha de um pagante preserva atendimento do próximo e falha a rotina operacional", async () => {
+    const primeiro = await fixture(),
+      segundo = await fixture();
+    primeiro.concluirCheckout();
+    const pago = segundo.concluirCheckout();
+    primeiro.indisponibilizar();
+    const runtimeA = primeiro.runtimeFinanceiro,
+      runtimeB = segundo.runtimeFinanceiro;
+    const processar = criarProcessadorDeConciliacao({
+      modo: "dev",
+      obterRuntime: () => ({
+        ...runtimeA,
+        leitor: {
+          listSubscriptionIds: (customer, budget) =>
+            (customer === primeiro.providerCustomerId
+              ? runtimeA
+              : runtimeB
+            ).leitor.listSubscriptionIds(customer, budget),
+          read: (id, prices, budget) =>
+            (id === pago.assinatura.id ? runtimeB : runtimeA).leitor.read(id, prices, budget),
+        },
+        lerCheckout: (customer, ...args) =>
+          (customer === primeiro.providerCustomerId ? runtimeA : runtimeB).lerCheckout(
+            customer,
+            ...args,
+          ),
+      }),
+      relatarFalha: () => {},
+    });
+    const rotina = criarRotinaDeConciliacao({ habilitada: () => true, processar });
+    const resultado = await rotina().catch((erro: unknown) => erro);
+    expect(resultado).toBeInstanceOf(ConciliacaoIncompleta);
+    expect(resultado).toMatchObject({
+      name: "ConciliacaoIncompleta",
+      resultado: { reservadas: 2, conciliadas: 1, emConferencia: 1, falhasTecnicas: 0 },
+    });
+    expect(await primeiro.job()).toMatchObject({
+      reviewRequired: true,
+      lastConfirmedAt: null,
+      leaseToken: null,
+    });
+    expect((await segundo.job())?.lastConfirmedAt).toBeInstanceOf(Date);
+    expect(await consultarMinhaCompra(segundo.adulto.autor)).toMatchObject({
+      resolucao: "checkout_completed",
+      emConferencia: false,
+    });
+  });
 });
