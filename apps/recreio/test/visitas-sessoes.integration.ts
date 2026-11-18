@@ -408,7 +408,12 @@ it("renovação em lote conserva vínculo/janela e não emite novas admissões",
     [concessao] = await db.select().from(visits).where(eq(visits.id, c.visitaId)),
     renovadas = await renovar(c, s);
   expect(renovadas.visitas).toEqual([
-    { sessaoDeVisitaId: s.finalidade.id, estado: "ok", permissaoAte: expect.any(String) },
+    {
+      sessaoDeVisitaId: s.finalidade.id,
+      estado: "ok",
+      permissaoAte: expect.any(String),
+      agora: expect.any(String),
+    },
   ]);
   expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]?.expiresAt).toEqual(
     concessao?.expiresAt,
@@ -547,6 +552,7 @@ it("abertura pública só aponta à posse original e entrada autenticada admite 
   expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBeNull();
   const permitida = EntradaDeVisitanteSchema.parse(await admitir(c, s));
   expect(Object.keys(permitida).sort()).toEqual([
+    "agora",
     "apelido",
     "avatar",
     "permissaoAte",

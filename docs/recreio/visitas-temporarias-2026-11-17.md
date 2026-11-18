@@ -732,3 +732,28 @@ as rotas, admissão/encerramento autenticados da instância e a prova de que
 continua havendo só o membro original. Sem temporizador de renovação em
 segundo plano nessa fixture; não é ensaio de tempo/desempenho. Gates pendentes.
 O runtime, portal e interface de convites ainda não consomem esta finalidade.
+
+## Prazo monotônico do runtime em preparação
+
+Antes de consumir uma permissão curta, o host precisa conhecer a duração
+restante pelo relógio do Recreio. Entrada e renovação candidatas passam a
+retornar `agora` junto de `permissaoAte`, conferidos como janela positiva de
+até 45 s (emissão continua 30 s). A capacidade de visitas segue desligada em
+produção; os contratos básicos existentes não recebem esses campos.
+
+`prazoLocalDaVisita`, exportado pelo host junto da interface de visitas,
+calcula o limite no relógio monotônico do processo a partir do instante de
+envio e da duração informada. Desconta toda a ida/processamento/volta e
+conserva um limite já passado se a resposta atrasou. Não reinicia trinta
+segundos ao receber, usa a hora civil local ou amplia uma concessão. O jogo
+precisa conferir esse limite em cada comando e novamente ao executar sua
+fila, pausando diante de vencimento/resultado desconhecido.
+
+Regressões candidatas cobrem deslocamento de data civil, latência, resposta
+atrasada, relógio inválido/sem precisão e janela inválida. Os receipts reais
+de entrada/renovação e o transporte passam pela mesma validação de janela.
+Gates pendentes; isso ainda não representa integração do runtime ou prova F10.
+
+Correção `abcce468` passou nas 994 integrações/89 arquivos, cinco do Bastidores
+e upgrades 179→204/191→204 em `44246163559`; sete gates aprovados, navegador
+ainda em execução na conferência deste registro.

@@ -57,18 +57,27 @@ export const EncerramentoParentalDeVisitaSchema = z.strictObject({
 });
 
 /** Nunca contém membroId, papel ou participação permanente. */
-export const EntradaDeVisitanteSchema = z.strictObject({
-  visitaId: UuidSchema,
-  sessaoDeVisitaId: UuidSchema,
-  permissaoAte: z.iso.datetime(),
-  apelido: z.string(),
-  avatar: z.string(),
-  politica: z.strictObject({
-    multiplayer: z.boolean(),
-    textoLivre: z.boolean(),
-    versao: z.int().nonnegative(),
-  }),
-});
+export const PERMISSAO_DE_VISITA_TTL_MS = 30_000;
+export const PERMISSAO_DE_VISITA_MAX_MS = 45_000;
+function prazoDeVisitaValido(pedido: { agora: string; permissaoAte: string }) {
+  const duracao = Date.parse(pedido.permissaoAte) - Date.parse(pedido.agora);
+  return duracao > 0 && duracao <= PERMISSAO_DE_VISITA_MAX_MS;
+}
+export const EntradaDeVisitanteSchema = z
+  .strictObject({
+    visitaId: UuidSchema,
+    sessaoDeVisitaId: UuidSchema,
+    permissaoAte: z.iso.datetime(),
+    agora: z.iso.datetime(),
+    apelido: z.string(),
+    avatar: z.string(),
+    politica: z.strictObject({
+      multiplayer: z.boolean(),
+      textoLivre: z.boolean(),
+      versao: z.int().nonnegative(),
+    }),
+  })
+  .refine(prazoDeVisitaValido, "Prazo de visita fora da concessão curta");
 export type EntradaDeVisitante = z.infer<typeof EntradaDeVisitanteSchema>;
 export const PedidoDeEntradaDeVisitaSchema = z.strictObject({
   visitaId: UuidSchema,
@@ -113,11 +122,14 @@ export const RenovacaoDeVisitasSchema = z.strictObject({
     ),
 });
 export const VisitaRenovadaSchema = z.discriminatedUnion("estado", [
-  z.strictObject({
-    sessaoDeVisitaId: UuidSchema,
-    estado: z.literal("ok"),
-    permissaoAte: z.iso.datetime(),
-  }),
+  z
+    .strictObject({
+      sessaoDeVisitaId: UuidSchema,
+      estado: z.literal("ok"),
+      permissaoAte: z.iso.datetime(),
+      agora: z.iso.datetime(),
+    })
+    .refine(prazoDeVisitaValido, "Prazo de visita fora da concessão curta"),
   z.strictObject({ sessaoDeVisitaId: UuidSchema, estado: z.literal("perdida") }),
 ]);
 export type VisitaRenovada = z.infer<typeof VisitaRenovadaSchema>;

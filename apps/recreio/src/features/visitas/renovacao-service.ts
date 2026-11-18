@@ -60,6 +60,7 @@ export async function renovarVisitas(host: Host, entrada: unknown) {
             sessaoDeVisitaId: p.sessaoDeVisitaId,
             estado: "ok",
             permissaoAte: renovada.permissaoAte,
+            agora: renovada.agora,
           };
         } catch (erro) {
           if (recusaEsperada(erro))

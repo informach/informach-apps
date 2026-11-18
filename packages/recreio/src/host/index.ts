@@ -4,6 +4,7 @@ export type {
   ClienteDoHostComCheckpoint,
   ClienteDoHostComPresencas,
   ClienteDoHostComSalvamento,
+  ClienteDoHostComVisitas,
   EntradaDoDiario,
   EntradaPermitida,
   MetaDeFotografia,
@@ -14,4 +15,5 @@ export type {
 } from "../contrato/host";
 export type { SessaoVerificada, VerificadorDeSessao } from "../contrato/tokens";
 export { criarClienteDoHost, type OpcoesDoClienteDoHost } from "./cliente";
+export { prazoLocalDaVisita } from "./tempo-visita";
 export { criarVerificadorDeSessao, type OpcoesDoVerificador } from "./verificador";

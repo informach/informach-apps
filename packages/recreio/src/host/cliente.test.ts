@@ -549,6 +549,7 @@ describe("entrada temporária de visitante", () => {
       visitaId,
       sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
       permissaoAte: "2026-11-18T06:00:30.000Z",
+      agora: "2026-11-18T06:00:00.000Z",
       apelido: "Visitante",
       avatar: "sol",
       politica: { multiplayer: true, textoLivre: false, versao: 1 },
@@ -572,7 +573,7 @@ describe("entrada temporária de visitante", () => {
       headers: { "x-recreio-instancia": INSTANCIA, authorization: `Bearer ${SEGREDO}` },
     });
   });
-  it.each(["membro", "outra_visita", "rede"] as const)(
+  it.each(["membro", "outra_visita", "prazo_longo", "rede"] as const)(
     "recusa %s sem repetir a admissão automaticamente",
     async (tipo) => {
       const a = ambiente();
@@ -582,7 +583,11 @@ describe("entrada temporária de visitante", () => {
           ? new TypeError("fetch failed")
           : Response.json({
               ...permitida,
-              ...(tipo === "membro" ? { membroId: SID, papel: "member" } : { visitaId: SID }),
+              ...(tipo === "membro"
+                ? { membroId: SID, papel: "member" }
+                : tipo === "outra_visita"
+                  ? { visitaId: SID }
+                  : { permissaoAte: "2026-11-18T06:01:00.000Z" }),
             }),
       );
       await expect(a.cliente.verificarEntradaDeVisita(pedido)).rejects.toMatchObject({
@@ -611,6 +616,7 @@ describe("renovação em lote de visitantes", () => {
           sessaoDeVisitaId: visita.sessaoDeVisitaId,
           estado: "ok",
           permissaoAte: "2026-11-18T06:00:30.000Z",
+          agora: "2026-11-18T06:00:00.000Z",
         },
       ],
     };

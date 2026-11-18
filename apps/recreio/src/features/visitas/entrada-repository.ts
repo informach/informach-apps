@@ -14,6 +14,7 @@ import type {
   PedidoDeEntradaDeVisitaSchema,
   VisitaAberta,
 } from "@informach/recreio/contrato";
+import { PERMISSAO_DE_VISITA_TTL_MS } from "@informach/recreio/contrato";
 import type { z } from "zod";
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import type { Host } from "@/features/posse/service";
@@ -154,7 +155,7 @@ export async function admitirEntradaDeVisitaNoBanco(
       }
       const permissaoAte = new Date(
         Math.min(
-          agora.getTime() + 30_000,
+          agora.getTime() + PERMISSAO_DE_VISITA_TTL_MS,
           anfitriao.presenca.expiresAt.getTime(),
           anfitriao.presenca.validUntil.getTime(),
           anfitriao.sessao.expiresAt.getTime(),
@@ -193,8 +194,8 @@ export async function admitirEntradaDeVisitaNoBanco(
           },
           { writer: tx },
         );
-      if (permissaoAte <= (await entrada.conferirPrazo()))
-        throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      const fim = await entrada.conferirPrazo();
+      if (permissaoAte <= fim) throw new ErroDoRecreio("SESSAO_ENCERRADA");
       const politica = politicaDaAdmissao(
         { politica: ctx.destino.politicaDeJogo, versaoDaPolitica: perfil.policyVersion },
         jogoDoCatalogo(host.jogo),
@@ -203,6 +204,7 @@ export async function admitirEntradaDeVisitaNoBanco(
         visitaId: visita.id,
         sessaoDeVisitaId: intencao.id,
         permissaoAte: permissaoAte.toISOString(),
+        agora: fim.toISOString(),
         apelido: perfil.nickname,
         avatar: perfil.avatar,
         politica: {
