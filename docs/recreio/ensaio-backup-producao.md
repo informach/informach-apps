@@ -1,5 +1,18 @@
 # Ensaio de restauração do backup de produção
 
+Atualizado em **18/11/2026 às 10:31 UTC**, depois dos gates de integração de F5
+e imediatamente antes da preparação do migrator:
+[evidência](evidencias/backup-logico-2026-11-18-pre-deploy-mundos.json).
+19.492.655 bytes, 255 tabelas e 286.877 linhas; backup em 2.458 ms,
+restauração/comparação em 6.212 ms e processo em 14.873 ms, excluindo
+build/provisionamento. Conteúdo e estrutura comparada idênticos. Temporários
+e serviço `f4e26815-8dd2-4fbc-8b90-fe8438d15deb` removidos; inventário relido
+com 34 serviços, nenhum volume destacado e nenhum patch pendente. Origem
+somente de leitura, sem migrations/seeds pelo executor. Na leitura das 10:29 UTC,
+produção ainda tinha 191 recibos, dois mundos, dez fotos e nenhuma SID aberta;
+presenças F5 e claims de teste F6 ausentes. Limites de retenção/agenda/PITR
+permanecem; este resultado não é restauração de objeto guardado.
+
 Repetido em **18/11/2026 às 09:33 UTC**, antes da implantação de F5:
 [evidência](evidencias/backup-logico-2026-11-18-pre-mundos.json).
 19.485.531 bytes, 255 tabelas e 286.703 linhas; backup em 1.905 ms,

@@ -1,0 +1,112 @@
+{
+  "dataConsulta": "2026-11-18",
+  "janelaHoras": 24,
+  "amostragemSegundos": 300,
+  "origem": "Railway get_service_metrics",
+  "ambiente": "production",
+  "servicos": [
+    {
+      "environment": {
+        "id": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+        "name": "production"
+      },
+      "metrics": [
+        {
+          "average": 0.0016554221799307957,
+          "current": 0.0006019066666666667,
+          "max": 0.011766206666666668,
+          "measurement": "CPU_USAGE",
+          "min": 0.0006019066666666667,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.20429797770932057,
+          "current": 0.228560896,
+          "max": 0.488353792,
+          "measurement": "MEMORY_USAGE_GB",
+          "min": 0.13800704,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.000035782103806228354,
+          "current": 0.00001524,
+          "max": 0.000423263,
+          "measurement": "NETWORK_TX_GB",
+          "min": 0.00001524,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.00003165993771626299,
+          "current": 0.000014575,
+          "max": 0.000121235,
+          "measurement": "NETWORK_RX_GB",
+          "min": 0.000014575,
+          "sampleCount": 289
+        }
+      ],
+      "service": {
+        "id": "fd21f44e-43d9-4ac0-a125-7a379df8d486",
+        "name": "@informach/recreio-app"
+      }
+    },
+    {
+      "environment": {
+        "id": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+        "name": "production"
+      },
+      "metrics": [
+        {
+          "average": 0.0017143202883506345,
+          "current": 0.0005382766666666666,
+          "max": 0.012657443333333332,
+          "measurement": "CPU_USAGE",
+          "min": 0,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.2533087632781238,
+          "current": 0.21663880533333335,
+          "max": 0.5437322971428571,
+          "measurement": "MEMORY_USAGE_GB",
+          "min": 0.1619562951111111,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.0000026449100346020728,
+          "current": 0.000001682,
+          "max": 0.000075559,
+          "measurement": "NETWORK_TX_GB",
+          "min": 0,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.000004948986159169548,
+          "current": 0.00000301,
+          "max": 0.000154393,
+          "measurement": "NETWORK_RX_GB",
+          "min": 0,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.0761515690272972,
+          "current": 0.076161024,
+          "max": 0.076161024,
+          "measurement": "DISK_USAGE_GB",
+          "min": 0.076111872,
+          "sampleCount": 289
+        }
+      ],
+      "service": {
+        "id": "b294fe7c-b96b-4ca5-bfa5-191a7d574f08",
+        "name": "@informach/morada-server"
+      }
+    }
+  ],
+  "limites": [
+    "Métricas descritivas do alfa com tráfego corrente; não são carga de 1/2/4/8 jogadores.",
+    "O conector retorna resumo de amostras, não os totais faturados ou séries completas.",
+    "CPU, memória e tráfego não certificam diversão, FPS ou capacidade de hardware.",
+    "Banco e Redis compartilhados, plano do workspace, build, objetos, backup e egress faturado exigem apuração e rateio próprios.",
+    "Sem conversão monetária: a consulta da página de preços via conector não retornou a página; não inferir fatura a partir das médias."
+  ]
+}

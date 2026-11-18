@@ -1,0 +1,80 @@
+{
+  "fonte": "d014bd90a895df452b83b9a2e6e683ac5749e0cb",
+  "migrator": "68fcc3f9-488b-47ef-aa1e-778610c7f11e",
+  "portal": "affdf087-bef0-4c8c-9641-243b1dc5bbb7",
+  "bastidores": "b85a2d2b-07d9-4945-a4ec-28e1a7c4fec8",
+  "moradaFonte": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+  "recibos": 204,
+  "migrationsConferidas": [
+    {
+      "when": 1794951993437,
+      "sha256": "759ed5f5d0a5b6d0838826d5a0b1f69fc24aeb2f72f760a5fa8839facd4acea5"
+    },
+    {
+      "when": 1794955720722,
+      "sha256": "cb91e1af07b9795dcfaca25b4fbb2f83f66b3d65bbea45ef6ee90f955f401bce"
+    },
+    {
+      "when": 1794957824900,
+      "sha256": "188aa8a306f70867b5ffafade098f7bc3c7937d8b85c7538ca3df4a7dc69ad3a"
+    },
+    {
+      "when": 1794958004240,
+      "sha256": "2f543ff2b6771af2143d8a120c7b1bc3ddb5b98da4bc31292b17c43b355c2977"
+    },
+    {
+      "when": 1794958761245,
+      "sha256": "8489518d2804af96f0aa4c175affc84e2e665753da05053057634b0e8632277f"
+    },
+    {
+      "when": 1794959460526,
+      "sha256": "c259fc3ddda542fd2df2417f88d65c8c5f2ef21458eef5ea84882f58ab155e0f"
+    },
+    {
+      "when": 1794966343743,
+      "sha256": "bec02fd7fe8bebabda2226fbf5a48f1db2bcdd294be51890a8045e6f1cbef43b"
+    },
+    {
+      "when": 1794967916613,
+      "sha256": "4aa7976f1d8f08a9c0aad9edb68f44e235e491e4fe86f951a4e4310d779a77a8"
+    },
+    {
+      "when": 1794969938469,
+      "sha256": "94536b8577dc956f0d5c8ead875cde3703ec4e13180de1ec341c074b2d2055f0"
+    },
+    {
+      "when": 1794971748514,
+      "sha256": "531137e2af74b29272f240227cf673f37561878ec72d04b9ba02c4dfa5b48ea3"
+    },
+    {
+      "when": 1794972628628,
+      "sha256": "c2b3367837c8852fb1566a6f30503fda5330dc3046ebd839fed8d7b036f2b2e7"
+    },
+    {
+      "when": 1794977316797,
+      "sha256": "bb21778799b1f7c49ac73c4e7d928d464261dc6277a6cf40fdf263312e21ed06"
+    },
+    {
+      "when": 1794979715727,
+      "sha256": "6d1cdc0147a7c2f91cea00dcfaba7f8deafcff1f1570e909cada53d2af2373ff"
+    }
+  ],
+  "prontidaoConsumidores": 9,
+  "prontidaoMorada": 200,
+  "manutencaoAutenticada": 200,
+  "mapasSentryUploadConfirmado": true,
+  "sentryRelease": "2100748732",
+  "flags": {
+    "acesso": "fechado",
+    "familias": "off",
+    "social": "off",
+    "checkpoint": "off",
+    "visitas": "off",
+    "jogoDeTeste": "0"
+  },
+  "limites": [
+    "Não ativa famílias, visitas, menores, teste gratuito ou cobrança.",
+    "Não comprova um novo alerta ou ingestão de um erro.",
+    "Não implanta as migrations F6 0204/0205 nem D3–D8 do Morada."
+  ]
+}

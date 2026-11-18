@@ -1,5 +1,28 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Implantação conferida — 18/11, 10:45 UTC
+
+Migrator `68fcc3f9-488b-47ef-aa1e-778610c7f11e` concluiu a fonte congelada
+`d014bd90`, com `pnpm db:migrate`, sem seeds. Leitura somente de leitura
+confirmou **204 recibos/0203** e os treze pares timestamp/SHA-256 de 0191–0203,
+comparados programaticamente com a fonte. Presenças F5 existem; claims F6
+continuam ausentes. Dois mundos, dez fotografias e zero SIDs abertas conservados.
+Prontidão dos nove consumidores e do Morada: HTTP 200 após o DDL, ainda com
+o portal anterior `396fe932` identificado em `/api/health`.
+
+Portal `affdf087-bef0-4c8c-9641-243b1dc5bbb7` e Bastidores
+`b85a2d2b-07d9-4945-a4ec-28e1a7c4fec8` concluíram `d014bd90`.
+Famílias, social, checkpoint e visitas foram preparados como `off`, jogo interno
+`0`, acesso `fechado`, conferidos no processo implantado. `/api/health` público
+identificou a fonte e o deployment exatos; nove consumidores e Morada voltaram
+a responder prontidão 200. Manutenção autenticada respondeu 200, com contagens
+zero, incluindo os novos expurgos de presença/visitas. O build confirmou upload
+dos mapas; Sentry confirmou a release `d014bd90` no projeto Recreio, criada às
+10:39:35 UTC. Isso não simula um novo erro nem certifica entrega de alerta.
+Morada permanece `644b3841`. Pins `9a9d1f87` passaram nos oito gates `44286280768`,
+incluindo o grafo Railway; publicação em origin/main preparada. Os registros abaixo
+preservam os marcos anteriores. F6–F11 e venda continuam abertos.
+
 ## Qualificação das duas jornadas e preparação operacional — 18/11
 
 Fonte congelada `d014bd90a895df452b83b9a2e6e683ac5749e0cb`, workflow
@@ -24,8 +47,9 @@ fonte, tamanho e SHA-256 antes de extrair:
   `afbaa99373f5cadef5947b4bbf7fb890b2513618d95005387533d3ce289807a8`.
 
 Integração local `04ab6be5` preserva a main pública `4ba44d73`, os fontes do
-Edi/Morada e os pins de produção. Oito gates `44274913293` aprovados; CI
-compartilhado `44274912833` ainda em curso. Não é publicação em origin/main.
+Edi/Morada e os pins de produção. Oito gates `44274913293` e CI compartilhado
+`44274912833` aprovados, incluindo tipos/testes, integrações PG 16/18, jornadas
+e builds dos consumidores. Não é publicação em origin/main.
 CI anterior `44272436756` (`adfe3971`) foi cancelado por estar substituído pela
 qualificação da integração atual; não é prova de êxito integral dessa fonte.
 O migrator foi configurado e relido com `startCommand=pnpm db:migrate`, sem
@@ -37,6 +61,15 @@ Leitura SQL somente de leitura às 09:35:48 UTC confirmou 191 recibos, ausência
 de presença/visitas F5, dois mundos, dez fotos e nenhuma sessão aberta.
 Produção permanece portal `396fe932`, Morada `644b3841`, 191/0190. F5 não está
 implantado e esta qualificação não encerra F6–F11 ou libera venda.
+
+A restauração foi repetida após esses gates, snapshot às 10:31:04 UTC:
+19492655 bytes, 255 tabelas, 286877 linhas e comparação idêntica, origem
+somente de leitura. Temporários/serviço removidos e 34 serviços relidos.
+[Evidência atual](evidencias/backup-logico-2026-11-18-pre-deploy-mundos.json).
+O migrator foi conectado somente à fonte congelada `d014bd90`, com comando
+`pnpm db:migrate`; deployment ainda em andamento. Sem 0204/0205 de F6 nessa
+fonte. Pins candidatos `9a9d1f87` recebem qualificação própria, preservando
+Morada `644b3841` e declarando visitas desligadas. Não aplicar o grafo inteiro.
 
 ## Provas de saída manual e salvamento coordenado, candidatas
 

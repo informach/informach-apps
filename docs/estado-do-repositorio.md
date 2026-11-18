@@ -1,8 +1,8 @@
 # Estado do trabalho no repositório
 
-**18/11 — Recreio/F5 em qualificação:** gestão/coadministração, convites dirigidos,
+**18/11 — Recreio/F5 implantado com recursos desligados:** gestão/coadministração, convites dirigidos,
 sucessão parental, presença física, visitas temporárias, SDK e telas nativas estão
-em candidatas; a plataforma ainda não está concluída. `d014bd90` concluiu os oito
+implantados em `d014bd90`; a plataforma ainda não está concluída. Essa fonte concluiu os oito
 gates em `44273574563`: 1054 integrações, 41 E2E comuns e oito de checkpoint,
 preservando 179→204/191→204. Jornada física infantil com dois responsáveis,
 nenhum membro fabricado, saída sem reuso, corte pelo anfitrião e progresso
@@ -10,20 +10,23 @@ preservado. Saída manual e salvamento coordenado foram comprovados em seus
 modos reais; capturas parentais, aceite, gestão e partida de 390 px inspecionadas.
 
 Integração local `04ab6be5` conserva a main pública `4ba44d73` e os pins de
-produção; oito gates `44274913293` aprovados, CI compartilhado `44274912833` em curso.
+produção; oito gates `44274913293` e CI compartilhado `44274912833` aprovados.
 Restauração isolada atual concluída, origem somente de leitura, conteúdo e
 estrutura comparada idênticos; serviço temporário removido, 34 serviços.
-Migrator relido com `pnpm db:migrate`, sem acionar deploy. Histórico, falhas de
+Migrator executado com `pnpm db:migrate`, sem seeds. Histórico, falhas de
 fixtures e proveniência estão no [registro de visitas](recreio/visitas-temporarias-2026-11-17.md),
 [plano de mundos](recreio/mundos-completos-2026-11-17.md) e
 [sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 
-Produção continua no portal `396fe932` e Morada `644b3841`, conferidos no Railway
-com prontidão HTTP 200 em 18/11; famílias/social/checkpoint continuam desligados.
-As migrations F5 0191–0203 estão ausentes de produção. Antes da integração
-pública, preservar a main concorrente, os pins e o migrator sem seeds,
-conservando a restauração atual e exigindo compatibilidade dos consumidores. D3–D8 do Morada
-continuam separados. F5 e a plataforma não estão prontos para venda.
+Em 18/11, 10:36 UTC, F5 já tem **204 recibos/0203** em produção, com os treze
+hashes conferidos. Dois mundos/dez fotos preservados; nove consumidores e
+Morada com prontidão 200 após o DDL. Portal/Bastidores implantados em `d014bd90`:
+fonte servida, prontidão, upload dos mapas Sentry/release e manutenção
+autenticada 200 conferidos. Morada continua `644b3841`.
+Famílias/social/checkpoint/visitas preparados como `off`; não houve ativação
+de menores ou de venda. Pins `9a9d1f87` aprovados nos oito gates `44286280768`;
+publicação em origin/main preparada. Restauração atualizada às 10:31 UTC concluída,
+temporários removidos, 34 serviços. D3–D8 e F6–F11 continuam separados.
 
 **18/11 — F6–F11 restantes:** os quatro preços foram confirmados; o teste sem
 cartão da proposta compara 48 h e sete dias, começando na primeira sessão
