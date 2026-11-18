@@ -25,6 +25,19 @@ adversos ou falha de leitura. Fixtures positivas antigas agora declaram os
 fatos financeiros sintéticos; não passam a representar pagamentos externos.
 Essa alteração ainda aguarda os dezesseis gates remotos.
 
+`6843bc37`/`44319953686` encontrou duas expectativas antigas: prazo contratual
+de um dia no fallback, que agora é limitado pela conferência de quinze minutos,
+e `ACESSO_PERDIDO` para SID que a conciliação já encerrou (`SESSAO_ENCERRADA`).
+As proteções foram mantidas; as expectativas passam a verificar o contrato
+vigente. Onze cenários financeiros anteriores e os quatro cortes persistidos
+chegaram às respectivas asserções; nova execução integral continua obrigatória.
+
+O incremento seguinte permite um novo aceite explícito substituir uma intenção
+com Checkout terminal comprovado, após conferir ausência de assinatura vigente.
+Nunca reenvia o POST da intenção antiga nessa troca. Aceite antigo, sessão aberta
+ou resultado desconhecido conservam a proteção; há regressões com SDK/PG para
+expiração seguida de novo aceite e inspeção indisponível.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

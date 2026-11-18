@@ -11,7 +11,10 @@ import {
   recreioProfiles as profiles,
   sessions,
 } from "@informach/db/schema";
-import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
+import {
+  VALIDADE_DA_CONFERENCIA_FINANCEIRA_MS,
+  VERSAO_DA_RESPONSABILIDADE,
+} from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 import { avaliarAcesso } from "@/features/acesso/service";
@@ -261,12 +264,14 @@ describe("retirada preserva outros direitos e fecha credenciais incompatíveis",
       const fixture = await trialDeFixture(p),
         aberta = await entrarNoJogo(jogador);
       const fim = new Date(Date.now() + (menor ? 60_000 : 86_400_000));
-      await assinaturaDeFixture(p, fim);
+      const confirmadoEm = await assinaturaDeFixture(p, fim);
       await retirarConsentimentoDoTeste(p.autor, fixture.consentimento.id);
       expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
         podeJogar: true,
         origem: "assinatura",
-        validoAte: fim,
+        validoAte: new Date(
+          Math.min(fim.getTime(), confirmadoEm.getTime() + VALIDADE_DA_CONFERENCIA_FINANCEIRA_MS),
+        ),
       });
       const [sid] = await db.select().from(games).where(eq(games.id, aberta.sid));
       if (menor) {

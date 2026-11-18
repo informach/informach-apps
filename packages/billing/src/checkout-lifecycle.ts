@@ -78,6 +78,30 @@ export async function managedSubscriptionCheckout(
     .select()
     .from(checkoutIntents)
     .where(eq(checkoutIntents.customerId, customer.id));
+  if (authorization && intent && intent.id !== authorization.id) {
+    // A distinct, explicitly admitted purchase may replace a terminal attempt.
+    // Inspect only: recovering the old intent here could send its POST again.
+    if (intent.requestStarted) {
+      const previous = await deps.providerClient.findCheckoutSession(
+        customer.providerCustomerId,
+        intent.id,
+        intent.providerSessionId,
+      );
+      if (
+        !previous ||
+        !(
+          (previous.status === "expired" && !previous.subscriptionId) ||
+          (previous.status === "complete" && previous.subscriptionId)
+        )
+      )
+        throw new CheckoutPendingError();
+    }
+    // A terminal Checkout can still have an active subscription. Confirm the
+    // payer's complete current subscription state before releasing its guard.
+    await prepare(customer.providerCustomerId);
+    await deps.db.delete(checkoutIntents).where(eq(checkoutIntents.id, intent.id));
+    intent = undefined;
+  }
   if (
     authorization &&
     intent &&

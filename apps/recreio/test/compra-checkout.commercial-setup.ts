@@ -79,4 +79,37 @@ describe("Checkout vinculado a aceite financeiro durável", () => {
     ).toEqual([]);
     expect(f.sessions).toEqual([]);
   });
+  it("novo aceite pode contratar após Checkout anterior comprovadamente expirado", async () => {
+    const f = await fixture();
+    await f.enviar();
+    const anterior = f.sessions[0];
+    if (!anterior) throw new Error("Sessão ausente");
+    anterior.status = "expired";
+    const nova = { ...f.authorization, id: randomUUID() };
+    const resposta = await comCicloDeCobranca(f.adulto.conta.id, () =>
+      f.billing.createSubscriptionCheckout({ ...f.entrada, managedAuthorization: nova }),
+    );
+    expect(f.sessions).toHaveLength(2);
+    expect(resposta.sessionId).toBe(f.sessions[1]?.id);
+    expect(f.sessions[1]?.metadata.checkout_intent_id).toBe(nova.id);
+    expect(f.sessions[0]).toBe(anterior);
+    await expect(f.enviar()).rejects.toBeInstanceOf(CheckoutPendingError);
+    expect(f.sessions).toHaveLength(2);
+  });
+  it("novo aceite não libera tentativa desconhecida quando a inspeção falha", async () => {
+    const f = await fixture();
+    await f.enviar();
+    f.indisponibilizarInspecao();
+    await expect(
+      comCicloDeCobranca(f.adulto.conta.id, () =>
+        f.billing.createSubscriptionCheckout({
+          ...f.entrada,
+          managedAuthorization: { ...f.authorization, id: randomUUID() },
+        }),
+      ),
+    ).rejects.toThrow();
+    expect(f.sessions).toHaveLength(1);
+    f.restaurarInspecao();
+    expect((await f.inspect())?.state?.id).toBe(f.sessions[0]?.id);
+  });
 });

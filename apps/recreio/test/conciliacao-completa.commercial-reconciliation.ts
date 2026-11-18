@@ -234,7 +234,7 @@ describe("conciliação nativa com origem, períodos e resultado duráveis", () 
       expect(sid?.endedSeq).toBeGreaterThan(0);
       expect(
         await pedir("POST", "/api/sdk/v1/sessao/renovar", { token: aberta.token }),
-      ).toMatchObject({ status: 403, corpo: { codigo: "ACESSO_PERDIDO" } });
+      ).toMatchObject({ status: 403, corpo: { codigo: "SESSAO_ENCERRADA" } });
       await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
     },
   );

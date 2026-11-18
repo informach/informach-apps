@@ -109,5 +109,5 @@ export async function assinaturaDeFixture(p: Awaited<ReturnType<typeof adultoDoT
     })
     .returning();
   if (!assinatura) throw new Error("Assinatura sintética ausente");
-  await registrarPagamentoSintetico(p.conta, assinatura);
+  return registrarPagamentoSintetico(p.conta, assinatura);
 }

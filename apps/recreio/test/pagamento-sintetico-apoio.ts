@@ -83,4 +83,5 @@ export async function registrarPagamentoSintetico(
         nextAttemptAt: new Date(agora.getTime() + 300_000),
       },
     });
+  return agora;
 }
