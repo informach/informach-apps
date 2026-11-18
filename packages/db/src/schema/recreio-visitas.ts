@@ -12,7 +12,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
-import { recreioSpaceMembers as members, recreioProfiles as profiles, recreio } from "./recreio";
+import {
+  recreioGameSessions as games,
+  recreioSpaceMembers as members,
+  recreioProfiles as profiles,
+  recreio,
+} from "./recreio";
 import { recreioGuardianLinks as guardians } from "./recreio-familia";
 import { recreioWorldHostPresences as presences } from "./recreio-presencas";
 
@@ -253,6 +258,64 @@ export const recreioWorldVisits = recreio.table(
     check(
       "recreio_visit_grant_lifecycle",
       sql`(${t.state}='active' and ${t.endedAt} is null and ${t.endReason} is null) or (${t.state}<>'active' and ${t.endedAt} is not null and ${t.endReason} is not null and ${t.endedAt}>=${t.acceptedAt} and ${t.endedAt}<=${t.updatedAt} and ((${t.state}='expired' and ${t.endReason}='expired' and ${t.endedAt}>=${t.expiresAt}) or (${t.state}='revoked' and ${t.endReason} in ('left','host_left','lease_lost','permissions_changed','access_lost','blocked','revoked','world_closed'))))`,
+    ),
+  ],
+);
+
+/**
+ * Finalidade imutável de um SID visitante. Preparar não admite no mundo;
+ * ativar exige a prova atual da instância e do anfitrião. A troca confirmada
+ * conserva o histórico do SID anterior em vez de reatribuir sua identidade.
+ */
+export const recreioWorldVisitSessions = recreio.table(
+  "world_visit_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id").notNull(),
+    visitId: uuid("visit_id").notNull(),
+    spaceId: uuid("space_id").notNull(),
+    profileId: uuid("profile_id").notNull(),
+    state: text("state").$type<"prepared" | "active" | "closed">().notNull().default("prepared"),
+    createdAt: moment("created_at").notNull(),
+    updatedAt: moment("updated_at").notNull(),
+    admittedAt: moment("admitted_at"),
+    permissionUntil: moment("permission_until"),
+    closedAt: moment("closed_at"),
+    closeReason: text("close_reason").$type<
+      "left" | "replaced" | "session_ended" | "visit_ended" | "host_left" | "lease_lost"
+    >(),
+  },
+  (t) => [
+    foreignKey({
+      name: "recreio_visit_session_sid_profile",
+      columns: [t.sessionId, t.profileId],
+      foreignColumns: [games.id, games.profileId],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "recreio_visit_session_grant",
+      columns: [t.visitId, t.spaceId, t.profileId],
+      foreignColumns: [
+        recreioWorldVisits.id,
+        recreioWorldVisits.spaceId,
+        recreioWorldVisits.visitorProfileId,
+      ],
+    }).onDelete("restrict"),
+    unique("recreio_visit_session_sid").on(t.sessionId),
+    uniqueIndex("recreio_visit_session_one_active").on(t.visitId).where(sql`${t.state}='active'`),
+    index("recreio_visit_session_grant").on(t.visitId, t.id),
+    index("recreio_visit_session_profile").on(t.profileId, t.createdAt, t.id),
+    index("recreio_visit_session_deadline")
+      .on(t.permissionUntil, t.id)
+      .where(sql`${t.state}='active'`),
+    check("recreio_visit_session_state", sql`${t.state} in ('prepared','active','closed')`),
+    check("recreio_visit_session_time", sql`${t.updatedAt}>=${t.createdAt}`),
+    check(
+      "recreio_visit_session_admission",
+      sql`(${t.admittedAt} is null and ${t.permissionUntil} is null) or (${t.admittedAt} is not null and ${t.permissionUntil} is not null and ${t.admittedAt}>=${t.createdAt} and ${t.admittedAt}<=${t.updatedAt} and ${t.permissionUntil}>${t.admittedAt})`,
+    ),
+    check(
+      "recreio_visit_session_lifecycle",
+      sql`(${t.state}='prepared' and ${t.admittedAt} is null and ${t.permissionUntil} is null and ${t.closedAt} is null and ${t.closeReason} is null) or (${t.state}='active' and ${t.admittedAt} is not null and ${t.permissionUntil} is not null and ${t.permissionUntil}>${t.updatedAt} and ${t.permissionUntil}<=${t.updatedAt}+interval '45 seconds' and ${t.closedAt} is null and ${t.closeReason} is null) or (${t.state}='closed' and ${t.closedAt} is not null and ${t.closeReason} is not null and ${t.closedAt}>=${t.createdAt} and ${t.closedAt}<=${t.updatedAt} and ${t.closeReason} in ('left','replaced','session_ended','visit_ended','host_left','lease_lost'))`,
     ),
   ],
 );

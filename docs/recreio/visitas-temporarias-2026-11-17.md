@@ -497,3 +497,20 @@ e ex-membro sem restauração. Role/histórico/inconsistência são fixtures SQL
 identificadas; não comprovam o fluxo de exclusão F7. SDK/HTTP, ponte de SID de
 visitante, abertura/renovação/checkpoint/encerramento na instância e interface
 ainda pendentes. Nenhuma visita de jogo é admitida por este incremento.
+
+Concessão `79202b31` concluiu os oito gates `44237514615`, com 924 integrações
+em 88 arquivos, cinco do Bastidores e upgrades 179→202/191→202 preservados.
+
+## Ponte de sessão em implementação
+
+Cada SID visitante declara uma única finalidade antes de receber token e
+margem de salvamento. `world_visit_sessions` distingue intenção preparada,
+admissão atual de curta duração e encerramento. Uma visita conserva vários
+SIDs históricos, mas no máximo um admitido; troca de aparelho precisa da
+prova durável de checkpoint e do ingresso que abriu o sucessor. Saber o ID
+da visita ou criar uma intenção não concede entrada nem cria membro.
+
+Fundação aditiva, sem alteração de linhas antigas ou capacidade do Morada.
+Geração da migration, restrições em PostgreSQL e integração do protocolo
+continuam pendentes. A retenção deve remover os vínculos antes da concessão,
+sem apagar SID ou declarar um salvamento inexistente.
