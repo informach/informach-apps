@@ -2,6 +2,7 @@ import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import type { inspectUserCheckoutAuthorization } from "@informach/billing/checkout-authorizations";
 import { stripeDestination } from "@informach/billing/destinations";
+import type { StripeMode } from "@informach/config";
 import { and, db, desc, eq, isNull, sql } from "@informach/db";
 import {
   recreioGroups as groups,
@@ -20,6 +21,7 @@ import {
   GrupoCriadoDuranteEspera,
   prepararGrupoDoTitular,
 } from "@/features/grupo/preparar-repository";
+import { env } from "@/lib/env";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, codigoDoPostgres, constraintDoPostgres, type Transacao } from "@/lib/repository";
 import { PRAZO_PARA_INICIAR_COMPRA_MS, VERSAO_DA_COMPRA } from "./constantes";
@@ -50,8 +52,14 @@ function recibo(linha: Compra) {
     emConferencia: linha.reviewRequired,
   };
 }
-function ofertaConfere(linha: Compra, oferta: OfertaAceita, pedido: AceiteDaCompra) {
+function ofertaConfere(
+  linha: Compra,
+  oferta: OfertaAceita,
+  pedido: AceiteDaCompra,
+  modo: StripeMode,
+) {
   return (
+    linha.providerMode === modo &&
     linha.productId === oferta.productId &&
     linha.tier === oferta.tier &&
     linha.interval === oferta.interval &&
@@ -62,7 +70,11 @@ function ofertaConfere(linha: Compra, oferta: OfertaAceita, pedido: AceiteDaComp
   );
 }
 
-export async function prepararCompraNoBanco(autor: AutorNativoRecente, pedido: AceiteDaCompra) {
+export async function prepararCompraNoBanco(
+  autor: AutorNativoRecente,
+  pedido: AceiteDaCompra,
+  modo: StripeMode,
+) {
   const oferta = conferirOfertaDaCompra(pedido);
   return comCicloDeCobranca(autor.contaId, async () => {
     for (const tentativa of [0, 1]) {
@@ -85,7 +97,7 @@ export async function prepararCompraNoBanco(autor: AutorNativoRecente, pedido: A
             .for("update");
           if (existente) {
             assertAllowed(
-              ofertaConfere(existente, oferta, pedido),
+              ofertaConfere(existente, oferta, pedido, modo),
               "CONFLITO",
               "Confira o pedido já registrado antes de autorizar outra oferta.",
             );
@@ -99,7 +111,7 @@ export async function prepararCompraNoBanco(autor: AutorNativoRecente, pedido: A
             .for("update");
           if (ativa) {
             assertAllowed(
-              ofertaConfere(ativa, oferta, pedido),
+              ofertaConfere(ativa, oferta, pedido, modo),
               "CONFLITO",
               "Confira ou encerre o pedido anterior antes de escolher outra oferta.",
             );
@@ -124,6 +136,7 @@ export async function prepararCompraNoBanco(autor: AutorNativoRecente, pedido: A
               id: pedido.pedidoId,
               payerUserId: autor.contaId,
               groupId: atual.grupoId,
+              providerMode: modo,
               ...oferta,
               policyVersion: pedido.versaoDasCondicoes,
               adultDeclarationVersion: pedido.versaoDaDeclaracao,
@@ -279,6 +292,11 @@ async function comCompraParaEnvio<T>(
       )
       .for("update");
     assertAllowed(linha, "COBRANCA", "Pedido não disponível.");
+    assertAllowed(
+      linha.providerMode === env.STRIPE_MODE,
+      "COBRANCA",
+      "Este pedido pertence a outro ambiente de pagamento.",
+    );
     if (!somenteLeitura) {
       assertAllowed(
         !linha.resolvedAt &&
@@ -365,6 +383,7 @@ export type CompraEmCurso = {
   readonly payerId: string;
   readonly groupId: string;
   readonly productId: string;
+  readonly providerMode: StripeMode;
   readonly startedAt: Date;
   readonly expiresAt: number;
 };
@@ -385,6 +404,7 @@ export function admitirCompraEmCursoLocked(
       payerId: iniciada.payerUserId,
       groupId: iniciada.groupId,
       productId: iniciada.productId,
+      providerMode: iniciada.providerMode,
       startedAt: iniciada.requestStartedAt,
       expiresAt: Math.floor(iniciada.acceptedAt.getTime() / 1000) + 3600,
     };
@@ -407,6 +427,7 @@ export function admitirConsultaDaCompraLocked(
         payerId: linha.payerUserId,
         groupId: linha.groupId,
         productId: linha.productId,
+        providerMode: linha.providerMode,
         startedAt: linha.requestStartedAt,
         expiresAt: Math.floor(linha.acceptedAt.getTime() / 1000) + 3600,
       };
@@ -479,6 +500,7 @@ export function capturarEstadoDaCompraLocked(
           eq(purchases.payerUserId, prova.payerId),
           eq(purchases.groupId, prova.groupId),
           eq(purchases.productId, prova.productId),
+          eq(purchases.providerMode, prova.providerMode),
           eq(purchases.requestStartedAt, prova.startedAt),
         ),
       )

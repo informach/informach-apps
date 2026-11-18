@@ -85,6 +85,15 @@ describe("executor financeiro nativo com PostgreSQL e SDK Stripe por transporte 
     expect(f.requests).toEqual([]);
     expect((await consultarMinhaCompra(f.adulto.autor))?.tentativaIniciadaEm).toBeNull();
   });
+  it("autorização de outro modo não inicia envio nem consulta o provedor", async () => {
+    const f = await fixtureDeCheckout();
+    await db.update(purchases).set({ providerMode: "prod" }).where(eq(purchases.id, f.recibo.id));
+    await expect(
+      criarExecutorDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id),
+    ).rejects.toMatchObject({ code: "COBRANCA" });
+    expect(f.requests).toEqual([]);
+    expect((await consultarMinhaCompra(f.adulto.autor))?.tentativaIniciadaEm).toBeNull();
+  });
   it.each(["open", "complete", "expired"])(
     "logout durante I/O captura %s sem devolver dados financeiros",
     async (status) => {

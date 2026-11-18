@@ -90,6 +90,7 @@ describe("integridade da autorização financeira", () => {
     ["moeda alheia", sql`currency='USD'`],
     ["intervalo alheio", sql`interval='week'`],
     ["tier alheio", sql`tier='admin'`],
+    ["modo alheio", sql`provider_mode='desconhecido'`],
     ["versão ausente", sql`policy_version=''`],
   ];
   it.each(invalidas)("recusa %s", async (_nome, alteracao) => {

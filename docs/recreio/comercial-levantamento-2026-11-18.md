@@ -28,6 +28,8 @@ foi preservada. A fixture passou a usar o UUID próprio de cada autorização em
 demais gates ainda em execução nesta leitura. A execução anterior foi substituída
 e cancelada; não representa aprovação integral.
 
+`3b8995f4` concluiu os catorze gates `44303284384`, com os dez cenários do executor.
+
 A interface seguinte usa sessão nativa, apresenta quatro ofertas do catálogo
 comum e cobertura do domínio, guarda aceite explícito de recorrência e permite
 reler/encerrar pedido nunca enviado. Alterar a oferta desmarca o aceite. Checkout
@@ -50,6 +52,18 @@ revalida o contexto nativo e conserva o UUID/prazo. O botão de pedido enviado
 passa a usar exclusivamente essa leitura. Aguarda verificação remota.
 
 ### Próximo incremento: conciliação e prova financeira
+
+Schema preparatório `49c14d6d` gerado em `44305185954`: artefato `14427184646`,
+66397 bytes, SHA-256 `7d39889fcc3b876b718ac206c0844d8d5b7f13e94da6f1956e1b332a9d75aace`.
+0207 `colossal_komodo`: SQL 3791 bytes/
+`33d4ce325c51b7cb28f36d5af8cc3e2bdefc4e6ec1746bd78fdad3e57423b741`;
+snapshot 955507 bytes/`22541e13c63c1b89f77bfaba465dfb6ef5954e2607af55386bee604555511630`;
+journal 31407 bytes/`b78b8e74a9f520f6bcfa515bcd29539bba794c05e9db4cdac759e7a8d726a8da`.
+Snapshot `200ff4f3-07e9-4014-ae64-dbd641acdc3c` segue `ca3febaf-efde-4d6c-83af-0bb636064bd9`.
+Três arquivos/hashes e o prefixo integral de 207 entradas foram conferidos;
+adotados intactos. Campo de modo aditivo tem default `dev`, pois o histórico de
+compra desta candidata só admitia sandbox; envio futuro confere o modo persistido.
+Fila ainda não é conciliação implementada. Nenhuma DDL comercial em produção.
 
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não

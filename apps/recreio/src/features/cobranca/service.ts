@@ -27,7 +27,7 @@ export async function prepararMinhaCompra(autor: AutorNativoRecente, entrada: un
     max: 10,
     janelaEmSegundos: 600,
   });
-  return prepararCompraNoBanco(autor, pedido);
+  return prepararCompraNoBanco(autor, pedido, env.STRIPE_MODE);
 }
 export async function consultarMinhaCompra(autor: IdentidadeNativa) {
   await limitarTentativas({

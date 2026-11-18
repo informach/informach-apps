@@ -25,6 +25,7 @@ describe("cobrança desligada", () => {
     const anterior = await prepararCompraNoBanco(
       p.autor,
       AceiteDaCompraSchema.parse(pedidoDaCompra()),
+      "dev",
     );
     expect(await consultarMinhaCompra(p.autor)).toEqual(anterior);
     const encerrado = await encerrarCompraNaoEnviada(p.autor, anterior.id);
