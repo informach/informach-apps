@@ -86,6 +86,17 @@ outros aplicativos para corrigir o adapter comercial do Recreio.
 
 ### Sequência em execução
 
+A primeira geração do recibo foi **recusada na revisão**, sem copiar o SQL:
+run `44280151006`, fonte `8af2f6d2ed113610bef62d5c1a12bed1b6f9e647`, artefato
+`14415029543`, ZIP 64600 bytes/SHA-256
+`39ae5a45aec88606bf132d623e9a0181206fdd4f4f265f8202cf0710a3ba397d`.
+`0204_whole_kitty_pryde.sql` (2210 bytes,
+`c7c579fa88d7d0ca73b0d481c6362add8624a9a94c582243a7c58e60df271b08`)
+criava a FK composta antes da UNIQUE nova em `entitlements`. PostgreSQL exige
+a chave referenciada antes da FK. A correção gera primeiro somente a identidade
+única e depois, sobre esse snapshot, a tabela do recibo. Não editar SQL gerado
+para inverter instruções; nenhum desses artefatos foi aplicado em produção.
+
 1. Prazo finito: candidata `4a46a3dd`, oito gates de Recreio aprovados em
    `44276622593`; o CI compartilhado do catálogo seguinte também cobre os
    testes puros. Não implantada.
