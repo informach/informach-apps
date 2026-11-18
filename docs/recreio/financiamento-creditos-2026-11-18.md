@@ -99,11 +99,41 @@ são limitados; o resultado permanece privado e sem dados de contato.
 
 Oito cenários SDK/HTTP verificam os valores anuais, dependência do estorno,
 mudança de saldo/topo/contrato, paginação repetida, escopo e prazo vencido. O
-ensaio anual externo passa a usar também esse núcleo antes e depois da
-renovação/estorno. Ambos ainda precisam de execução nesta nova fonte.
+ensaio anual externo usa também esse núcleo antes e depois da renovação/estorno.
+
+`ffb206e0f3bff2d1bec64034f24b52b9b4c22d0a` passou no quality
+`44404059457` e na [API real de teste 44404065298](https://github.com/informach/informach-apps/actions/runs/44404065298).
+O grafo comprovou a fatura negativa e a renovação zerada, limitou o período
+anual devolvido e revogou as provas dependentes depois do estorno da captura
+original. Artefato 14474147788, 1.939 bytes, baixado e inspecionado; hashes e
+limites no [recibo](evidencias/credito-origem-api-44404065298.json). Recursos de
+teste removidos e limpeza confirmada. Essa é prova de API, não do kernel de
+acesso, do aceite ou da persistência nativos.
 
 O CLI usa a mesma condição Node `react-server` dos comandos administrativos
 existentes, preservando o marcador `server-only`. O workflow roda tipos e os
 testes fechados do coletor/núcleo/conferência antes de criar recursos no Stripe.
 Comprovação da API não implementa persistência, acesso ou aceite nativos;
 `nativeAnnualCreditFundingImplemented` permanece falso no recibo externo.
+
+## Persistência nativa — preparação
+
+A próxima etapa começa pelas chaves de escopo, antes das tabelas com FKs:
+período financeiro `(id, subscription_id, provider)` e contrato Recreio com
+assinatura, compra, grupo, pagante, modo e produto original. A identidade já é
+única pelas PKs atuais; não há backfill de valores ou dados supostamente pagos.
+Separar as duas gerações evita repetir a FK gerada antes da chave referenciada.
+Essa DDL ainda precisa ser gerada e verificada no GitHub; não foi implantada.
+
+A prova deve conservar o período original e guardar separadamente estado,
+fim financiado, versão e origens das capturas. A referência ao período não pode
+apontar para outro contrato/provider, e a referência comercial não pode trocar
+grupo/pagante/modo. Observações antigas não podem restaurar uma prova recente;
+repetição com o mesmo relógio exige o mesmo conteúdo. Eventos de auditoria não
+recebem valores ou conteúdo familiar. Não acrescentar um default que declare
+históricos existentes comprovados sem leitura completa do provedor.
+
+O novo índice em `billing` exige conferir volume e risco de trava junto dos
+consumidores compartilhados antes de implantar; a geração não autoriza aplicar
+migrations isoladas. A publicação continua exigindo migrator controlado,
+backup/restauração, pré-condições comerciais e evidência da fonte final.

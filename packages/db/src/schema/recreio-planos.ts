@@ -217,6 +217,14 @@ export const recreioBillingContracts = recreio.table(
       ],
     }).onDelete("restrict"),
     index("recreio_billing_contract_payer").on(t.payerUserId, t.providerMode),
+    unique("recreio_billing_contract_funding_scope").on(
+      t.subscriptionId,
+      t.purchaseId,
+      t.groupId,
+      t.payerUserId,
+      t.providerMode,
+      t.originProductId,
+    ),
     check("recreio_billing_contract_mode", sql`${t.providerMode} in ('dev','prod')`),
     check(
       "recreio_billing_contract_offer",
