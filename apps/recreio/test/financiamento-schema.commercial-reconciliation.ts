@@ -37,6 +37,9 @@ async function fixture() {
     .from(periods)
     .where(eq(periods.subscriptionId, contrato.subscriptionId));
   if (!periodo) throw new Error("Native paid period absent");
+  // The runtime now supplies its own proof. Replace only the fixture pointer
+  // for constraint tests, retaining the real observation and its source rows.
+  await db.delete(current).where(eq(current.paymentPeriodId, periodo.id));
   const observationId = randomUUID();
   const row = {
     id: observationId,

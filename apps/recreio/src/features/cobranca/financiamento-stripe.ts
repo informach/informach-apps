@@ -11,7 +11,10 @@ import {
   comprovarFinanciamento,
   FinanciamentoInconclusivo,
   type MovimentoDoFinanciamento,
+  VERSAO_DO_FINANCIAMENTO,
 } from "./financiamento-regras";
+
+export { VERSAO_DO_FINANCIAMENTO } from "./financiamento-regras";
 
 const id = (value: string | { id: string } | null | undefined) =>
   typeof value === "string" ? value : value?.id;
@@ -19,7 +22,6 @@ function conferir(value: unknown, motivo: string): asserts value {
   if (!value) throw new FinanciamentoInconclusivo(motivo);
 }
 
-export const VERSAO_DO_FINANCIAMENTO = "financiamento-2026-11-18-v1";
 type LeituraDoFinanciamento = NonNullable<
   Awaited<ReturnType<ReturnType<typeof createStripePaymentFactReader>["readWithFunding"]>>
 >;

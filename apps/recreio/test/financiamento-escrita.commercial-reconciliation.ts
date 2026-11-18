@@ -42,6 +42,10 @@ async function fixture() {
     .where(eq(contracts.purchaseId, f.recibo.id));
   if (!encontrado) throw new Error("Native contract absent");
   const contrato = encontrado;
+  const iniciais = await db
+    .select()
+    .from(observations)
+    .where(eq(observations.subscriptionId, contrato.subscriptionId));
   const financeiro = fixtureDeFinanciamento({
     paganteId: f.adulto.conta.id,
     autorizacaoId: f.recibo.id,
@@ -119,8 +123,17 @@ async function fixture() {
       .from(current)
       .innerJoin(observations, eq(observations.id, current.observationId))
       .innerJoin(periods, eq(periods.id, current.paymentPeriodId))
-      .where(eq(periods.subscriptionId, contrato.subscriptionId));
-  return { ...f, financeiro, contrato, ler, vinculos, tentativa, gravar, estados };
+      .where(
+        and(
+          eq(periods.subscriptionId, contrato.subscriptionId),
+          inArray(periods.providerInvoiceId, [
+            financeiro.identidade("in_original"),
+            financeiro.identidade("in_credit"),
+            financeiro.identidade("in_renewal"),
+          ]),
+        ),
+      );
+  return { ...f, financeiro, contrato, iniciais, ler, vinculos, tentativa, gravar, estados };
 }
 
 describe("escrita nativa das provas de financiamento", () => {
@@ -157,7 +170,7 @@ describe("escrita nativa das provas de financiamento", () => {
           eq(events.eventType, "recreio.payment_funding_observed"),
         ),
       );
-    expect(auditoria).toHaveLength(3);
+    expect(auditoria).toHaveLength(f.iniciais.length + 3);
     expect(
       auditoria.every(
         (e) =>
@@ -184,7 +197,7 @@ describe("escrita nativa das provas de financiamento", () => {
         .select()
         .from(observations)
         .where(eq(observations.subscriptionId, f.contrato.subscriptionId)),
-    ).toHaveLength(3);
+    ).toHaveLength(f.iniciais.length + 3);
     expect(
       await db
         .select()
@@ -195,7 +208,7 @@ describe("escrita nativa das provas de financiamento", () => {
             eq(events.eventType, "recreio.payment_funding_observed"),
           ),
         ),
-    ).toHaveLength(3);
+    ).toHaveLength(f.iniciais.length + 3);
   });
   it("estorno da origem revoga todos os dependentes e conserva flags próprias e observações antigas", async () => {
     const f = await fixture();
@@ -227,7 +240,7 @@ describe("escrita nativa das provas de financiamento", () => {
         .select()
         .from(observations)
         .where(eq(observations.subscriptionId, f.contrato.subscriptionId)),
-    ).toHaveLength(6);
+    ).toHaveLength(f.iniciais.length + 6);
   });
   it("rejeita conteúdo diferente no mesmo relógio e leitura anterior à prova atual", async () => {
     const f = await fixture(),
@@ -279,7 +292,7 @@ describe("escrita nativa das provas de financiamento", () => {
         .select()
         .from(observations)
         .where(eq(observations.subscriptionId, f.contrato.subscriptionId)),
-    ).toEqual([]);
+    ).toEqual(f.iniciais);
     expect(
       await db
         .select()

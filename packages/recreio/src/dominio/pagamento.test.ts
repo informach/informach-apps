@@ -26,6 +26,7 @@ function fatos(mudancas: Partial<FatosDoPagamento> = {}): FatosDoPagamento {
         pagoEm: em(-30_000),
         estornado: false,
         contestado: false,
+        financiadoAte: em(86_400_000),
       },
     ],
     ...mudancas,
@@ -57,6 +58,16 @@ describe("pagamento conciliado não equivale a status espelhado", () => {
     ["assinatura encerrada", { status: "canceled" }],
     ["teste sem prazo próprio", { status: "trialing" }],
   ];
+  it("prova revogada/ausente não financia e o crédito retirado limita a data original", () => {
+    for (const financiadoAte of [null, agora, new Date(Number.NaN)]) {
+      const f = fatos();
+      f.periodos = f.periodos.map((p) => ({ ...p, financiadoAte }));
+      expect(limiteDoPagamentoConciliado(f, agora)).toBeNull();
+    }
+    const f = fatos();
+    f.periodos = f.periodos.map((p) => ({ ...p, financiadoAte: em(3000) }));
+    expect(limiteDoPagamentoConciliado(f, agora)).toEqual(em(3000));
+  });
   it.each(negativas)("recusa %s", (_nome, mudancas) =>
     expect(limiteDoPagamentoConciliado(fatos(mudancas), agora)).toBeNull(),
   );

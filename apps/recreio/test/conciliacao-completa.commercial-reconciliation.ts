@@ -273,7 +273,7 @@ describe("conciliação nativa com origem, períodos e resultado duráveis", () 
     const primeiro = await fixture(),
       segundo = await fixture();
     primeiro.concluirCheckout();
-    const pago = segundo.concluirCheckout();
+    segundo.concluirCheckout();
     primeiro.indisponibilizar();
     const runtimeA = primeiro.runtimeFinanceiro,
       runtimeB = segundo.runtimeFinanceiro;
@@ -287,8 +287,13 @@ describe("conciliação nativa com origem, períodos e resultado duráveis", () 
               ? runtimeA
               : runtimeB
             ).leitor.listSubscriptionIds(customer, budget),
-          read: (id, prices, budget) =>
-            (id === pago.assinatura.id ? runtimeB : runtimeA).leitor.read(id, prices, budget),
+        },
+        financiamento: {
+          conferirCliente: (entrada, budget) =>
+            (entrada.clienteId === segundo.providerCustomerId
+              ? runtimeB
+              : runtimeA
+            ).financiamento.conferirCliente(entrada, budget),
         },
         lerCheckout: (customer, ...args) =>
           (customer === primeiro.providerCustomerId ? runtimeA : runtimeB).lerCheckout(

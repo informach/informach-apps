@@ -737,6 +737,15 @@ As decisões e o estado de migração ficam em [implementação Compasso](../../
 
 `@informach/billing/payment-facts` exporta o leitor Stripe de snapshots e a persistência dos períodos pagos. A licença Edi usa `@informach/edi-licensing`: status isolado não prova pagamento. Períodos pagos, reembolsos/disputas, suspensão, dispositivos e freshness participam da decisão. Não substituir por `hasProSubscription`; essa exceção não altera o Pro dos produtos web existentes.
 
+`readWithFunding` acrescenta fatos normalizados de faturas, capturas e linhas
+creditadas, sem incluir conteúdo pessoal. Essa coleta não comprova a origem
+do saldo nem concede acesso. A composição nativa do Recreio confere o ledger
+do customer, contratos e aceites e mantém sua própria prova versionada. O
+`read` comum conserva seu contrato e recusa criar períodos sem captura própria
+a partir de uma fatura de valor pago zero. Não copiar a política do Recreio
+para os demais consumidores nem reinterpretar um período dependente como
+estornado/contestado por uma flag inventada.
+
 O portal mantém outbox e reconciliação periódica serializada pelo lifecycle de cobrança. `edi.billing_reconciliations` separa tentativas/backoff de `edi.entitlements.reconciled_at`, que só avança após persistência bem-sucedida. Falhas não renovam freshness/licença. Sucesso periódico: 6 h; reserva após início/interrupção: 10 min; backoff: 30 s exponencial, máximo 6 h. Outbox mantém retry próprio.
 
 `pnpm edi:test:integration` cobre mais de 25 contas com falhas permanentes, rollback e concorrência com suspensão em PostgreSQL descartável. Não equivale a compra Stripe ponta a ponta: cobrança real continua desabilitada até homologação. Ver [portal Edi](../../apps/edi/PRODUCAO.md) e [arquitetura desktop](../../docs/arquitetura-desktop.md).

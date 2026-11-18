@@ -1,11 +1,13 @@
 import "server-only";
 import { getProSubscription } from "@informach/billing";
-import { and, type Database, db, desc, eq, inArray, isNotNull } from "@informach/db";
+import { and, type Database, db, desc, eq, inArray, isNotNull, sql } from "@informach/db";
 import {
   recreioBillingContracts as contracts,
   customers,
   recreioEntitlements as entitlements,
   recreioBillingReconciliations as financialJobs,
+  recreioFundingObservations as fundingObservations,
+  recreioPaymentFunding as fundingProofs,
   recreioGroups as groups,
   subscriptionPaymentPeriods as paidPeriods,
   recreioProfiles as profiles,
@@ -21,6 +23,7 @@ import {
   PerfilIdSchema,
   type StatusDaAssinatura,
 } from "@informach/recreio";
+import { VERSAO_DO_FINANCIAMENTO } from "@/features/cobranca/financiamento-regras";
 import { schema as EnvironmentSchema } from "@/lib/environment";
 import type { Transacao } from "@/lib/repository";
 
@@ -155,8 +158,28 @@ async function lerPagamentoDaAssinatura(
         pagoEm: paidPeriods.paidAt,
         estornado: paidPeriods.fullyRefunded,
         contestado: paidPeriods.disputed,
+        financiadoAte: sql<Date | null>`case when
+          ${fundingObservations.fundingStatus}='verified'
+          and ${fundingObservations.policyVersion}=${VERSAO_DO_FINANCIAMENTO}
+          and ${fundingObservations.subscriptionId}=${paidPeriods.subscriptionId}
+          and ${fundingObservations.provider}='stripe'
+          and ${fundingObservations.groupId}=${grupoId}
+          and ${fundingObservations.payerUserId}=${donoId}
+          and ${fundingObservations.providerMode}=${modo.data.STRIPE_MODE}
+          and ${fundingObservations.purchaseId}=${contrato?.purchaseId ?? null}
+          and ${fundingObservations.originProductId}=${contrato?.originProductId ?? null}
+          and ${fundingProofs.observedAt}=${paidPeriods.reconciledAt}
+          then ${fundingObservations.fundedUntil} else null end`.mapWith(paidPeriods.periodEnd),
       })
       .from(paidPeriods)
+      .leftJoin(fundingProofs, eq(fundingProofs.paymentPeriodId, paidPeriods.id))
+      .leftJoin(
+        fundingObservations,
+        and(
+          eq(fundingObservations.id, fundingProofs.observationId),
+          eq(fundingObservations.paymentPeriodId, paidPeriods.id),
+        ),
+      )
       .where(and(eq(paidPeriods.subscriptionId, ativa.id), eq(paidPeriods.provider, "stripe"))),
   ]);
   return {

@@ -5,11 +5,16 @@ import {
   recreioPlanChanges as changes,
   recreioBillingContracts as contracts,
   recreioDeviceSessions as devices,
+  recreioFundingObservations as fundingObservations,
+  recreioPaymentFunding as fundingProofs,
+  recreioGameSessions as gameSessions,
   recreioBillingReconciliations as jobs,
+  subscriptionPaymentPeriods as paidPeriods,
   recreioProfiles as profiles,
   recreioPurchaseAuthorizations as purchases,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
+import { avaliarAcesso } from "@/features/acesso/service";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
 import { criarAceiteDeTroca } from "@/features/cobranca/troca-aceite-service";
@@ -18,6 +23,7 @@ import {
   criarRecuperacaoDeAumento,
 } from "@/features/cobranca/troca-aumento-execucao-service";
 import { criarPreparacaoDeAumento } from "@/features/cobranca/troca-cotacao-service";
+import { entrarNoJogo, ingressoDe } from "./jogo-apoio";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
@@ -25,13 +31,13 @@ type Financeiro = ReturnType<Awaited<ReturnType<typeof fixtureDePagamento>>["con
 
 /** Native identity, receipt, PostgreSQL, audit and SDK are real. HTTP payment
  * and preview facts are closed fixtures, not a Stripe settlement claim. */
-async function fixture(comJogador = false) {
+async function fixture(comJogador = false, produtoInicial = "recreio_individual_monthly") {
   let financeiro: Financeiro | undefined;
   let depoisDaPrevia: (() => Promise<void>) | undefined;
   let totalIncorreto = false;
   let transporteDoEnvio: ((request: Request) => Promise<Response | null>) | undefined;
   const previas: URLSearchParams[] = [];
-  const f = await fixtureDePagamento(comJogador, "recreio_individual_monthly", async (request) => {
+  const f = await fixtureDePagamento(comJogador, produtoInicial, async (request) => {
     const enviada = await transporteDoEnvio?.(request.clone());
     if (enviada) return enviada;
     if (
@@ -53,20 +59,21 @@ async function fixture(comJogador = false) {
       parent: { subscription_item_details: { subscription: financeiro?.assinatura.id } },
       pricing: { price_details: { price } },
     });
+    const total = 12790 - financeiro.fatura.amount_paid;
     const resposta = {
       id: "upcoming_in_native",
       object: "invoice",
       livemode: false,
       customer: financeiro.assinatura.customer,
       currency: "brl",
-      amount_due: 6800,
-      total: totalIncorreto ? 6801 : 6800,
+      amount_due: Math.max(0, total),
+      total: totalIncorreto ? total + 1 : total,
       starting_balance: 0,
       parent: { subscription_details: { subscription: financeiro.assinatura.id } },
       lines: {
         has_more: false,
         data: [
-          line("il_native_credit", -5990, item.price.id),
+          line("il_native_credit", -financeiro.fatura.amount_paid, item.price.id),
           line("il_native_family", 12790, "price_recreio_family_monthly"),
         ],
       },
@@ -261,8 +268,8 @@ describe("cotação nativa do aumento imediato", () => {
   });
 });
 
-async function fixtureDeEnvio(comJogador = false) {
-  const f = await fixture(comJogador),
+async function fixtureDeEnvio(comJogador = false, produtoInicial = "recreio_individual_monthly") {
+  const f = await fixture(comJogador, produtoInicial),
     pedido = await f.pedido(),
     cotacao = await f.cotar(f.adulto.autor, pedido);
   await criarAceiteDeTroca(() => ({ modo: "dev", produtos: f.products }))(f.adulto.autor, {
@@ -290,6 +297,9 @@ async function fixtureDeEnvio(comJogador = false) {
   const item = f.financeiro.assinatura.items.data[0];
   if (!item) throw new Error("Closed recurring item absent");
   const originalItem = item;
+  const total = 12790 - f.financeiro.fatura.amount_paid;
+  const devido = Math.max(0, total),
+    saldoFinal = Math.min(0, total);
   const assinatura = () => ({
     ...f.financeiro.assinatura,
     latest_invoice: criada?.fatura.id ?? f.financeiro.fatura.id,
@@ -305,12 +315,24 @@ async function fixtureDeEnvio(comJogador = false) {
       data: [
         {
           id: `il_credit_${cotacao.id.replaceAll("-", "")}`,
-          amount: -5990,
+          invoice: atual.fatura.id,
+          livemode: false,
+          amount: -f.financeiro.fatura.amount_paid,
           currency: "brl",
           quantity: 1,
-          parent: { subscription_item_details: { subscription: f.financeiro.assinatura.id } },
-          pricing: { price_details: { price: "price_recreio_individual_monthly" } },
-          period: atual.linha.period,
+          parent: {
+            subscription_item_details: {
+              subscription: f.financeiro.assinatura.id,
+              proration_details: {
+                credited_items: {
+                  invoice: f.financeiro.fatura.id,
+                  invoice_line_items: [f.financeiro.linha.id],
+                },
+              },
+            },
+          },
+          pricing: { price_details: { price: f.financeiro.linha.pricing.price_details.price } },
+          period: { start: atual.linha.period.start, end: f.financeiro.linha.period.end },
         },
         { ...atual.linha, currency: "brl", quantity: 1 },
       ],
@@ -319,6 +341,34 @@ async function fixtureDeEnvio(comJogador = false) {
   f.usarTransporteDoEnvio(async (request) => {
     const path = new URL(request.url).pathname;
     if (request.method === "GET") {
+      if (criada && path === `/v1/customers/${f.providerCustomerId}`)
+        return Response.json({
+          id: f.providerCustomerId,
+          object: "customer",
+          livemode: false,
+          balance: saldoFinal,
+        });
+      if (criada && path === `/v1/customers/${f.providerCustomerId}/balance_transactions`)
+        return Response.json({
+          object: "list",
+          has_more: false,
+          data:
+            saldoFinal === 0
+              ? []
+              : [
+                  {
+                    id: `cbtxn_native_${cotacao.id.replaceAll("-", "")}`,
+                    object: "customer_balance_transaction",
+                    livemode: false,
+                    customer: f.providerCustomerId,
+                    currency: "brl",
+                    type: "applied_to_invoice",
+                    invoice: criada.fatura.id,
+                    amount: saldoFinal,
+                    ending_balance: saldoFinal,
+                  },
+                ],
+        });
       if (path === `/v1/subscriptions/${f.financeiro.assinatura.id}`)
         return Response.json(assinatura());
       if (path === "/v1/events")
@@ -327,8 +377,8 @@ async function fixtureDeEnvio(comJogador = false) {
         return Response.json({
           ...criada.fatura,
           billing_reason: "subscription_update",
-          amount_due: 6800,
-          total: 6800,
+          amount_due: devido,
+          total,
           starting_balance: 0,
           parent: { subscription_details: { subscription: f.financeiro.assinatura.id } },
         });
@@ -351,14 +401,16 @@ async function fixtureDeEnvio(comJogador = false) {
       inicio,
       originalItem.current_period_end,
     );
-    criada.fatura.amount_paid = 6800;
-    criada.alocacao.amount_paid = 6800;
-    criada.charge.amount_captured = 6800;
+    criada.fatura.amount_paid = devido;
+    criada.fatura.total = total;
+    criada.fatura.ending_balance = saldoFinal;
+    criada.alocacao.amount_paid = devido;
+    criada.charge.amount_captured = devido;
     criada.fatura.status_transitions.paid_at = inicio;
     criada.pago = !recusar;
     criada.fatura.status = recusar ? "open" : "paid";
     originalItem.price.id = recusar
-      ? "price_recreio_individual_monthly"
+      ? f.financeiro.linha.pricing.price_details.price
       : "price_recreio_family_monthly";
     eventos.push({
       id: `evt_upgrade_${cotacao.id.replaceAll("-", "")}`,
@@ -500,6 +552,62 @@ describe("tentativa e conciliação nativas do aumento", () => {
     ).toBe(2);
     expect(f.escritas).toHaveLength(1);
   });
+  it.each(["estorno", "parcial", "contestacao", "credito_anual"] as const)(
+    "fato adverso %s na origem corta a SID do aumento dependente",
+    async (tipo) => {
+      const anual = tipo === "credito_anual";
+      const f = await fixtureDeEnvio(
+        true,
+        anual ? "recreio_individual_annual" : "recreio_individual_monthly",
+      );
+      if (anual) expect(f.cotacao).toMatchObject({ valorAgoraCentavos: 0, totalCentavos: -47110 });
+      await f.enviar(f.adulto.autor, f.cotacao.id);
+      expect((await f.processar()).conciliadas).toBe(1);
+      const jogador = f.adulto.jogador;
+      if (!jogador) throw new Error("Native payer/player absent");
+      expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+        podeJogar: true,
+      });
+      const aberta = await entrarNoJogo(jogador);
+      f.financeiro.charge.amount_refunded =
+        tipo === "estorno" || anual ? f.financeiro.fatura.amount_paid : tipo === "parcial" ? 1 : 0;
+      f.financeiro.charge.refunded = tipo === "estorno" || anual;
+      f.financeiro.charge.disputed = tipo === "contestacao";
+      if (tipo === "contestacao")
+        f.financeiro.disputas.push({ id: "dp_native_origin", status: "needs_response" });
+      await db.execute(
+        sql`update recreio.billing_reconciliations set next_attempt_at=clock_timestamp() where payer_user_id=${f.adulto.conta.id} and provider_mode='dev'`,
+      );
+      expect((await f.processar()).conciliadas).toBe(1);
+      expect(f.falhas).toEqual([]);
+      expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+        podeJogar: false,
+      });
+      await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+      expect(
+        (await db.select().from(gameSessions).where(eq(gameSessions.id, aberta.sid)))[0]?.endedAt,
+      ).toBeInstanceOf(Date);
+      const [contrato] = await db
+        .select()
+        .from(contracts)
+        .where(eq(contracts.purchaseId, f.recibo.id));
+      if (!contrato) throw new Error("Native applied contract absent");
+      expect(contrato.revision).toBe(2);
+      const provas = await db
+        .select({ periodo: paidPeriods, prova: fundingObservations })
+        .from(fundingProofs)
+        .innerJoin(fundingObservations, eq(fundingObservations.id, fundingProofs.observationId))
+        .innerJoin(paidPeriods, eq(paidPeriods.id, fundingProofs.paymentPeriodId))
+        .where(eq(paidPeriods.subscriptionId, contrato.subscriptionId));
+      const dependente = provas.find(
+        (p) => p.periodo.providerPriceId === "price_recreio_family_monthly",
+      );
+      expect(dependente?.prova.fundingStatus).toBe(tipo === "parcial" ? "review" : "revoked");
+      expect(dependente?.periodo.fullyRefunded).toBe(false);
+      expect(dependente?.periodo.disputed).toBe(false);
+      expect(f.escritas).toHaveLength(1);
+    },
+  );
   it("fatura própria estornada não aplica revisão nem confirmação financeira falsa", async () => {
     const f = await fixtureDeEnvio();
     await f.enviar(f.adulto.autor, f.cotacao.id);

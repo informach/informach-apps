@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
 import { expect } from "vitest";
 import type { RuntimeDeConciliacao } from "@/features/cobranca/conciliacao-runtime";
+import { criarConferenciaDeFinanciamento } from "@/features/cobranca/financiamento-stripe";
 import { fixtureDeCheckout } from "./compra-stripe-apoio";
 
 type Checkout = Awaited<ReturnType<typeof fixtureDeCheckout>>;
@@ -51,6 +52,10 @@ function dados(f: Checkout) {
     customer: f.providerCustomerId,
     livemode: false,
     amount_paid: produto.listPrice.amountCents,
+    total: produto.listPrice.amountCents,
+    starting_balance: 0,
+    ending_balance: 0,
+    parent: { subscription_details: { subscription: assinatura.id } },
     currency: "brl",
     status: "paid",
     status_transitions: { paid_at: inicio + 1 },
@@ -63,6 +68,7 @@ function dados(f: Checkout) {
     paid: true,
     captured: true,
     amount_captured: produto.listPrice.amountCents,
+    payment_intent: `pi_fixture_${sufixo}`,
     amount_refunded: 0,
     refunded: false,
     disputed: false,
@@ -81,11 +87,17 @@ function dados(f: Checkout) {
     object: "invoice_payment",
     invoice: fatura.id,
     amount_paid: produto.listPrice.amountCents,
+    livemode: false,
+    currency: "brl",
     status: "paid",
     payment: { type: "payment_intent", payment_intent: pagamento.id },
   };
   const linha = {
     id: `il_fixture_${sufixo}`,
+    invoice: fatura.id,
+    livemode: false,
+    currency: "brl",
+    quantity: 1,
     amount: produto.listPrice.amountCents,
     parent: { subscription_item_details: { subscription: assinatura.id } },
     pricing: { price_details: { price: produto.stripePriceId.dev } },
@@ -115,7 +127,11 @@ export async function fixtureDePagamento(
       if (request.method !== "GET") return null;
       const url = new URL(request.url);
       let resposta: unknown;
-      if (url.pathname === "/v1/subscriptions") {
+      if (url.pathname === `/v1/customers/${f.providerCustomerId}`)
+        resposta = { id: f.providerCustomerId, object: "customer", livemode: false, balance: 0 };
+      else if (url.pathname === `/v1/customers/${f.providerCustomerId}/balance_transactions`)
+        resposta = list([]);
+      else if (url.pathname === "/v1/subscriptions") {
         expect(url.searchParams.get("customer")).toBe(f.providerCustomerId);
         if (indisponivel) throw new TypeError("Fixture financial provider unavailable");
         resposta = list(financeiro ? [financeiro.assinatura] : []);
@@ -130,7 +146,7 @@ export async function fixtureDePagamento(
           (f) => f.fatura.id === url.searchParams.get("invoice"),
         );
         if (!fatura) throw new Error("Closed invoice outside fixture scope");
-        resposta = list([fatura.alocacao]);
+        resposta = list(fatura.fatura.amount_paid > 0 ? [fatura.alocacao] : []);
       } else if (financeiro && url.pathname.startsWith("/v1/payment_intents/")) {
         const fatura = [financeiro, ...renovacoes].find(
           (f) => url.pathname === `/v1/payment_intents/${f.pagamento.id}`,
@@ -163,6 +179,15 @@ export async function fixtureDePagamento(
       client: f.stripe,
       expectedMode: "dev",
     }),
+    financiamento: criarConferenciaDeFinanciamento({
+      modo: "dev",
+      cliente: f.stripe,
+      leitor: createStripePaymentFactReader({
+        secretKey: "unused",
+        client: f.stripe,
+        expectedMode: "dev",
+      }),
+    }),
     lerCheckout: find,
   };
   return {
@@ -182,6 +207,7 @@ export async function fixtureDePagamento(
       if (!financeiro) throw new Error("Closed original subscription absent");
       const renovacao = dados({ ...f, entrada: { ...f.entrada, productId: produtoId } });
       renovacao.linha.parent.subscription_item_details.subscription = financeiro.assinatura.id;
+      renovacao.fatura.parent.subscription_details.subscription = financeiro.assinatura.id;
       renovacao.linha.period = { start: inicio, end: fim };
       renovacao.fatura.status_transitions.paid_at = inicio + 1;
       renovacoes.push(renovacao);

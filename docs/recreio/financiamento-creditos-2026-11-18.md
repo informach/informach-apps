@@ -234,3 +234,28 @@ endpoint sintético do cliente. Correção restrita às fixtures; repetir os gat
 PostgreSQL. A leitura passa a travar o ponteiro diretamente e ler o conteúdo
 imutável por ID/período; conserva a trava do período e o mesmo contrato
 monotônico. Não remove a proteção para contornar a falha SQL.
+
+`324130d3`/`44414459820`: os 104 testes financeiros passaram, incluindo os
+seis do escritor. Qualidade de `452abbf4` aprovada em `44413627316` (projeção
+e fixtures corrigidas). Esses gates qualificam os componentes nessas fontes,
+sem substituir a rodada integral da composição seguinte.
+
+## Integração raiz e acesso — candidata
+
+A conciliação passa a compor o customer uma vez, projetar os períodos completos,
+conferir aceites/trocas, persistir fatos core e provas na mesma transação e só
+então confirmar a fila e revalidar SIDs. O leitor de acesso exige prova atual,
+estado `verified`, política conhecida, escopo comercial completo e relógio
+igual ao do período core. A decisão pura intersecta o prazo financiado com o
+prazo original, contratual e da conferência; um novo poll ainda em andamento
+não invalida o par anterior dentro da validade. Cortesias/testes seguem seus
+próprios contratos. Stripe 22.1.0 passa de dependência de desenvolvimento para
+runtime do Recreio, sem mudar versão ou resolução.
+
+As fixtures SQL antigas passam a declarar a prova sintética de forma explícita;
+não certificam pagamentos externos. Novos cenários exigem corte da SID por
+estorno completo/parcial ou contestação da origem, inclusive anual→mensal com
+fatura sem captura própria. Os dezesseis gates da fonte composta ainda precisam
+rodar. O aumento estornado antes de sua primeira aplicação continua exigindo
+revisão; a recuperação comercial desse caso e as doze transições/telas ainda
+precisam ser concluídas. Sem implantação ou ativação.

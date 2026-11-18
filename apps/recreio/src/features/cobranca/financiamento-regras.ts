@@ -1,3 +1,5 @@
+export const VERSAO_DO_FINANCIAMENTO = "financiamento-2026-11-18-v1";
+
 /** Native invoice/customer-balance funding. Inputs are scoped provider facts,
  * not browser requests. No clock, I/O, database or inferred payment is used. */
 export type CapturaDoFinanciamento = {

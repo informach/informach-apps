@@ -14,6 +14,8 @@ import type { Transacao } from "@/lib/repository";
 import { lerSelecaoDaCompraLocked } from "./compra-selecao-repository";
 import type { TentativaDeConciliacao } from "./conciliacao-fila-repository";
 import { conferirOfertaAtualLocked } from "./contratos-repository";
+import { persistirFinanciamentoLocked } from "./financiamento-repository";
+import type { ConferenciaFinanceiraDoCliente } from "./financiamento-stripe";
 import { aplicarSelecaoAdmitidaLocked } from "./selecao-aplicacao-repository";
 import { aplicarReducoesObservadasLocked } from "./troca-aplicacao-repository";
 import { aplicarAumentosObservadosLocked } from "./troca-aumento-aplicacao-repository";
@@ -62,6 +64,7 @@ export async function persistirFatosDaConciliacao(
     agora: Date;
     trocas?: readonly AgendaDaTrocaObservada[];
     aumentos?: readonly AumentoObservado[];
+    financiamento: ConferenciaFinanceiraDoCliente;
   },
 ) {
   assertAllowed(prova.customer, "COBRANCA", "Cliente financeiro não confirmado.");
@@ -129,6 +132,12 @@ export async function persistirFatosDaConciliacao(
           pagoEm: p.paidAt,
           estornado: p.fullyRefunded,
           contestado: p.disputed,
+          financiadoAte: (() => {
+            const origem = entrada.financiamento.financiamento.periodos.find(
+              (f) => f.faturaId === p.invoiceId && f.linhaId === p.lineId,
+            );
+            return origem?.estado === "comprovado" ? new Date(origem.cobertoAte * 1000) : null;
+          })(),
         })),
       },
       entrada.agora,
@@ -237,4 +246,14 @@ export async function persistirFatosDaConciliacao(
       );
     }
   }
+  await persistirFinanciamentoLocked(
+    tx,
+    prova,
+    entrada.financiamento,
+    entrada.snapshots.map((s, i) => {
+      const subscriptionId = ids[i];
+      assertAllowed(subscriptionId, "ORIGEM_FINANCEIRA", "Contrato não confirmado.");
+      return { subscriptionId, providerSubscriptionId: s.subscriptionId };
+    }),
+  );
 }

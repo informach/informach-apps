@@ -1,6 +1,5 @@
 import "server-only";
 import { PaymentEvidenceMismatchError } from "@informach/billing";
-import type { SubscriptionPaymentSnapshot } from "@informach/billing/payment-facts";
 import { isStripePriceIdConfigured, type StripeMode } from "@informach/config";
 import { z } from "zod";
 import { AppError, assertAllowed } from "@/lib/errors";
@@ -18,6 +17,8 @@ import {
   type VinculoDoCheckout,
 } from "./conciliacao-origens-repository";
 import type { RuntimeDeConciliacao } from "./conciliacao-runtime";
+import { prepararPeriodosDoFinanciamento } from "./financiamento-periodos";
+import { FinanciamentoInconclusivo } from "./financiamento-regras";
 import { comCicloDeCobranca } from "./lifecycle";
 import {
   type AumentoObservado,
@@ -32,6 +33,10 @@ import { recuperarAgendaAdmitida } from "./troca-recuperacao-service";
 
 function motivoDaFalha(erro: unknown): MotivoDaConferencia {
   if (erro instanceof PaymentEvidenceMismatchError) return "evidence_mismatch";
+  if (erro instanceof FinanciamentoInconclusivo)
+    return erro.motivo === "origem_comercial_de_outro_pagante"
+      ? "foreign_contract"
+      : "evidence_mismatch";
   if (erro instanceof AppError && erro.code === "CLIENTE_FINANCEIRO") return "customer_unconfirmed";
   if (erro instanceof AppError && erro.code === "ORIGEM_FINANCEIRA") return "foreign_contract";
   return "provider_unavailable";
@@ -155,20 +160,17 @@ export function criarProcessadorDeConciliacao(deps: {
               "ORIGEM_FINANCEIRA",
               "O histórico financeiro exige conferência.",
             );
-            const snapshots: SubscriptionPaymentSnapshot[] = [];
-            for (const id of ids) {
-              conferirPrazo();
-              const snapshot = await runtime.leitor.read(id, aceitos, budget);
-              conferirPrazo();
-              assertAllowed(
-                snapshot && snapshot.customerId === tentativa.customer.providerCustomerId,
-                "ORIGEM_FINANCEIRA",
-                "O contrato financeiro exige conferência.",
-              );
-              // Native ordering is the authoritative database admission clock,
-              // independent from wall-clock differences between application replicas.
-              snapshots.push({ ...snapshot, observedAt: tentativa.startedAt });
-            }
+            const financiamento = await runtime.financiamento.conferirCliente(
+              {
+                clienteId: tentativa.customer.providerCustomerId,
+                paganteId: tentativa.payerUserId,
+                assinaturaIds: ids,
+                precosAceitos: aceitos,
+              },
+              budget,
+            );
+            conferirPrazo();
+            const snapshots = prepararPeriodosDoFinanciamento(financiamento, tentativa.startedAt);
             assertAllowed(
               snapshots.filter((s) => s.status !== "canceled" && s.status !== "incomplete_expired")
                 .length <= 1,
@@ -245,6 +247,7 @@ export function criarProcessadorDeConciliacao(deps: {
                 agora,
                 trocas,
                 aumentos,
+                financiamento,
               }),
             );
             resultado.conciliadas++;

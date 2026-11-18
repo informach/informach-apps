@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
+import { VERSAO_DO_FINANCIAMENTO } from "../src/features/cobranca/financiamento-regras";
 import { comecarVigia, fecharAparelhos, hidratado, novaPessoa, tela, vigia } from "./apoio";
 
 const banco = postgres(process.env.DATABASE_URL ?? "", { max: 1 });
@@ -10,6 +11,18 @@ test.afterEach(async () => {
   expect(vigia()).toEqual({ violacoes: [], errosDePagina: [], errosDeConsole: [] });
 });
 test.afterAll(() => banco.end());
+
+/** Presentation fixture only, never a payment/provenance qualification. */
+async function provaFinanceiraUI(tx: postgres.TransactionSql, assinaturaId: string) {
+  await tx`with prova as (
+    insert into recreio.funding_observations
+      (payment_period_id,subscription_id,provider,purchase_id,group_id,payer_user_id,provider_mode,origin_product_id,funding_status,funded_until,policy_version,evidence_hash,first_observed_at)
+    select p.id,p.subscription_id,'stripe',c.purchase_id,c.group_id,c.payer_user_id,c.provider_mode,c.origin_product_id,'verified',p.period_end,${VERSAO_DO_FINANCIAMENTO},${"0".repeat(64)},p.reconciled_at
+    from billing.subscription_payment_periods p join recreio.billing_contracts c on c.subscription_id=p.subscription_id where p.subscription_id=${assinaturaId}
+    returning id,payment_period_id
+  ) insert into recreio.payment_funding (payment_period_id,observation_id,observed_at)
+    select p.id,prova.id,p.reconciled_at from prova join billing.subscription_payment_periods p on p.id=prova.payment_period_id`;
+}
 
 async function fatos(email: string) {
   const [linha] = await banco`select
@@ -154,6 +167,9 @@ test("situação paga e revisão financeira aparecem ao pagante sem jogador", as
         ${assinatura.current_period_start},${assinatura.current_period_end},clock_timestamp()-interval '1 minute',clock_timestamp())`;
     await tx`update recreio.purchase_authorizations set request_started_at=clock_timestamp(),provider_session_id=${`cs_ui_${sufixo}`},
       provider_subscription_id=${sub},resolved_at=clock_timestamp(),resolution='checkout_completed',review_required=false where id=${pedido.id}`;
+    await tx`insert into recreio.billing_contracts (subscription_id,purchase_id,group_id,payer_user_id,provider_mode,origin_product_id,origin_price_id,current_product_id,current_price_id,purchase_selection_processed_at)
+      values (${assinatura.id},${pedido.id},${pedido.group_id},${pedido.payer_user_id},'dev','recreio_individual_monthly','price_ui_recreio','recreio_individual_monthly','price_ui_recreio',clock_timestamp())`;
+    await provaFinanceiraUI(tx, assinatura.id);
     await tx`insert into recreio.billing_reconciliations
       (payer_user_id,group_id,provider_mode,last_attempt_at,last_confirmed_at,attempt_count,review_required,review_reason,next_attempt_at)
       values (${pedido.payer_user_id},${pedido.group_id},'dev',clock_timestamp(),clock_timestamp(),1,false,null,clock_timestamp()+interval '5 minutes')`;
@@ -257,6 +273,7 @@ test("adulto sem jogador confirma a seleção atual depois da redução do plano
       values (${trocaId},${sub.id},${p.id},${p.group_id},${p.payer_user_id},'dev','recreio_family_monthly',1,'recreio_family_monthly','price_ui_family','recreio_individual_monthly','price_ui_individual',5990,'month','downgrade',${inicio},${vigencia},${vigencia},0,0,0,0,0,'BRL','troca-ui-fixture-v1',${cotada},${new Date(cotada.getTime() + 300_000)},${aceita},${enviada},${`sub_sched_ui_${sufixo}`},'applied',${aplicada},2,${aplicada})`;
     await tx`insert into recreio.billing_contracts (subscription_id,purchase_id,group_id,payer_user_id,provider_mode,origin_product_id,origin_price_id,current_product_id,current_price_id,revision,current_plan_change_id,current_plan_applied_at,coverage_review_required) values (${sub.id},${p.id},${p.group_id},${p.payer_user_id},'dev','recreio_family_monthly','price_ui_family','recreio_individual_monthly','price_ui_individual',2,${trocaId},${aplicada},true)`;
     await tx`insert into billing.subscription_payment_periods (subscription_id,provider,provider_invoice_id,provider_line_id,provider_price_id,period_start,period_end,paid_at,reconciled_at) values (${sub.id},'stripe',${`in_ui_${sufixo}`},${`il_ui_${sufixo}`},'price_ui_individual',${vigencia},${fim},${aplicada},${observada})`;
+    await provaFinanceiraUI(tx, sub.id);
     await tx`insert into recreio.billing_reconciliations (payer_user_id,group_id,provider_mode,last_attempt_at,last_confirmed_at,attempt_count,review_required,review_reason,next_attempt_at,created_at,updated_at) values (${p.payer_user_id},${p.group_id},'dev',${aplicada},${observada},1,false,null,${new Date(observada.getTime() + 300_000)},${cotada},${observada})`;
   });
   await a.page.setViewportSize({ width: 390, height: 844 });

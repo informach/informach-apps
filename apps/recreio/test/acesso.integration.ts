@@ -7,11 +7,12 @@ import {
   customers,
   recreioEntitlements as entitlements,
   recreioBillingReconciliations as financialJobs,
+  recreioFundingObservations as fundingObservations,
+  recreioPaymentFunding as fundingProofs,
   recreioGameSessions as gameSessions,
   recreioGroups as groups,
   subscriptionPaymentPeriods as paidPeriods,
   recreioProfiles as profiles,
-  recreioPurchaseAuthorizations as purchases,
   subscriptions,
 } from "@informach/db/schema";
 import {
@@ -69,6 +70,7 @@ async function assinatura(
     fimDoTeste?: Date | null;
     pagamentoConciliado?: boolean;
     conferidoEm?: Date;
+    falhaFinanceira?: "origem" | "modo" | "fatura";
   } = {},
 ) {
   const [cliente] = await db
@@ -117,7 +119,7 @@ async function assinatura(
     (status === "active" || status === "trialing") &&
     PRODUCTS.some((p) => p.app === "recreio" && p.id === productId)
   )
-    await registrarPagamentoSintetico(conta, gravada, extra.conferidoEm);
+    await registrarPagamentoSintetico(conta, gravada, extra.conferidoEm, extra.falhaFinanceira);
   return gravada;
 }
 
@@ -508,21 +510,15 @@ describe("direito de jogar por assinatura", () => {
     "recusa ingresso quando a prova financeira falha em %s",
     async (tipo) => {
       const jogador = await novoJogador({ comAcesso: false });
-      const sub = await assinatura(jogador.conta, "active", "recreio_individual_monthly");
-      if (tipo === "origem")
-        await db.delete(purchases).where(eq(purchases.payerUserId, jogador.conta.id));
-      if (tipo === "modo")
-        await db
-          .update(purchases)
-          .set({ providerMode: "prod" })
-          .where(eq(purchases.payerUserId, jogador.conta.id));
+      const sub = await assinatura(jogador.conta, "active", "recreio_individual_monthly", {
+        falhaFinanceira:
+          tipo === "origem" || tipo === "modo" || tipo === "fatura" ? tipo : undefined,
+      });
       if (tipo === "revisao")
         await db
           .update(financialJobs)
           .set({ reviewRequired: true, reviewReason: "provider_unavailable" })
           .where(eq(financialJobs.payerUserId, jogador.conta.id));
-      if (tipo === "fatura")
-        await db.delete(paidPeriods).where(eq(paidPeriods.subscriptionId, sub.id));
       if (tipo === "estorno")
         await db
           .update(paidPeriods)
@@ -555,6 +551,65 @@ describe("direito de jogar por assinatura", () => {
       estado: "PAGAMENTO_PENDENTE",
     });
     await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+  });
+  it.each(["ausente", "revogada", "relogio", "politica", "trecho"] as const)(
+    "prova de financiamento %s não permite ingresso pago",
+    async (tipo) => {
+      const jogador = await novoJogador({ comAcesso: false });
+      const sub = await assinatura(jogador.conta, "active", "recreio_individual_monthly");
+      expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+        podeJogar: true,
+      });
+      const [periodo] = await db
+        .select()
+        .from(paidPeriods)
+        .where(eq(paidPeriods.subscriptionId, sub.id));
+      if (!periodo) throw new Error("Synthetic paid period absent");
+      const [atual] = await db
+        .select()
+        .from(fundingProofs)
+        .where(eq(fundingProofs.paymentPeriodId, periodo.id));
+      if (!atual) throw new Error("Synthetic funding proof absent");
+      // Explicitly corrupt only this fixture to exercise fail-closed reading.
+      if (tipo === "ausente")
+        await db.delete(fundingProofs).where(eq(fundingProofs.paymentPeriodId, periodo.id));
+      if (tipo === "relogio")
+        await db
+          .update(fundingProofs)
+          .set({ observedAt: new Date(0) })
+          .where(eq(fundingProofs.paymentPeriodId, periodo.id));
+      if (tipo === "revogada")
+        await db
+          .update(fundingObservations)
+          .set({ fundingStatus: "revoked" })
+          .where(eq(fundingObservations.id, atual.observationId));
+      if (tipo === "politica")
+        await db
+          .update(fundingObservations)
+          .set({ policyVersion: "unknown-policy" })
+          .where(eq(fundingObservations.id, atual.observationId));
+      if (tipo === "trecho")
+        await db
+          .update(fundingObservations)
+          .set({ fundedUntil: new Date(Date.now() - 1) })
+          .where(eq(fundingObservations.id, atual.observationId));
+      expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+        podeJogar: false,
+        estado: "PAGAMENTO_PENDENTE",
+      });
+      await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+    },
+  );
+  it("abrir uma nova leitura não invalida o par financeiro confirmado antes de seu vencimento", async () => {
+    const jogador = await novoJogador({ comAcesso: false });
+    await assinatura(jogador.conta, "active", "recreio_individual_monthly");
+    await db
+      .update(financialJobs)
+      .set({ lastAttemptAt: new Date(), attemptCount: 2 })
+      .where(eq(financialJobs.payerUserId, jogador.conta.id));
+    expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+      podeJogar: true,
+    });
   });
   it("a SID termina no limite da conferência mesmo com período mensal vigente", async () => {
     const jogador = await novoJogador({ comAcesso: false });

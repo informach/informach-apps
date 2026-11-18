@@ -9,6 +9,8 @@ export type PeriodoFinanceiro = {
   pagoEm: Date;
   estornado: boolean;
   contestado: boolean;
+  /** Verified dependency proof; null/absent never means captured money. */
+  financiadoAte: Date | null;
 };
 export type FatosDoPagamento = {
   status: StatusDaAssinatura;
@@ -65,8 +67,11 @@ export function limiteDoPagamentoConciliado(fatos: FatosDoPagamento, agora: Date
     // An unresolved dispute is account risk until authoritative facts clear it.
     if (periodo.contestado) return null;
     if (periodo.precoId !== fatos.precoId || comeco > t || termino <= t || pagamento > t) continue;
+    const financiado = periodo.financiadoAte?.getTime();
+    if (financiado === undefined || !Number.isFinite(financiado) || financiado <= t) continue;
     if (periodo.estornado) return null;
-    pagoAte = Math.max(pagoAte ?? termino, termino);
+    const efetivo = Math.min(termino, financiado);
+    pagoAte = Math.max(pagoAte ?? efetivo, efetivo);
   }
   return pagoAte === null ? null : new Date(Math.min(teto, pagoAte));
 }

@@ -1436,6 +1436,9 @@ importers:
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
+      stripe:
+        specifier: 22.1.0
+        version: 22.1.0(@types/node@24.19.2)
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -1464,9 +1467,6 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
-      stripe:
-        specifier: 22.1.0
-        version: 22.1.0(@types/node@24.19.2)
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3

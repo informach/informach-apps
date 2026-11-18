@@ -9,9 +9,11 @@ import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
 import { createStripeRecreioUpgrades } from "@informach/billing/providers/stripe-recreio-upgrades";
 import { db } from "@informach/db";
+import Stripe from "stripe";
 import { conferirCatalogoDoRecreio, produtosDoRecreio } from "@/features/cobranca/catalogo";
 import { emailDoPagante } from "@/features/cobranca/clientes-repository";
 import type { RuntimeDeConciliacao } from "@/features/cobranca/conciliacao-runtime";
+import { criarConferenciaDeFinanciamento } from "@/features/cobranca/financiamento-stripe";
 import type { RuntimeDoPortal } from "@/features/cobranca/portal-service";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
 import type { RuntimeDoWebhook } from "@/features/cobranca/webhook-service";
@@ -52,6 +54,15 @@ function criarComposicao() {
     timeoutMs: 10_000,
     maxNetworkRetries: 0,
   });
+  const financiamento = criarConferenciaDeFinanciamento({
+    modo: "dev",
+    leitor,
+    cliente: new Stripe(chave, {
+      apiVersion: "2026-04-22.dahlia",
+      timeout: 10_000,
+      maxNetworkRetries: 0,
+    }),
+  });
   const billing = createBillingService({
     db,
     app: "recreio",
@@ -72,6 +83,7 @@ function criarComposicao() {
     produtos,
     provider,
     leitor,
+    financiamento,
     billing,
     agendasAdmitidas: createStripeRecreioPlanSchedules({ secretKey: chave, mode: "dev" }),
     aumentosAdmitidos: createStripeRecreioUpgrades({ secretKey: chave, mode: "dev" }),
@@ -126,14 +138,22 @@ function getRuntimeCompartilhadoDaCompra(): RuntimeDeCompra {
 
 /** Financial reads and recovery restricted to previously admitted plan changes. */
 export function getRuntimeDaConciliacao(): RuntimeDeConciliacao {
-  const { produtos, provider, leitor, conferirCatalogo, agendasAdmitidas, aumentosAdmitidos } =
-    getComposicao();
+  const {
+    produtos,
+    provider,
+    leitor,
+    financiamento,
+    conferirCatalogo,
+    agendasAdmitidas,
+    aumentosAdmitidos,
+  } = getComposicao();
   const lerCheckout = provider.findCheckoutSession;
   assertAllowed(lerCheckout, "INDISPONIVEL", "A conferência financeira não está disponível.");
   return {
     modo: "dev",
     produtos,
     leitor,
+    financiamento,
     conferirCatalogo,
     lerCheckout,
     agendasAdmitidas,
