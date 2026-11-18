@@ -10,6 +10,7 @@ import {
   type Locator,
   type Page,
   type Response,
+  request as requisicoesHttp,
   test,
 } from "@playwright/test";
 
@@ -112,6 +113,31 @@ export function linhasDeJson(saida: readonly string[]): Record<string, unknown>[
 
 const contextos: BrowserContext[] = [];
 const scriptsSuspensos = new WeakMap<BrowserContext, { espera: Promise<void>; pedidos: number }>();
+type JsonHttpCapturado = { status: number; corpo: unknown };
+type CapturaJson = {
+  caminho: string;
+  metodo: "GET" | "POST";
+  concluir: (resposta: JsonHttpCapturado) => void;
+  falhar: (erro: unknown) => void;
+};
+const capturasJson = new WeakMap<BrowserContext, CapturaJson>();
+
+/**
+ * Resposta real do servidor, antes de entregar os mesmos bytes ao navegador.
+ * O CDP pode descartar o corpo até sem navegação; não usamos cache de DevTools
+ * como fonte dos fatos de autorização. Sem alterar corpo, status ou tentativas.
+ */
+export function capturarJsonDoPortal(
+  contexto: BrowserContext,
+  caminho: string,
+  metodo: "GET" | "POST" = "GET",
+): Promise<JsonHttpCapturado> {
+  if (!contextos.includes(contexto) || capturasJson.has(contexto) || !caminho.startsWith("/api/"))
+    throw new Error("Captura exige um aparelho do teste e uma única API explícita");
+  return new Promise((concluir, falhar) => {
+    capturasJson.set(contexto, { caminho, metodo, concluir, falhar });
+  });
+}
 
 /** Compõe a pausa com o único interceptador do portal, preservando o IP sintético. */
 export function suspenderScriptsDoPortal(contexto: BrowserContext) {
@@ -188,9 +214,40 @@ export async function novoAparelho(browser: Browser): Promise<BrowserContext> {
       pausa.pedidos++;
       await pausa.espera;
     }
-    await rota.continue({
-      headers: { ...rota.request().headers(), "x-real-ip": `198.51.${semente[0]}.${semente[1]}` },
-    });
+    const headers = {
+        ...rota.request().headers(),
+        "x-real-ip": `198.51.${semente[0]}.${semente[1]}`,
+      },
+      captura = capturasJson.get(contexto);
+    if (captura && url.pathname === captura.caminho && rota.request().method() === captura.metodo) {
+      capturasJson.delete(contexto);
+      try {
+        // Contexto HTTP isolado não acrescenta cookies onde o fetch do SDK
+        // usou credentials:omit. Só os cabeçalhos reais deste pedido passam.
+        const http = await requisicoesHttp.newContext();
+        try {
+          const resposta = await http.fetch(rota.request(), {
+              headers: {
+                ...(await rota.request().allHeaders()),
+                "x-real-ip": headers["x-real-ip"],
+              },
+              maxRetries: 0,
+              maxRedirects: 0,
+            }),
+            bytes = await resposta.body();
+          const corpo: unknown = JSON.parse(bytes.toString("utf8"));
+          await rota.fulfill({ response: resposta, body: bytes });
+          captura.concluir({ status: resposta.status(), corpo });
+        } finally {
+          await http.dispose();
+        }
+      } catch (erro) {
+        captura.falhar(erro);
+        throw erro;
+      }
+      return;
+    }
+    await rota.continue({ headers });
   });
   await vigiar(contexto);
   contextos.push(contexto);

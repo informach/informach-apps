@@ -781,3 +781,26 @@ com membro/SID/posse ainda válidos, recuperação gratuita, três divergências
 de corpo, outra instância e autenticação/corpo estrito. Quatro regressões do
 transporte cobrem nulidade, recibo fechado, rede e instância registrada.
 Gates pendentes; produtor de presença/visitas no título interno ainda aberto.
+
+### Observação HTTP do ensaio familiar
+
+`abcce468` concluiu os oito gates `44246163559`. A candidata do SDK
+`f3dfddcc` voltou a ter apenas falha E2E em `44246588752`: desta vez o CDP
+não recuperou nem o corpo da abertura de sessão. Cancelar uma operação
+concluída era incorreto e foi corrigido com regressão própria, mas isso não
+explicava sozinho a indisponibilidade intermitente da captura do DevTools.
+
+O ensaio passa a observar uma única resposta HTTP real de controle dentro do
+interceptador já usado pelo aparelho de teste, preservando o IP sintético.
+Encaminha o pedido original com cabeçalhos completos por contexto HTTP sem
+cookies compartilhados, sem retry/redirect; entrega exatamente os mesmos
+bytes/status ao navegador e confere corpo e tela. Não substitui respostas,
+altera limites, injeta dados ou muda o teste de minuto real. O contexto HTTP
+é descartado após a entrega. Erro de transporte/parse continua falha do teste;
+não há leitura alternativa ou repetição silenciosa se falhar.
+
+A captura fica somente no código de E2E; os componentes e APIs do produto
+continuam usando seus transportes reais. Serve para observação de fatos e
+interface, sem alegar medição de latência do fetch do navegador. Referência:
+[Playwright: contexto HTTP isolado](https://playwright.dev/docs/api-testing#context-request-vs-global-request).
+Nova qualificação necessária.
