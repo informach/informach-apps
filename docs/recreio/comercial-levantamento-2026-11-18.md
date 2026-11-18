@@ -65,6 +65,17 @@ adotados intactos. Campo de modo aditivo tem default `dev`, pois o histórico de
 compra desta candidata só admitia sandbox; envio futuro confere o modo persistido.
 Fila ainda não é conciliação implementada. Nenhuma DDL comercial em produção.
 
+A implementação seguinte agenda a fila atomicamente com a tentativa de compra,
+reserva um pagante por vez com lease/SKIP LOCKED e ordenação de vencimento,
+registra tentativa antes da rede e preserva confirmação anterior nas falhas.
+Retomada invalida o token do executor antigo. A composição técnica do grupo usa
+as mesmas contas ordenadas e releitura de vínculos, sem fabricar sessão nativa.
+Resultado, auditoria e revalidação de SIDs são transacionais. Sete provas isoladas
+cobrem concorrência, atendimento após falha, ausência de customer, logout,
+confirmação anterior, retomada e rollback. Ainda não é o leitor de pagamentos,
+o webhook, o cron ou a nova admissão por fatura conciliada; esses passos seguem
+abaixo, antes de ativar qualquer venda. Esta implementação aguarda gates remotos.
+
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não
   atualiza confirmação. A fila precisa atender outros pagantes após uma falha.

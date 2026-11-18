@@ -24,6 +24,7 @@ import {
 import { env } from "@/lib/env";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, codigoDoPostgres, constraintDoPostgres, type Transacao } from "@/lib/repository";
+import { agendarConciliacaoDaCompra } from "./conciliacao-fila-repository";
 import { PRAZO_PARA_INICIAR_COMPRA_MS, VERSAO_DA_COMPRA } from "./constantes";
 import { comCicloDeCobranca } from "./lifecycle";
 import { type AceiteDaCompra, conferirOfertaDaCompra, type OfertaAceita } from "./regras";
@@ -320,6 +321,11 @@ async function comCompraParaEnvio<T>(
 }
 
 async function iniciarLinha(tx: Transacao, linha: Compra, agora: Date) {
+  await agendarConciliacaoDaCompra(tx, {
+    paganteId: linha.payerUserId,
+    grupoId: linha.groupId,
+    modo: linha.providerMode,
+  });
   if (linha.requestStartedAt !== null) return linha;
   assertAllowed(
     agora.getTime() < linha.acceptedAt.getTime() + PRAZO_PARA_INICIAR_COMPRA_MS,

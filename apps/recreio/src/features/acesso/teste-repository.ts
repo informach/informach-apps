@@ -212,7 +212,7 @@ export async function revogarTesteDoConsentimento(
  */
 export async function revalidarSessoesDoGrupo(
   tx: Transacao,
-  atual: Awaited<ReturnType<typeof admitirGrupoDoTitular>>,
+  atual: Pick<Awaited<ReturnType<typeof admitirGrupoDoTitular>>, "grupo" | "perfis">,
   agora: Date,
 ) {
   const grupoId = GrupoIdSchema.parse(atual.grupo.id);

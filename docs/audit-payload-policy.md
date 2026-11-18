@@ -123,6 +123,14 @@ executor, com ator nulo: captura a resposta da operação admitida mesmo quando
 o login foi encerrado durante a rede. Não registra URL nem dados do customer;
 capturar o fato não autoriza devolvê-lo ao aparelho e não comprova pagamento.
 
+`recreio.billing_reconciled` e `recreio.billing_reconciliation_failed` registram
+`app`, `groupId`, `providerMode` e `attemptCount`, com ator técnico nulo.
+A falha acrescenta `reasonCode` fechado (`customer_unconfirmed`,
+`provider_unavailable`, `evidence_mismatch`, `adverse_event`, `foreign_contract`).
+Não registrar dados fiscais, períodos completos, valores, corpos do provedor,
+e-mail ou URLs. Confirmação financeira, estado e corte das SIDs compartilham
+a transação; uma tentativa falha não atualiza a última confirmação.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/

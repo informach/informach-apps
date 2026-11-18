@@ -213,6 +213,10 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
     t("Encerrou uma compra do Recreio ainda não enviada"),
   ],
   "recreio.purchase_attempt_started": () => [t("Admitiu uma tentativa de compra do Recreio")],
+  "recreio.billing_reconciliation_failed": () => [
+    t("Registrou uma pendência na conciliação financeira do Recreio"),
+  ],
+  "recreio.billing_reconciled": () => [t("Conferiu os fatos financeiros do Recreio")],
   "recreio.purchase_checkout_observed": () => [
     t("Conferiu o resultado de uma tentativa de compra do Recreio"),
   ],
