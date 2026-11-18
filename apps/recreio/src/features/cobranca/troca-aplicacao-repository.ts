@@ -68,67 +68,78 @@ export async function aplicarReducoesObservadasLocked(
       "ORIGEM_FINANCEIRA",
       "A fase efetiva não corresponde à observação financeira completa.",
     );
-    const [contrato] = await tx
-      .select()
-      .from(contracts)
-      .where(eq(contracts.subscriptionId, linha.subscriptionId))
-      .for("update");
-    assertAllowed(
-      contrato &&
-        contrato.purchaseId === linha.purchaseId &&
-        contrato.groupId === prova.groupId &&
-        contrato.payerUserId === prova.payerUserId &&
-        contrato.providerMode === prova.providerMode &&
-        contrato.originProductId === linha.originProductId &&
-        contrato.revision === linha.expectedContractRevision &&
-        contrato.currentProductId === linha.fromProductId &&
-        contrato.currentPriceId === linha.fromPriceId &&
-        !contrato.coverageReviewRequired,
-      "ORIGEM_FINANCEIRA",
-      "A revisão do contrato mudou antes da aplicação.",
-    );
-    const selecao = await tx.select().from(selections).where(eq(selections.planChangeId, linha.id));
-    const { emConferencia: reverSelecao } = await aplicarSelecaoAdmitidaLocked(tx, {
-      grupoId: prova.groupId,
-      paganteId: prova.payerUserId,
-      produtoId: linha.toProductId,
-      selecao,
-      agora,
-    });
-    const revisao = linha.expectedContractRevision + 1;
-    await tx
-      .update(changes)
-      .set({
-        status: "applied",
-        appliedAt: agora,
-        appliedRevision: revisao,
-        resolvedAt: agora,
-        reviewRequired: false,
-      })
-      .where(eq(changes.id, linha.id));
-    await tx
-      .update(contracts)
-      .set({
-        currentProductId: linha.toProductId,
-        currentPriceId: linha.toPriceId,
-        currentPlanChangeId: linha.id,
-        currentPlanAppliedAt: agora,
-        revision: revisao,
-        coverageReviewRequired: reverSelecao,
-      })
-      .where(eq(contracts.subscriptionId, linha.subscriptionId));
-    await logAuditEventStrict(
-      "recreio.plan_change_applied",
-      prova.payerUserId,
-      {
-        app: "recreio",
-        groupId: prova.groupId,
-        planChangeId: linha.id,
-        subscriptionId: linha.subscriptionId,
-        revision: revisao,
-        state: reverSelecao ? "selection_review" : "applied",
-      },
-      { writer: tx },
-    );
+    await aplicarOfertaDaTrocaLocked(tx, prova, linha, agora);
   }
+}
+
+/** Shared atomic revision/selection writer, called only after the native provider
+ * observation and its financial snapshot have been validated by the caller. */
+export async function aplicarOfertaDaTrocaLocked(
+  tx: Transacao,
+  prova: TentativaDeConciliacao,
+  linha: typeof changes.$inferSelect,
+  agora: Date,
+) {
+  const [contrato] = await tx
+    .select()
+    .from(contracts)
+    .where(eq(contracts.subscriptionId, linha.subscriptionId))
+    .for("update");
+  assertAllowed(
+    contrato &&
+      contrato.purchaseId === linha.purchaseId &&
+      contrato.groupId === prova.groupId &&
+      contrato.payerUserId === prova.payerUserId &&
+      contrato.providerMode === prova.providerMode &&
+      contrato.originProductId === linha.originProductId &&
+      contrato.revision === linha.expectedContractRevision &&
+      contrato.currentProductId === linha.fromProductId &&
+      contrato.currentPriceId === linha.fromPriceId &&
+      !contrato.coverageReviewRequired,
+    "ORIGEM_FINANCEIRA",
+    "A revisão do contrato mudou antes da aplicação.",
+  );
+  const selecao = await tx.select().from(selections).where(eq(selections.planChangeId, linha.id));
+  const { emConferencia: reverSelecao } = await aplicarSelecaoAdmitidaLocked(tx, {
+    grupoId: prova.groupId,
+    paganteId: prova.payerUserId,
+    produtoId: linha.toProductId,
+    selecao,
+    agora,
+  });
+  const revisao = linha.expectedContractRevision + 1;
+  await tx
+    .update(changes)
+    .set({
+      status: "applied",
+      appliedAt: agora,
+      appliedRevision: revisao,
+      resolvedAt: agora,
+      reviewRequired: false,
+    })
+    .where(eq(changes.id, linha.id));
+  await tx
+    .update(contracts)
+    .set({
+      currentProductId: linha.toProductId,
+      currentPriceId: linha.toPriceId,
+      currentPlanChangeId: linha.id,
+      currentPlanAppliedAt: agora,
+      revision: revisao,
+      coverageReviewRequired: reverSelecao,
+    })
+    .where(eq(contracts.subscriptionId, linha.subscriptionId));
+  await logAuditEventStrict(
+    "recreio.plan_change_applied",
+    prova.payerUserId,
+    {
+      app: "recreio",
+      groupId: prova.groupId,
+      planChangeId: linha.id,
+      subscriptionId: linha.subscriptionId,
+      revision: revisao,
+      state: reverSelecao ? "selection_review" : "applied",
+    },
+    { writer: tx },
+  );
 }

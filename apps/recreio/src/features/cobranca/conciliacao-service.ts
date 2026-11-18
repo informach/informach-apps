@@ -20,6 +20,11 @@ import {
 import type { RuntimeDeConciliacao } from "./conciliacao-runtime";
 import { comCicloDeCobranca } from "./lifecycle";
 import {
+  type AumentoObservado,
+  lerAumentoDaConciliacaoLocked,
+} from "./troca-aumento-execucao-repository";
+import { recuperarAumentoAdmitido } from "./troca-aumento-recuperacao-service";
+import {
   type AgendaDaTrocaObservada,
   lerTrocaDaConciliacaoLocked,
 } from "./troca-execucao-repository";
@@ -83,7 +88,14 @@ export function criarProcessadorDeConciliacao(deps: {
               "O ambiente financeiro exige conferência.",
             );
             const trocas: AgendaDaTrocaObservada[] = [];
+            const aumentos: AumentoObservado[] = [];
             const troca = await lerTrocaDaConciliacaoLocked(tentativa);
+            const aumento = await lerAumentoDaConciliacaoLocked(tentativa);
+            assertAllowed(
+              !troca || !aumento,
+              "ORIGEM_FINANCEIRA",
+              "Há trocas simultâneas que exigem conferência.",
+            );
             if (troca) {
               assertAllowed(
                 runtime.agendasAdmitidas,
@@ -101,6 +113,24 @@ export function criarProcessadorDeConciliacao(deps: {
                 "A operação comercial exige conferência.",
               );
               trocas.push(recuperada.observacao);
+            }
+            if (aumento) {
+              assertAllowed(
+                runtime.aumentosAdmitidos,
+                "ORIGEM_FINANCEIRA",
+                "A recuperação do aumento ainda não está configurada.",
+              );
+              const recuperado = await recuperarAumentoAdmitido(
+                aumento,
+                runtime.aumentosAdmitidos,
+                budget,
+              );
+              assertAllowed(
+                !recuperado.falhou && recuperado.observacao,
+                "COBRANCA",
+                "O aumento exige conferência.",
+              );
+              aumentos.push(recuperado.observacao);
             }
             catalogo ??= runtime.conferirCatalogo(budget);
             await catalogo;
@@ -214,6 +244,7 @@ export function criarProcessadorDeConciliacao(deps: {
                 vinculos,
                 agora,
                 trocas,
+                aumentos,
               }),
             );
             resultado.conciliadas++;

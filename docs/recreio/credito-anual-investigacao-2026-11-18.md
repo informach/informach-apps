@@ -81,6 +81,14 @@ redução já existente. Essa extensão requer nova execução antes de atribuir
 adapter próprio a prova mensal anterior do adapter genérico. Continua sendo
 somente API externa, sem Checkout/aceite/cobertura nativos.
 
+Essa prova mensal passou em
+[44394357376](https://github.com/informach/informach-apps/actions/runs/44394357376),
+fonte `1233bd0a931a1d61d4e8474a6056b9a68c211845`. Artefato 14469049107,
+1.441 bytes, baixado e inspecionado: R$ 68,00 na mesma fatura após recusa,
+plano anterior preservado enquanto pendente, recuperação após pagamento,
+agenda/renovação/cancelamento e estorno de origem conferidos; limpeza confirmada.
+Hash e limites no [recibo](evidencias/upgrade-mensal-adapter-44394357376.json).
+
 Referências oficiais consultadas: [Stripe Node, recursos da API](https://github.com/stripe/stripe-node),
 [saldo do cliente](https://docs.stripe.com/billing/customer/balance) e tipos
 locais do SDK Stripe 22.1.0 fixado no lockfile. API estável

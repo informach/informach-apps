@@ -108,6 +108,7 @@ export function lerTrocaDaConciliacaoLocked(prova: TentativaDeConciliacao) {
           eq(changes.payerUserId, prova.payerUserId),
           eq(changes.groupId, prova.groupId),
           eq(changes.providerMode, prova.providerMode),
+          eq(changes.kind, "downgrade"),
           isNull(changes.resolvedAt),
           isNotNull(changes.requestStartedAt),
         ),
@@ -140,7 +141,7 @@ export function lerTrocaDaConciliacaoLocked(prova: TentativaDeConciliacao) {
   });
 }
 
-function termos(linha: Linha) {
+export function termos(linha: Linha) {
   return createHash("sha256")
     .update(
       JSON.stringify({
@@ -199,7 +200,7 @@ async function grupoDaTroca(autor: AutorNativoRecente, id: string, modo: StripeM
   assertAllowed(pista, "COBRANCA", "Troca não disponível.");
   return GrupoIdSchema.parse(pista.groupId);
 }
-async function comEnvio<T>(
+export async function comAdmissaoDeEnvioLocked<T>(
   autor: AutorNativoRecente,
   id: string,
   modo: StripeMode,
@@ -210,6 +211,7 @@ async function comEnvio<T>(
     providerSubscriptionId: string,
     agora: Date,
   ) => Promise<T>,
+  tipo: "upgrade" | "downgrade" = "downgrade",
 ) {
   const grupoId = await grupoDaTroca(autor, id, modo);
   return db.transaction(async (tx) => {
@@ -230,7 +232,7 @@ async function comEnvio<T>(
       .for("update");
     assertAllowed(
       linha?.acceptedAt &&
-        linha.kind === "downgrade" &&
+        linha.kind === tipo &&
         linha.resolvedAt === null &&
         ["accepted", "sent", "scheduled"].includes(linha.status),
       "CONFLITO",
@@ -302,10 +304,17 @@ export function conferirTrocaParaEnvioLocked(
   autor: AutorNativoRecente,
   id: string,
   modo: StripeMode,
+  tipo: "upgrade" | "downgrade" = "downgrade",
 ) {
-  return comEnvio(autor, id, modo, async (_tx, linha) => ({
-    jaAdmitida: linha.requestStartedAt !== null,
-  }));
+  return comAdmissaoDeEnvioLocked(
+    autor,
+    id,
+    modo,
+    async (_tx, linha) => ({
+      jaAdmitida: linha.requestStartedAt !== null,
+    }),
+    tipo,
+  );
 }
 export function admitirTentativaDaTrocaLocked(
   autor: AutorNativoRecente,
@@ -314,55 +323,60 @@ export function admitirTentativaDaTrocaLocked(
   produtos: readonly Product[],
   somenteRecuperacao: boolean,
 ): Promise<TentativaDeTroca> {
-  return comEnvio(autor, id, modo, async (tx, anterior, customerId, subscriptionId, agora) => {
-    let linha = anterior;
-    if (linha.requestStartedAt === null) {
-      assertAllowed(
-        !somenteRecuperacao,
-        "OPERACAO_EM_CONFERENCIA",
-        "A troca ainda não foi enviada.",
-      );
-      const oferta = produtos.find(
-        (p) => p.app === "recreio" && p.kind === "subscription" && p.id === linha.toProductId,
-      );
-      assertAllowed(
-        oferta &&
-          oferta.stripePriceId[modo] === linha.toPriceId &&
-          oferta.interval === linha.toInterval &&
-          oferta.listPrice?.amountCents === linha.toAmountCents &&
-          oferta.listPrice.currency === linha.currency,
-        "OFERTA",
-        "A oferta mudou. Confira a cotação novamente.",
-      );
-      const [iniciada] = await tx
-        .update(changes)
-        .set({ status: "sent", requestStartedAt: agora, reviewRequired: true })
-        .where(eq(changes.id, linha.id))
-        .returning();
-      assertAllowed(iniciada, "COBRANCA", "Não foi possível admitir a tentativa.");
-      linha = iniciada;
-      await logAuditEventStrict(
-        "recreio.plan_change_attempt_started",
-        autor.contaId,
-        {
-          app: "recreio",
-          groupId: linha.groupId,
-          planChangeId: linha.id,
-          subscriptionId: linha.subscriptionId,
-          revision: linha.expectedContractRevision,
-          state: "sent",
-        },
-        { writer: tx },
-      );
-    }
-    assertAllowed(linha.requestStartedAt, "COBRANCA", "Tentativa não admitida.");
-    await agendarConciliacaoDaCompra(tx, {
-      paganteId: linha.payerUserId,
-      grupoId: linha.groupId,
-      modo,
-    });
-    return provaDaLinha(linha, customerId, subscriptionId);
-  });
+  return comAdmissaoDeEnvioLocked(
+    autor,
+    id,
+    modo,
+    async (tx, anterior, customerId, subscriptionId, agora) => {
+      let linha = anterior;
+      if (linha.requestStartedAt === null) {
+        assertAllowed(
+          !somenteRecuperacao,
+          "OPERACAO_EM_CONFERENCIA",
+          "A troca ainda não foi enviada.",
+        );
+        const oferta = produtos.find(
+          (p) => p.app === "recreio" && p.kind === "subscription" && p.id === linha.toProductId,
+        );
+        assertAllowed(
+          oferta &&
+            oferta.stripePriceId[modo] === linha.toPriceId &&
+            oferta.interval === linha.toInterval &&
+            oferta.listPrice?.amountCents === linha.toAmountCents &&
+            oferta.listPrice.currency === linha.currency,
+          "OFERTA",
+          "A oferta mudou. Confira a cotação novamente.",
+        );
+        const [iniciada] = await tx
+          .update(changes)
+          .set({ status: "sent", requestStartedAt: agora, reviewRequired: true })
+          .where(eq(changes.id, linha.id))
+          .returning();
+        assertAllowed(iniciada, "COBRANCA", "Não foi possível admitir a tentativa.");
+        linha = iniciada;
+        await logAuditEventStrict(
+          "recreio.plan_change_attempt_started",
+          autor.contaId,
+          {
+            app: "recreio",
+            groupId: linha.groupId,
+            planChangeId: linha.id,
+            subscriptionId: linha.subscriptionId,
+            revision: linha.expectedContractRevision,
+            state: "sent",
+          },
+          { writer: tx },
+        );
+      }
+      assertAllowed(linha.requestStartedAt, "COBRANCA", "Tentativa não admitida.");
+      await agendarConciliacaoDaCompra(tx, {
+        paganteId: linha.payerUserId,
+        grupoId: linha.groupId,
+        modo,
+      });
+      return provaDaLinha(linha, customerId, subscriptionId);
+    },
+  );
 }
 
 /** Native explicit cancellation intent. Existing financial facts/management

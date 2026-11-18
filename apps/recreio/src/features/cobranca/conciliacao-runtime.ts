@@ -4,6 +4,7 @@ import type {
   PaymentReadBudget,
 } from "@informach/billing/payment-facts";
 import type { RecreioPlanScheduleProvider } from "@informach/billing/providers/stripe-plans";
+import type { RecreioUpgradeProvider } from "@informach/billing/providers/stripe-recreio-upgrades";
 import type { Product, StripeMode } from "@informach/config";
 
 /** Financial reads plus an optional capability for previously admitted native
@@ -15,4 +16,5 @@ export type RuntimeDeConciliacao = {
   leitor: Pick<ReturnType<typeof createStripePaymentFactReader>, "listSubscriptionIds" | "read">;
   lerCheckout: NonNullable<BillingProviderClient["findCheckoutSession"]>;
   agendasAdmitidas?: RecreioPlanScheduleProvider;
+  aumentosAdmitidos?: RecreioUpgradeProvider;
 };

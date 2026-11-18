@@ -16,6 +16,8 @@ import type { TentativaDeConciliacao } from "./conciliacao-fila-repository";
 import { conferirOfertaAtualLocked } from "./contratos-repository";
 import { aplicarSelecaoAdmitidaLocked } from "./selecao-aplicacao-repository";
 import { aplicarReducoesObservadasLocked } from "./troca-aplicacao-repository";
+import { aplicarAumentosObservadosLocked } from "./troca-aumento-aplicacao-repository";
+import type { AumentoObservado } from "./troca-aumento-execucao-repository";
 import type { AgendaDaTrocaObservada } from "./troca-execucao-repository";
 
 export type VinculoDoCheckout = {
@@ -59,6 +61,7 @@ export async function persistirFatosDaConciliacao(
     vinculos: readonly VinculoDoCheckout[];
     agora: Date;
     trocas?: readonly AgendaDaTrocaObservada[];
+    aumentos?: readonly AumentoObservado[];
   },
 ) {
   assertAllowed(prova.customer, "COBRANCA", "Cliente financeiro não confirmado.");
@@ -159,6 +162,13 @@ export async function persistirFatosDaConciliacao(
     tx,
     prova,
     entrada.trocas ?? [],
+    entrada.snapshots,
+    entrada.agora,
+  );
+  await aplicarAumentosObservadosLocked(
+    tx,
+    prova,
+    entrada.aumentos ?? [],
     entrada.snapshots,
     entrada.agora,
   );

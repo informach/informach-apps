@@ -216,3 +216,30 @@ sem casts ou mudança nas validações de produção. Exige nova verificação.
 O gate de conciliação do mesmo run passou, incluindo os seis cenários da nova
 cotação e a constraint do item/saldo; a falha de tipos impede considerar a
 rodada aprovada. O corretivo precisa repetir os gates na sua própria fonte.
+
+O corretivo `98f2f12e40567aa55e1e094ac3dd024296e34926` concluiu os dezesseis
+gates em [44393953378](https://github.com/informach/informach-apps/actions/runs/44393953378).
+São 85 testes de conciliação, incluindo a cotação de aumento, as reduções e a
+seleção inicial, além de tipos, integração, E2E e telas. 0213 permanece candidata,
+sem implantação ou ativação comercial.
+
+## Tentativa de aumento em implementação
+
+A extensão seguinte admite a tentativa durável antes do POST, conserva item,
+segundo e valores aceitos e captura sua fatura mesmo após logout. A capacidade
+técnica nasce somente de tentativa já admitida e fila financeira alugada; não
+transforma cotação/aceite sem envio em cobrança. Recuperação não depende de
+abrir novas vendas. Estado terminal pode ser relido sem outra operação externa.
+
+A aplicação da oferta exige observação privada da fatura própria, sua linha
+coberta pelo leitor financeiro, ausência de estorno/contestação, escopo e revisão
+atuais. Só então oferta, seleção, auditoria e fatos financeiros são confirmados
+na mesma transação. Reduções e aumentos reutilizam o escritor de revisão;
+suas provas de provedor continuam distintas. Crédito anual sem origem rastreada
+permanece em revisão e não autoriza essa aplicação.
+
+Novos cenários verificam admissão antes da rede, perda de resposta, logout,
+recuperação técnica, pagamento pendente/pago, estorno da fatura, falhas de
+auditoria antes do POST e na aplicação e mudança concorrente da seleção. Esta
+extensão ainda precisa de verificação remota. Telas/ações completas, cobrança
+live, origem dos créditos e F6 integral continuam pendentes.

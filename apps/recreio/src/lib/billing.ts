@@ -7,6 +7,7 @@ import {
 } from "@informach/billing/payment-facts";
 import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
+import { createStripeRecreioUpgrades } from "@informach/billing/providers/stripe-recreio-upgrades";
 import { db } from "@informach/db";
 import { conferirCatalogoDoRecreio, produtosDoRecreio } from "@/features/cobranca/catalogo";
 import { emailDoPagante } from "@/features/cobranca/clientes-repository";
@@ -73,6 +74,7 @@ function criarComposicao() {
     leitor,
     billing,
     agendasAdmitidas: createStripeRecreioPlanSchedules({ secretKey: chave, mode: "dev" }),
+    aumentosAdmitidos: createStripeRecreioUpgrades({ secretKey: chave, mode: "dev" }),
     async conferirCatalogo(budget?: PaymentReadBudget) {
       await conferirCatalogoDoRecreio({
         leitor,
@@ -124,10 +126,19 @@ function getRuntimeCompartilhadoDaCompra(): RuntimeDeCompra {
 
 /** Financial reads and recovery restricted to previously admitted plan changes. */
 export function getRuntimeDaConciliacao(): RuntimeDeConciliacao {
-  const { produtos, provider, leitor, conferirCatalogo, agendasAdmitidas } = getComposicao();
+  const { produtos, provider, leitor, conferirCatalogo, agendasAdmitidas, aumentosAdmitidos } =
+    getComposicao();
   const lerCheckout = provider.findCheckoutSession;
   assertAllowed(lerCheckout, "INDISPONIVEL", "A conferência financeira não está disponível.");
-  return { modo: "dev", produtos, leitor, conferirCatalogo, lerCheckout, agendasAdmitidas };
+  return {
+    modo: "dev",
+    produtos,
+    leitor,
+    conferirCatalogo,
+    lerCheckout,
+    agendasAdmitidas,
+    aumentosAdmitidos,
+  };
 }
 
 export function getRuntimeDoWebhook(): RuntimeDoWebhook {
