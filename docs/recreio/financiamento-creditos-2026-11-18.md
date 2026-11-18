@@ -123,7 +123,10 @@ período financeiro `(id, subscription_id, provider)` e contrato Recreio com
 assinatura, compra, grupo, pagante, modo e produto original. A identidade já é
 única pelas PKs atuais; não há backfill de valores ou dados supostamente pagos.
 Separar as duas gerações evita repetir a FK gerada antes da chave referenciada.
-Essa DDL ainda precisa ser gerada e verificada no GitHub; não foi implantada.
+0214 foi gerada em `44405179681`, fonte `7d6aa5a3`, e adotada intacta depois de
+conferir os três hashes, predecessor e prefixo do journal 214→215 no
+[recibo](evidencias/migracao-financiamento-chaves-0214.json). Não foi implantada;
+volume e risco de trava de produção ainda não foram medidos.
 
 A prova deve conservar o período original e guardar separadamente estado,
 fim financiado, versão e origens das capturas. A referência ao período não pode
@@ -137,3 +140,18 @@ O novo índice em `billing` exige conferir volume e risco de trava junto dos
 consumidores compartilhados antes de implantar; a geração não autoriza aplicar
 migrations isoladas. A publicação continua exigindo migrator controlado,
 backup/restauração, pré-condições comerciais e evidência da fonte final.
+
+O schema seguinte separa observações imutáveis por hash semântico, ponteiro
+atual com relógio monotônico, totais reais das capturas e referências aos
+períodos de origem. Mesma prova reaproveita conteúdo; refresh não copia todo o
+histórico a cada cinco minutos. Não inventa um valor alocado por captura quando
+o ledger só comprova o agregado. As FKs prendem período/contrato/provider e
+pagante/grupo/modo, inclusive uma origem em contrato anterior do mesmo pagante.
+Fontes de outro adulto não são cobertura familiar implícita.
+
+Esse segundo schema ainda precisa de geração, testes SQL/concorrência, escritor,
+leitores e integração. O ledger é do customer: a leitura final também precisa
+compor todos os seus contratos nativos antes de usá-lo, para tratar crédito de
+uma assinatura encerrada consumido em outra. A conferência de API atual cobre
+um único contrato e não certifica essa composição. Nenhuma prova de acesso ou
+de persistência foi declarada a partir dela.

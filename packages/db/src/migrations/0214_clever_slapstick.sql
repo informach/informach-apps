@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "subscription_payment_period_funding_scope" ON "billing"."subscription_payment_periods" USING btree ("id","subscription_id","provider");--> statement-breakpoint
+ALTER TABLE "recreio"."billing_contracts" ADD CONSTRAINT "recreio_billing_contract_funding_scope" UNIQUE("subscription_id","purchase_id","group_id","payer_user_id","provider_mode","origin_product_id");

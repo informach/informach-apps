@@ -1499,6 +1499,13 @@
       "when": 1795034050254,
       "tag": "0213_parallel_excalibur",
       "breakpoints": true
+    },
+    {
+      "idx": 214,
+      "version": "7",
+      "when": 1795038520978,
+      "tag": "0214_clever_slapstick",
+      "breakpoints": true
     }
   ]
 }
