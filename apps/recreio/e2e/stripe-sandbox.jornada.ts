@@ -72,6 +72,7 @@ test("Checkout real, webhook encaminhado, pagamento conciliado e SDK sem Morada"
   let cancelada = false;
   let falha: unknown;
   const testSubscriptionIds: string[] = [];
+  const expiredCheckoutIds: string[] = [];
   try {
     await a.page.goto("/conta/assinatura");
     const form = a.page.getByRole("form", { name: "Conferir e autorizar uma oferta", exact: true });
@@ -123,7 +124,21 @@ test("Checkout real, webhook encaminhado, pagamento conciliado e SDK sem Morada"
       "94107",
       false,
     );
-    await a.page.getByRole("button", { name: /^(Subscribe|Pay|Assinar|Pagar)(\s|$)/i }).click();
+    const localizarPagamento = async () => {
+      for (const frame of a.page.frames()) {
+        const botao = frame
+          .getByRole("button", { name: /^(Subscribe|Pay|Assinar|Pagar)(\s|$)/i })
+          .first();
+        if (await botao.isVisible().catch(() => false)) return botao;
+      }
+      return null;
+    };
+    await expect
+      .poll(async () => Boolean(await localizarPagamento()), { timeout: 30_000 })
+      .toBe(true);
+    const pagar = await localizarPagamento();
+    if (!pagar) throw new Error("Hosted payment confirmation became unavailable");
+    await pagar.click();
     await a.page.waitForURL(
       (url) => url.origin === origin && url.pathname === "/conta/assinatura",
       { timeout: 120_000 },
@@ -225,6 +240,19 @@ test("Checkout real, webhook encaminhado, pagamento conciliado e SDK sem Morada"
         )
         .catch(() => []);
       fields.push(...nomes);
+      const botoes = await frame
+        .locator('button, [role="button"], input[type="submit"]')
+        .evaluateAll((nodes) =>
+          nodes.slice(0, 40).map((node) => ({
+            control: "button",
+            label: (node.getAttribute("aria-label") ?? node.textContent ?? "")
+              .slice(0, 120)
+              .replace(/https?:\/\/\S+/g, "[url]")
+              .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]"),
+          })),
+        )
+        .catch(() => []);
+      fields.push(...botoes);
     }
     await writeFile(
       resolve(process.env.RUNNER_TEMP ?? "", "recreio-stripe-journey-diagnostic.json"),
@@ -242,6 +270,22 @@ test("Checkout real, webhook encaminhado, pagamento conciliado e SDK sem Morada"
     const customerId = clienteId ?? local?.provider_customer_id;
     if (typeof customerId === "string") {
       clienteId = customerId;
+      const checkouts: Stripe.Checkout.Session[] = [];
+      for await (const session of stripe.checkout.sessions.list({
+        customer: customerId,
+        limit: 100,
+      })) {
+        if (checkouts.length >= 20 || session.livemode)
+          throw new Error("Sandbox Checkout cleanup scope is invalid");
+        checkouts.push(session);
+      }
+      for (const session of checkouts)
+        if (session.status === "open") {
+          const expired = await stripe.checkout.sessions.expire(session.id);
+          if (expired.status !== "expired" || expired.livemode)
+            throw new Error("Sandbox Checkout expiry was not confirmed");
+          expiredCheckoutIds.push(expired.id);
+        }
       const contracts: Stripe.Subscription[] = [];
       for await (const subscription of stripe.subscriptions.list({
         customer: customerId,
@@ -271,7 +315,7 @@ test("Checkout real, webhook encaminhado, pagamento conciliado e SDK sem Morada"
   await a.contexto.close();
   await writeFile(
     resolve(process.env.RUNNER_TEMP ?? "", "recreio-stripe-journey.json"),
-    `${JSON.stringify({ source: process.env.GITHUB_SHA, workflowRunId: process.env.GITHUB_RUN_ID, mode: "dev", ...comprovante, customerId: clienteId ?? null, testSubscriptionIds, status: falha ? "failed" : "passed", failureType: falha instanceof Error ? falha.name : null, testSubscriptionsCanceled: cancelada }, null, 2)}\n`,
+    `${JSON.stringify({ source: process.env.GITHUB_SHA, workflowRunId: process.env.GITHUB_RUN_ID, mode: "dev", ...comprovante, customerId: clienteId ?? null, testSubscriptionIds, expiredCheckoutIds, status: falha ? "failed" : "passed", failureType: falha instanceof Error ? falha.name : null, testSubscriptionsCanceled: cancelada }, null, 2)}\n`,
   );
   if (falha) throw falha;
 });
