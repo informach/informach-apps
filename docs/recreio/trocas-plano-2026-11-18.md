@@ -91,5 +91,19 @@ compra. [Proveniência](evidencias/migracao-trocas-chave-0209.json).
 O schema das novas tabelas volta a ser exportado para gerar a etapa seguinte.
 Essa adoção não é aplicação em banco nem comprovação das restrições.
 
+As tabelas foram geradas separadamente em `44343024899`/`a5025f6a`, como
+`0210_polite_santa_claus.sql`, e adotadas intactas com os três hashes, predecessor
+e prefixo do journal conferidos. A chave 0209 agora antecede todas as FKs novas.
+[Proveniência](evidencias/migracao-trocas-tabelas-0210.json).
+
+A conciliação passa a inicializar a revisão um sob a mesma transação da
+observação financeira completa, depois de comprovar a compra original. Replays
+releem o contrato e não sobrescrevem outro destino/revisão. Isso ainda não
+implementa aplicação de trocas: observação divergente continua em conferência.
+As regras puras da seleção conferem inventário completo, IDs, grupo, revisão,
+situação atual e autoridade de cobertura; exclusão ou revogação posterior exige
+nova seleção. Ainda faltam os escritores de cotação/aceite/aplicação, a ligação
+do leitor de acesso à revisão atual, o upgrade proporcional e as telas.
+
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.

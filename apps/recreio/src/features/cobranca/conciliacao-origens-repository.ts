@@ -8,6 +8,7 @@ import { limiteDoPagamentoConciliado } from "@informach/recreio";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import type { TentativaDeConciliacao } from "./conciliacao-fila-repository";
+import { garantirContratoOriginalLocked } from "./contratos-repository";
 
 export type VinculoDoCheckout = {
   authorizationId: string;
@@ -52,6 +53,7 @@ export async function persistirFatosDaConciliacao(
   },
 ) {
   assertAllowed(prova.customer, "COBRANCA", "Cliente financeiro não confirmado.");
+  const aceites = new Map<string, { id: string; productId: string }>();
   for (const snapshot of entrada.snapshots) {
     const origem = snapshot.origin;
     assertAllowed(
@@ -140,8 +142,9 @@ export async function persistirFatosDaConciliacao(
           eq(purchases.providerMode, prova.providerMode),
         ),
       );
+    aceites.set(snapshot.subscriptionId, { id: aceite.id, productId: aceite.productId });
   }
-  await persistUserPaymentSnapshots(tx, {
+  const ids = await persistUserPaymentSnapshots(tx, {
     app: "recreio",
     payerId: prova.payerUserId,
     customerId: prova.customer.id,
@@ -150,4 +153,18 @@ export async function persistirFatosDaConciliacao(
     products: entrada.produtos,
     snapshots: entrada.snapshots,
   });
+  for (const [index, snapshot] of entrada.snapshots.entries()) {
+    const subscriptionId = ids[index];
+    const aceite = aceites.get(snapshot.subscriptionId);
+    assertAllowed(subscriptionId && aceite, "ORIGEM_FINANCEIRA", "Contrato não confirmado.");
+    await garantirContratoOriginalLocked(tx, {
+      subscriptionId,
+      purchaseId: aceite.id,
+      groupId: prova.groupId,
+      payerUserId: prova.payerUserId,
+      providerMode: prova.providerMode,
+      originProductId: aceite.productId,
+      originPriceId: snapshot.priceId,
+    });
+  }
 }
