@@ -80,3 +80,11 @@ ligados a esse preparo. A fábrica recebe catálogo exclusivamente da composiç�
 servidor. A prova em PostgreSQL/SDK fechado cobre pagante sem jogador,
 isolamento, revisão, seleção, vencimento e rollback por auditoria recusada;
 precisa concluir no GitHub antes de anunciar aprovação.
+
+Primeira candidata `29c549f1`/`44354321188`: o gate de tipos apontou a captura
+de uma origem opcional pela closure da fixture; a origem admitida passa a ter
+uma referência constante. A fixture também precisava verificar o estado
+durável do próprio pagante, pois a fila compartilhada conserva falhas
+intencionais de outros cenários. Nenhuma validação de produção foi relaxada.
+A fundação anterior `9ee466fa` concluiu os dezesseis gates `44351670813`,
+incluindo 0211 e os termos puros do aceite.

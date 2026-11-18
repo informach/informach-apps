@@ -3,6 +3,7 @@ import { db, eq, sql } from "@informach/db";
 import {
   recreioPlanChanges as changes,
   recreioBillingContracts as contracts,
+  recreioBillingReconciliations as jobs,
   recreioProfiles as profiles,
   recreioPurchaseAuthorizations as purchases,
   recreioPlanChangeProfiles as selections,
@@ -25,19 +26,28 @@ async function fixture(comJogador = false) {
     modo: "dev",
     obterRuntime: () => f.runtimeFinanceiro,
     relatarFalha: (e) => {
-      falhas.push(e.reasonCode);
+      if (e.payerId === f.adulto.conta.id) falhas.push(e.reasonCode);
     },
   });
   expect((await processar()).conciliadas).toBe(1);
   expect(falhas).toEqual([]);
+  // Other fixtures may leave deliberately failed jobs; inspect this payer's
+  // durable confirmation, rather than assuming the shared queue is empty.
+  const [job] = await db.select().from(jobs).where(eq(jobs.payerUserId, f.adulto.conta.id));
+  expect(job?.reviewRequired).toBe(false);
+  expect(job?.lastConfirmedAt).toBeInstanceOf(Date);
   const [origem] = await db.select().from(purchases).where(eq(purchases.id, f.recibo.id));
   if (!origem) throw new Error("Native financial origin absent");
+  const origemAdmitida = origem;
   const cotar = criarPreparacaoDeReducao(() => ({ modo: "dev", produtos: f.products }));
   async function pedido() {
-    const atuais = await db.select().from(profiles).where(eq(profiles.groupId, origem.groupId));
+    const atuais = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.groupId, origemAdmitida.groupId));
     return {
       pedidoId: randomUUID(),
-      grupoId: origem.groupId,
+      grupoId: origemAdmitida.groupId,
       produtoDestino: "recreio_individual_monthly",
       revisaoContrato: 1,
       perfis: atuais.map((p) => ({
