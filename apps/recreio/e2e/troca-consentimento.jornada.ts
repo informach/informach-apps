@@ -83,8 +83,8 @@ async function prepararContrato(
       values (${periodo.id},${sub.id},'stripe',${pedido.id},${pedido.group_id},${pedido.payer_user_id},'dev',${produtoId},'verified',${fim},${VERSAO_DO_FINANCIAMENTO},${"0".repeat(64)},${agora}) returning id`;
     if (!prova) throw new Error("Synthetic funding authority absent");
     await tx`insert into recreio.payment_funding (payment_period_id,observation_id,observed_at) values (${periodo.id},${prova.id},${agora})`;
-    await tx`insert into recreio.billing_reconciliations (payer_user_id,group_id,provider_mode,last_attempt_at,last_confirmed_at,attempt_count,review_required,review_reason,next_attempt_at)
-      values (${pedido.payer_user_id},${pedido.group_id},'dev',${agora},${agora},1,false,null,${new Date(agora.getTime() + 300_000)})`;
+    await tx`insert into recreio.billing_reconciliations (payer_user_id,group_id,provider_mode,last_attempt_at,last_confirmed_at,attempt_count,review_required,review_reason,next_attempt_at,created_at,updated_at)
+      values (${pedido.payer_user_id},${pedido.group_id},'dev',${agora},${agora},1,false,null,${new Date(agora.getTime() + 300_000)},${agora},${agora})`;
     await tx`update recreio.profiles set coverage_enabled=true where group_id=${pedido.group_id} and status='active'`;
   });
   await page.goto("/conta/assinatura#troca-de-plano");

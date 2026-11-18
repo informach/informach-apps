@@ -69,6 +69,13 @@ zero, com pagante sem jogador. Cotação/contrato desse caso são fixtures SQL
 explícitas; o aceite é nativo e nenhum envio é feito. Capturas permanecem
 sintéticas, sem arte licenciada. Repetir navegador e tipos da fonte composta.
 
+`b7bef25d`/`44420595698`: as quatro jornadas anteriores passaram; os dois novos
+cenários chegaram à preparação SQL e encontraram a ordem temporal da fixture:
+o instante informado antecedia o `created_at` padrão da fila. A preparação
+passa a fixar criação/atualização no mesmo relógio dos fatos, sem alterar a
+constraint nem declarar sucesso financeiro. Quality `44420599976` aprovada;
+repetir a jornada de navegador depois da correção.
+
 ## Comportamento obrigatório
 
 - Aumento: imediato, com proporcional calculado pelo Stripe e apresentado antes
