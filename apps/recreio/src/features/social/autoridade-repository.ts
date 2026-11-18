@@ -20,6 +20,7 @@ import { admitirPerfilSocial } from "./perfis-repository";
 export type ContextoSocial = {
   origem: Awaited<ReturnType<typeof admitirPerfilSocial>>["fato"];
   destino: Awaited<ReturnType<typeof admitirPerfilSocial>>["fato"] | null;
+  politicaDeJogo: Awaited<ReturnType<typeof admitirPerfilSocial>>["politicaDeJogo"];
   contaId: string | null;
   conferirPrazo: () => Promise<Date>;
   mundoCompartilhado?: MundoId | null;
@@ -96,6 +97,7 @@ async function tentar<T>(
     const valor = await executar(tx, {
       origem: origem.fato,
       destino: destino?.fato ?? null,
+      politicaDeJogo: origem.politicaDeJogo,
       contaId: admissao.contaId,
       conferirPrazo,
       mundoCompartilhado,

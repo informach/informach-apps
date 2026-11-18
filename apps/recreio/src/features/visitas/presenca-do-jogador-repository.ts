@@ -97,12 +97,7 @@ export async function presencaDoJogadorParaConvite(autor: SessaoDeJogoAtiva, ent
         instanciaId: InstanciaIdSchema.parse(p.instanceId),
         cerca: p.fence,
       });
-      await conferirConteudoDoMundo(
-        tx,
-        mundo,
-        autor.jogo,
-        ctx.origem.tipo === "protegido" ? ctx.origem.politica : null,
-      );
+      await conferirConteudoDoMundo(tx, mundo, autor.jogo, ctx.politicaDeJogo?.politica ?? null);
       const fim = await ctx.conferirPrazo();
       if (p.expiresAt <= fim || p.validUntil <= fim || posse.expiresAt <= fim)
         return PresencaParaConviteSchema.parse(vazio);

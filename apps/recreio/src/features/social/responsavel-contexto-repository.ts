@@ -97,6 +97,7 @@ async function tentar<T>(
     const valor = await executar(tx, {
       origem: origem.fato,
       destino: destino?.fato ?? null,
+      politicaDeJogo: origem.politicaDeJogo,
       contaId: autor.contaId,
       menor,
       versaoDoMenor: perfil.policyVersion,

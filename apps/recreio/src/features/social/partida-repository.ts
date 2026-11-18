@@ -51,6 +51,7 @@ export async function comPartidaSocial<T>(
       const valor = await executar(tx, {
         origem: origem.fato,
         destino: destino?.fato ?? null,
+        politicaDeJogo: origem.politicaDeJogo,
         contaId,
         conferirPrazo,
         mundoCompartilhado:

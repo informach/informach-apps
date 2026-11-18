@@ -26,6 +26,11 @@ import {
   pedirAmizade,
   protegerContato,
 } from "@/features/social/service";
+import { caixaDeVisitas } from "@/features/visitas/consulta-repository";
+import {
+  painelDaVisitaDoMenor,
+  painelDaVisitaNoMundo,
+} from "@/features/visitas/painel-nativo-repository";
 import {
   aprovarVisitaDoMenor,
   aprovarVisitaDoMundo,
@@ -168,6 +173,112 @@ async function menorConvidado(aguardaMundo = false) {
     };
   return { c, familia, dono, recibo, pedido };
 }
+
+it("painel parental sem jogador/plano mostra só decisão própria sem aprovar ou admitir", async () => {
+  const r = await menorConvidado(true);
+  const antes = await db.select().from(invites).where(eq(invites.id, r.recibo.conviteId));
+  expect(
+    await painelDaVisitaDoMenor(r.familia.autor, r.familia.perfil.id, r.recibo.conviteId),
+  ).toMatchObject({
+    convite: { conviteId: r.recibo.conviteId, aguardaMundo: true, aguardaDestino: true },
+    nomeDoMundo: "Casa de teste",
+    destino: { apelido: r.familia.perfil.apelido },
+    versaoDaPolitica: r.pedido.versaoDaPolitica,
+    aguardaSuaAprovacao: true,
+  });
+  expect(await db.select().from(invites).where(eq(invites.id, r.recibo.conviteId))).toEqual(antes);
+  expect(
+    await db
+      .select()
+      .from(guardianApprovals)
+      .where(eq(guardianApprovals.inviteId, r.recibo.conviteId)),
+  ).toEqual([]);
+  expect(await db.select().from(profiles).where(eq(profiles.userId, r.familia.conta.id))).toEqual(
+    [],
+  );
+  await aprovarVisitaDoMenor(r.familia.autor, r.pedido);
+  expect(
+    await painelDaVisitaDoMenor(r.familia.autor, r.familia.perfil.id, r.recibo.conviteId),
+  ).toMatchObject({
+    convite: { aguardaMundo: true, aguardaDestino: false },
+    aguardaSuaAprovacao: false,
+  });
+});
+
+it("painel da gestão sem plano conserva mundo explícito e não herda decisão parental", async () => {
+  const r = await mundoPendente(),
+    autor = { ...r.dono.nativo, perfilId: r.dono.gestor.perfil.id };
+  expect(await painelDaVisitaNoMundo(autor, r.c.mundoId, r.recibo.conviteId)).toMatchObject({
+    convite: { aguardaMundo: true },
+    versaoDaGestao: 1,
+    aguardaSuaAprovacao: true,
+  });
+  await expect(
+    painelDaVisitaNoMundo(autor, crypto.randomUUID(), r.recibo.conviteId),
+  ).rejects.toMatchObject({ code: "PEDIDO" });
+  await aprovarVisitaDoMundo(r.dono.nativo, r.dono.gestor.perfil.id, r.pedido);
+  expect(await painelDaVisitaNoMundo(autor, r.c.mundoId, r.recibo.conviteId)).toMatchObject({
+    convite: { aguardaMundo: false },
+    aguardaSuaAprovacao: false,
+  });
+});
+
+it("leitura do painel aceita login vigente antigo, mas aprovação continua exigindo login recente", async () => {
+  const r = await menorConvidado(),
+    autor = {
+      ...r.familia.autor,
+      login: { ...r.familia.autor.login, criadoEm: new Date(Date.now() - 11 * 60_000) },
+    };
+  expect(await painelDaVisitaDoMenor(autor, r.familia.perfil.id, r.recibo.conviteId)).toMatchObject(
+    { aguardaSuaAprovacao: true },
+  );
+  await expect(aprovarVisitaDoMenor(autor, r.pedido)).rejects.toMatchObject({
+    code: "LOGIN_RECENTE",
+  });
+  expect(
+    await db
+      .select()
+      .from(guardianApprovals)
+      .where(eq(guardianApprovals.inviteId, r.recibo.conviteId)),
+  ).toEqual([]);
+});
+
+it.each(["outro_adulto", "perfil_cruzado", "host", "bloqueio", "concluido"] as const)(
+  "painel parental recusa %s sem expor nomes e conserva recibo próprio",
+  async (tipo) => {
+    const r = await menorConvidado();
+    if (tipo === "host")
+      await r.c.instancia.cliente.atestarPresenca({
+        mundoId: r.c.mundoId,
+        cerca: r.c.posse.cerca,
+        operacao: "sair",
+        presencaId: r.c.presenca.presencaId,
+      });
+    if (tipo === "bloqueio")
+      await protegerContato(r.c.autor, {
+        perfilId: r.familia.perfil.id,
+        bloqueado: true,
+        silenciado: false,
+      });
+    if (tipo === "concluido")
+      await encerrarVisitaDoMenor(r.familia.autor, {
+        conviteId: r.recibo.conviteId,
+        perfilId: r.familia.perfil.id,
+        confirmo: true,
+      });
+    await expect(
+      painelDaVisitaDoMenor(
+        tipo === "outro_adulto" ? await nativo(r.c.origem) : r.familia.autor,
+        tipo === "perfil_cruzado" ? r.c.destino.perfil.id : r.familia.perfil.id,
+        r.recibo.conviteId,
+      ),
+    ).rejects.toMatchObject({ code: "PEDIDO" });
+    expect(
+      (await caixaDeVisitas({ responsavel: r.familia.autor, perfilId: r.familia.perfil.id }, {}))
+        .convites,
+    ).toHaveLength(1);
+  },
+);
 
 it("aceites concorrentes criam uma concessão auditada sem tornar visitante membro ou admitir pelo protocolo antigo", async () => {
   const c = await cenario(),

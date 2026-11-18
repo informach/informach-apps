@@ -1,5 +1,14 @@
 # Estado do trabalho no repositório
 
+**18/11 — decisões nativas de visitas em candidata:** painel gratuito do
+responsável e da gestão relê presença/amizade/conteúdo e mantém aprovações
+separadas; ações nativas vinculam o perfil esperado e conservam login recente
+para decisões. O leitor de presença `0441e077` revelou `TS2345` em
+`44264500845`: a projeção social não contém a política completa de jogo.
+A composição agora propaga a política admitida já calculada, sem cast ou
+nova avaliação avulsa. Painéis, correção e testes exigem nova rodada completa.
+UI e jornada física do visitante continuam pendentes; produção inalterada.
+
 **18/11 — consulta própria de presença F5 em candidata:** a caixa `fccf5097`
 teve falha de tipos no helper de transporte do SDK (`social` ausente no Pick)
 na rodada `44263841636`. Correção sem supressão e leitura da presença do próprio

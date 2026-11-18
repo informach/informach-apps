@@ -1,5 +1,27 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Atualização — leitura e decisões nativas em candidata
+
+O painel nativo do responsável e da gestão confere as partes, responsabilidade,
+amizade, conteúdo, revisões, presença original e prazo antes de expor nomes.
+Leitura não exige plano ou perfil de jogador do responsável. O painel mostra
+separadamente as aprovações pendentes; ler não aprova, compra acesso ou admite.
+Login vigente permite consultar; cada aprovação continua exigindo login nativo
+recente. As ações relêem o perfil selecionado esperado; pareamento infantil
+não é autoridade para gestão. Aprovar o mundo do menor usa o adulto nativo e
+seu alvo de gestão explícito. Redução parental mantém o caminho gratuito.
+
+Oito integrações candidatas conferem leitura sem efeitos, responsável sem
+jogador/plano, gestão sem plano, mundo explícito, aprovação separada, login
+antigo, conta/perfil cruzados, presença encerrada, bloqueio e recibo concluído.
+As telas e a jornada física completa ainda precisam ser integradas.
+
+Na candidata `0441e077`, rodada `44264500845`, tipos revelaram que a projeção
+social usada no leitor de presença não contém a política completa de jogo.
+A composição passa agora a política admitida já calculada à leitura do mundo;
+não infere classificação/multiplayer pela faixa social ou por cast. Correção,
+painéis e ações exigem nova rodada completa. Sem migration ou deploy.
+
 Incremento F5 autorizado, com fundação de schema e atestado em verificação.
 Negociação candidata; convites, concessões, interface e implantação pendentes. Requisitos e demais aceites no
 [plano de mundos](mundos-completos-2026-11-17.md).

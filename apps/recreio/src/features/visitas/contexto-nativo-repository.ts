@@ -27,15 +27,22 @@ export async function comDecisorEAnfitriaoNaVisita<T>(
     decisor: Decisor,
     anfitriao: AnfitriaoAdmitido,
   ) => Promise<T>,
+  leitura = false,
 ) {
   exigirNovosContatos();
   if (env.RECREIO_VISITS_MODE !== "on") throw new ErroDoRecreio("INDISPONIVEL");
-  return comDecisorNativoDeVisita(autor, conviteId, decisao, async (tx, ctx, convite, decisor) => {
-    if (jogoQueAbre(ctx.mundo.gameId).capacidades.visitas !== true)
-      throw new ErroDoRecreio("INDISPONIVEL");
-    const anfitriao = await admitirAnfitriaoNoContexto(tx, ctx, convite.hostPresenceId),
-      valor = await executar(tx, ctx, convite, decisor, anfitriao);
-    await anfitriao.conferirPrazo();
-    return valor;
-  });
+  return comDecisorNativoDeVisita(
+    autor,
+    conviteId,
+    decisao,
+    async (tx, ctx, convite, decisor) => {
+      if (jogoQueAbre(ctx.mundo.gameId).capacidades.visitas !== true)
+        throw new ErroDoRecreio("INDISPONIVEL");
+      const anfitriao = await admitirAnfitriaoNoContexto(tx, ctx, convite.hostPresenceId),
+        valor = await executar(tx, ctx, convite, decisor, anfitriao);
+      await anfitriao.conferirPrazo();
+      return valor;
+    },
+    leitura,
+  );
 }
