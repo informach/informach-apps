@@ -180,7 +180,7 @@ describe("origem monetária dos períodos nativos", () => {
     for (let n = 2; n <= 4; n++) {
       const pago = n === 4 ? 4050 : 0,
         antes = saldo;
-      saldo = saldo - 12790 + pago;
+      saldo = saldo + 12790 - pago;
       const id = `in_renovacao${n}`,
         inicio = 1000 + n * 1000;
       f.entrada.faturas.push({

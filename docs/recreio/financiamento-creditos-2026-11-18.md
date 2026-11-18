@@ -35,6 +35,12 @@ renovação de valor zero, saldo esgotado parcialmente, estorno/contestação,
 independência de período posterior, ordem/paginação lógica, ciclos, limites e
 duplicação. Precisam de execução remota antes de afirmar aprovação.
 
+`3c1b7465`/`44399065613`: tipos passaram, mas o cenário de consumo final da
+fixture subtraía a renovação de um saldo já negativo, aumentando o crédito.
+A fixture passa a somar o consumo e subtrair a captura nova; as asserções de
+saldo zerado, origens e estorno permanecem. Nenhuma regra do núcleo foi
+afrouxada. O corretivo exige nova rodada remota.
+
 ## Integração necessária
 
 Este núcleo ainda não recebe o leitor do Stripe nem é usado para conceder
