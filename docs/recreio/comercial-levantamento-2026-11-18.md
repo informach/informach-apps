@@ -84,6 +84,34 @@ outros aplicativos para corrigir o adapter comercial do Recreio.
 
 ## Provas ainda exigidas
 
+### Sequência em execução
+
+1. Prazo finito: candidata `4a46a3dd`, oito gates de Recreio aprovados em
+   `44276622593`; o CI compartilhado do catálogo seguinte também cobre os
+   testes puros. Não implantada.
+2. Preços configuráveis: candidata `f81c2c95`, gates `44278073436` e CI
+   `44278072474` em curso. Fonte única no catálogo, sem provisionar cobrança.
+3. Teste sem cartão: recibo `recreio.trial_claims`, uma vez por pagante/grupo,
+   ligado por FK à concessão exata de teste/família e aos seus instantes. Coorte
+   48 h/7 dias e versão persistidas; geração aditiva própria no GitHub. O schema
+   inicial não inicia teste nem está publicado. Ingresso provisório deve provar
+   elegibilidade sem iniciar concessão ou dar gameplay; somente a transação que
+   confirma a primeira SID pode criar a concessão. Falha e recusa revertem tudo.
+4. Admissão de teste: preservar contas → grupo → perfil → aparelho, conferir a
+   composição depois de esperar, reutilizar o kernel e a decisão única. Quatro
+   perfis concorrentes não podem criar quatro testes. Históricos existentes não
+   são reiniciados. Modo desligado por padrão; fixtures separadas com modo real.
+5. Checkout/portal nativos: preparar consentimento e autoridade atual sem exigir
+   jogador, usar intenção recuperável do billing e reler autorização antes de
+   devolver dados financeiros. Rede fora das transações. Portal não pode trocar
+   Família por Individual sem a seleção explícita da cobertura no Recreio.
+6. Fatos financeiros: assinatura espelhada e fatura paga são fatos distintos.
+   Reutilizar o leitor do provedor e o motor de períodos, admitindo estorno,
+   contestação, resultado desconhecido e conciliação com revisão observável.
+7. Homologação: servidor/HTTP/E2E e provedor real em sandbox, sem efeitos live,
+   depois conferência de catálogo, webhook, segredos, cron e operação. A venda
+   permanece bloqueada até F7–F11 e catálogo elegível; fixture não é jogo público.
+
 - Concessão de teste atômica com a primeira sessão autorizada, uma vez por
   pagante/grupo elegível, prazo/coorte persistidos e relógio servidor. Recusas e
   rollback não iniciam teste; histórico/concessões antigos não são reiniciados.

@@ -168,6 +168,14 @@ export const recreioEntitlements = recreio.table(
   },
   (t) => [
     index("recreio_entitlements_group").on(t.groupId, t.endsAt),
+    unique("recreio_entitlement_trial_identity").on(
+      t.id,
+      t.groupId,
+      t.kind,
+      t.tier,
+      t.startsAt,
+      t.endsAt,
+    ),
     check("recreio_entitlements_kind", sql`${t.kind} in ('courtesy', 'trial')`),
     check("recreio_entitlements_tier", sql`${t.tier} in ('individual', 'family')`),
     check("recreio_entitlements_period", sql`${t.endsAt} > ${t.startsAt}`),
