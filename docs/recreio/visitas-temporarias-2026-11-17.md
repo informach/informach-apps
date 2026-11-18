@@ -653,3 +653,31 @@ restrito por mundo/perfil/cursor. Prazos/encerramentos do SID, concessão,
 anfitrião ou posse são fatos de perda; somente o cache local vencido não deve
 revogar uma visita válida que pode ser revalidada. Geração da migration e
 provas da rotina ainda pendentes.
+
+Migration 0203 `demonic_monster_badoon` gerada no GitHub em `44244438428`,
+fonte `1e8e83ed`, artefato `14401425587`: um único índice parcial, 167 bytes,
+SHA-256 `6d1cdc0147a7c2f91cea00dcfaba7f8deafcff1f1570e909cada53d2af2373ff`.
+ZIP `afd9ef6619d022ec8670d5f977605d6cd548cfe36a7da02dbeca49998553307e`;
+proveniência, três caminhos/bytes/SHA, prefixo dos 203 recibos e predecessor
+do snapshot conferidos antes da cópia. Sem alteração de dados ou aplicação.
+
+Worker candidato seleciona até 100 vínculos não encerrados com perda
+persistida de SID, concessão, anfitrião, mundo ou posse original. Seleção não
+toma SID/cursor; até quatro encerramentos usam o mesmo coordenador restrito
+e aguardam todos os admitidos. Falha desconhecida/auditoria continua falha
+da manutenção; recibo expurgado concorrentemente é ignorado sem conceder nada.
+O contador `sessoesDeVisitaOrfaConferidas` mede candidatos conferidos, não novas
+sessões, novos encerramentos ou consumo financeiro. Repetição encontra os
+vínculos já fechados fora do índice parcial.
+
+A rotina vem depois da expiração real dos SIDs e antes da retenção de visitas.
+Não depende de uma instância responder HTTP e não transforma cache vencido
+em revogação. Sete integrações candidatas cobrem cinco perdas independentes,
+cache técnico vencido com revalidação e falha/retomada da auditoria; o ensaio
+real de checkpoint também recolhe o antecessor antes de admitir o sucessor,
+preservando concessão e datas. Arquivamento/cache são fixtures identificadas.
+Gates pendentes; SDK/runtime/interface e jornadas ainda não concluídos.
+
+Coletor de controle `a61b5b91` concluiu os oito gates `44242614129`, incluindo
+o navegador. A renovação `abb2a47e` passou nos sete gates fora do navegador;
+seu E2E e o encerramento `224f6586` ainda estão em andamento nesta conferência.

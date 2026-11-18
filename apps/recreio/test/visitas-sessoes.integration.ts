@@ -31,6 +31,7 @@ import {
   pedirAmizade,
   protegerContato,
 } from "@/features/social/service";
+import { limparSessoesVisitantesOrfas } from "@/features/visitas/orfas-repository";
 import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
 import { emitirConviteDeVisita, responderConviteDeVisita } from "@/features/visitas/service";
 import { env } from "@/lib/env";
@@ -71,6 +72,19 @@ function fechar(c: Cenario, s: Sessao) {
     motivo: "sair",
   });
 }
+async function recolher(s: Sessao) {
+  // Drena lotes reais das fixtures anteriores, sem ampliar o limite do worker.
+  for (let lote = 0; lote < 4; lote++) {
+    const resultado = await limparSessoesVisitantesOrfas();
+    expect(resultado.sessoesDeVisitaOrfaConferidas).toBeLessThanOrEqual(100);
+    const [vinculo] = await db
+      .select()
+      .from(visitSessions)
+      .where(eq(visitSessions.id, s.finalidade.id));
+    if (vinculo?.state === "closed") return;
+  }
+  throw new Error("O worker não recolheu o vínculo órfão das fixtures limitadas.");
+}
 function entrada(c: Cenario, s: Sessao) {
   return {
     mundoId: c.mundoId,
@@ -95,6 +109,91 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it.each(["host", "concessao", "sid", "posse", "mundo"] as const)(
+  "manutenção recolhe perda de %s sem depender da instância",
+  async (tipo) => {
+    const c = await cenario(),
+      s = await abrir(c);
+    await admitir(c, s);
+    if (tipo === "host") await sairDaSessao(c.host.token);
+    if (tipo === "concessao")
+      await responderConviteDeVisita(c.autor, { conviteId: c.convite.conviteId, acao: "revogar" });
+    if (tipo === "sid") await sairDaSessao(s.aberta.token);
+    if (tipo === "posse")
+      await c.instancia.cliente.liberarPosse({
+        mundoId: c.mundoId,
+        cerca: c.posse.cerca,
+        motivo: "erro",
+      });
+    // Arquivamento é fixture de perda de domínio, não homologação do fluxo de gestão.
+    if (tipo === "mundo")
+      await db.execute(
+        sql`update recreio.spaces set status='archived',management_revision=management_revision+1 where id=${c.mundoId}::uuid`,
+      );
+    env.RECREIO_VISITS_MODE = "off";
+    env.RECREIO_SOCIAL_MODE = "off";
+    await recolher(s);
+    expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedAt).toBeInstanceOf(
+      Date,
+    );
+    expect(
+      (await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]?.endedAt,
+    ).toBeInstanceOf(Date);
+    const [anterior] = await db
+      .select()
+      .from(visitSessions)
+      .where(eq(visitSessions.id, s.finalidade.id));
+    await limparSessoesVisitantesOrfas();
+    expect(
+      (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0],
+    ).toEqual(anterior);
+    if (tipo !== "host")
+      expect(
+        (await db.select().from(games).where(eq(games.id, c.host.sid)))[0]?.endedAt,
+      ).toBeNull();
+  },
+);
+
+it("cache local vencido sozinho não vira órfão e permite revalidação completa", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  // Envelhece somente o cache técnico; SID, presença, posse e concessão continuam atuais.
+  await db.execute(
+    sql`update recreio.world_visit_sessions set created_at=created_at-interval '1 minute',admitted_at=admitted_at-interval '1 minute',updated_at=updated_at-interval '1 minute',permission_until=permission_until-interval '1 minute' where id=${s.finalidade.id}::uuid`,
+  );
+  await limparSessoesVisitantesOrfas();
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]?.state,
+  ).toBe("active");
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedAt).toBeNull();
+  expect((await renovar(c, s)).visitas[0]?.estado).toBe("ok");
+});
+
+it("auditoria recusada no worker continua falha e permite retomar o recolhimento", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  await sairDaSessao(c.host.token);
+  await db.execute(
+    sql`create function audit.visita_orfa_falha() returns trigger language plpgsql as $$ begin if new.event_type='recreio.visit_session_closed' then raise exception 'audit unavailable'; end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger visita_orfa_falha before insert on audit.events for each row execute function audit.visita_orfa_falha()`,
+  );
+  try {
+    await expect(limparSessoesVisitantesOrfas()).rejects.toBeInstanceOf(AuditPersistenceError);
+  } finally {
+    await db.execute(sql`drop trigger visita_orfa_falha on audit.events`);
+    await db.execute(sql`drop function audit.visita_orfa_falha()`);
+  }
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedAt).toBeNull();
+  expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]?.state).toBe(
+    "active",
+  );
+  await recolher(s);
+});
 
 it("encerramento concorrente fecha só o SID visitante e sua concessão uma vez", async () => {
   const c = await cenario(),
@@ -648,6 +747,7 @@ it("checkpoint real permite sucessor da mesma visita e conserva os dois SIDs sem
   ).toMatchObject({ estado: "confirmed" });
   const nova = await trocarIngresso(pedido),
     novoSid = SessaoDeJogoIdSchema.parse(claimsDe(nova.token).sid);
+  await recolher(s);
   expect(await fechar(c, s)).toMatchObject({ sidEncerrado: true, visitaEncerrada: false });
   const [historica] = await db
     .select()

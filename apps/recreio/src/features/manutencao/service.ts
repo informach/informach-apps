@@ -12,6 +12,7 @@ import {
   encerrarSessoesVencidas,
 } from "@/features/sessao-de-jogo/repository";
 import { limparRegistrosSociais } from "@/features/social/retencao-repository";
+import { limparSessoesVisitantesOrfas } from "@/features/visitas/orfas-repository";
 import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
 import {
   apagarConvitesAntigos,
@@ -44,6 +45,7 @@ export async function executarManutencao(): Promise<{
   recibosDeVisitaApagados: number;
   concessoesDeVisitaApagadas: number;
   sessoesDeVisitaApagadas: number;
+  sessoesDeVisitaOrfaConferidas: number;
   cadastrosPendentesApagados: number;
   recibosDeCadastroApagados: number;
   pareamentosApagados: number;
@@ -74,6 +76,7 @@ export async function executarManutencao(): Promise<{
   const instanciasSumidas = await marcarInstanciasSumidas();
   const ingressosApagados = await apagarIngressosAntigos();
   const sessoesExpiradas = await encerrarSessoesVencidas();
+  const visitasOrfas = await limparSessoesVisitantesOrfas();
   const convitesApagados = await apagarConvitesAntigos();
   const dirigidos = await limparConvitesDirigidos();
   const visitas = await limparRecibosDeVisita();
@@ -91,6 +94,7 @@ export async function executarManutencao(): Promise<{
     instanciasSumidas,
     ingressosApagados,
     sessoesExpiradas,
+    ...visitasOrfas,
     convitesApagados,
     ...dirigidos,
     ...visitas,
