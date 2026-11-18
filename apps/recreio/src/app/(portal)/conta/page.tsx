@@ -97,6 +97,46 @@ export default async function Conta() {
           </div>
         </section>
 
+        {perfis
+          .filter((p) => p.tipo === "adult")
+          .map((proprio) => (
+            <section key={proprio.id} aria-labelledby="conta-revisao" className="painel p-5 sm:p-6">
+              <h2 id="conta-revisao" className="font-display text-xl font-bold">
+                Acesso e revisão do seu perfil
+              </h2>
+              <p className="mt-2 text-tinta-suave">
+                Confira a situação do perfil e peça revisão de uma suspensão, mesmo sem plano ativo.
+              </p>
+              <Link
+                href={`/conta/perfis/${proprio.id}/restricao`}
+                className="mt-4 inline-flex min-h-11 items-center font-bold text-ceu underline underline-offset-4"
+              >
+                Conferir acesso de {proprio.apelido}
+              </Link>
+              <Link
+                href={`/conta/perfis/${proprio.id}/denuncias`}
+                className="mt-3 flex min-h-11 items-center font-bold text-ceu underline"
+              >
+                Acompanhar minhas denúncias
+              </Link>
+            </section>
+          ))}
+
+        <section aria-labelledby="conta-cobertura" className="painel p-5 sm:p-6">
+          <h2 id="conta-cobertura" className="font-display text-xl font-bold">
+            Cobertura do grupo
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Confira quais jogadores ficam na cobertura que você administra.
+          </p>
+          <Link
+            href="/conta/grupo"
+            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+          >
+            Gerenciar cobertura
+          </Link>
+        </section>
+
         {familiaVisivel && (
           <section aria-labelledby="conta-familia" className="painel p-5 sm:p-6">
             <h2 id="conta-familia" className="font-display text-xl font-bold">

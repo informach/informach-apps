@@ -94,6 +94,13 @@ export type DecisaoDeAcesso = {
   versaoDaPolitica: number;
 };
 
+/** Capacidade comercial sem inventar um perfil de jogador para o pagante. */
+export type FatosDoPlano = Pick<
+  FatosDeAcesso,
+  "agora" | "assinatura" | "teveAssinatura" | "concessoes"
+>;
+export type DecisaoDoPlano = Omit<DecisaoDeAcesso, "versaoDaPolitica">;
+
 export function limiteDePerfisDoTier(tier: TierDoPlano): number {
   return tier === "family" ? 4 : 1;
 }
@@ -150,6 +157,21 @@ export function decidirAcesso(fatos: FatosDeAcesso): DecisaoDeAcesso {
     return recusa("SEM_ACESSO", "perfil_sem_cobertura");
   }
 
+  return { ...decidirPlanoDoGrupo(fatos), versaoDaPolitica };
+}
+
+/** Não concede autoridade sobre pessoas ou jogos; informa somente o plano atual. */
+export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
+  const recusa = (estado: EstadoDeAcesso, motivo: MotivoDeRecusa): DecisaoDoPlano => ({
+    estado,
+    podeJogar: false,
+    motivo,
+    origem: null,
+    origemId: null,
+    limiteDePerfis: 0,
+    validoAte: null,
+  });
+
   const assinatura = fatos.assinatura;
   if (assinatura !== null && STATUS_QUE_JOGAM.includes(assinatura.status)) {
     return {
@@ -160,7 +182,6 @@ export function decidirAcesso(fatos: FatosDeAcesso): DecisaoDeAcesso {
       origemId: assinatura.id,
       limiteDePerfis: limiteDePerfisDoTier(assinatura.tier),
       validoAte: assinatura.cancelaEm,
-      versaoDaPolitica,
     };
   }
 
@@ -174,7 +195,6 @@ export function decidirAcesso(fatos: FatosDeAcesso): DecisaoDeAcesso {
       origemId: concessao.id,
       limiteDePerfis: limiteDePerfisDoTier(concessao.tier),
       validoAte: concessao.fim,
-      versaoDaPolitica,
     };
   }
 

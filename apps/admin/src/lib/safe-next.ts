@@ -75,7 +75,11 @@ export function safeNext(value: string | string[] | null | undefined): string {
     return HOME;
   }
   if (pathname === "/api" || pathname.startsWith("/api/")) return AUDIT;
-  if (FICHA_PATH.test(pathname)) {
+  if (
+    FICHA_PATH.test(pathname) ||
+    pathname === "/recreio/seguranca" ||
+    pathname === "/recreio/seguranca/"
+  ) {
     url.searchParams.set(FICHA_CONFIRM_PARAM, "1");
     return `${url.pathname}${url.search}${url.hash}`;
   }

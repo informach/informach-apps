@@ -93,6 +93,57 @@ Finalidade: investigar mudanças na conta da família e atender suporte. O Basti
 
 ## Eventos do Recreio
 
+Social usa auditoria estrita na transação da mudança. Os eventos
+`friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
+`friend_request_created`/`friend_request_expired`/`friend_request_accepted`/
+`friend_request_rejected`/`friend_request_revoked`, `friend_approval_recorded`
+e `friend_approval_renewed`
+usam IDs de pedido e perfil. `friendship_started`/`friendship_removed` usam IDs
+das duas pontas e revisão. `social_protection_changed` acrescenta somente as
+flags `blocked`/`muted`. Todos recebem o prefixo `recreio.` e `app: recreio`.
+Não registrar código, hash, apelido, idade, nascimento, e-mail ou texto livre.
+A ação do aparelho infantil tem ator nulo; aprovação é atribuída ao responsável
+que efetivamente agiu. Repetição sem mudança não cria um novo evento. A remoção
+da amizade não apaga auditoria nem concede administração de mundo.
+`recreio.social_records_purged` usa somente as contagens de códigos, recibos,
+avisos e relações removidas expurgados, com ator nulo. Não inclui IDs em lote.
+Também conta referências técnicas retiradas de códigos vencidos e relações
+removidas; retirar a referência não muda a amizade nem apaga um bloqueio.
+`recreio.social_presence_changed` registra perfil e o classificador
+`presenceMode` (`online`, `friends`, `invisible`), com ator adulto atual.
+`recreio.social_notice_read` usa IDs de perfil, aviso e pedido. O ator é o
+responsável nativo atual que confirmou a leitura; repetição não duplica evento.
+`recreio.safety_reported` usa IDs de protocolo e das duas pontas, categoria
+fechada, prioridade e espécie do ator. Não inclui corpo/hash/nonce/evidência
+ou identificação escolhida por pessoas. Ator infantil é nulo, e o responsável
+usa sua conta real. `recreio.safety_reports_purged` registra somente contagens
+apagadas e pendências que venceram sem solução, com ator nulo e sem IDs em lote.
+`recreio.restriction_reconciled` registra perfil, revisão observada e o motivo
+fechado `legado_sem_recibo`, sem inventar autoria ou data da suspensão antiga.
+`recreio.restriction_review_requested` registra IDs de perfil/recurso, revisão
+da restrição e espécie do ator (`titular`/`responsavel`), sempre com a conta
+nativa atual. Nenhum deles recebe nonce, resumo do corpo ou dados da denúncia
+original. Repetição não duplica auditoria nem reativa permissões.
+`recreio.moderation_command_applied` identifica comando, espécie e protocolo do
+caso, operação, revisão e, quando aplicável, perfil/decisão/motivo fechados.
+Ator é a conta atual da equipe, com sessão nativa e duas etapas revalidadas.
+Não inclui prova assinada, sessão, nonce ou hash do corpo. Recibo, efeito e
+auditoria são atômicos; replay não duplica evento e exige autoridade atual.
+`recreio.moderation_retention` registra somente contagens de encerramento,
+expurgo de recursos/comandos e restrições já liberadas, com ator nulo.
+Recurso que vence sem resposta é contado como pendência operacional, nunca
+como decisão favorável ou desfavorável. Nenhum ID de pessoa/caso em lote.
+`admin.recreio_safety_viewed` registra conta real da equipe, app e protocolo
+opcional consultado; não inclui resultados ou conteúdo da fila. Falha impede
+mostrar os casos. `admin.recreio_moderation_requested` registra a tentativa com
+IDs de comando/caso e operação fechada, antes do envio. Não comprova o efeito:
+somente `recreio.moderation_command_applied` confirma a transação do Recreio.
+Nenhum desses eventos recebe sessão, prova HMAC, chave ou corpo do comando.
+`recreio.safety_review_requested` registra protocolo, perfil solicitante,
+revisão e espécie do autor atual, sem reatribuir o envio original da denúncia.
+Ator de criança é nulo; responsável usa a própria conta nativa. Sem hash,
+nonce, dados da outra ponta ou texto livre. Replay não duplica o evento.
+
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 
 - `recreio.profile_created`: `{ profileId, kind, guardianLinkId?, declarationVersion? }`, com `kind` igual a `adult` ou `minor`. Os dois campos adicionais pertencem ao cadastro sob responsabilidade declarada; nunca incluir nascimento ou texto da declaração. O ator é a conta que criou o perfil.
@@ -106,6 +157,10 @@ Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jo
 - `recreio.device_session_revoked`: `{ deviceSessionId, profileId? }`, ator da própria conta adulta. Sem jogador selecionado, omitir `profileId`; não criar perfil para auditar administração. Revogação de outro aparelho de login e fim das partidas usam a mesma transação do evento estrito. Repetição sem efeito não emite novo evento; nunca incluir token, ID da sessão de login, IP, user-agent ou nome do aparelho. Não altera acessos de outros apps. A ampliação para conta sem perfil está no incremento de gestão; conferir a implantação no registro antes de assumir produção.
 - `recreio.entitlement_granted`: `{ entitlementId, groupId, targetId, tier, days, reasonCode }`, com `tier` igual a `individual` ou `family`, `days` o número de dias concedidos e `targetId` a conta titular do grupo.
 - `recreio.entitlement_revoked`: `{ entitlementId, groupId, targetId, reasonCode }`.
+- `recreio.group_coverage_updated`: `{ groupId, profileId, revision, enabled }`, ator titular ou adulto que escolheu voltar à própria cobertura; revisão, encerramentos e evento estrito na mesma transação. Pagamento não concede edição de perfil adulto de terceiro.
+- `recreio.group_member_left` e `recreio.group_member_removed`: `{ groupId, profileId, revision }`, ator adulto que saiu ou titular que retirou. Não removem identidade, responsabilidade infantil, progresso ou participações em mundos.
+- `recreio.group_invite_created`: `{ groupId, inviteId, declarationVersion }`, ator emissor. `recreio.group_invite_accepted`: `{ groupId, inviteId, profileId, enabled, declarationVersion }`, ator destinatário autenticado; declaração não comprova verificação externa de idade. Aceite e recibo idempotente são atômicos com o evento estrito.
+- `recreio.group_invite_revoked`, `recreio.group_invite_declined` e `recreio.group_invite_expired`: `{ groupId, inviteId }`, ator emissor, destinatário ou nulo na expiração global. Nunca incluir endereço, identificação declarada, resumo do corpo ou qualquer credencial. Pendências retiram endereço/identificação ao encerrar; recibos técnicos são expurgados após 24 horas, sem apagar estes eventos de auditoria. Conferir a implantação em `docs/recreio/grupos-adultos-2026-11-17.md`.
 
 `reasonCode` é um código curto e fechado (letras minúsculas, números e `_`, até 40 caracteres, conferido pelo script e pelo banco), não uma explicação escrita: quem concede escolhe o código, e a conversa com a pessoa fica fora do evento. Todos levam também `app: "recreio"`.
 

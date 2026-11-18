@@ -1,0 +1,5 @@
+ALTER TABLE "recreio"."safety_reports" ADD COLUMN "review_actor_user_id" text;--> statement-breakpoint
+ALTER TABLE "recreio"."safety_reports" ADD COLUMN "review_actor_kind" text;--> statement-breakpoint
+ALTER TABLE "recreio"."safety_reports" ADD COLUMN "review_request_hash" text;--> statement-breakpoint
+ALTER TABLE "recreio"."safety_reports" ADD CONSTRAINT "safety_reports_review_actor_user_id_users_id_fk" FOREIGN KEY ("review_actor_user_id") REFERENCES "core"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "recreio"."safety_reports" ADD CONSTRAINT "recreio_safety_report_review_provenance" CHECK (("recreio"."safety_reports"."review_actor_user_id" is null and "recreio"."safety_reports"."review_actor_kind" is null and "recreio"."safety_reports"."review_request_hash" is null) or ("recreio"."safety_reports"."review_requested_at" is not null and "recreio"."safety_reports"."review_actor_kind" is not null and "recreio"."safety_reports"."review_actor_kind" in ('jogador','responsavel') and "recreio"."safety_reports"."review_request_hash" is not null and "recreio"."safety_reports"."review_request_hash" ~ '^[a-f0-9]{64}$'));

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, stat, utimes } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { join, win32 } from "node:path";
 import { sniffImageType } from "@informach/edi-desktop/ai-clients";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { type GuideImage, type GuideStyle, guideStyleSchema } from "../shared/pipelines";
@@ -52,7 +52,8 @@ export async function saveGuide(
     const now = new Date();
     await utimes(file, now, now);
   } else await atomicWrite(file, value);
-  const text = typeof name === "string" ? basename(name).trim().slice(0, 260) : "";
+  // Names may come from a recipe made on another OS. win32 handles both separators.
+  const text = typeof name === "string" ? win32.basename(name).trim().slice(0, 260) : "";
   return { id, name: text || "Guia de estilo" };
 }
 

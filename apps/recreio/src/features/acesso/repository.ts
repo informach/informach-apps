@@ -50,16 +50,18 @@ export type FatosLidos = {
     coberturaLigada: boolean;
     versaoDaPolitica: number;
   };
-  grupo: {
-    id: GrupoId;
-    /** Perfis do grupo com a cobertura ligada, do mais antigo ao mais novo. */
-    cobertos: PerfilId[];
-    /** A assinatura que dá acesso, se houver. */
-    assinaturaAtiva: AssinaturaLida | null;
-    /** A assinatura mais recente que não dá acesso (atrasada, encerrada). */
-    assinaturaInativa: AssinaturaLida | null;
-    concessoes: Concessao[];
-  } | null;
+  grupo: FatosDoGrupo | null;
+};
+
+export type FatosDoGrupo = {
+  id: GrupoId;
+  /** Perfis do grupo com a cobertura ligada, do mais antigo ao mais novo. */
+  cobertos: PerfilId[];
+  /** A assinatura que dá acesso, se houver. */
+  assinaturaAtiva: AssinaturaLida | null;
+  /** A assinatura mais recente que não dá acesso (atrasada, encerrada). */
+  assinaturaInativa: AssinaturaLida | null;
+  concessoes: Concessao[];
 };
 
 async function assinaturaInativaMaisRecente(
@@ -111,13 +113,24 @@ export async function lerFatosDeAcesso(
     coberturaLigada: perfil.coverageEnabled,
     versaoDaPolitica: perfil.policyVersion,
   };
-  const [grupo] = perfil.groupId
-    ? await conexao
-        .select({ id: groups.id, ownerUserId: groups.ownerUserId })
-        .from(groups)
-        .where(eq(groups.id, perfil.groupId))
-    : [];
-  if (!grupo) return { perfil: lido, grupo: null };
+  return {
+    perfil: lido,
+    grupo: perfil.groupId
+      ? await lerFatosDoGrupo(GrupoIdSchema.parse(perfil.groupId), conexao)
+      : null,
+  };
+}
+
+/** Mesmo carregador financeiro para um pagante que não ocupa perfil de jogador. */
+export async function lerFatosDoGrupo(
+  grupoId: GrupoId,
+  conexao: Pick<Database, "select"> = db,
+): Promise<FatosDoGrupo | null> {
+  const [grupo] = await conexao
+    .select({ id: groups.id, ownerUserId: groups.ownerUserId })
+    .from(groups)
+    .where(eq(groups.id, grupoId));
+  if (!grupo) return null;
   const [cobertos, ativa, inativa, concessoes] = await Promise.all([
     conexao
       .select({ id: profiles.id })
@@ -142,18 +155,15 @@ export async function lerFatosDeAcesso(
       .where(eq(entitlements.groupId, grupo.id)),
   ]);
   return {
-    perfil: lido,
-    grupo: {
-      id: GrupoIdSchema.parse(grupo.id),
-      cobertos: cobertos.map((linha) => PerfilIdSchema.parse(linha.id)),
-      assinaturaAtiva: ativa && {
-        id: ativa.id,
-        status: ativa.status,
-        productId: ativa.productId,
-        cancelaEm: ativa.cancelAtPeriodEnd,
-      },
-      assinaturaInativa: inativa,
-      concessoes,
+    id: GrupoIdSchema.parse(grupo.id),
+    cobertos: cobertos.map((linha) => PerfilIdSchema.parse(linha.id)),
+    assinaturaAtiva: ativa && {
+      id: ativa.id,
+      status: ativa.status,
+      productId: ativa.productId,
+      cancelaEm: ativa.cancelAtPeriodEnd,
     },
+    assinaturaInativa: inativa,
+    concessoes,
   };
 }

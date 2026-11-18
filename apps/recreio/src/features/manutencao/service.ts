@@ -1,9 +1,15 @@
 import "server-only";
+import { limparConvitesDeGrupo } from "@/features/grupo/convites-retencao-repository";
+import {
+  exigirFilaDeSegurancaEmDia,
+  limparDenuncias,
+} from "@/features/moderacao/retencao-repository";
 import { fecharPossesVencidas, marcarInstanciasSumidas } from "@/features/posse/repository";
 import {
   apagarIngressosAntigos,
   encerrarSessoesVencidas,
 } from "@/features/sessao-de-jogo/repository";
+import { limparRegistrosSociais } from "@/features/social/retencao-repository";
 import {
   apagarConvitesAntigos,
   apagarIntencoesAntigas,
@@ -32,6 +38,25 @@ export async function executarManutencao(): Promise<{
   aparelhosNaoConfirmadosEncerrados: number;
   diasDeUsoApagados: number;
   recibosDeSalvamentoApagados: number;
+  convitesDeGrupoVencidos: number;
+  recibosDeGrupoApagados: number;
+  pedidosSociaisVencidos: number;
+  codigosSociaisApagados: number;
+  recibosSociaisApagados: number;
+  avisosSociaisApagados: number;
+  relacoesSociaisApagadas: number;
+  vinculosDeCodigoSocialLimpos: number;
+  vinculosDePedidoSocialLimpos: number;
+  denunciasApagadas: number;
+  denunciasVencidasSemSolucao: number;
+  denunciasPrioritariasAtrasadas: number;
+  denunciasAtrasadas: number;
+  denunciasEncerradas: number;
+  recursosDeRestricaoApagados: number;
+  recursosDeRestricaoVencidosSemSolucao: number;
+  recursosDeRestricaoAtrasados: number;
+  comandosDeModeracaoApagados: number;
+  restricoesLiberadasApagadas: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
@@ -41,6 +66,11 @@ export async function executarManutencao(): Promise<{
   const intencoes = await apagarIntencoesAntigas();
   const diasDeUsoApagados = await apagarUsoAntigo();
   const recibosDeSalvamentoApagados = await apagarSalvamentosAntigos();
+  const convitesDeGrupo = await limparConvitesDeGrupo();
+  const social = await limparRegistrosSociais();
+  const denuncias = await limparDenuncias();
+  // O expurgo já confirmou sua auditoria; atendimento atrasado continua sendo falha operacional.
+  exigirFilaDeSegurancaEmDia(denuncias);
   return {
     possesVencidas,
     instanciasSumidas,
@@ -50,5 +80,8 @@ export async function executarManutencao(): Promise<{
     ...intencoes,
     diasDeUsoApagados,
     recibosDeSalvamentoApagados,
+    ...convitesDeGrupo,
+    ...social,
+    ...denuncias,
   };
 }

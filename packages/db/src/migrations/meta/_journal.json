@@ -1254,6 +1254,90 @@
       "when": 1794915559282,
       "tag": "0178_regular_manta",
       "breakpoints": true
+    },
+    {
+      "idx": 179,
+      "version": "7",
+      "when": 1794921192659,
+      "tag": "0179_sudden_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 180,
+      "version": "7",
+      "when": 1794921397762,
+      "tag": "0180_romantic_veda",
+      "breakpoints": true
+    },
+    {
+      "idx": 181,
+      "version": "7",
+      "when": 1794922493353,
+      "tag": "0181_old_plazm",
+      "breakpoints": true
+    },
+    {
+      "idx": 182,
+      "version": "7",
+      "when": 1794928201029,
+      "tag": "0182_romantic_yellowjacket",
+      "breakpoints": true
+    },
+    {
+      "idx": 183,
+      "version": "7",
+      "when": 1794929905452,
+      "tag": "0183_omniscient_arclight",
+      "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1794930916306,
+      "tag": "0184_nappy_killmonger",
+      "breakpoints": true
+    },
+    {
+      "idx": 185,
+      "version": "7",
+      "when": 1794936731584,
+      "tag": "0185_flaky_cardiac",
+      "breakpoints": true
+    },
+    {
+      "idx": 186,
+      "version": "7",
+      "when": 1794937149810,
+      "tag": "0186_polite_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 187,
+      "version": "7",
+      "when": 1794940720044,
+      "tag": "0187_yellow_giant_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 188,
+      "version": "7",
+      "when": 1794942547889,
+      "tag": "0188_brave_mimic",
+      "breakpoints": true
+    },
+    {
+      "idx": 189,
+      "version": "7",
+      "when": 1794944537513,
+      "tag": "0189_third_lady_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 190,
+      "version": "7",
+      "when": 1794947645622,
+      "tag": "0190_charming_wasp",
+      "breakpoints": true
     }
   ]
 }

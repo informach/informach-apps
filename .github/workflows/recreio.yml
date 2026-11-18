@@ -8,6 +8,7 @@ on:
       - ".github/workflows/recreio.yml"
       - ".railway/railway.ts"
       - "apps/recreio/**"
+      - "apps/admin/**"
       - "apps/morada-server/**"
       - "packages/recreio/**"
       - "packages/morada-sim/**"
@@ -37,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes]
+        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes, equipe]
     services:
       postgres:
         image: postgres:18-alpine
@@ -81,6 +82,15 @@ jobs:
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'
         run: pnpm --filter @informach/recreio-app test:integration
+      - name: Verify administration safety projection on isolated PostgreSQL
+        if: matrix.gate == 'integration'
+        run: pnpm compasso:test:integration --admin-only
+      - name: Upgrade Recreio groups with preserved profiles and progress
+        if: matrix.gate == 'integration'
+        run: |
+          git fetch --no-tags --depth=1 origin 338236d041d3c7be0d4fb1fbbe0373a7101f8e07
+          pnpm --filter @informach/db typecheck
+          pnpm --filter @informach/db exec tsx src/testing/recreio-group-upgrade.ts
       - name: Verify production process receives SIGTERM
         if: matrix.gate == 'quality'
         run: |
@@ -96,10 +106,12 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
+      - if: matrix.gate == 'equipe'
+        run: pnpm --filter @informach/recreio-app e2e:equipe
       - if: matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
         env:
@@ -161,7 +173,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve synthetic browser failure evidence
-        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint')
+        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe')
         uses: actions/upload-artifact@v4
         with:
           name: recreio-${{ matrix.gate }}-${{ github.run_attempt }}
@@ -194,6 +206,28 @@ jobs:
             apps/recreio/tmp/telas/perfil-compartilhado-mobile.png
             apps/recreio/tmp/telas/retorno-adulto-pin-mobile.png
             apps/recreio/tmp/telas/estante-protegida-mobile.png
+            apps/recreio/tmp/telas/grupo-cobertura-celular.png
+            apps/recreio/tmp/telas/grupo-convite-celular.png
+            apps/recreio/tmp/telas/grupo-participacao-celular.png
+            apps/recreio/tmp/telas/social-adulto-mobile.png
+            apps/recreio/tmp/telas/social-infantil-mobile.png
+            apps/recreio/tmp/telas/social-responsavel-sem-jogador-mobile.png
+            apps/recreio/tmp/telas/social-denuncia-mobile.png
+            apps/recreio/tmp/telas/recurso-titular-mobile.png
+            apps/recreio/tmp/telas/recurso-responsavel-mobile.png
+            apps/recreio/tmp/telas/denuncia-acompanhamento-mobile.png
+            apps/recreio/tmp/telas/host-social-mobile-topo.png
+            apps/recreio/tmp/telas/host-social-mobile-cuidados.png
+            apps/recreio/tmp/telas/host-controle-morada-mobile.png
+            apps/recreio/tmp/telas/host-social-morada-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic staff queue screen
+        if: always() && matrix.gate == 'equipe'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-equipe-tela-${{ github.run_attempt }}
+          path: apps/recreio/tmp/telas/equipe-seguranca-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

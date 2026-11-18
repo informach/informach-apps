@@ -21,6 +21,8 @@ export const operationalErrors = [
   "access.session_end_failed",
   /** O código por e-mail da ativação das duas etapas não saiu. */
   "two_factor.code_not_sent",
+  /** A API pode ter confirmado o efeito; a equipe precisa conferir o caso. */
+  "recreio.moderation_confirmation_unknown",
 ] as const;
 export type OperationalError = (typeof operationalErrors)[number];
 
@@ -37,7 +39,15 @@ const errorTypes = new Set([
   "PostgresError",
 ]);
 
-const contextKeys = ["actorId", "targetId", "job", "service", "category", "eventType"] as const;
+const contextKeys = [
+  "actorId",
+  "targetId",
+  "commandId",
+  "job",
+  "service",
+  "category",
+  "eventType",
+] as const;
 
 /** Só identificadores e nomes de campo; nunca e-mail, motivo digitado ou conteúdo. */
 export function telemetryContext(input: Record<string, unknown> = {}) {

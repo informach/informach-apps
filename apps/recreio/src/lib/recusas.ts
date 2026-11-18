@@ -20,6 +20,9 @@ const MENSAGENS: Partial<Record<CodigoDeErro, string>> = {
   MUNDO_INDISPONIVEL: "Este mundo não está disponível.",
   MUITAS_TENTATIVAS: "Muitas tentativas. Espere alguns minutos e tente de novo.",
   ENTRADA_INVALIDA: "Confira os campos e tente novamente.",
+  INDISPONIVEL: "Não foi possível confirmar agora. Atualize a página e tente novamente.",
+  SESSAO_INVALIDA: "Este acesso não está mais disponível. Entre novamente ou confira o aparelho.",
+  SESSAO_ENCERRADA: "Este acesso terminou. Entre novamente ou confira o aparelho.",
   POLITICA_INCOMPATIVEL:
     "Estas regras não são compatíveis com o perfil. Confira a faixa de conteúdo e as permissões.",
 };

@@ -5,6 +5,7 @@ import { cache } from "react";
 import { aparelhoPareadoAtual, temContextoPareado } from "@/features/protecao/http";
 import { identidadeNativaDoAparelho } from "@/features/protecao/nativo";
 import { escolhasDoAparelho } from "@/features/protecao/service";
+import { safeDestination } from "@/lib/destination";
 import { AppError } from "@/lib/errors";
 
 /** Apenas jogador/aparelho. Esta referência nunca concede conta, cobrança ou gestão. */
@@ -38,14 +39,19 @@ export const jogadorDoAparelho = cache(async () => {
   };
 });
 
-export async function paginaDoJogador() {
+export async function paginaDoJogador(next?: string) {
   try {
     return await jogadorDoAparelho();
   } catch (erro) {
     if (erro instanceof ErroDoRecreio) {
       if (erro.codigo === "NAO_AUTENTICADO")
-        redirect((await temContextoPareado()) ? "/parear" : "/entrar?encerrada=1");
-      if (erro.codigo === "SEM_PERFIL") redirect("/perfis");
+        redirect(
+          (await temContextoPareado())
+            ? "/parear"
+            : `/entrar?encerrada=1${next ? `&next=${encodeURIComponent(safeDestination(next))}` : ""}`,
+        );
+      if (erro.codigo === "SEM_PERFIL")
+        redirect(next ? `/perfis?next=${encodeURIComponent(safeDestination(next))}` : "/perfis");
     }
     throw erro;
   }

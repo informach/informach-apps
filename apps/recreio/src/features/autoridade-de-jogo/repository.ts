@@ -4,7 +4,11 @@ import { recreioGameSessions as games } from "@informach/db/schema";
 import { ErroDoRecreio, SessaoDeAparelhoIdSchema } from "@informach/recreio";
 import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
 import type { Transacao } from "@/lib/repository";
-import { admitirAparelhoDeJogo, prepararIdentidadeDoJogo } from "./aparelho-repository";
+import {
+  admitirAparelhoDeJogo,
+  prepararIdentidadeDoJogo,
+  type ReferenciaDeJogador,
+} from "./aparelho-repository";
 import { conferirSessaoAdmitida } from "./sessao-repository";
 
 export type Admissao = Extract<
@@ -18,6 +22,8 @@ export async function comSessaoDeJogoAutoritativa<T>(
   antesDoAparelho: (tx: Transacao) => Promise<void>,
   executar: (tx: Transacao, contaId: string | null, admissao: Admissao) => Promise<T>,
   opcoes: {
+    /** Social trava as duas pontas e suas contas antes de identidade/perfis. */
+    antesDaIdentidade?: (tx: Transacao, referencia: ReferenciaDeJogador) => Promise<void>;
     antesDoPerfil?: (tx: Transacao) => Promise<void>;
     travaDaSessao?: "share" | "update";
     /** Somente controle/checkpoint; nunca concede gameplay ou dados. */
@@ -36,6 +42,7 @@ export async function comSessaoDeJogoAutoritativa<T>(
       ...sessao,
       sessaoDeAparelhoId: SessaoDeAparelhoIdSchema.parse(pista.aparelhoId),
     };
+    await opcoes.antesDaIdentidade?.(tx, referencia);
     const identidade = await prepararIdentidadeDoJogo(tx, referencia);
     await opcoes.antesDoPerfil?.(tx);
     const admissao = await admitirAparelhoDeJogo(tx, referencia, identidade, antesDoAparelho);

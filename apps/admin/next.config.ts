@@ -13,6 +13,7 @@ const config: NextConfig = {
     "@informach/db",
     "@informach/edi-licensing",
     "@informach/emails",
+    "@informach/recreio",
     "@informach/ui",
   ],
   typedRoutes: true,

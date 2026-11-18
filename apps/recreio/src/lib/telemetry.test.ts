@@ -18,6 +18,8 @@ describe("telemetry privacy", () => {
             pinHash: "pin-hash",
             nascimento: "birth-month",
             apelido: "player-name",
+            senderLabel: "private sender",
+            identificacao: "private declared name",
           },
         ],
       }),
@@ -34,6 +36,8 @@ describe("telemetry privacy", () => {
           pinHash: "[redacted]",
           nascimento: "[redacted]",
           apelido: "[redacted]",
+          senderLabel: "[redacted]",
+          identificacao: "[redacted]",
         },
       ],
     });
@@ -80,6 +84,21 @@ describe("telemetry privacy", () => {
       subscriptionId: "sub_123",
       nested: { token: "[redacted]", answer: "[redacted]" },
       error: { type: "Error", message: "Database operation failed (details withheld)" },
+    });
+  });
+  it("retira código social e hash sem apagar IDs ou códigos operacionais", () => {
+    expect(
+      safeContext({
+        code: "23505",
+        codeId: "opaque-id",
+        codigo: "ABCDEFGH2345",
+        nested: { friendCode: "ABCDEFGH2345", codeHash: "a".repeat(64), code_hash: "b".repeat(64) },
+      }),
+    ).toEqual({
+      code: "23505",
+      codeId: "opaque-id",
+      codigo: "[redacted]",
+      nested: { friendCode: "[redacted]", codeHash: "[redacted]", code_hash: "[redacted]" },
     });
   });
 });

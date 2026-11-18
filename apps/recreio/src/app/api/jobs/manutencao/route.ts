@@ -11,6 +11,7 @@ export const maxDuration = 120;
  * instâncias sumidas, apaga ingressos antigos, encerra sessões de jogo
  * vencidas e recolhe convites sem aceite vencidos há mais de um dia, intenções
  * familiares/pareamento vencidas e recibos familiares/de salvamento após 24 horas.
+ * Convites de grupo vencidos perdem endereço/identificação; recibos duram 24 horas.
  * Responde só com contagens.
  */
 export async function POST(request: Request) {

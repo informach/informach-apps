@@ -1,0 +1,134 @@
+{
+  "conferidoEmUtc": "2026-11-17T21:59:38Z",
+  "integracaoPublica": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+  "qualificacao": {
+    "recreio": {
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "run": 44181574128,
+      "gates": 7,
+      "resultado": "success"
+    },
+    "compartilhada": {
+      "fonte": "05eb588d43cfd2f01e99012611068d8f057c51cd",
+      "run": 44165661197,
+      "resultado": "success",
+      "escopo": "Fontes funcionais Recreio/auth/db/web idênticas; diferenças posteriores restritas ao EdiAula."
+    },
+    "ediConcorrente": {
+      "fonte": "44ab305f47673805528f166e2a87c82e67a8cebb",
+      "run": 44170311151,
+      "tentativa": 2,
+      "resultado": "success",
+      "limite": "A integração acrescenta somente formatação ao EdiAula verificado; nenhuma mudança funcional."
+    }
+  },
+  "consumidores": [
+    {
+      "nome": "@informach/dia-de-estrela",
+      "servicoId": "476b6975-37cb-4831-83d8-2a7f48be51d4",
+      "deploymentId": "0c7988d0-4cda-4939-b8f5-b4c9da7e437c",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    },
+    {
+      "nome": "@informach/conta",
+      "servicoId": "28f3d697-96a9-41ac-b7d0-bbc600c61d13",
+      "deploymentId": "b04b7ff7-95e6-404b-8220-f65d857254b2",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    },
+    {
+      "nome": "@informach/bora-treinar",
+      "servicoId": "706dd7f0-6225-4cec-b35e-2206141e7591",
+      "deploymentId": "6d888014-8a2c-4bec-a5c3-8a19ab039ee3",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    },
+    {
+      "nome": "@informach/edi",
+      "servicoId": "da22f05d-2044-445b-bcb2-8e2d0d0c73ce",
+      "deploymentId": "f2652a2f-ad62-4c18-87ab-d4d4d2eaafbe",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    },
+    {
+      "nome": "@informach/missao-saber",
+      "servicoId": "91f572ad-b55c-4938-9967-0650c90e49c6",
+      "deploymentId": "dfe6c7ab-2e9d-458c-b474-e725c153b27d",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    },
+    {
+      "nome": "@informach/cozya",
+      "servicoId": "8e5a3012-8ebd-479d-b4da-592ef19ae8e8",
+      "deploymentId": "f551600b-e113-4c54-9c79-d5a2e1ea1787",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    },
+    {
+      "nome": "@informach/admin",
+      "servicoId": "67f2d87b-02cb-422a-b019-aa57cd584d14",
+      "deploymentId": "36d9239c-a729-411d-901f-13e1bd1d4b7b",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    },
+    {
+      "nome": "@informach/agenda-da-turma",
+      "servicoId": "7ba41b19-aba8-48d1-928a-f616ec743c76",
+      "deploymentId": "84553d4c-fd4d-41a8-8776-2bd40bd7ca8e",
+      "fonte": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+      "segueMain": true,
+      "fonteConferidaNoProcesso": true,
+      "prontidao": 200
+    }
+  ],
+  "portal": {
+    "fonte": "204cf79c9ab99fec0bd327c11a3fb8bea8d80adc",
+    "continuaFixado": true,
+    "prontidao": 200,
+    "familias": "off",
+    "checkpoint": "off",
+    "jogoInterno": "0"
+  },
+  "morada": {
+    "fonte": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+    "continuaFixado": true,
+    "prontidao": 200
+  },
+  "migrator": {
+    "segueMain": true,
+    "comandoReposto": "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference",
+    "ultimaExecucaoReal": "917b452d-45ea-41cf-b699-cae0c47e041b",
+    "comandoDaUltimaExecucao": "pnpm db:migrate",
+    "reconexao": "SKIPPED por filtros; nenhuma execução nova",
+    "redeployAposReporComando": false,
+    "seedsExecutadosNestaIntegracao": false
+  },
+  "banco": {
+    "recibos": 184,
+    "tabelaSocialPresente": false,
+    "grupos": 2,
+    "perfis": 1,
+    "mundos": 2,
+    "sessoesAbertas": 0
+  },
+  "limites": [
+    "F4 e F5 continuam privados e não foram migrados ou ativados.",
+    "Preservar promoção explícita do portal e do Morada; a main contém D3 concorrente.",
+    "Famílias, checkpoint e venda continuam desligados."
+  ]
+}

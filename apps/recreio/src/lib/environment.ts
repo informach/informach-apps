@@ -55,6 +55,10 @@ export const schema = z.object({
   RECREIO_FAMILY_MODE: z.enum(["off", "setup", "play"]).default("off"),
   /** Habilitar somente depois de leitores, checkpoint e jornadas homologados. */
   RECREIO_CHECKPOINT_MODE: z.enum(["off", "on"]).default("off"),
+  /** Social exige homologação própria; proteção e limpeza existentes não dependem da ativação. */
+  RECREIO_SOCIAL_MODE: z.enum(["off", "on"]).default("off"),
+  /** Chave exclusiva entre Bastidores e a API restrita. Ausente mantém comandos indisponíveis. */
+  RECREIO_MODERATION_SECRET: z.string().min(43).max(256).optional(),
   /**
    * Chave privada Ed25519 (PKCS8, PEM) que assina o ingresso e a sessão de
    * jogo. Pode chegar com `\n` escapado. Fora de produção, sem ela o app gera
@@ -133,6 +137,15 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
       `Invalid environment: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,
     );
   const value = parsed.data;
+  if (
+    value.RECREIO_MODERATION_SECRET &&
+    [
+      value.BETTER_AUTH_SECRET,
+      value.CRON_SECRET,
+      ...Object.values(value.RECREIO_HOST_SECRETS),
+    ].includes(value.RECREIO_MODERATION_SECRET)
+  )
+    throw new Error("RECREIO_MODERATION_SECRET must use a separate credential.");
   const appUrl = new URL(value.NEXT_PUBLIC_APP_URL);
   const local = LOCAIS.includes(appUrl.hostname);
   const producao = Boolean(

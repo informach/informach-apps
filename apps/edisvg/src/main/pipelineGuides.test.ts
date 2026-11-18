@@ -18,6 +18,10 @@ test("style guide pictures: kept by their bytes, read back, refused when not a p
     assert.match(saved.id, /^guide-[0-9a-f]{32}$/);
     // Only the file's name, never where it was.
     assert.equal(saved.name, "style guide.png");
+    assert.equal(
+      (await saveGuide(userData, new Uint8Array(PNG), "/home/aulas/style guide.png")).name,
+      "style guide.png",
+    );
     // The same picture again is the same guide (one file).
     assert.deepEqual(await saveGuide(userData, new Uint8Array(PNG), "outro.png"), {
       id: saved.id,

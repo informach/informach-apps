@@ -72,7 +72,8 @@ export default async function acabamento(ctx) {
   // a origem).
   const ehPersonagem = (c) =>
     !proj.nome(c).includes(apres) &&
-    (proj.asset(c)?.origin === "presenter" || /(^|[^a-zà-ú])(debinha|ded[eé])([^a-zà-ú]|$)/i.test(proj.nome(c)));
+    (proj.asset(c)?.origin === "presenter" ||
+      /(^|[^a-zà-ú])(debinha|ded[eé])([^a-zà-ú]|$)/i.test(proj.nome(c)));
   const falas = proj.d.clips.filter(ehPersonagem).map((c) => [c.start, fimDe(c)]);
   const pres = proj.d.clips.filter((c) => proj.nome(c).includes(apres));
   if (pres.length) await ia("set_crop", { clip_ids: pres.map((c) => c.id), ...RECORTE });

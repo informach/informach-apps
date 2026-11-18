@@ -1,0 +1,199 @@
+{
+  "fonteQualificada": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+  "integracaoQualificada": "1307662806d6bdb25da76ce69282da08c65d4d78",
+  "gates": [
+    {
+      "run": 44188574280,
+      "resultado": "success",
+      "escopo": "oito gates da fonte isolada"
+    },
+    {
+      "run": 44192438764,
+      "resultado": "success",
+      "escopo": "oito gates da integração pública preservada"
+    },
+    {
+      "run": 44196366218,
+      "resultado": "success",
+      "escopo": "oito gates com configuração operacional"
+    },
+    {
+      "run": 44188583156,
+      "resultado": "success",
+      "escopo": "CI compartilhado integral da fonte funcional isolada"
+    }
+  ],
+  "restauracao": "backup-logico-2026-11-17-pre-moderacao.json",
+  "migrator": {
+    "deployment": "7bf20817-5278-45c9-9463-b7913a546bc6",
+    "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "comando": "pnpm db:migrate",
+    "seedsExecutados": false,
+    "verificacao": {
+      "em": "2026-11-17T23:53:52.067Z",
+      "fonte": "204cf79c9ab99fec0bd327c11a3fb8bea8d80adc",
+      "ready": 200,
+      "recibos": 191,
+      "hashesConferidos": true,
+      "tabelas": {
+        "friend_codes": 0,
+        "friend_consents": 0,
+        "friend_requests": 0,
+        "friendships": 0,
+        "moderation_commands": 0,
+        "profile_restrictions": 0,
+        "restriction_reviews": 0,
+        "safety_reports": 0,
+        "social_blocks": 0,
+        "social_notices": 0,
+        "social_preferences": 0
+      },
+      "direcionados": 0,
+      "perfis": 1,
+      "mundos": 2,
+      "fotos": 10,
+      "sessoesAbertas": 0
+    },
+    "reconexao": {
+      "main": true,
+      "deployment": "1049fc8c-a532-4583-ad25-e5c6c8d8b5a7",
+      "status": "SKIPPED",
+      "comandoOriginalRestauradoSemDeploy": true,
+      "ultimaExecucao": "7bf20817-5278-45c9-9463-b7913a546bc6"
+    }
+  },
+  "portal": {
+    "deployment": "974bcc7c-f715-44c0-8a99-9e2c4b27d831",
+    "em": "2026-11-17T23:59:18.351Z",
+    "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "ready": 200,
+    "manutencao": 200,
+    "contagens": {
+      "possesVencidas": 0,
+      "instanciasSumidas": 0,
+      "ingressosApagados": 0,
+      "sessoesExpiradas": 0,
+      "convitesApagados": 0,
+      "cadastrosPendentesApagados": 0,
+      "recibosDeCadastroApagados": 0,
+      "pareamentosApagados": 0,
+      "aparelhosNaoConfirmadosEncerrados": 0,
+      "diasDeUsoApagados": 0,
+      "recibosDeSalvamentoApagados": 0,
+      "convitesDeGrupoVencidos": 0,
+      "recibosDeGrupoApagados": 0,
+      "pedidosSociaisVencidos": 0,
+      "codigosSociaisApagados": 0,
+      "recibosSociaisApagados": 0,
+      "avisosSociaisApagados": 0,
+      "relacoesSociaisApagadas": 0,
+      "vinculosDeCodigoSocialLimpos": 0,
+      "vinculosDePedidoSocialLimpos": 0,
+      "denunciasEncerradas": 0,
+      "denunciasApagadas": 0,
+      "denunciasVencidasSemSolucao": 0,
+      "denunciasPrioritariasAtrasadas": 0,
+      "denunciasAtrasadas": 0,
+      "recursosDeRestricaoApagados": 0,
+      "recursosDeRestricaoVencidosSemSolucao": 0,
+      "recursosDeRestricaoAtrasados": 0,
+      "comandosDeModeracaoApagados": 0,
+      "restricoesLiberadasApagadas": 0
+    },
+    "moderacaoSemCredencial": 403,
+    "familia": "off",
+    "checkpoint": "off",
+    "social": "off",
+    "interno": "0",
+    "credencial": true
+  },
+  "bastidores": {
+    "deployment": "e80c9990-fb82-41bc-905b-840cf0e7ad70",
+    "em": "2026-11-17T23:59:17.962Z",
+    "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "ready": 200,
+    "credencial": true
+  },
+  "morada": {
+    "em": "2026-11-17T23:59:18.097Z",
+    "fonte": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+    "ready": 200
+  },
+  "credencialExclusivaCompartilhada": true,
+  "releaseSentry": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+  "limites": [
+    "Social, famílias e checkpoint desligados; jogo interno ausente de produção.",
+    "Sem prova operacional TOTP de comando real no Bastidores em produção; jornada remota usa TOTP real com Bastidores em desenvolvimento.",
+    "Não representa fechamento de F4/F5 ou F6–F11, nem liberação de menores ou venda."
+  ],
+  "integracaoPublicada": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+  "consumidores": [
+    {
+      "servico": "67f2d87b-02cb-422a-b019-aa57cd584d14",
+      "nome": "admin",
+      "em": "2026-11-18T00:12:36.068Z",
+      "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+      "ready": 200
+    },
+    {
+      "servico": "706dd7f0-6225-4cec-b35e-2206141e7591",
+      "nome": "bora",
+      "em": "2026-11-18T00:12:26.636Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "7ba41b19-aba8-48d1-928a-f616ec743c76",
+      "nome": "agenda",
+      "em": "2026-11-18T00:12:27.076Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "91f572ad-b55c-4938-9967-0650c90e49c6",
+      "nome": "missao",
+      "em": "2026-11-18T00:12:26.522Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "476b6975-37cb-4831-83d8-2a7f48be51d4",
+      "nome": "dia",
+      "em": "2026-11-18T00:12:36.720Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "28f3d697-96a9-41ac-b7d0-bbc600c61d13",
+      "nome": "conta",
+      "em": "2026-11-18T00:12:37.096Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "8e5a3012-8ebd-479d-b4da-592ef19ae8e8",
+      "nome": "cozya",
+      "em": "2026-11-18T00:12:37.168Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "da22f05d-2044-445b-bcb2-8e2d0d0c73ce",
+      "nome": "edi",
+      "em": "2026-11-18T00:12:37.116Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    }
+  ],
+  "fontesDosServicos": {
+    "portal": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "morada": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+    "demaisConsumidores": "main",
+    "adminAtual": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a"
+  },
+  "mapasDeCodigo": {
+    "uploadConfirmadoNoBuild": true,
+    "deployment": "974bcc7c-f715-44c0-8a99-9e2c4b27d831",
+    "release": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a"
+  }
+}

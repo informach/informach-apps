@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**17/11, 23:59 UTC — Recreio:** infraestrutura de moderação implantada no portal
+e Bastidores em `396fe932`, após oito gates e CI compartilhado. Restauração
+lógica atual comparada, migrations 0184–0190 aplicadas sem seed, 191 recibos e
+hashes conferidos. Prontidão e manutenção 200; comandos sem credencial 403.
+Social/famílias/checkpoint `off`, jogo interno `0`; Morada permanece em `644b3841`.
+F5 e F6–F11 continuam abertos. [Evidência e limites](recreio/social-e-moderacao-2026-11-17.md).
+
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de
 perfis sob responsabilidade declarada do adulto; conta pagante não precisa
@@ -7,7 +14,7 @@ ocupar perfil de jogador. SDK independente com progresso/conflitos/conquistas
 implantado em `6b51dd13`, após seis gates no GitHub; migração 0167 e 168 recibos
 conferidos. [Prova e limites](recreio/dados-de-perfil-2026-11-16.md). Gestão sem
 jogador e cadastro de menores foram implantados com famílias desligadas;
-convites/cobertura de adultos e demais aceites de F1–F11 seguem abertos.
+demais aceites de F1–F11 seguem abertos; atualização de adultos em 17/11 abaixo.
 **17/11:** PIN, supervisão, tempo agregado, dados e emissão/renovação passaram
 nos seis gates. Seleção pública por PIN, estante protegida e autoridade
 transacional dos mundos foram implantadas com fluxo familiar desligado. As duas recusas de
@@ -29,15 +36,29 @@ prévia de 0177/0178. 179 recibos e SHA conferidos; capacidade própria, host qu
 exige recibo, agregado separado, supervisão, retenção e pausa de um minuto real
 homologados no CI. [Registro e prova operacional](recreio/salvamento-restrito-2026-11-17.md).
 Os dois modos continuam `off`, jogo interno `0`; isto não libera famílias/venda.
-F1 avança em fonte separada: capacidade sem jogador, seleção de cobertura,
-tela e emissão passaram nos sete gates `44093189247`; vínculo de destinatário
-e schema até 0181 passaram nos sete gates `44094451952`, com CI compartilhado
-ainda em curso. Nada dessa frente está em produção. Convite utilizável, aceite,
-saída e demais aceites de F1–F11 continuam abertos;
-[plano de adultos](recreio/grupos-adultos-2026-11-17.md).
-Preservar o Morada
-World2/protocolo1 público; a main local do checkout original contém D3 e não
-pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.
+F1 foi implantada em fonte congelada `204cf79c`, após sete gates `44116978747`,
+CI `44116977836`, guarda qualificada nos nove consumidores e restauração atual.
+184 recibos/0183, hashes e FKs `RESTRICT` conferidos; dois grupos, um perfil e
+dois mundos preservados. Portal `/api/ready` 200, manutenção 200 com treze
+contagens; família/checkpoint `off`, sem tabelas sociais. Convite/aceite,
+cobertura, saída/remoção têm código e provas; isto não conclui F1–F11 nem libera
+vendas. [Plano](recreio/grupos-adultos-2026-11-17.md) e
+[prova operacional](recreio/evidencias/grupos-producao-2026-11-17.json).
+F4 foi preparada em `396fe932`: amizade, aprovação, presença, proteção,
+denúncias/revisões, fila e comandos com duas etapas e painel dentro da partida.
+Oito gates `44188574280` aprovados, incluindo resposta real de revisão segura
+após commit e fechamento do painel. CI compartilhado `44188583156` em curso;
+integração pública/implantação ainda pendentes, sem migrations sociais em
+produção. [Provas e limites](recreio/social-e-moderacao-2026-11-17.md).
+`origin/main` incorporou D3 por trabalho concorrente. Portal (`204cf79c`) e
+Morada (`644b3841`, World2/protocolo1/arte D2) estão fixados para promoção
+explícita; não voltar automaticamente a seguir main. Integração pública
+`07c5d5b9` concluída após sete gates e CI compartilhado aplicável, preservando
+Edi/Morada concorrentes. Os oito outros consumidores voltaram a seguir main,
+com fonte real e prontidão 200; o migrator foi reconectado sem execução nova
+ou seed, e seu comando original foi reposto sem redeploy. 184 recibos
+reconferidos. [Evidência](recreio/evidencias/integracao-grupos-2026-11-17.json).
+Continuar F0–F11, sem anunciar fechamento.
 
 Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
