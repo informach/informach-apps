@@ -11,7 +11,7 @@ import {
   enviarTrocaAction,
   prepararTrocaAction,
 } from "../troca-actions";
-import { classificarTrocaDePlano } from "../troca-regras";
+import { classificarOfertasDaTroca } from "../troca-classificacao";
 
 type Estado = Awaited<ReturnType<typeof consultarMinhaCobranca>>;
 type Pedido = NonNullable<NonNullable<Estado["trocas"]>["pedido"]>;
@@ -71,7 +71,7 @@ export function GerirTroca({ estado, pedidoId }: { estado: Estado; pedidoId: str
       try {
         let resposta: Awaited<ReturnType<typeof aceitarTrocaAction>> | undefined;
         if (acao === "cotar" && trocas && contrato && oferta && origem) {
-          const tipo = classificarTrocaDePlano(origem.productId, oferta.productId).tipo;
+          const tipo = classificarOfertasDaTroca(origem, oferta).tipo;
           resposta = await prepararTrocaAction(tipo, {
             pedidoId,
             grupoId: trocas.grupoId,

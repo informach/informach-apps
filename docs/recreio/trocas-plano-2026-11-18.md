@@ -44,6 +44,20 @@ ou execução de agenda no Stripe. `e2e:commercial-plans` usa somente a chave
 placeholder do isolamento e o CI bloqueia `api.stripe.com`. Integra o gate
 obrigatório `commercial-ui`, com opção auxiliar própria para depuração.
 
+`411aab7b`: quality `44418564371` aprovada; navegador `44418560013` recusou
+as quatro jornadas anteriores por tentativa de `eval` sob CSP. O novo cliente
+importava o catálogo junto do módulo Zod de validação. A classificação comum
+é extraída para uma função pura sobre os DTOs das ofertas: o servidor continua
+resolvendo IDs no catálogo aprovado, e o navegador deixa de carregar o motor
+de validação por esse caminho. CSP e vigia continuam intactas. A nova jornada
+de troca ainda não rodou porque o gate parou nessa regressão.
+
+A matriz nativa acrescenta doze direções de cotação, aceite, replay e encerramento
+sem envio, com SDK/HTTP fechado e PostgreSQL. Confere preços/termos do catálogo,
+tipo/vigência e preservação da oferta atual, inclusive totais negativos e
+pagante sem jogador. Não substitui execução/liquidação das doze direções no
+provedor nem a homologação do Checkout. Precisa de gate remoto próprio.
+
 ## Comportamento obrigatório
 
 - Aumento: imediato, com proporcional calculado pelo Stripe e apresentado antes

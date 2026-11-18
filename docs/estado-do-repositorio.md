@@ -47,8 +47,9 @@ nativas avançaram: `03fa9ee6` concluiu os dezesseis gates `44396550083`, inclui
 94 testes financeiros. APIs reais mensal/anual do adapter próprio passaram em
 `44394357376` e `44391555451`, com limpeza confirmada; não são Checkout nativo.
 0211–0215 permanecem candidatas, geradas e adotadas intactas. O CI compartilhado
-encontrou dois casos da fixture Cozya sem quantidade; correção em qualificação,
-sem afrouxar o leitor. A origem dos créditos avançou para composição por cliente,
+`44401856120`/`afcdbd0d` aprovou a correção da fixture Cozya sem quantidade,
+sem afrouxar o leitor; a composição posterior exige sua rodada própria.
+A origem dos créditos avançou para composição por cliente,
 provas nativas e leitura obrigatória no acesso: financeiro `44416128033` aprovou
 108 casos, com corte de SID por eventos adversos na origem e crédito anual.
 Consulta/actions de trocas em `8d0e7f46`: quality `44416858086` e 112 casos em

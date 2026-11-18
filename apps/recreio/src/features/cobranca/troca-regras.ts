@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors";
 import { ofertasParaOAdulto } from "./regras";
+import { classificarOfertasDaTroca } from "./troca-classificacao";
 
 type Oferta = ReturnType<typeof ofertasParaOAdulto>[number];
 export type ClassificacaoDaTroca = { atual: Oferta; destino: Oferta } & (
@@ -20,9 +21,5 @@ export function classificarTrocaDePlano(
   const destino = ofertas.find((o) => o.productId === paraProdutoId);
   if (!atual || !destino || atual.productId === destino.productId)
     throw new AppError("OFERTA", "Escolha uma oferta diferente para conferir a troca.");
-  const aumento =
-    atual.tier !== destino.tier ? destino.tier === "family" : destino.interval === "year";
-  return aumento
-    ? { atual, destino, tipo: "upgrade", vigencia: "immediate" }
-    : { atual, destino, tipo: "downgrade", vigencia: "period_end" };
+  return { atual, destino, ...classificarOfertasDaTroca(atual, destino) };
 }
