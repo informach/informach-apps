@@ -69,6 +69,7 @@ import {
   CaixaDeVisitasSchema,
   DetalheDeConviteDeVisitaSchema,
   MutacaoDeVisitaSchema,
+  PresencaParaConviteSchema,
   ReciboDeConviteDeVisitaSchema,
   ResultadoDaDecisaoDeVisitaSchema,
   VisitaAbertaSchema,
@@ -477,6 +478,15 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       throw new ErroDoRecreio("INDISPONIVEL");
   }
   const visitas: VisitasDoPerfil = {
+    async presenca(mundoId) {
+      const resposta = await operarVisita(PresencaParaConviteSchema, {
+        operacao: "presenca",
+        mundoId,
+      });
+      if (resposta.jogo !== jogoDaSessao || resposta.mundoId !== mundoId)
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return resposta;
+    },
     async listar(apos) {
       exigirSessao();
       const query = consultaCronologica(apos);

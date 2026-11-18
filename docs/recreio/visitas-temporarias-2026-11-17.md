@@ -944,6 +944,29 @@ Ainda falta a jornada física completa do visitante e a UI/preflight do portal;
 não declarar essa implementação como homologação integral ou disponibilidade.
 Sem migração adicional ou implantação de produção.
 
+## Consulta da presença própria pelo jogador, candidata
+
+O SDK oferece `social.visitas.presenca(mundoId)` por operação estrita na API de
+visitas. A consulta usa a admissão atual da partida e a composição social,
+trava o mundo antes dos perfis e lê somente a presença do próprio SID já
+vinculado pelo host. Exige membro atual, capacidades originais, instância e
+posse vigentes, conteúdo permitido e prazos atuais. Não usa o escritor de
+entrada de membro, não vincula SID ao mundo e não atesta ou renova presença.
+Visitante não se torna anfitrião. Resposta só inclui jogo/mundo e recibo próprio
+ou ausência; emissão ainda revalida a autoridade inteira. O SDK recusa mundo,
+jogo ou estado divergentes, sem retry automático.
+
+Sete integrações candidatas cobrem leitura sem efeitos, outro jogador sem
+participação criada, presença fechada/vencida, instância em drenagem, posse
+liberada, modo desligado, título sem suporte e visitante. Cinco casos de
+transporte conferem presença/ausência e respostas cruzadas/inválidas.
+
+A candidata da caixa `fccf5097`, rodada `44263841636`, revelou `TS2353` no
+helper dos testes do SDK: o `Pick<OpcoesDoRecreio>` não incluía `social`.
+O helper agora aceita essa opção real; nenhuma supressão de tipo ou mudança
+do contrato comercial foi aplicada. Essa correção e o leitor acima exigem
+nova rodada completa no GitHub. Sem migração ou implantação em produção.
+
 Evidências anteriores: `18eb95bd` passou nos oito gates `44251506767`, 1005
 integrações, upgrades preservados e 39 E2E; a nova jornada física do anfitrião
 durou 11,7 s. `238610bd` passou nos oito gates `44252742292`, com 1007

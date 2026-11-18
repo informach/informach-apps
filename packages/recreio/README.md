@@ -312,11 +312,13 @@ recebe mundo/perfil/presença atestada e `pedidoId`; conservar esse pedido após
 resposta perdida. `responder` aceita/recusa/revoga uma concessão temporária,
 sem criar membro ou confirmar admissão. Nenhum envio tem retry automático.
 O SDK confere o jogo/ID do recibo e a correspondência entre mundo e concessão.
+`presenca(mundoId)` consulta somente a presença já atestada do próprio SID;
+ausência não abre participação e recibo positivo não substitui a emissão.
 
 Esses métodos não aprovam menores ou decisões de gestão. Aprovações dependem
 da autoridade nativa recente correspondente. O histórico técnico não comprova
 presença, direito atual, entrada ou salvamento. Endpoints e SDK ainda são
-candidatos; obtenção da presença no cliente, telas e jornada completa continuam
+candidatos; telas e jornada completa continuam
 em implementação no [registro](../../docs/recreio/visitas-temporarias-2026-11-17.md).
 
 ## Preparação da responsabilidade com aceite

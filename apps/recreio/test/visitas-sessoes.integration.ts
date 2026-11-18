@@ -131,6 +131,104 @@ function foto(c: Cenario, revisaoEsperada: number) {
   });
 }
 
+it("consulta HTTP da própria presença não atesta, renova ou admite SID de outro jogador", async () => {
+  const c = await cenario(),
+    antes = await db.select().from(presences).where(eq(presences.id, c.presenca.presencaId));
+  expect(
+    await pedir("POST", "/api/sdk/v1/visitas", {
+      token: c.host.token,
+      corpo: { operacao: "presenca", mundoId: c.mundoId },
+    }),
+  ).toMatchObject({
+    status: 200,
+    corpo: {
+      jogo: OUTRO_JOGO,
+      mundoId: c.mundoId,
+      presenca: c.presenca,
+    },
+  });
+  expect(await db.select().from(presences).where(eq(presences.id, c.presenca.presencaId))).toEqual(
+    antes,
+  );
+  const outro = await entrarNoJogo(c.destino, OUTRO_JOGO, { suportaVisitas: true });
+  expect(
+    await pedir("POST", "/api/sdk/v1/visitas", {
+      token: outro.token,
+      corpo: { operacao: "presenca", mundoId: c.mundoId },
+    }),
+  ).toMatchObject({ status: 200, corpo: { presenca: null } });
+  const [sid] = await db.select().from(games).where(eq(games.id, outro.sid));
+  expect(sid?.spaceId).toBeNull();
+  expect(
+    await db.select().from(visitSessions).where(eq(visitSessions.sessionId, outro.sid)),
+  ).toEqual([]);
+  expect(await db.select().from(members).where(eq(members.profileId, c.destino.perfil.id))).toEqual(
+    [],
+  );
+  await sairDaSessao(outro.token);
+});
+
+it.each(["fechada", "vencida", "instancia", "posse", "modo"] as const)(
+  "consulta da própria presença não concede convite após perda de %s",
+  async (tipo) => {
+    const c = await cenario();
+    if (tipo === "fechada")
+      await c.instancia.cliente.atestarPresenca({
+        mundoId: c.mundoId,
+        cerca: c.posse.cerca,
+        operacao: "sair",
+        presencaId: c.presenca.presencaId,
+      });
+    if (tipo === "vencida")
+      await db
+        .update(presences)
+        .set({
+          expiresAt: new Date(Date.now() - 1),
+        })
+        .where(eq(presences.id, c.presenca.presencaId));
+    if (tipo === "instancia")
+      await db.execute(
+        sql`update recreio.game_instances set state='draining' where id=${c.instancia.instanciaId}::uuid`,
+      );
+    if (tipo === "posse")
+      await c.instancia.cliente.liberarPosse({
+        mundoId: c.mundoId,
+        cerca: c.posse.cerca,
+        motivo: "erro",
+      });
+    if (tipo === "modo") env.RECREIO_VISITS_MODE = "off";
+    const resposta = await pedir("POST", "/api/sdk/v1/visitas", {
+      token: c.host.token,
+      corpo: { operacao: "presenca", mundoId: c.mundoId },
+    });
+    if (tipo === "modo")
+      expect(resposta).toMatchObject({ status: 503, corpo: { codigo: "INDISPONIVEL" } });
+    else if (tipo === "posse")
+      expect(resposta).toMatchObject({ status: 409, corpo: { codigo: "POSSE_PERDIDA" } });
+    else expect(resposta).toMatchObject({ status: 200, corpo: { presenca: null } });
+  },
+);
+
+it("consulta da presença mantém jogo do bearer e nunca oferece presença de visitante", async () => {
+  const c = await cenario(),
+    terceiro = await novoJogador(),
+    outroJogo = await entrarNoJogo(terceiro, MORADA);
+  expect(
+    await pedir("POST", "/api/sdk/v1/visitas", {
+      token: outroJogo.token,
+      corpo: { operacao: "presenca", mundoId: c.mundoId },
+    }),
+  ).toMatchObject({ status: 503, corpo: { codigo: "INDISPONIVEL" } });
+  const s = await abrir(c);
+  await admitir(c, s);
+  const resposta = await pedir("POST", "/api/sdk/v1/visitas", {
+    token: s.aberta.token,
+    corpo: { operacao: "presenca", mundoId: c.mundoId },
+  });
+  expect(resposta).toMatchObject({ status: 403 });
+  expect(resposta.corpo).not.toHaveProperty("presenca");
+});
+
 it("SDK consulta caixa, confere dados atuais e reduz visita sem admitir mundo ou fabricar membro", async () => {
   const c = await cenario();
   const [emitido] = await db.select().from(invites).where(eq(invites.id, c.convite.conviteId));

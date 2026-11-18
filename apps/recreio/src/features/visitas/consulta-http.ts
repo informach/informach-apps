@@ -5,6 +5,7 @@ import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
 import { caixaDeVisitas, consultarReciboDeVisita } from "./consulta-repository";
 import { conferirConviteDeVisita } from "./detalhe-repository";
 import { traduzirRecusaDeVisita } from "./http";
+import { presencaDoJogadorParaConvite } from "./presenca-do-jogador-repository";
 import { emitirConviteDeVisita, responderConviteDeVisita } from "./service";
 
 export function consultarCaixaDeVisitasPeloSdk(autor: SessaoDeJogoAtiva, entrada: unknown) {
@@ -17,6 +18,8 @@ export async function executarVisitaPeloSdk(
   const { operacao: _operacao, ...dados } = pedido;
   try {
     switch (pedido.operacao) {
+      case "presenca":
+        return await presencaDoJogadorParaConvite(autor, pedido.mundoId);
       case "emitir":
         return await emitirConviteDeVisita(autor, dados);
       case "responder":

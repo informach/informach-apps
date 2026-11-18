@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MundoIdSchema, PerfilIdSchema, SessaoDeJogoIdSchema, UuidSchema } from "../dominio/ids";
 import { ConsultaCronologicaSchema, CursorCronologicoSchema } from "./paginacao";
+import { ReciboDePresencaSchema } from "./presencas";
 
 export const CONVITES_DE_VISITA_PENDENTES_MAX = 64;
 export const RECIBOS_DE_VISITA_POR_PERFIL_MAX = 1000;
@@ -94,13 +95,23 @@ export const DetalheDeConviteDeVisitaSchema = z
   })
   .refine(concessaoCorrespondeAoRecibo, "Recibo e concessão não correspondem ao mesmo aceite");
 export type DetalheDeConviteDeVisita = z.infer<typeof DetalheDeConviteDeVisitaSchema>;
+/** Pista própria e efêmera. A emissão ainda precisa conferir toda a autoridade atual. */
+export const PresencaParaConviteSchema = z.strictObject({
+  jogo: z.string().min(1).max(64),
+  mundoId: MundoIdSchema,
+  presenca: ReciboDePresencaSchema.extend({ estado: z.literal("active") }).nullable(),
+});
+export type PresencaParaConvite = z.infer<typeof PresencaParaConviteSchema>;
 export const MutacaoDeVisitaSchema = z.discriminatedUnion("operacao", [
   NovoConviteDeVisitaSchema.extend({ operacao: z.literal("emitir") }),
   RespostaAConviteDeVisitaSchema.extend({ operacao: z.literal("responder") }),
   z.strictObject({ operacao: z.literal("consultar"), conviteId: UuidSchema }),
   z.strictObject({ operacao: z.literal("conferir"), conviteId: UuidSchema }),
+  z.strictObject({ operacao: z.literal("presenca"), mundoId: MundoIdSchema }),
 ]);
 export interface VisitasDoPerfil {
+  /** Presença própria do SID já admitido pelo host; não atesta conexão ou entrada. */
+  presenca(mundoId: string): Promise<PresencaParaConvite>;
   listar(apos?: { em: string; id: string }): Promise<CaixaDeVisitas>;
   consultar(conviteId: string): Promise<ResultadoDaDecisaoDeVisita>;
   /** Nomes só sob autorização, amizade, conteúdo e anfitrião atuais. */

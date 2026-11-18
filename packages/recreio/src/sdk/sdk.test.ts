@@ -82,6 +82,7 @@ function ambiente() {
         | "aguardarCheckpoint"
         | "aoAguardarCheckpoint"
         | "salvamentoRestrito"
+        | "social"
         | "visitas"
         | "visitaId"
       > = {},
@@ -104,6 +105,42 @@ function ambiente() {
 }
 
 describe("contrato HTTP dos convites de visita no SDK", () => {
+  it.each(["presente", "ausente", "outro_mundo", "outro_jogo", "fechada"] as const)(
+    "consulta presença própria %s sem repetir ou atestar conexão",
+    async (tipo) => {
+      const a = ambiente(),
+        presenca = {
+          presencaId: MEMBRO,
+          estado: tipo === "fechada" ? "closed" : "active",
+          expiraEm: new Date(INICIO + 30_000).toISOString(),
+          janelaAte: new Date(INICIO + 86_400_000).toISOString(),
+        };
+      a.responder(
+        { corpo: { ...a.aberta(), social: true, visitas: true } },
+        {
+          corpo: {
+            jogo: tipo === "outro_jogo" ? "outro" : "morada",
+            mundoId: tipo === "outro_mundo" ? MEMBRO : MUNDO,
+            presenca: tipo === "ausente" ? null : presenca,
+          },
+        },
+      );
+      const contexto = await criarRecreio(a.opcoes({ social: true, visitas: true })),
+        api = contexto.social?.visitas;
+      if (!api) throw new Error("API ausente");
+      if (tipo === "presente" || tipo === "ausente")
+        expect(await api.presenca(MUNDO)).toEqual({
+          jogo: "morada",
+          mundoId: MUNDO,
+          presenca: tipo === "ausente" ? null : presenca,
+        });
+      else await expect(api.presenca(MUNDO)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+      expect(a.chamadas).toHaveLength(2);
+      expect(a.chamadas[1]?.corpo).toEqual({ operacao: "presenca", mundoId: MUNDO });
+      await expect(api.presenca("invalido")).rejects.toThrow();
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
   const conviteId = "6cf557fc-aa32-4693-a6ea-e8341f5abf05",
     visitaId = "f9579968-a053-494b-b9db-908c407ba86e",
     outroPerfil = "e6e5f727-9325-492a-92fe-5a94cda8dab9",
@@ -234,6 +271,7 @@ describe("contrato HTTP dos convites de visita no SDK", () => {
     await contexto.sessao.sair();
     await expect(api.listar()).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
     await expect(api.consultar(conviteId)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+    await expect(api.presenca(MUNDO)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
     expect(a.chamadas).toHaveLength(2);
   });
 });

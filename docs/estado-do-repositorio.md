@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**18/11 — consulta própria de presença F5 em candidata:** a caixa `fccf5097`
+teve falha de tipos no helper de transporte do SDK (`social` ausente no Pick)
+na rodada `44263841636`. Correção sem supressão e leitura da presença do próprio
+SID exigem nova rodada completa; telas e jornada física do visitante seguem
+pendentes. Sem migração ou implantação deste incremento. Detalhes no
+[registro das visitas](recreio/visitas-temporarias-2026-11-17.md).
+
 **18/11 — candidata F5:** gestão, criação infantil e proteção de
 participantes sem amizade passaram nos oito gates `44196661859`; a consulta
 parental gratuita em todos os mundos atuais do menor passou nos oito gates
