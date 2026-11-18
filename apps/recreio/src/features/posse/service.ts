@@ -30,6 +30,7 @@ import {
 import { z } from "zod";
 import type { AutorDeMundos } from "@/features/autoridade-de-jogo/mundos-repository";
 import { enderecoDaInstanciaAceito, jogoQueAbre, limitesDoJogo } from "@/features/jogos/config";
+import { env } from "@/lib/env";
 import { audit } from "@/lib/observability";
 import {
   abrirMundoParaMembro,
@@ -96,16 +97,26 @@ export async function registrar(jogo: string, entrada: unknown): Promise<Instanc
   const registro = RegistroDeInstanciaSchema.parse(entrada);
   // O jogo é o do segredo; o corpo não escolhe outro.
   if (registro.jogo !== jogo) throw new ErroDoRecreio("ENTRADA_INVALIDA");
-  jogoQueAbre(jogo);
+  const manifesto = jogoQueAbre(jogo);
   if (!enderecoDaInstanciaAceito(jogo, registro.urlPublica))
     throw new ErroDoRecreio("ENTRADA_INVALIDA");
+  const suportaVisitas =
+    registro.suportaVisitas === true &&
+    env.RECREIO_VISITS_MODE === "on" &&
+    manifesto.capacidades.visitas === true;
   const instanciaId = await registrarInstancia({
     jogo,
     urlPublica: registro.urlPublica,
     versao: registro.versao,
     capacidade: registro.capacidade,
+    suportaVisitas,
   });
-  return { instanciaId, batimentoMs: BATIMENTO_MS, posseTtlMs: POSSE_TTL_MS };
+  return {
+    instanciaId,
+    batimentoMs: BATIMENTO_MS,
+    posseTtlMs: POSSE_TTL_MS,
+    ...(suportaVisitas ? { visitas: true as const } : {}),
+  };
 }
 
 /**

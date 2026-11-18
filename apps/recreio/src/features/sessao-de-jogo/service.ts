@@ -107,6 +107,7 @@ export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
       suportaSalvamento: pedido.suportaSalvamento,
       suportaSocial: pedido.suportaSocial,
       suportaConvitesDirigidos: pedido.suportaConvitesDirigidos,
+      suportaVisitas: pedido.suportaVisitas,
       sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
       emissor,
     });

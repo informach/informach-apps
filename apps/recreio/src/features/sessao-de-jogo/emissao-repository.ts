@@ -111,11 +111,13 @@ function respostaDaSessao(
   token: TokenEmitido,
   suportaSocial = false,
   suportaConvitesDirigidos = false,
+  suportaVisitas = false,
 ): SessaoAberta {
   return {
     // A capacidade negociada conserva proteção; a política atual controla novos contatos.
     ...(suportaSocial ? { social: true as const } : {}),
     ...(suportaSocial && suportaConvitesDirigidos ? { convitesDirigidos: true as const } : {}),
+    ...(suportaVisitas ? { visitas: true as const } : {}),
     token: token.token,
     expiraEm: token.expiraEm.toISOString(),
     perfil: {
@@ -170,6 +172,7 @@ export async function abrirSessaoComIngresso(entrada: {
   suportaSalvamento?: boolean;
   suportaSocial?: boolean;
   suportaConvitesDirigidos?: boolean;
+  suportaVisitas?: boolean;
 }): Promise<SessaoAberta> {
   try {
     const resultado = await db.transaction(async (tx) => {
@@ -234,6 +237,7 @@ export async function abrirSessaoComIngresso(entrada: {
               token,
               entrada.suportaSocial,
               entrada.suportaConvitesDirigidos,
+              entrada.suportaVisitas === true && conferida.jogo.supportsVisits,
             ),
             ...(salvamento ? { salvamento } : {}),
           },
@@ -330,6 +334,10 @@ export async function abrirSessaoComIngresso(entrada: {
         { jogo: entrada.ingresso.jogo, sid: entrada.sid },
         tempo?.permitido ? tempo.expiraEm : null,
       );
+      const suportaVisitas =
+        entrada.suportaVisitas === true &&
+        env.RECREIO_VISITS_MODE === "on" &&
+        jogoQueAbre(entrada.ingresso.jogo).capacidades.visitas === true;
       await tx.insert(games).values({
         id: entrada.sid,
         profileId: entrada.ingresso.perfilId,
@@ -338,6 +346,7 @@ export async function abrirSessaoComIngresso(entrada: {
         startedAt: emitidaEm,
         lastRenewedAt: emitidaEm,
         expiresAt: token.expiraEm,
+        supportsVisits: suportaVisitas,
       });
       await tx
         .update(tickets)
@@ -412,6 +421,7 @@ export async function abrirSessaoComIngresso(entrada: {
             token,
             entrada.suportaSocial,
             entrada.suportaConvitesDirigidos,
+            suportaVisitas,
           ),
           ...(salvamento ? { salvamento } : {}),
         },

@@ -169,3 +169,26 @@ A correção registra os eventos, conserva a recusa própria da sessão e encerr
 as autoridades anteriores no setup, preservando histórico, referências e cursor.
 Não afrouxa FKs ou limites. Journal candidato com 200 entradas; negociação e
 corretivo ainda exigem evidência remota. Produção continua sem essas migrations.
+
+## Negociação candidata
+
+Registro de instância e troca do ingresso admitem `suportaVisitas:true`,
+opcional. Só aceitam quando modo e manifesto também permitem. O resultado é
+gravado na criação; instâncias/sessões legadas continuam com `false`.
+Respostas sem solicitação conservam o contrato anterior, sem `visitas`.
+Recuperar uma abertura consulta o bit persistido: mudar modo ou acrescentar
+opção a um retry não promove a sessão. `visitas:true` descreve suporte técnico,
+sem conferir admissão, permissão atual ou concessão de visitante.
+
+Atestado positivo exige tanto sessão quanto instância com adesão persistida,
+além do kernel atual de membro/posse. Não existe escrita que atualize esses
+bits depois da criação. Recibo e encerramento próprios continuam disponíveis
+sem depender da habilitação. Nove novas integrações candidatas cobrem matriz
+de solicitação/modo/manifesto, repetição, compatibilidade e adesão de cada lado.
+SDK de visitas, renovação, convites e concessões continuam pendentes.
+
+O corretivo `6daed18f` já passou no job de integração `134540065185` do run
+`44226267662`: 814 testes/86 arquivos, cinco do Bastidores e upgrades 179→200
+e 191→200, preservando perfis, progresso, mundos, membros, fotos, diário,
+convites e cerca. Os demais gates ainda estavam em execução nesta leitura.
+Essa evidência não cobre o código de negociação acrescentado depois.

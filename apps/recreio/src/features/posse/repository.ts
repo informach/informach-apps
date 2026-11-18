@@ -186,6 +186,7 @@ export async function registrarInstancia(entrada: {
   urlPublica: string;
   versao: string;
   capacidade: number;
+  suportaVisitas?: boolean;
 }): Promise<InstanciaId> {
   const [instancia] = await db
     .insert(instances)
@@ -194,6 +195,7 @@ export async function registrarInstancia(entrada: {
       publicUrl: entrada.urlPublica,
       version: entrada.versao,
       capacity: entrada.capacidade,
+      supportsVisits: entrada.suportaVisitas === true,
       state: "active",
     })
     .returning({ id: instances.id });

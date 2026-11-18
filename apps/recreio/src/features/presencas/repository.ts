@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, gt, isNull, sql } from "@informach/db";
 import {
+  recreioGameInstances as instances,
   recreioWorldHostPresences as presences,
   recreioGameSessions as sessions,
   recreioSpaces as spaces,
@@ -104,6 +105,11 @@ export function publicarPresencaNoBanco(host: Host, mundoId: MundoId, pedido: At
   return comEntradaAtualDeMembro(
     { ...escopo, sid: pedido.sid, perfilId: pedido.perfilId },
     async (tx, entrada, conferirPrazo) => {
+      const [instancia] = await tx
+        .select({ visitas: instances.supportsVisits })
+        .from(instances)
+        .where(and(eq(instances.id, host.instanciaId), eq(instances.gameId, host.jogo)));
+      if (!instancia?.visitas) throw new ErroDoRecreio("INDISPONIVEL");
       const [anterior] = await tx
         .select()
         .from(presences)
@@ -159,10 +165,11 @@ export function publicarPresencaNoBanco(host: Host, mundoId: MundoId, pedido: At
         "Não é possível oferecer visitas neste momento.",
       );
       const [sessao] = await tx
-        .select({ expiraEm: sessions.expiresAt })
+        .select({ expiraEm: sessions.expiresAt, visitas: sessions.supportsVisits })
         .from(sessions)
         .where(and(eq(sessions.id, pedido.sid), eq(sessions.profileId, pedido.perfilId)));
       assertAllowed(sessao, "CONFLITO", "A sessão mudou antes da confirmação.");
+      if (!sessao.visitas) throw new ErroDoRecreio("INDISPONIVEL");
       const janela = new Date(agora.getTime() + JANELA_DA_PRESENCA_MS),
         expiraEm = new Date(
           Math.min(

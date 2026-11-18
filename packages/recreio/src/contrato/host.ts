@@ -38,6 +38,8 @@ export const RegistroDeInstanciaSchema = z.strictObject({
   versao: z.string().min(1).max(64),
   /** Quantos mundos a instância aceita ao mesmo tempo. */
   capacidade: z.number().int().positive(),
+  /** Negociação da instância, sem alterar instâncias registradas anteriormente. */
+  suportaVisitas: z.literal(true).optional(),
 });
 export type RegistroDeInstancia = z.infer<typeof RegistroDeInstanciaSchema>;
 
@@ -45,6 +47,7 @@ export const InstanciaRegistradaSchema = z.strictObject({
   instanciaId: InstanciaIdSchema,
   batimentoMs: z.number().int().positive(),
   posseTtlMs: z.number().int().positive(),
+  visitas: z.literal(true).optional(),
 });
 export type InstanciaRegistrada = z.infer<typeof InstanciaRegistradaSchema>;
 

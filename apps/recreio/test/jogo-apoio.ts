@@ -45,7 +45,7 @@ export type SessaoDeTeste = { token: string; sid: SessaoDeJogoId };
 export async function entrarNoJogo(
   jogador: Jogador,
   jogo = MORADA,
-  opcoes: { continuarAqui?: boolean } = {},
+  opcoes: { continuarAqui?: boolean; suportaVisitas?: true } = {},
 ): Promise<SessaoDeTeste> {
   const resposta = await pedir("POST", "/api/sdk/v1/sessao", {
     corpo: { ingresso: await ingressoDe(jogador, jogo), ...opcoes },
@@ -97,12 +97,17 @@ export type InstanciaDeTeste = {
 };
 
 /** Uma instância registrada no endereço configurado do jogo. */
-export async function novaInstancia(jogo = MORADA, capacidade = 10): Promise<InstanciaDeTeste> {
+export async function novaInstancia(
+  jogo = MORADA,
+  capacidade = 10,
+  opcoes: { suportaVisitas?: true } = {},
+): Promise<InstanciaDeTeste> {
   const cliente = clienteDoHost(jogo);
   const { instanciaId } = await cliente.registrar({
     urlPublica: enderecoDo(jogo),
     versao: "teste",
     capacidade,
+    ...opcoes,
   });
   return { cliente, instanciaId, jogo };
 }

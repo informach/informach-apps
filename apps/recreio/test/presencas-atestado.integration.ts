@@ -1,12 +1,19 @@
 import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
+  recreioGameInstances as instances,
   recreioSpaceLeases as leases,
   recreioSpaceMembers as members,
   recreioWorldHostPresences as presences,
   recreioGameSessions as sessions,
 } from "@informach/db/schema";
-import { type AtestadoDeEntrada, ReciboDePresencaSchema } from "@informach/recreio/contrato";
+import { SessaoDeJogoIdSchema } from "@informach/recreio";
+import {
+  type AtestadoDeEntrada,
+  InstanciaRegistradaSchema,
+  ReciboDePresencaSchema,
+  SessaoAbertaSchema,
+} from "@informach/recreio/contrato";
 import { afterEach, expect, it, vi } from "vitest";
 import { limparPresencasDeAnfitriao } from "@/features/presencas/retencao-repository";
 import { atestarPresenca } from "@/features/presencas/service";
@@ -15,7 +22,10 @@ import { aposentarInstancias, eventosCom, novoJogador } from "./apoio";
 import {
   abrirPelaRota,
   cabecalhosDoHost,
+  claimsDe,
+  enderecoDo,
   entrarNoJogo,
+  ingressoDe,
   MORADA,
   mundoDe,
   novaInstancia,
@@ -46,13 +56,119 @@ vi.mock("@informach/config/jogos", async (original) => {
 afterEach(() => {
   env.RECREIO_VISITS_MODE = "off";
 });
-async function cenario(jogo = OUTRO_JOGO) {
+
+it.each([
+  { solicita: false, modo: "on", jogo: OUTRO_JOGO, aceita: false },
+  { solicita: true, modo: "off", jogo: OUTRO_JOGO, aceita: false },
+  { solicita: true, modo: "on", jogo: MORADA, aceita: false },
+  { solicita: true, modo: "on", jogo: OUTRO_JOGO, aceita: true },
+] as const)("negociação explícita de visitas: %j", async ({ solicita, modo, jogo, aceita }) => {
+  env.RECREIO_VISITS_MODE = modo;
+  const jogador = await novoJogador(),
+    resposta = await pedir("POST", "/api/sdk/v1/sessao", {
+      corpo: {
+        ingresso: await ingressoDe(jogador, jogo),
+        ...(solicita ? { suportaVisitas: true } : {}),
+      },
+    });
+  expect(resposta.status).toBe(200);
+  const aberta = SessaoAbertaSchema.parse(resposta.corpo),
+    sid = SessaoDeJogoIdSchema.parse(claimsDe(aberta.token).sid),
+    [sessao] = await db.select().from(sessions).where(eq(sessions.id, sid));
+  expect(aberta.visitas).toBe(aceita ? true : undefined);
+  expect(sessao?.supportsVisits).toBe(aceita);
+  const registro = await pedir("POST", "/api/interno/v1/instancias", {
+    headers: cabecalhosDoHost(jogo),
+    corpo: {
+      jogo,
+      urlPublica: enderecoDo(jogo),
+      versao: "negociacao",
+      capacidade: 1,
+      ...(solicita ? { suportaVisitas: true } : {}),
+    },
+  });
+  expect(registro.status).toBe(200);
+  expect(registro.corpo).toMatchObject({ batimentoMs: 10000, posseTtlMs: 30000 });
+  expect(registro.corpo).toEqual(
+    aceita
+      ? expect.objectContaining({ visitas: true })
+      : { instanciaId: expect.any(String), batimentoMs: 10000, posseTtlMs: 30000 },
+  );
+  const [instancia] = await db
+    .select()
+    .from(instances)
+    .where(eq(instances.id, InstanciaRegistradaSchema.parse(registro.corpo).instanciaId));
+  expect(instancia?.supportsVisits).toBe(aceita);
+});
+
+it.each([false, true])(
+  "recuperar abertura conserva capacidade persistida %s sem promover o SID",
+  async (primeira) => {
+    env.RECREIO_VISITS_MODE = primeira ? "on" : "off";
+    const jogador = await novoJogador(),
+      corpo = {
+        ingresso: await ingressoDe(jogador, OUTRO_JOGO),
+        chaveDeTroca: "a".repeat(43),
+        suportaVisitas: true,
+      },
+      abrir = async (pedido: unknown) => {
+        const r = await pedir("POST", "/api/sdk/v1/sessao", { corpo: pedido });
+        expect(r.status).toBe(200);
+        return SessaoAbertaSchema.parse(r.corpo);
+      },
+      inicial = await abrir(corpo),
+      sid = SessaoDeJogoIdSchema.parse(claimsDe(inicial.token).sid);
+    expect(inicial.visitas).toBe(primeira ? true : undefined);
+    env.RECREIO_VISITS_MODE = primeira ? "off" : "on";
+    const repetida = await abrir(corpo);
+    expect(repetida.visitas).toBe(primeira ? true : undefined);
+    expect(claimsDe(repetida.token).sid).toBe(sid);
+    expect(
+      (await abrir({ ingresso: corpo.ingresso, chaveDeTroca: corpo.chaveDeTroca })).visitas,
+    ).toBeUndefined();
+    expect((await db.select().from(sessions).where(eq(sessions.id, sid)))[0]?.supportsVisits).toBe(
+      primeira,
+    );
+  },
+);
+
+it("adicionar a opção ao retry de cliente antigo não promove a sessão já aberta", async () => {
+  env.RECREIO_VISITS_MODE = "on";
+  const jogador = await novoJogador(),
+    corpo = { ingresso: await ingressoDe(jogador, OUTRO_JOGO), chaveDeTroca: "b".repeat(43) },
+    inicial = await pedir("POST", "/api/sdk/v1/sessao", { corpo }),
+    repetida = await pedir("POST", "/api/sdk/v1/sessao", {
+      corpo: { ...corpo, suportaVisitas: true },
+    });
+  expect(inicial.status).toBe(200);
+  expect(repetida.status).toBe(200);
+  const a = SessaoAbertaSchema.parse(inicial.corpo),
+    b = SessaoAbertaSchema.parse(repetida.corpo);
+  expect(a.visitas).toBeUndefined();
+  expect(b.visitas).toBeUndefined();
+  expect(claimsDe(a.token).sid).toBe(claimsDe(b.token).sid);
+});
+
+it.each(["cliente", "instancia"] as const)(
+  "%s sem adesão não publica presença mesmo com manifesto e modo habilitados",
+  async (legado) => {
+    const c = await cenario(OUTRO_JOGO, {
+      cliente: legado !== "cliente",
+      instancia: legado !== "instancia",
+    });
+    await expect(entrar(c)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(await db.select().from(presences).where(eq(presences.spaceId, c.mundoId))).toHaveLength(
+      0,
+    );
+  },
+);
+async function cenario(jogo = OUTRO_JOGO, opcoes = { cliente: true, instancia: true }) {
   env.RECREIO_VISITS_MODE = "on";
   await aposentarInstancias();
   const jogador = await novoJogador(),
     mundoId = await mundoDe(jogador, jogo),
-    sessao = await entrarNoJogo(jogador, jogo),
-    instancia = await novaInstancia(jogo);
+    sessao = await entrarNoJogo(jogador, jogo, opcoes.cliente ? { suportaVisitas: true } : {}),
+    instancia = await novaInstancia(jogo, 10, opcoes.instancia ? { suportaVisitas: true } : {});
   expect((await abrirPelaRota(sessao, mundoId)).status).toBe(200);
   const posse = await instancia.cliente.reivindicarPosse(mundoId);
   const host = { jogo, instanciaId: instancia.instanciaId },
