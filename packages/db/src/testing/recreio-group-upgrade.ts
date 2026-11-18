@@ -11,7 +11,11 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import journal from "../migrations/meta/_journal.json" with { type: "json" };
 
-const BASE = "338236d041d3c7be0d4fb1fbbe0373a7101f8e07";
+const COM_MUNDOS = process.argv.includes("--mundos");
+const BASE = COM_MUNDOS
+  ? "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a"
+  : "338236d041d3c7be0d4fb1fbbe0373a7101f8e07";
+const ULTIMA_ANTERIOR = COM_MUNDOS ? 190 : 178;
 const MIGRATIONS = "packages/db/src/migrations";
 const baseFile = (path: string) => execFileSync("git", ["show", `${BASE}:${path}`]);
 
@@ -24,7 +28,17 @@ async function memoria(sql: postgres.Sql) {
     'conquistas',(select jsonb_agg(to_jsonb(a) order by a.id) from recreio.profile_achievements a)
   ) as conteudo`;
   assert.ok(linha);
-  return linha.conteudo;
+  if (!COM_MUNDOS) return linha.conteudo;
+  const [mundos] = await sql<{ conteudo: unknown }[]>`select jsonb_build_object(
+    'mundos',(select jsonb_agg(to_jsonb(s)-array['management_revision','archived_at'] order by s.id) from recreio.spaces s),
+    'membros',(select jsonb_agg(to_jsonb(m) order by m.id) from recreio.space_members m),
+    'convites',(select jsonb_agg(to_jsonb(i) order by i.id) from recreio.space_invites i),
+    'posses',(select jsonb_agg(to_jsonb(l) order by l.id) from recreio.space_leases l),
+    'fotografias',(select jsonb_agg(to_jsonb(p) order by p.id) from recreio.space_snapshots p),
+    'diario',(select jsonb_agg(to_jsonb(j) order by j.space_id,j.seq) from recreio.space_journal j)
+  ) as conteudo`;
+  assert.ok(mundos);
+  return { perfis: linha.conteudo, mundos: mundos.conteudo };
 }
 
 async function main() {
@@ -44,8 +58,11 @@ async function main() {
   let criada = false;
   let conexao: postgres.Sql | undefined;
   try {
-    const anterior = { ...journal, entries: journal.entries.filter((e) => e.idx <= 178) };
-    assert.equal(anterior.entries.length, 179);
+    const anterior = {
+      ...journal,
+      entries: journal.entries.filter((e) => e.idx <= ULTIMA_ANTERIOR),
+    };
+    assert.equal(anterior.entries.length, ULTIMA_ANTERIOR + 1);
     const historico = baseFile(`${MIGRATIONS}/meta/_journal.json`);
     assert.deepEqual(
       JSON.parse(historico.toString("utf8")),
@@ -83,6 +100,27 @@ async function main() {
       await sql`insert into recreio.profile_data_keys(id,profile_id,game_id,key,revision) values(${chave},${perfilId},'prova-upgrade','marco',1)`;
       await sql`insert into recreio.profile_data_versions(data_id,profile_id,game_id,base_revision,revision,kind,bytes,digest) values(${chave},${perfilId},'prova-upgrade',0,1,'accepted',${bytes},${digest})`;
       await sql`insert into recreio.profile_achievements(profile_id,game_id,achievement_id,key_hash) values(${perfilId},'prova-upgrade','marca',${digest})`;
+      if (COM_MUNDOS) {
+        const mundoId = randomUUID(),
+          membroId = randomUUID();
+        await sql`insert into recreio.spaces(id,game_id,steward_profile_id,created_by_profile_id,name,content_policy,status,revision,journal_seq,lease_epoch)
+          values(${mundoId},'morada',${perfilId},${perfilId},'Casa anterior','todas_as_idades','hibernating',3,2,7)`;
+        await sql`insert into recreio.space_members(id,space_id,profile_id,role,state,participation) values(${membroId},${mundoId},${perfilId},'steward','active','familia-anterior')`;
+        const outroPerfil = perfis[1 - n];
+        assert.ok(outroPerfil);
+        // A outra identidade pode ainda não ter sido criada na primeira iteração.
+        if (n === 1)
+          await sql`insert into recreio.space_members(space_id,profile_id,role,state,invited_by_member_id) values(${mundoId},${outroPerfil},'member','active',${membroId})`;
+        await sql`insert into recreio.space_invites(space_id,invited_by_member_id,form,code_hash,state,expires_at)
+          values(${mundoId},${membroId},'member',${digest},'sent',clock_timestamp()+interval '1 hour')`;
+        await sql`insert into recreio.space_leases(space_id,fence,holder_kind,state,expires_at,released_at,end_reason)
+          values(${mundoId},7,'server','released',clock_timestamp()-interval '1 hour',clock_timestamp()-interval '1 hour','empty')`;
+        await sql`insert into recreio.space_snapshots(space_id,revision,fence,schema_version,journal_seq,tick,kind,storage,data,byte_size,sha256)
+          values(${mundoId},3,7,2,1,12,'hibernate','pg',${bytes},${bytes.length},${digest})`;
+        for (let seq = 1; seq <= 2; seq++)
+          await sql`insert into recreio.space_journal(space_id,seq,fence,tick,fact_id,payload,byte_size)
+          values(${mundoId},${seq},7,${12 + seq},${`fato-${n}-${seq}`},${bytes},${bytes.length})`;
+      }
     }
     const antes = await memoria(sql);
     const atual = fileURLToPath(new URL("../migrations", import.meta.url));
@@ -92,6 +130,23 @@ async function main() {
       antes,
       "Atualização mudou IDs, composição ou progresso existente.",
     );
+    if (COM_MUNDOS) {
+      const mundos = await sql<
+        { management_revision: number; archived_at: Date | null }[]
+      >`select management_revision,archived_at from recreio.spaces`;
+      assert.equal(mundos.length, 2);
+      assert.ok(mundos.every((m) => m.management_revision === 1 && m.archived_at === null));
+      for (const tabela of [
+        "directed_space_invites",
+        "directed_invite_world_approvals",
+        "directed_invite_guardian_approvals",
+      ]) {
+        const [linha] = await sql.unsafe<{ total: number }[]>(
+          `select count(*)::integer as total from recreio.${tabela}`,
+        );
+        assert.equal(linha?.total, 0, "Migração não pode inventar convites ou aprovações.");
+      }
+    }
     const [recebidos] = await sql<
       { total: number }[]
     >`select count(*)::integer as total from drizzle.__drizzle_migrations`;
@@ -127,6 +182,17 @@ async function main() {
         progressoPreservado: true,
         conquistasPreservadas: true,
         repeticaoSemMudanca: true,
+        ...(COM_MUNDOS
+          ? {
+              mundosPreservados: 2,
+              membrosPreservados: 3,
+              fotografiasPreservadas: 2,
+              diarioPreservado: 4,
+              convitesAntigosPreservados: 2,
+              cercaPreservada: 7,
+              gestaoInicial: 1,
+            }
+          : {}),
       }),
     );
   } finally {

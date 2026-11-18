@@ -84,7 +84,11 @@ async function gravar(
     .where(
       and(eq(blocks.actorProfileId, atual.perfilId), eq(blocks.targetProfileId, atual.alvoId)),
     );
-  assertAllowed(pedido || amizade || protecao, "CONTATO", "Contato não disponível.");
+  assertAllowed(
+    pedido || amizade || protecao || atual.mundoCompartilhado,
+    "CONTATO",
+    "Contato não disponível.",
+  );
   const [quantidade] = await tx
     .select({ valor: sql<number>`count(*)::integer` })
     .from(reports)
@@ -117,8 +121,8 @@ async function gravar(
       requestHash: resumo,
       category: entrada.categoria,
       priority: prioridade,
-      evidenceKind: pedido ? "pedido" : amizade ? "amizade" : "protecao",
-      evidenceId: pedido?.id ?? null,
+      evidenceKind: pedido ? "pedido" : amizade ? "amizade" : protecao ? "protecao" : "mundo",
+      evidenceId: pedido?.id ?? (!amizade && !protecao ? atual.mundoCompartilhado : null),
       evidenceRevision: !pedido && amizade ? amizade.revisao : null,
       createdAt: criadoEm,
       updatedAt: criadoEm,
@@ -167,6 +171,7 @@ export function denunciarContatoDoMenorNoBanco(
           contaId: atual.contaId,
           conferirPrazo: atual.conferirPrazo,
           tipo: "responsavel",
+          mundoCompartilhado: atual.mundoCompartilhado,
         },
         entrada,
       ),

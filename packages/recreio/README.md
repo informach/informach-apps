@@ -28,6 +28,7 @@ Consumido como TypeScript fonte, sem build, como os outros packages.
 | `.` | Ids com marca, `decidirAcesso`, regras de mundo, posse, código de convite, erros | Todos |
 | `./contrato` | Esquemas Zod e tipos de tudo que atravessa a rede: claims dos tokens, API do SDK, API das instâncias, `RecreioGameContext`, `ClienteDoHost` | Todos |
 | `./emissor` | Assinatura dos tokens, montagem do JWKS e conferência dos tokens que o próprio Recreio emitiu. Precisa da chave privada | Só `apps/recreio` |
+| `./erros` | Códigos e reconhecimento de recusas, sem SDK, Zod ou transporte | Interfaces que só precisam reconhecer uma recusa |
 | `./host` | `criarVerificadorDeSessao` e `criarClienteDoHost` (o `ClienteDoHost` por HTTP) para o servidor de um jogo | Servidores de jogo |
 | `./sdk` | `criarRecreio`: o `RecreioGameContext` para o cliente de um jogo. Só `fetch` e temporizadores. Também `ModuloDoJogo`, o contrato entre a página que hospeda o jogo e o cliente dele | Clientes de jogo e a página que hospeda o jogo |
 | `./testing` | `criarPlataformaFalsa` e `criarEmissorDeTeste` | Testes e desenvolvimento dos jogos |
@@ -123,6 +124,13 @@ O que o servidor do jogo precisa respeitar:
 Social é uma capacidade opcional em qualificação. `criarRecreio({ social: true,
 ... })` envia `suportaSocial: true`; `contexto.social` só existe quando o servidor
 também responde `social: true`. Clientes anteriores não recebem campo novo.
+
+Na candidata F5, `social.participantes(mundoId, apos?)` consulta dez participantes
+atuais do próprio mundo e jogo, com cursor. Só identidade opaca, apelido/avatar
+quando disponíveis e proteção própria; sem conta, presença ou conteúdo. Esse
+vínculo permite bloquear, silenciar e denunciar sem amizade. O servidor captura
+a referência; bloquear não expulsa membros nem altera progresso. Servidores e
+clientes desse incremento ainda estão em qualificação.
 A composição do Recreio mantém `RECREIO_SOCIAL_MODE=off` por padrão, até o aceite
 da frente completa. Desligar novos contatos conserva recusa, remoção e proteção
 de relações existentes para uma sessão ainda autorizada.
@@ -264,6 +272,60 @@ const sessao = await recreio.verificador().verificar(token);
 O relógio da plataforma falsa é manual (`avancar(ms)`), para testar vencimento de posse sem esperar.
 
 A implementação real passa pela mesma suíte de `./testing/conformidade` que a falsa: `apps/recreio/test/conformidade.integration.ts` roda a suíte com o `criarClienteDoHost` chamando as rotas do app.
+
+## Presença física do anfitrião em homologação
+
+`criarPresencaDaConexao` no subpath `/host` representa uma conexão física já
+admitida. Recebe a chave estável dessa entrada e uma função que consulta o
+socket/participação atuais; relê essa função depois das esperas. O chamador
+mantém o produtor, chama `atualizar` no batimento e agrupa `renovacao()` em
+pedidos de até 64. Desconectar ou chamar `encerrar` impede qualquer nova
+atestação positiva nesse produtor, inclusive se a resposta anterior chegar
+depois. Resposta perdida é consultada pela chave original; `null` conserva
+a pendência, pois não prova que uma transação em voo não vá gravar.
+
+O recibo não é autorização de visitante nem confirmação de salvamento.
+Renovação perdida/expirada exige encerrar o produtor anterior antes de criar
+outro para uma conexão ainda real. O jogo não deve remover uma pendência
+incerta só porque o transporte falhou. Runtime e jornadas continuam em
+implementação; esse helper não ativa visitas no Morada.
+
+## Guarda local de visitante em homologação
+
+`VisitaAberta.sessaoDeVisitaId` fixa o vínculo preparado para o SID e deve ser
+levado à admissão privada. O host recebe também `presencaDoAnfitriaoId`, só na
+resposta privada, e confere a conexão original localmente. No `/host`,
+`criarPermissaoDeVisita` combina esse fato com `performance.now()` e o prazo
+curto do servidor. Conferir `podeJogar()` ao receber e ao executar cada comando.
+`suspender()` é obrigatório após resultado de renovação desconhecido; renovar
+exige resposta integral nova, medida desde o envio. Perda do anfitrião original
+ou negativa explícita é terminal. Esse helper não confirma persistência nem
+encerra o SID: o jogo ainda precisa congelar, persistir e usar a API negativa.
+O runtime de visitante está em implementação.
+
+## Convites de visita em homologação
+
+Com `social: true` e `visitas: true`, a negociação aceita oferece
+`contexto.social.visitas`. `listar`/`consultar` devolvem recibos próprios;
+`conferir` exige autorização atual para revelar nomes e contexto. `emitir`
+recebe mundo/perfil/presença atestada e `pedidoId`; conservar esse pedido após
+resposta perdida. `responder` aceita/recusa/revoga uma concessão temporária,
+sem criar membro ou confirmar admissão. Nenhum envio tem retry automático.
+O SDK confere o jogo/ID do recibo e a correspondência entre mundo e concessão.
+`presenca(mundoId)` consulta somente a presença já atestada do próprio SID;
+ausência não abre participação e recibo positivo não substitui a emissão.
+
+Esses métodos não aprovam menores ou decisões de gestão. Aprovações dependem
+da autoridade nativa recente correspondente. O histórico técnico não comprova
+presença, direito atual, entrada ou salvamento. Endpoints e SDK ainda são
+candidatos; telas e jornada completa continuam
+em implementação no [registro](../../docs/recreio/visitas-temporarias-2026-11-17.md).
+
+A candidata do portal oferece caixa fora/dentro da partida e aprovações nativas.
+Na partida, a transição só é oferecida com capacidade de salvamento e módulo
+finalizável: o hospedeiro exige o recibo confirmado antes da navegação. Conflito
+ou confirmação desconhecida conservam o tratamento de progresso. Homologação
+remota e implantação integral seguem pendentes; Morada não ganha visitas.
 
 ## Preparação da responsabilidade com aceite
 

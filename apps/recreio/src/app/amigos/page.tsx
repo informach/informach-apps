@@ -43,6 +43,9 @@ export default async function Amigos({
           <Marca tamanho={30} />
         </Link>
         <div className="flex flex-wrap gap-3">
+          <Link href="/convites" className="rb rb-vazado">
+            Convites de mundos
+          </Link>
           <Link href="/denuncias" className="rb rb-vazado">
             Acompanhar denúncias
           </Link>

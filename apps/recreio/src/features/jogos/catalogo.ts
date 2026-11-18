@@ -33,6 +33,7 @@ export const JOGO_DE_TESTE: ManifestoDoJogo = {
     posse: ["servidor"],
     dadosDePerfil: false,
     checkpoint: "servidor",
+    visitas: true,
     conquistas: false,
     textoLivre: false,
     conteudoDeUsuario: false,
@@ -40,6 +41,7 @@ export const JOGO_DE_TESTE: ManifestoDoJogo = {
   classificacao: { faixa: "L", descritores: [], interacoes: ["interação entre usuários"] },
   limites: {
     mundosCriadosPorPerfil: 3,
+    jogadoresSimultaneosMax: 8,
     fotografiaMaxBytes: 64 * 1024,
     diarioLoteMaxBytes: 16 * 1024,
     diarioPendenteMaxBytes: 256 * 1024,
@@ -67,6 +69,7 @@ export const JOGO_DE_PERFIL: ManifestoDoJogo = {
   capacidades: {
     ...JOGO_DE_TESTE.capacidades,
     mundos: null,
+    visitas: false,
     posse: [],
     dadosDePerfil: true,
     checkpoint: "perfil",

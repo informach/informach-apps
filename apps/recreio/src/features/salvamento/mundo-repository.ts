@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { and, db, eq, sql } from "@informach/db";
 import {
   recreioGameSessions as games,
-  recreioSpaceMembers as members,
   recreioSessionSavePermits as permits,
   recreioSpaces as spaces,
 } from "@informach/db/schema";
@@ -12,6 +11,7 @@ import { EstadoDeSalvamentoSchema, type SalvamentoDoHost } from "@informach/recr
 import { conferirFotografiaDeCheckpoint } from "@/features/posse/prova-fotografia";
 import { conferirConteudoDoMundo, conferirPosse } from "@/features/posse/repository";
 import type { Host } from "@/features/posse/service";
+import { conferirParticipacaoParaEncerramento } from "@/features/visitas/encerramento-contexto-repository";
 import type { Transacao } from "@/lib/repository";
 import { concluirSalvamentoNoBanco, prepararSalvamentoNoBanco } from "./repository";
 
@@ -65,12 +65,12 @@ export async function salvarSessaoDoMundoNoBanco(
       .select({ mundoId: games.spaceId, encerradaEm: games.endedAt })
       .from(games)
       .where(eq(games.id, entrada.sid));
-    const [membro] = await tx
-      .select({ estado: members.state })
-      .from(members)
-      .where(and(eq(members.spaceId, mundoId), eq(members.profileId, pista.perfilId)));
-    if (sessao?.mundoId !== mundoId || membro?.estado !== "active")
-      throw new ErroDoRecreio("SEM_PERMISSAO");
+    if (sessao?.mundoId !== mundoId) throw new ErroDoRecreio("SEM_PERMISSAO");
+    await conferirParticipacaoParaEncerramento(tx, {
+      mundoId,
+      perfilId: pista.perfilId,
+      sid: entrada.sid,
+    });
     await conferirConteudoDoMundo(tx, mundo, host.jogo, politica);
     return { mundo, sessao };
   };

@@ -30,6 +30,8 @@ export type PoliticaDeMundo = {
 };
 
 export type LimitesDoJogo = {
+  /** Orçamento total de SIDs de jogadores, incluindo visitantes; exige medição antes de publicar visitas. */
+  jogadoresSimultaneosMax?: number;
   /** Mundos criados por perfil, sem contar os de outras pessoas em que ele é membro. */
   mundosCriadosPorPerfil: number;
   /** Tamanho máximo de uma fotografia comprimida, em bytes. */
@@ -60,6 +62,8 @@ export type GameManifest = {
     conquistas: boolean;
     textoLivre: boolean;
     conteudoDeUsuario: boolean;
+    /** Capacidade opcional; presença/visita também exige negociação do cliente e da instância. */
+    visitas?: boolean;
   };
   classificacao: {
     faixa: Faixa;

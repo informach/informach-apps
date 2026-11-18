@@ -1,8 +1,11 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, asc, eq, inArray } from "@informach/db";
-import { recreioSpaceInvites as invites } from "@informach/db/schema";
-import type { Transacao } from "@/lib/repository";
+import {
+  recreioDirectedSpaceInvites as directed,
+  recreioSpaceInvites as invites,
+} from "@informach/db/schema";
+import { AGORA, type Transacao } from "@/lib/repository";
 
 /** Chamar sob a trava do mundo, antes do cursor; só aplicar após reler os prazos. */
 export async function prepararRevogacaoDeConvites(
@@ -22,17 +25,48 @@ export async function prepararRevogacaoDeConvites(
     )
     .orderBy(asc(invites.id))
     .for("update");
-  return async (contaId: string, motivo: "steward_changed" | "member_removed") => {
-    if (linhas.length === 0) return;
-    await tx
-      .update(invites)
-      .set({ state: "revoked" })
-      .where(
-        inArray(
-          invites.id,
-          linhas.map((x) => x.id),
-        ),
-      );
+  const dirigidos = await tx
+    .select({ id: directed.id })
+    .from(directed)
+    .where(
+      and(
+        eq(directed.spaceId, mundoId),
+        eq(directed.invitedByMemberId, membroId),
+        eq(directed.state, "pending"),
+      ),
+    )
+    .orderBy(directed.id)
+    .for("update");
+  return async (
+    contaId: string,
+    motivo:
+      | "steward_changed"
+      | "member_removed"
+      | "coadmin_removed"
+      | "world_archived"
+      | "member_left",
+  ) => {
+    if (linhas.length + dirigidos.length === 0) return;
+    if (linhas.length > 0)
+      await tx
+        .update(invites)
+        .set({ state: "revoked" })
+        .where(
+          inArray(
+            invites.id,
+            linhas.map((x) => x.id),
+          ),
+        );
+    if (dirigidos.length > 0)
+      await tx
+        .update(directed)
+        .set({ state: "revoked", finishedAt: AGORA })
+        .where(
+          inArray(
+            directed.id,
+            dirigidos.map((x) => x.id),
+          ),
+        );
     await logAuditEventStrict(
       "recreio.space_invites_revoked",
       contaId,
@@ -41,7 +75,8 @@ export async function prepararRevogacaoDeConvites(
         spaceId: mundoId,
         memberId: membroId,
         reason: motivo,
-        count: linhas.length,
+        count: linhas.length + dirigidos.length,
+        directedCount: dirigidos.length,
       },
       { writer: tx },
     );

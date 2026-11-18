@@ -1,0 +1,1305 @@
+# Recreio: visitas temporárias com anfitrião
+
+## Provas de saída manual e salvamento coordenado, candidatas
+
+`af148638`/`44270231113` concluiu sete gates e 40 E2E. A gestão nativa aprovou
+o convite e o visitante aceitou na partida; o ensaio seguinte procurou `Salvar
+e visitar` no gate comum, cujo `RECREIO_CHECKPOINT_MODE` é `off`. A capacidade
+restrita não foi negociada, e a UI mostrou a orientação de saída manual.
+Não se trata de habilitar a capacidade por suposição do frontend.
+
+A jornada comum agora confere a ausência desse botão, sai pelo próprio jogo,
+abre a visita pelo portal e depois comprova o progresso do mundo anterior.
+O novo `checkpoint-e2e/visitas.spec.ts` executa a jornada de transição no gate
+que exige o modo real `on`, incluindo a barreira da resposta HTTP de salvamento.
+As duas usam `e2e/visitas-gestao-apoio.ts`; cada entrada confere seu modo antes
+do cadastro. Nenhum caso é pulado, nenhum modo de produção é ligado e os oito
+gates permanecem obrigatórios. Capturas manual/coordenada têm artefatos próprios.
+
+Artefato da recusa esperada do botão: `14413246354`, fonte `af148638`,
+5930396 bytes, SHA-256
+`36165d3b54fff54472b9c749622ff5e19aec1db1c7096d9837830bba454c0504`,
+conferido antes de extrair. Captura inspecionada; a concessão estava aceita e
+nenhuma entrada foi fabricada pelo teste. CI compartilhado anterior, fonte
+`adfe3971`, foi solicitado em `44272436756`; ainda não declara êxito desta
+correção. Nova rodada integral e capturas atuais são obrigatórias. Sem migration
+ou implantação em produção.
+
+## Jornada familiar comprovada e desistência na tela, candidata
+
+`f21630ea`/`44269499310` concluiu sete gates e 40 jornadas, incluindo a visita
+infantil completa (32,5 s): duas aprovações nativas, entrada física sem membro,
+saída voluntária sem reuso, outro convite, corte ao sair o anfitrião e progresso
+conservado. O único E2E reprovado foi o apelido longo da fixture de gestão,
+corrigido em `af148638`, rodada `44270231113` ainda em curso.
+
+Na inspeção visual, a tela de aceite mantinha a trava de envio inclusive após
+receber o aceite confirmado, exigindo recarga para desistir. A candidata libera
+`Encerrar visita` após resposta positiva do aceite; envio pendente, resposta
+desconhecida e conclusão terminal conservam a trava. O E2E agora confere essa
+possibilidade antes da entrada. Não muda a concessão ou admissão do servidor.
+
+Capturas parentais e do aceite de 390 px foram inspecionadas: sem corte de
+texto/controles ou rolagem horizontal. Prova inicial parental: artefato
+`14410778481`, fonte `70f85381`, 3822625 bytes, SHA-256
+`31fa01bd8b9e8db91c69482a6777a2944b5f2cc20d4de694e6ad1d328fb7ef24`.
+Prova de aceite: artefato `14413380495`, fonte `f21630ea`, 3904416 bytes,
+SHA-256 `d18debbcd892c9c409b9058066b9fc6b19917c8772abdd8bce487d2ed0db3977`.
+Ambos conferidos antes de extrair. A nova trava de tela e gestão/transição
+exigem rodada completa e capturas atuais antes da implantação. Sem migration.
+
+## Correção dos apelidos da prova de gestão, candidata
+
+Em `031c689c`/`44267435863`, a jornada da gestão parou no cadastro do primeiro
+jogador: `Sol que cuida do mundo` tem 21 caracteres, acima do contrato
+`APELIDO.max = 20`. O segundo apelido também tinha 21. O formulário permaneceu
+corretamente em `/comecar`; a fixture esperava `/estante`. Os nomes de teste
+foram reduzidos a `Sol da visita`, `Mar recebe visita` e `Rio visita`.
+Não foi ampliado o limite para acomodar o ensaio. A falha familiar daquela
+rodada é a captura de endereço corrigida em `f21630ea`, não uma falha de
+hidratação. Ambos os corretivos exigem qualificação completa no GitHub.
+Sem migration ou produção.
+
+## Correção da navegação na prova familiar, candidata
+
+`70f85381`/`44266657089` concluiu sete gates e 39 jornadas de navegador.
+A jornada nova falhou antes do aceite: guardou `page.url()` imediatamente após
+clicar no Link, antes de a navegação terminar, e guardou `/visitas` em vez do
+detalhe. Depois das aprovações parentais, navegou para essa lista e procurou
+um botão de aceite que não existe ali. O trace confirma os dois `goto` para
+`/visitas`; a captura infantil mostra a lista, sem erro de página/CSP.
+
+O teste agora confirma `/visitas/<UUID>` antes de guardar o endereço. Não
+amplia timeout, não troca a prova de hidratação e não altera autorização ou
+produto para acomodar a fixture. Exige nova rodada completa. Artefato
+`14411596454`, fonte `70f853816b83d03b1f6b119e4b369509f69161e1`, 7600692 bytes,
+SHA-256 `c648d2fc21f6c8d57256c06079e6c7b2d3fbd5fd9ffdab156142e77f27d3d8a6`,
+conferido antes da extração. Trace contém credenciais sintéticas e não foi
+publicado nem transcrito integralmente. Sem migration ou produção.
+
+## Correção da fixture de paginação, candidata
+
+A rodada da gestão `031c689c`/`44267435863` teve 1053 integrações aprovadas
+e uma falha no preparo da paginação: a fixture tentou inserir doze convites
+pendentes para a mesma combinação mundo/origem/destino/presença. O índice
+`recreio_visit_invite_one_pending` recusou corretamente a duplicação (23505).
+A fixture agora cria destinatários reais distintos, conservando datas iguais
+para testar o cursor. Esses recibos são somente para leitura/ordenação da fila;
+não provam emissão ou aprovação. O índice e o escritor permanecem intactos.
+Caixa/transição `d2ad24f5` está em `44268230251`; a correção exige nova rodada
+completa. Sem migração ou produção.
+
+## Atualização — caixa na partida e salvar para visitar em candidata
+
+O painel social negocia a caixa de visitas do SDK: páginas, consulta técnica,
+conferência atual, aceite e redução. Consultas e decisões não desmontam a
+partida. Resposta desconhecida bloqueia nova decisão até consulta atual, sem
+retry de escrita. Gerações locais impedem resposta tardia de atualizar painel
+desmontado ou de outra API. Nenhum link navega diretamente de uma partida viva.
+
+O hospedeiro só oferece `Salvar e visitar` quando o SDK possui capacidade de
+salvamento e o módulo montado implementa `finalizar`. Conserva uma intenção de
+destino feita de IDs, sem URL livre. Usa `confirmarFinalizacao`, encerra a
+partida anterior e navega somente após recibo `completed`; conflito preservado
+não navega. Falha mantém a intenção para nova tentativa de confirmação. Voltar
+sem confirmar conserva o caminho da estante, não a visita. Jogos de saída
+manual continuam orientados a salvar pelo próprio jogo e usar o portal.
+
+A jornada candidata da gestão agora começa com progresso no mundo próprio do
+visitante, aceita na partida e transita para visita após confirmação. Retém a
+resposta HTTP real da primeira consulta de salvamento por uma barreira explícita,
+confere que URL e número de novas sessões continuam intactos e libera os mesmos
+bytes/status sem retry ou atraso arbitrário. Depois da visita, reabre o mundo
+anterior para conferir seu progresso. Essa retenção não mede latência normal.
+Captura de 390 px da caixa na partida ainda precisa de inspeção remota.
+
+`70f85381` tem sete gates aprovados, incluindo integração; E2E segue em curso
+na rodada `44266657089`. Gestão `031c689c` está em `44267435863`. A caixa e a
+transição acima exigem nova rodada completa. Sem migration ou produção.
+
+## Atualização — fila e decisão da gestão do mundo em candidata
+
+As páginas de gestão agora apontam para uma fila própria de visitas, com
+paginação independente dos convites permanentes. A consulta nativa relê o
+papel e a responsabilidade pelo perfil sob contas → mundo → perfis, sem
+cobertura comercial. Seleciona somente IDs/datas de pedidos pendentes, vigentes,
+da revisão atual e sem aprovação do mundo. Não fornece nomes, SID ou presença.
+Conferir um item passa pelo painel completo com amizade/conteúdo/anfitrião
+atuais. A decisão continua exigindo login recente e confirmação explícita.
+
+Mundo adulto e mundo de menor têm rotas distintas. O alvo infantil é um perfil
+gerido pela conta nativa atual, não identidade emprestada do aparelho pareado.
+Cinco integrações candidatas cobrem leitura sem plano, recusa de membro sem
+gestão, retirada da fila após aprovação, cursor estável, mundo cruzado e
+exclusão por revisão/recusa/vencimento. Uma jornada adicional de navegador usa
+três adultos: membro anfitrião convida amigo, o responsável diferente aprova,
+visitante entra sem membro, e saída do anfitrião encerra a visita preservando
+as duas participações permanentes. Captura de gestão de 390 px ainda candidata.
+
+Fonte anterior `13ad8954` concluiu sete gates; a única falha foi a expectativa
+de ausência de presença corrigida em `70f85381`, cuja rodada `44266657089`
+continua em execução. Esta fila exige nova rodada completa. Caixa na partida,
+transição direta entre jogos e implantação integral F5 continuam pendentes.
+Sem migration ou implantação em produção.
+
+## Atualização — telas e jornada familiar em candidata
+
+A partida oferece convite de visita a um amigo usando a presença do próprio
+SID já atestado. Consulta perdida não emite convite; envio iniciado bloqueia
+nova tentativa no componente e orienta conferir a lista se a resposta for
+desconhecida. Não há retry automático nem atestado produzido pelo navegador.
+O fechamento do painel antes da consulta terminar impede emissão posterior.
+
+`/visitas` mostra recibos próprios paginados, sem nomes da outra ponta;
+`/visitas/[conviteId]` confere autorização atual antes dos nomes e decisões.
+Direção é derivada no servidor diretamente do recibo, sem depender da primeira
+página da lista. Aceitar não abre jogo. O link de entrada conserva a finalidade
+de visita e passa novamente pela prévia autoritativa. A lista conserva redução
+própria sem exigir presença, plano ou conferência positiva do detalhe.
+
+Na conta, supervisão aponta para `/conta/perfis/[id]/visitas`. O responsável
+consulta recibos sem jogador, aprova somente o próprio menor com login recente
+e confirmação explícita, ou encerra mesmo após perda do anfitrião. Confirmações
+do mundo e de cada responsável são mostradas separadamente. Resposta perdida
+orienta conferir o estado antes de repetir. Gestão nativa do mundo, caixa na
+partida e transição direta entre partidas ainda precisam de UI própria.
+
+Uma nova jornada candidata usa dois adultos sem jogador e dois aparelhos
+infantis: amizade e duas aprovações reais, convite pelo host conectado, aceite
+sem SID, admissão física sem membro, saída voluntária sem reutilizar concessão,
+segundo convite e perda do anfitrião com comando cortado e progresso mantido.
+Observação somente de agregados no PostgreSQL descartável comprova os vínculos;
+não prepara presença, aprovação ou concessão. Capturas de 390 px são produzidas
+no GitHub e ainda precisam ser inspecionadas.
+
+`fccf5097` concluiu 1034 integrações, mas a qualidade falhou no helper tipado.
+`13ad8954` passou na qualidade e em 1048 de 1049 integrações na rodada
+`44265253316`; a única falha repetiu a expectativa incorreta de perda de posse
+de `0441e077`. Liberar a posse deixa o mundo hibernando; o leitor devolve
+`presenca: null`, sem admissão, em vez de erro de posse. A expectativa agora
+confere essa ausência. Não foi alterado o contrato para produzir erro artificial.
+As telas e a jornada exigem nova rodada completa. Sem migration ou produção.
+
+## Atualização — leitura e decisões nativas em candidata
+
+O painel nativo do responsável e da gestão confere as partes, responsabilidade,
+amizade, conteúdo, revisões, presença original e prazo antes de expor nomes.
+Leitura não exige plano ou perfil de jogador do responsável. O painel mostra
+separadamente as aprovações pendentes; ler não aprova, compra acesso ou admite.
+Login vigente permite consultar; cada aprovação continua exigindo login nativo
+recente. As ações relêem o perfil selecionado esperado; pareamento infantil
+não é autoridade para gestão. Aprovar o mundo do menor usa o adulto nativo e
+seu alvo de gestão explícito. Redução parental mantém o caminho gratuito.
+
+Oito integrações candidatas conferem leitura sem efeitos, responsável sem
+jogador/plano, gestão sem plano, mundo explícito, aprovação separada, login
+antigo, conta/perfil cruzados, presença encerrada, bloqueio e recibo concluído.
+As telas e a jornada física completa ainda precisam ser integradas.
+
+Na candidata `0441e077`, rodada `44264500845`, tipos revelaram que a projeção
+social usada no leitor de presença não contém a política completa de jogo.
+A composição passa agora a política admitida já calculada à leitura do mundo;
+não infere classificação/multiplayer pela faixa social ou por cast. Correção,
+painéis e ações exigem nova rodada completa. Sem migration ou deploy.
+
+Incremento F5 autorizado, com fundação de schema e atestado em verificação.
+Negociação candidata; convites, concessões, interface e implantação pendentes. Requisitos e demais aceites no
+[plano de mundos](mundos-completos-2026-11-17.md).
+
+## Separação e autoridade
+
+Convite de visita e concessão temporária terão tabelas próprias. Não colocar
+convites de visita na tabela dos convites dirigidos de membro: um leitor antigo
+poderia interpretar o UUID como autorização permanente depois de um rollback.
+Visitar não insere nem restaura `space_members`, não concede gestão e não muda
+progresso ou titularidade dos demais participantes.
+
+O anfitrião precisa ser um participante permanente atual e estar na partida.
+A instância atesta sua presença privada sob mundo, cerca, SID e membro atuais;
+isso não é presença pública nem localização exposta aos amigos. O destinatário
+é conhecido, com amizade e aprovações atuais. A decisão do mundo e as dos
+responsáveis por menores são separadas. Todos os escritores conservam a ordem
+de contas → mundo → perfis → aparelho/sessão → prova da concessão.
+
+A visita fica vinculada à presença específica, ao SID e à cerca do anfitrião.
+Prazo máximo de 24 horas, sem extensão em recuperação de resposta. Fechar a
+presença, encerrar o SID, trocar a cerca, revogar a autoridade ou vencer o prazo
+impede novas admissões. Retorno do anfitrião não reativa a concessão anterior.
+Renovação de presença só mantém uma linha ativa; nunca reabre uma encerrada.
+
+Cliente, manifesto e instância precisam negociar suporte. O Morada continua
+sem essa capacidade até sua própria evolução; a plataforma provará visitas
+num jogo interno independente. Endpoints e respostas de membro existentes
+continuam recusando alguém que só tenha visita, inclusive em leitores antigos.
+
+## Fundação inicial
+
+`world_host_presences` associa membro permanente, SID/perfil, posse/cerca e
+instância por FKs. A transação também precisa conferir que todos pertencem ao
+mesmo jogo/mundo, que a posse está vigente e que a instância é a titular.
+O vínculo sessão/perfil ou posse/cerca isoladamente não comprova isso.
+
+Cada entrada usa UUID e hash de repetição da instância. Uma presença ativa por
+perfil/mundo; nonce repetido com outro corpo é conflito. Prova de presença com
+validade curta, no máximo 45 segundos desde a última atualização e limitada a
+uma janela de 24 horas. Retenção técnica até 30 dias após essa janela. A rotina
+precisa encerrar provas vencidas e purgar em lotes antes de eliminar sessões,
+posses ou membros referenciados. As colunas não concedem acesso por si só.
+
+## Próximos incrementos e provas
+
+1. Gerar/conferir a migration aditiva da presença pelo GitHub, sem editar SQL,
+   snapshot ou journal; testar constraints, concorrência, nonces e retenção.
+2. Implementar atestado de entrada/saída e atualização em lote somente por
+   instância autenticada e com posse vigente. Saída encerra definitivamente a
+   prova; falha de comunicação impede readmitir visitantes até confirmação.
+   Troca de cerca invalida provas da instância anterior.
+3. Acrescentar convites, aprovações e concessões de visita separados, com
+   amizade, versões/gerações, classificação, capacidade e prazo sob trava.
+   Provar que nenhum fluxo escreve participação permanente.
+4. Negociar SDK/host e implementar abertura/renovação/encerramento próprios da
+   visita. Batimento e runtime precisam interromper o visitante ao perder a
+   prova, inclusive sem navegador cooperante. Não anunciar SID encerrado sem
+   seu recibo, nem inventar confirmação de salvamento.
+5. Entregar caixa/estante temporária, confirmações familiares e revogação
+   gratuita. Validar saída pelo jogo, perda do anfitrião, reconexão, queda da
+   instância, relógio/prazo, troca de permissões e rollback com clientes antigos.
+6. Gates, carga e builds no GitHub; conferir imagens, upgrade com dados,
+   restauração e fonte/configuração reais antes de qualquer ativação.
+
+Nenhuma tabela desta fundação foi criada em produção. F6–F11 continuam com
+seus próprios critérios; os gates desta frente não encerram a plataforma.
+
+## Geração conferida da presença
+
+Run `44221393949`, fonte `62150c6e6dd2cabec4518915c7e28723a2c82a95`, artefato
+`14390189204`; ZIP SHA-256
+`35bd94cc12d21819f970654ee5609a3581c19e7b64330d71632666474c73e908`.
+SQL somente aditivo, FKs sobre constraints/índices únicos já existentes,
+nomes explícitos curtos e CHECK de encerramento com NULL recusado. Prefixo
+do journal e predecessor do snapshot conferidos; cópia intacta por bytes/SHA:
+
+- `0198_skinny_captain_britain.sql`: 4660 bytes,
+  `4aa7976f1d8f08a9c0aad9edb68f44e235e491e4fe86f951a4e4310d779a77a8`.
+- Snapshot: 888950 bytes,
+  `5a30bcdc995fdd072bcb672cde5d99080dcb618bcf9ad2d4f946bbd0779b98ea`.
+- Journal: 30079 bytes,
+  `aa040b62e4cf6cd3f812c66042d42f4513081864f3bfe18c734c4f37dc21755a`.
+
+Dezesseis integrações candidatas criam sessão/mundo/posse/entrada pelas APIs
+reais e exercitam FKs, não duplicação, disputa de presença ativa, encerramento
+com campos NULL, TTL/janela/retenção, hash e nova identidade após encerrar.
+A inserção de teste da presença é direta no PostgreSQL: ainda não comprova
+atestado por servidor, visita, renovação, revogação ou funcionamento de tela.
+Esses testes ainda precisam executar no GitHub. Journal candidato com 199
+entradas; nenhuma alteração operacional ou migration foi aplicada em produção.
+
+## Candidata de atestado e limpeza
+
+`POST /api/interno/v1/mundos/[id]/presencas` é restrito ao segredo e à instância
+registrada do jogo. Nova entrada exige modo de visitas ativo e capacidade
+explícita do manifesto; padrão `off`, e o Morada não declara a capacidade.
+O contrato ainda não está integrado ao SDK/handshake da instância ou do cliente.
+Atestar presença, isoladamente, não concede nenhuma visita.
+
+A criação usa a mesma transação autoritativa da entrada de membro permanente,
+com SID, perfil, cobertura, política, mundo e posse atuais. O prazo da posse
+é relido depois dos efeitos e auditoria. TTL operacional de até 30 segundos,
+limitado pelo SID e pela posse; janela fixa de até 24 horas. UUID/hash ligados
+ao corpo e à instância recuperam o mesmo recibo sem renovar nem reabrir uma
+prova encerrada. Chave com outro corpo conflita. Outra entrada do mesmo SID
+precisa encerrar a anterior; cerca/SID anteriores ou prazo vencido encerram
+a prova antiga sob a trava do mundo antes de inserir outra identidade.
+
+Recuperação técnica e encerramento da própria prova continuam disponíveis
+com modo desligado ou SID/posse encerrados. Não permitem escrita ou admissão
+pela cerca antiga. A resposta é recibo técnico, sem nomes ou autoridade global;
+qualquer admissão futura precisa reler anfitrião, visita, política e posse.
+
+Manutenção encerra provas vencidas e remove técnicas após retenção, até 500
+por lote com `SKIP LOCKED`, auditoria estrita e contagens. A rotina atual encerra
+sessões antigas, sem apagá-las; o novo FK não exige alterar esse comportamento.
+Encerramento de conta/F7 ainda precisa remover provas antes de desvincular
+identificadores. A limpeza futura dos convites/concessões de visita precisa
+preceder a remoção da presença referenciada.
+
+Treze integrações candidatas exercitam HTTP/autenticação, concorrência e replay,
+saída com modo desligado, conflito de chave, limite de corpo, instância/cerca,
+SID/perfil/membro, fim de SID, manifesto sem capacidade, falha de auditoria e
+prazo até o commit, expiração idempotente e expurgo 500+101. As fixtures do
+último teste inserem histórico técnico diretamente, sem alegar 601 jogadores.
+Gates desse incremento ainda pendentes. Renovação por batimento, negociação,
+convites/aprovações, concessão, runtime e telas de visita continuam por fazer.
+
+Fundação `a17290033a2f060ae166fe4690a4f7823f3eda59` aprovada nos oito gates
+`44222402220`: 801 integrações/85 arquivos, incluindo os dezesseis testes de
+schema, e upgrades 179→199/191→199. Isso não prova a API do atestado acrescentada
+depois desse source. Consumidores diretos de manifesto/contratos desta candidata
+são Recreio, servidor/cliente do Morada e Bastidores; seus tipos e gates fazem
+parte da matriz Recreio. Os objetos do catálogo público não ativam visitas.
+
+## Fundação da negociação
+
+A próxima migration aditiva prepara `supports_visits=false` em sessões de jogo
+e instâncias. Clientes e instâncias existentes ficam sem capacidade. O primeiro
+aceite da sessão precisa conservar o resultado da negociação, inclusive na
+recuperação de resposta: um retry ou mudança de modo não pode promover o SID.
+Respostas antigas não recebem campos novos sem solicitação explícita. A
+presença positiva também precisará conferir a capacidade registrada da instância.
+Esta definição inicial de schema ainda não implementa a negociação nem cria
+convite, concessão ou transporte de visitante.
+
+Geração `44225521585`, fonte `3b7c321f0b511768016b624b917356692c024c99`, artefato
+`14391989348`, ZIP SHA-256
+`fa0d64b74d9e0227933b63a9b69c9416eb827bfb3b2d3ed6553dc8f4267255bb`.
+SQL contém somente os dois `ADD COLUMN boolean DEFAULT false NOT NULL`.
+Origem, allowlist, prefixo do journal, predecessor e cópia intacta conferidos:
+
+- `0199_worthless_gertrude_yorkes.sql`: 222 bytes,
+  `94536b8577dc956f0d5c8ead875cde3703ec4e13180de1ec341c074b2d2055f0`.
+- Snapshot: 889332 bytes,
+  `9df9c06dbcbd9bbb4c3828a649330e31d8a4bab1d2902eb73596522039789b93`.
+- Journal: 30234 bytes,
+  `ee1269e9353b373baa2b35ce1ddddad0ef1745cc462d6623e139555bfff54a21`.
+
+O run de atestado `44225075209`/`d67b7cb9` falhou. Qualidade/builds apontaram
+os três eventos ainda ausentes do catálogo tipado de auditoria. A integração
+teve 809 aprovações e cinco falhas: a expiração do SID devolvia corretamente
+`SESSAO_ENCERRADA` em vez do conflito esperado no teste, e quatro casos antigos
+tentavam apagar sessões de outras fixtures agora referenciadas por presenças.
+A correção registra os eventos, conserva a recusa própria da sessão e encerra
+as autoridades anteriores no setup, preservando histórico, referências e cursor.
+Não afrouxa FKs ou limites. Journal candidato com 200 entradas; negociação e
+corretivo ainda exigem evidência remota. Produção continua sem essas migrations.
+
+## Negociação candidata
+
+Registro de instância e troca do ingresso admitem `suportaVisitas:true`,
+opcional. Só aceitam quando modo e manifesto também permitem. O resultado é
+gravado na criação; instâncias/sessões legadas continuam com `false`.
+Respostas sem solicitação conservam o contrato anterior, sem `visitas`.
+Recuperar uma abertura consulta o bit persistido: mudar modo ou acrescentar
+opção a um retry não promove a sessão. `visitas:true` descreve suporte técnico,
+sem conferir admissão, permissão atual ou concessão de visitante.
+
+Atestado positivo exige tanto sessão quanto instância com adesão persistida,
+além do kernel atual de membro/posse. Não existe escrita que atualize esses
+bits depois da criação. Recibo e encerramento próprios continuam disponíveis
+sem depender da habilitação. Nove novas integrações candidatas cobrem matriz
+de solicitação/modo/manifesto, repetição, compatibilidade e adesão de cada lado.
+SDK de visitas, renovação, convites e concessões continuam pendentes.
+
+O corretivo `6daed18f` já passou no job de integração `134540065185` do run
+`44226267662`: 814 testes/86 arquivos, cinco do Bastidores e upgrades 179→200
+e 191→200, preservando perfis, progresso, mundos, membros, fotos, diário,
+convites e cerca. Os demais gates ainda estavam em execução nesta leitura.
+Essa evidência não cobre o código de negociação acrescentado depois.
+
+Extensão candidata `ClienteDoHostComPresencas`: `atestarPresenca` usa a rota
+autenticada da instância e valida a resposta com o contrato compartilhado. O
+host básico/memória não passa a prometer visitas. Falha de rede não gera retry
+ou confirmação inventada; quem chama precisa repetir explicitamente a mesma
+chave, sem readmitir visitantes enquanto a situação não for conhecida.
+Quatro testes de transporte e uma integração HTTP real cobrem entrada/saída,
+escopo, resposta inválida, posse perdida e recuperação de recibo fechado com
+modo desligado. Ainda pendentes de execução remota; não integra o Morada.
+
+O run `44226267662` terminou com sete gates aprovados e E2E reprovado: 37
+jornadas aprovadas, uma falha em `familia-cadastro` por exigir aviso fixo de dez
+minutos. Artefato `14393781425`, fonte `6daed18f`, ZIP SHA-256
+`370c02236a75c0ddcd2e5650e099b31aa62fa7a6fe4cb3b25e09fcbcc3c3acb7`,
+conferido após download: o contexto registra aviso de **seis minutos**, às
+02h54 UTC/23h54 em Brasília. A projeção limita a sessão na virada do dia;
+integrações de tempo já exercitam `day_change`, inclusive horário de verão.
+O E2E candidato captura a resposta real de controle, exige limite de dez
+minutos, motivo diário/virada e prazo positivo de no máximo dez minutos, e
+confere o texto correspondente. Não altera orçamento, relógio ou autorização.
+
+Negociação `92c2010b` passou no job `134543207183` do run `44227206576`, com
+823 integrações/86 arquivos, cinco do Bastidores e upgrades 179→200/191→200.
+Os sete gates fora de E2E estavam aprovados na última leitura; não se declara
+aprovação integral enquanto a jornada de navegador não terminar.
+
+## Renovação candidata de presença
+
+`POST /api/interno/v1/presencas/renovar` recebe de 1 a 64 provas distintas e
+até 32768 bytes. Compartilha o teto de 240 pedidos por minuto por instância
+com o atestado; segredo/registro do jogo são obrigatórios. Só admite modo e
+manifesto habilitados. O contrato antigo de batimento não é alterado: o host
+renova primeiro as posses e depois informa somente conexões ainda presentes.
+
+Cada prova usa a admissão atual do membro, na ordem de travas do kernel,
+conservando capacidade persistida de sessão/instância, mundo, cerca, SID,
+perfil e membro. Processamento em grupos de quatro transações independentes,
+aguardadas inclusive em falha, evita inverter travas entre contas. Todas as
+consultas de autoridade de cada item continuam obrigatórias; esse limite não
+substitui a medição de consultas, latência e custo do F10.
+
+Presença encerrada, vencida ou de outra autoridade retorna somente `perdida`.
+Renovação aceita conserva identidade, chave, início, janela e retenção e limita
+a nova validade ao menor prazo entre 30 segundos, posse, SID e janela original.
+O prazo é reconferido após esperas até o commit. Não há reabertura nem extensão
+da janela de 24 horas. Manutenção/encerramento continuam separados. Assim como
+o batimento da posse, a atualização periódica não emite evento de auditoria a
+cada tick; criação, encerramento e expurgo mantêm seus eventos estritos.
+
+Um lote não é atômico entre itens. Falha operacional devolve HTTP de falha,
+mesmo que outro item já tenha renovado; o runtime precisa suspender admissões
+e respeitar seus prazos locais, sem presumir confirmação. Não converte falha
+de banco em `perdida`, nem emite recibo de encerramento de SID. O cliente HTTP
+valida quantidade, ordem e IDs da resposta e nunca repete automaticamente.
+
+Doze integrações candidatas cobrem lote misto, concorrência com saída,
+expiração/janela, SID encerrado, ativação desligada, corpo/tamanho/duplicação,
+identidade/cerca/instância e falha de banco ou prazo no commit. Cinco testes
+de transporte cobrem registro, recusas, correlação e resposta perdida.
+Ainda sem execução remota deste incremento; runtime, visitas e medição F10
+continuam pendentes. Nenhuma migration ou configuração foi ativada.
+
+## Fundação candidata de convite/concessão
+
+Quatro novas tabelas: `space_visit_invites`, decisões de mundo e responsáveis,
+e `world_visits`. Não se reutiliza `directed_space_invites` nem se acrescenta
+papel temporário a `space_members`. FK composta prende origem, mundo, SID e
+membro à presença original; outra FK prende a concessão ao convite, mundo,
+destinatário e presença. Aprovação parental só pode corresponder a uma das
+pontas e ao vínculo do próprio perfil. Gestão do mundo conserva sua revisão.
+
+Chave de repetição por origem, um pedido pendente por presença/destinatário,
+uma concessão por convite e uma concessão ativa por visitante/mundo. Prazo de
+convite/concessão de até 24 horas; retenção do convite em 720 horas exatas,
+sem aritmética por dia local. Estados terminais exigem datas/motivos não NULL.
+Índices cobrem caixas, presença, mundo, vencimento e retenção; FKs com nomes
+explícitos curtos. A retenção precisará remover concessões antes de convites
+e estes antes da presença referenciada, incluindo F7.
+
+Schema não comprova aceite, política atual, prazo da presença, classificação,
+amizade ou aprovação atual: serão conferidos juntos sob trava pelo serviço.
+Também não garante sozinho que uma concessão venha de convite aceito. Ainda
+sem escritor de concessões, API, admissão de visitante ou runtime. Geração
+aditiva será feita no GitHub; nenhum SQL/snapshot/journal escrito à mão.
+
+A negociação `92c2010b` concluiu os oito gates `44227206576`, com 823
+integrações e 38 E2E. A prova não cobre o cliente HTTP de presença ou a
+renovação acrescentados nas fontes posteriores. Produção permanece na 0190.
+
+Geração `44229091554`, fonte `5a56935c7c96a9e4b8bde070442d358c20bf517b`,
+artefato `14394471748`, ZIP SHA-256
+`d4b94e0945053485aa0c199bdde581718cd82d365ee768dd7717fc537894f1c2`.
+SQL só cria as quatro tabelas/índices/FKs/CHECKs, sem mudar tabelas antigas.
+Origem, allowlist, três arquivos, prefixo de 200 entradas, predecessor e
+nomes de até 63 bytes conferidos; cópia intacta por bytes/SHA:
+
+- `0200_tranquil_azazel.sql`: 12101 bytes,
+  `531137e2af74b29272f240227cf673f37561878ec72d04b9ba02c4dfa5b48ea3`.
+- Snapshot: 919710 bytes,
+  `fcf631f6e0f2b7451e6525532c195dd7036c4a0c517c68e2abb00995eab7caee`.
+- Journal: 30379 bytes,
+  `a51bf4f46c3d2c01a1a9046c5a644f87b24f8bdb7c3ab3c9f90afb1e15e20667`.
+
+Vinte e duas integrações candidatas de integridade exercitam associação da
+presença, não duplicação, caixas/estados, prazo, campos NULL, vínculo parental,
+decisão do mundo, concessão correspondente e ordem de retenção. Origem entra
+pela API real de membro; presença, convite/aceite e concessão são fixtures SQL
+explícitas. Mesmo com a fixture de concessão, APIs antigas recusam abertura,
+entrada e aceite de membro e nenhuma participação é criada. Isso não comprova
+o serviço de visita, suas aprovações atuais ou runtime. Journal candidato: 201.
+
+Renovação `0a7c0af2` passou nas 836 integrações/86 arquivos, cinco do Bastidores
+e upgrades 179→200/191→200 no job `134548057382`/run `44228674580`. Qualidade
+reprovou formatação remanescente da cadeia do novo E2E (segunda passagem do
+formatter corrigida e conferida sem escrita). Os avisos alheios escondiam o
+erro no limite de diagnósticos; o workflow passa a mostrar erros, mantendo
+os mesmos checks e a mesma severidade, sem supressão de regra.
+
+Checkpoint teve uma falha no minuto real: a preparação de salvamento registra
+`left` se o cliente parar conservadoramente antes do prazo assinado, ou
+`expired` ao vencer. O teste aceitava só o segundo. A expectativa candidata
+exige o par exato de sessão encerrada por `left`/`expired`, ou assinatura
+inválida após a tolerância; continua exigindo orçamento real, progresso
+confirmado, escrita recusada e relatório privado. Não muda timer, prazo,
+auditoria ou autorização no produto. Evidência integral corretiva pendente.
+
+## Retenção candidata de visitas
+
+Manutenção expira convites pendentes e concessões pelo próprio prazo, em
+lotes de até 500 com `SKIP LOCKED`, sem alterar membros, SID, mundos ou dados.
+Estado terminal, relógio e auditoria estrita são confirmados juntos. Expurgo
+trava no máximo 500 recibos terminais depois da retenção e recusa apagar
+qualquer concessão ainda ativa. Apaga primeiro concessões encerradas e depois
+convites (aprovações em cascata), atomicamente com o evento de contagens.
+Uma falha de auditoria reverte também as remoções.
+
+A manutenção executa essa limpeza antes da presença. Expurgo de presença
+agora também exclui da seleção qualquer prova referenciada por um convite,
+inclusive quando ainda faltam lotes de retenção. FKs continuam restritivas;
+não se contorna referência com `CASCADE` nem se apaga participação. Seis novas
+integrações candidatas: expiração idempotente, dois rollbacks reais de
+auditoria, 500+101 recibos/concessões históricos, presença referenciada e
+concessão ativa preservada. As 601 linhas são histórico sintético por SQL,
+sem alegar 601 jogadores ou admissões de visita.
+
+Migration 0201 acrescenta quatro índices para consulta reversa da presença,
+vínculo parental e membro aprovador. Não basta o índice parcial de convites
+pendentes para expurgar uma presença referenciada por recibos encerrados.
+Geração `44230815797`, fonte `84e66b632afaefc920eac3dbab8cac0b64fa7216`,
+artefato `14394208647`, ZIP SHA-256
+`780df1f9dacce9a8bbf63bd4ce1cfc248a7c5430c55ccc1dcb7b41f97bb559b7`.
+Origem, allowlist, prefixo de 201 entradas, predecessor, quatro `CREATE INDEX`
+e cópia intacta conferidos:
+
+- `0201_messy_owl.sql`: 590 bytes,
+  `c2b3367837c8852fb1566a6f30503fda5330dc3046ebd839fed8d7b036f2b2e7`.
+- Snapshot: 921763 bytes,
+  `571f6e81b7f0a89c93aa82a4fbe33a909c4b798532ab70c3e0559838227d2608`.
+- Journal: 30518 bytes,
+  `4c978f2ecbd3d49552f0d6d0a47446b263e00a46c24963ffaa0441fb608f9974`.
+
+Fundação/corretivos `e30cdbc8` já passaram em qualidade, 858 integrações/87
+arquivos, cinco do Bastidores, upgrades 179→201/191→201 e no checkpoint do
+minuto real. E2E ainda em execução nesta leitura. Retenção e índices acima
+ainda não fazem parte desse resultado. Journal candidato atual: 202; produção
+conserva 191 recibos/0190 e nenhuma admissão de visitante está habilitada.
+
+## Contexto candidato do anfitrião atual
+
+A composição de contas → mundo → perfis pode consultar o namespace explícito
+de visitas. Entradas legadas continuam presas ao namespace de membro; não
+existe seletor de namespace na API. Compartilha-se a composição de identidade,
+sem compartilhar recibos, aprovações ou efeito de participação.
+
+Nova escrita positiva interna exige social/visitas habilitados, manifesto,
+instância e SID com suporte persistido. Relê presença, SID, aparelho, conta,
+cobertura e política do anfitrião pelo kernel existente. Usa a conta já
+travada da composição, sem inferir autoridade do recibo técnico ou tomar nova
+conta fora da ordem. Também confere membro permanente ativo, responsável ou
+coadmin coerente, posse/cerca atuais, instância ativa e prazos da sessão e da
+presença. Confere novamente o prazo após o callback; espera que o atravessa
+reverte o efeito. Presença nova não substitui a identidade original do convite.
+
+Nove integrações candidatas exercitam contexto positivo, separação de
+namespace, fim de SID/aparelho/cobertura/posse/presença, nova presença, prazo
+durante o efeito e modo desligado. Convites desses testes são fixtures SQL;
+isso não representa envio, aprovações, aceite, concessão ou entrada de visita.
+Os futuros serviços ainda precisam conferir amizade, conteúdo, revisões,
+aprovações, prazo do convite e limites do mundo. Nenhum endpoint de visitante
+foi publicado por este contexto.
+
+Fundação `e30cdbc8` concluiu os oito gates `44230126377`, com 858 integrações,
+upgrades com dados e checkpoint real aprovados. Retenção `566c1d3a` continua
+em verificação no run `44231363456`. Esse resultado ainda não cobre os nove
+testes e o contexto acrescentados depois dessas fontes.
+
+Retenção `566c1d3a` concluiu os oito gates `44231363456`, com 864 integrações
+e upgrades 179→202/191→202. Contexto `468008de` passou em 873 integrações e nos
+sete gates fora de E2E; navegador ainda em execução na leitura deste registro.
+
+## Emissão candidata de convites de visita
+
+Serviço interno com corpo estrito: mundo, destinatário, presença original e
+UUID de tentativa. O perfil de origem vem do autor autenticado. Nova emissão
+revalida ambas as pontas, amizade, bloqueios, regras infantis/conteúdo,
+permissão de convidar e anfitrião atual. Participante com política `yes` pode
+convidar para visitar sem texto opaco de participação. `with_approval` conserva
+pedido pendente sem decisão do mundo; `no` recusa. Nenhum desses fatos substitui
+aprovação parental.
+
+Membro atual/afastado/sem acesso não recebe visita para contornar o vínculo.
+Ex-membro pode receber convite, mantendo a participação antiga como `former`.
+Somente convite e eventual decisão automática do mundo são gravados, com
+auditoria estrita; não se cria concessão, SID ou participação permanente.
+Expiração é o menor prazo entre 24 horas e a janela original da presença, sem
+alongar no replay. Recebimento/reentrada ainda exigirão todos os demais fatos.
+
+Uma tentativa repetida recupera só recibo técnico próprio (IDs, jogo, estado,
+datas), mesmo após fim da presença, bloqueio, perda de cobertura e modos
+desligados, com identidade nativa atual. Não devolve presença, nomes ou prova
+de autorização atual. Corpo divergente conflita. Outra chave para o mesmo
+pedido pendente exige resolvê-lo antes. Teto de 20 tentativas/10 minutos por
+origem, 64 pendências por mundo e 1000 recibos na união origem/destinatário.
+São limites da fila, não número de jogadores admitidos.
+
+Dezenove integrações candidatas cobrem amizade real, concorrência/replay,
+recuperação gratuita reduzida, nonce divergente, bloqueio, políticas do mundo,
+participação existente/ex-membro, rollback de auditoria/prazo, corpo estrito
+e histórico retido sem apagar recibos para abrir espaço. Papéis/membros e
+as mil linhas históricas são fixtures SQL explícitas; não alegam mil jogadores
+ou homologação do fluxo de gestão. SDK/HTTP de visitas, aprovações, aceite,
+admissão/runtime e interface continuam pendentes; serviço não exposto em rota.
+
+Releitura da proposta privada `paginas/recreio.html` v2.2 confirma: visitas
+não são membros, terminam com a saída do anfitrião ou em 24 h e exigem convite
+novo para voltar. `membrosMax` deve ser medido; o teto de filas acima não é
+prova de capacidade de jogo. Mantém-se a medição remota do F10/F11.
+
+Contexto `468008de` concluiu os oito gates `44232334360`, com 873 integrações.
+Emissão `fb75f103` passou nas 892 integrações/88 arquivos, cinco do Bastidores,
+upgrades 179→202/191→202 e sete gates fora do navegador; E2E ainda em execução.
+
+## Aprovações nativas candidatas
+
+O mesmo coordenador nativo de identidade e travas atende os dois namespaces
+por carregadores tipados separados. Chamadas antigas continuam consultando
+somente convites de membro; não há campo de namespace aceito do navegador.
+Aprovação de visita relê amizade, conteúdo, versões, responsável e anfitrião
+atuais, com login nativo recente do decisor e confirmação explícita.
+
+Decisão parental grava vínculo, geração de acesso e versão da política de
+cada menor; a conta precisa ser sua responsável atual. Decisão do mundo grava
+membro aprovador e revisão da gestão; se o mundo é cuidado por menor, o adulto
+responsável decide com a própria conta, sem usar o aparelho infantil. Pagamento
+não concede nenhum desses poderes. Decisor nativo não precisa de plano ou
+perfil próprio de jogador; a presença do anfitrião continua exigindo cobertura.
+Recuperação de prova exige igualdade atual e não atualiza silenciosamente uma
+aprovação antiga. Alteração relevante exige convite novo.
+
+Doze integrações candidatas cobrem gestor sem plano, replay/auditoria únicos,
+destinatário sem gestão, login/gestão/anfitrião perdidos, responsável sem
+jogador nem plano, decisões parental e de mundo independentes, gestão de
+mundo infantil, adulto alheio, versão/consentimento divergentes e dois
+rollbacks de auditoria. Amizade e aprovação social usam os serviços reais;
+papéis de gestão no mundo são fixtures SQL explícitas. Ainda sem concessão,
+entrada de visitante, interface ou rota pública. Gates desta candidata pendentes.
+
+Aprovações `42900ed9` concluíram os oito gates `44235115992`; emissão anterior
+`fb75f103` também concluiu os oito gates `44233704383`. A próxima candidata
+acrescenta aceite/concessão e redução, sem admissão de jogo.
+
+## Concessão e redução candidatas
+
+Aceite pertence ao destinatário atual, com cobertura de jogo, amizade,
+conteúdo, versões/gerações, decisões de mundo e de cada menor relidas junto
+do anfitrião/posse atuais. Cria `world_visits`, conserva prazo e presença
+originais e não cria membro ou SID. Uma concessão ativa por visitante/mundo;
+outra precisa ser encerrada antes. Vencida é expirada com evento estrito antes
+de nova concessão, na mesma transação. Aceite, concessão e auditoria revertem
+juntos se qualquer prova vencer ou a auditoria falhar.
+
+Provas parentais/de mundo usam o mesmo validador tipado dos convites de membro,
+com tabelas separadas; só a visita permite decisão direta de membro com
+`membersInvite=yes` sem participação opaca. O validador de visita também
+admite estado aceito para a futura revalidação contínua, sem mudar o leitor
+legado de membros. Retorno do aceite é recibo, sem token ou promessa de entrada.
+
+Revogação pela origem, recusa/saída pelo destinatário e redução do responsável
+atual por seu menor não exigem plano, amizade, presença da outra ponta ou modo
+habilitado. Não tomam autoridade da outra família. Conservam o fato de aceite
+e encerram só a concessão própria; até mundo excluído logicamente permite essa
+redução. Não encerram o anfitrião nem uma partida da pessoa em outro mundo.
+Repetição recupera o fato anterior, sem alongar/reabrir. Leitor mantém trava no
+recibo para não observar metade de expurgo; aceite sem concessão é falha
+operacional explícita, sem fabricar dados para dizer que houve sucesso.
+
+Vinte integrações candidatas cobrem concorrência/replay, protocolo legado
+recusando visitante, decisões/cobertura independentes, prova de gestão/política/
+aprovação/presença/bloqueio atual, destinatário correto, concessão anterior,
+redução gratuita, partida alheia preservada, proteção parental, expiração no
+commit, dois rollbacks de auditoria, inconsistência explícita, mundo excluído
+e ex-membro sem restauração. Role/histórico/inconsistência são fixtures SQL
+identificadas; não comprovam o fluxo de exclusão F7. SDK/HTTP, ponte de SID de
+visitante, abertura/renovação/checkpoint/encerramento na instância e interface
+ainda pendentes. Nenhuma visita de jogo é admitida por este incremento.
+
+Concessão `79202b31` concluiu os oito gates `44237514615`, com 924 integrações
+em 88 arquivos, cinco do Bastidores e upgrades 179→202/191→202 preservados.
+
+## Ponte de sessão em implementação
+
+Cada SID visitante declara uma única finalidade antes de receber token e
+margem de salvamento. `world_visit_sessions` distingue intenção preparada,
+admissão atual de curta duração e encerramento. Uma visita conserva vários
+SIDs históricos, mas no máximo um admitido; troca de aparelho precisa da
+prova durável de checkpoint e do ingresso que abriu o sucessor. Saber o ID
+da visita ou criar uma intenção não concede entrada nem cria membro.
+
+Fundação aditiva, sem alteração de linhas antigas ou capacidade do Morada.
+Geração da migration, restrições em PostgreSQL e integração do protocolo
+continuam pendentes. A retenção deve remover os vínculos antes da concessão,
+sem apagar SID ou declarar um salvamento inexistente.
+
+Gerada no GitHub em `44239815576`, fonte `f4e875e3`, artefato `14398997670`:
+0202 `lively_nick_fury`, 4045 bytes,
+SHA-256 `bb21778799b1f7c49ac73c4e7d928d464261dc6277a6cf40fdf263312e21ed06`.
+ZIP `ff2906c86141bb031964c6f89c368eb3a7891405437d498de4f4058b03ebd86b`;
+proveniência, três caminhos, bytes/SHA, prefixo dos 202 recibos e predecessor
+do snapshot conferidos antes da cópia. DDL contém só a tabela, suas FKs,
+restrições e índices; nomes curtos, sem backfill ou aplicação em produção.
+
+A candidata fixa `visitaId` antes de emitir o primeiro token e a margem de
+salvamento: ambos respeitam a janela original da concessão. Recuperação não
+omite/troca finalidade, e renovação não amplia seu prazo. Preparação relê
+somente restrições da própria sessão; não toma travas da outra família ou
+admite entrada no mundo. Admissão completa pertence à API da instância.
+Um SID preparado/encerrado não passa pelo leitor de membro, mesmo após uma
+mudança de papel. Até 128 intenções históricas por visita limitam o abuso de
+aberturas, sem apagar recibos nem prometer capacidade simultânea.
+
+Retenção mantém raiz/concessão/vínculos enquanto algum SID vinculado está
+aberto; após encerramento real, remove vínculos antes da concessão e raiz,
+atomicamente com a auditoria. Não apaga SID ou prova de salvamento. Integrações
+candidatas cobrem o protocolo real de abertura/renovação e fixtures explícitas
+para restrições/retencão; gates pendentes. Entrada, troca entre SIDs com prova
+de checkpoint, runtime, interface e ativação continuam abertos.
+
+Sessão `4f4a772e` passou nas 947 integrações/89 arquivos, cinco do Bastidores,
+upgrades 179→203/191→203 e sete gates fora do navegador (`44240677665`).
+E2E ainda não concluído na conferência deste registro.
+
+## Admissão e checkpoint candidatos
+
+`POST /api/sdk/v1/visitas/abrir` confere o SID com finalidade de visita e
+orienta somente à instância/posse originais. Não aloca instância, reatribui
+cerca, admite SID ou devolve membro/papel. A API autenticada da instância
+`/mundos/{id}/visitas/entrada` compõe contas → mundo → perfis, relê amizade,
+versões, aprovações, cobertura das duas pontas, presença/SID do anfitrião,
+posse e finalidade do visitante. Admissão vincula o SID a esse mundo e emite
+permissão de até 30 segundos, limitada por todas as concessões envolvidas.
+Reconexão do mesmo SID repete o vínculo; não renova sessão ou janela da visita.
+
+Membros e visitantes disputam o mesmo teto de SIDs em `jogadoresSimultaneosMax`.
+Visitas exigem o teto declarado e válido no manifesto; leitores de membro
+também o aplicam sob a trava do mundo. O valor oito é somente orçamento da
+fixture interna; não comprova carga, hardware ou capacidade de um jogo público.
+Morada continua sem `visitas`, sem alteração de catálogo/pin de produção.
+
+Sucessor precisa do checkpoint F3 confirmado, fotografia posterior com hash,
+ingresso consumido para aquele SID/aparelho e antecessor realmente encerrado
+como `replaced`, no mesmo mundo/cerca/política/concessão. Conserva as duas
+linhas e um único vínculo ativo; saída comum não é prova de continuidade.
+Checkpoint e salvamento de saída aceitam somente admissão anterior daquele
+SID/mundo, inclusive após perda da visita; intenção preparada não autoriza
+salvar mundo. Esse leitor só reduz/conclui a sessão e não concede gameplay.
+
+Integrações candidatas usam rotas, transporte real, concorrência, decisões
+atuais, capacidade compartilhada, rollback de auditoria, salvamento após
+revogação e troca real com fotografia/checkpoint. Papéis de membros no ensaio
+de orçamento são fixtures SQL; não é medição F10 ou homologação humana.
+Testes do transporte recusam resposta de membro, concessão divergente e rede
+perdida sem repetição automática. Gates pendentes desta candidata.
+
+Ainda faltam heartbeat em lote de visitantes, encerramento técnico com cursor,
+integração no SDK/runtime/interface, jornadas familiares e homologação remota.
+Nenhuma visita foi habilitada em produção e F5/F6–F11 continuam abertos.
+
+### Correção do coletor de controle E2E
+
+A rodada `44240677665` terminou com sete gates aprovados e falha no navegador:
+37 E2E passaram; `familia-cadastro` capturou uma resposta de controle e deixou
+para ler seu corpo depois da navegação (`Network.getResponseBody: No data found`).
+A candidata passa a identificar o controle pelo token da abertura nova e ler
+os dois corpos imediatamente nos respectivos eventos. Conserva a prova da
+pausa real informada pelo servidor, incluindo virada do dia; não muda relógio,
+limite, tentativas ou comportamento do produto. Nova qualificação necessária.
+
+## Renovação em lote candidata
+
+`POST /api/interno/v1/visitas/renovar` recebe de 1 a 64 provas distintas de
+SID/vínculo, em até 32 KiB, autenticadas pela instância. Cada item relê a
+admissão completa e exige vínculo já ativo com a identidade fornecida; nunca
+admite intenção preparada, troca SID ou amplia a janela da visita. Modo
+desligado devolve negativas, sem alegar que houve encerramento de sessão.
+
+Até quatro transações são admitidas por vez; `allSettled` aguarda todas,
+inclusive diante de falha. Recusas de autoridade devolvem somente o ID do
+vínculo e `perdida`. Falha desconhecida/de banco/auditoria continua erro HTTP;
+um item já confirmado em outro mundo pode ter sido renovado, portanto o host
+precisa pausar os comandos até nova prova quando a resposta falhar. Ordem e
+identidades de toda a resposta são conferidas pelo transporte, sem repetição
+automática. Antes do lote, o runtime deve renovar posses e presenças.
+
+Integrações candidatas cobrem vínculo atual, intenção preparada, identidade,
+lote misto, revogação/modo/SID vencido, falha real do PostgreSQL com rollback
+do item e corpos vazios/duplicados/excedentes. O transporte confere corpo,
+quantidade/identidade e perda de rede. A prova de SID vencido altera o prazo
+da fixture; não substitui o ensaio de minuto real ou afirma encerramento.
+Gates pendentes; encerramento técnico, SDK/runtime e jornada continuam abertos.
+
+Admissão `67cb5bb8` concluiu os oito gates `44242328850`: 964 integrações/89
+arquivos, cinco do Bastidores, upgrades 179→203/191→203. A correção do coletor
+do navegador `a61b5b91` e a renovação em lote `abb2a47e` seguem em qualificação.
+
+## Encerramento técnico candidato
+
+`/mundos/{id}/visitas/encerrar` aceita somente o vínculo/SID/perfil/visita e
+instância/cerca originais. Não exige modo habilitado, cobertura, anfitrião
+online, posse vigente ou perfil ativo para reduzir esse acesso. Serializa
+mundo → perfil → raiz/concessão/vínculo → cursor global → SID; não toma SID
+antes do cursor nem usa admissão positiva para justificar encerramento.
+
+Fecha somente o SID vinculado, com sequência real e auditoria atômica, e
+encerra sua concessão quando não existe sucessor legítimo. Checkpoint F3
+completo e ingresso ligado ao novo SID preservam a concessão para o sucessor;
+uma intenção antiga que nunca entrou também não revoga outra já aberta na
+mesma concessão. Mensagem atrasada nunca encerra a partida nova. Histórico de
+revogação e datas de encerramento anteriores são conservados, inclusive
+quando a admissão do sucessor lê um antecessor já fechado pelo host.
+
+O recibo exige `sidEncerrado=true` conferido no banco e informa separadamente
+se a visita terminou. Não afirma salvamento: permissão ainda `ready` não vira
+`completed` por causa da saída. Fotografia/hash e ACK continuam obrigatórios
+no protocolo próprio. Falha da auditoria reverte também o SID e seu cursor.
+
+Integrações candidatas cobrem repetição/concorrência, intenção preparada,
+fechamento após perda de posse/cobertura/modo/anfitrião, identidades divergentes,
+revogação anterior, outra partida preservada, intenção antiga e sucessor,
+dois rollbacks de auditoria e checkpoint com fechamento antes/depois da
+entrada do sucessor. O transporte recusa ID divergente, SID aberto, ACK
+inventado e rede perdida, sem repetição automática. Gates pendentes.
+
+Ainda faltam manutenção das sessões visitantes órfãs, integração no
+SDK/runtime/interface e jornadas familiares. Não foi habilitado em produção.
+
+A manutenção das órfãs está em preparação: leitura limitada aos vínculos
+ainda não encerrados, com índice parcial próprio, seguida do mesmo fechamento
+restrito por mundo/perfil/cursor. Prazos/encerramentos do SID, concessão,
+anfitrião ou posse são fatos de perda; somente o cache local vencido não deve
+revogar uma visita válida que pode ser revalidada. Geração da migration e
+provas da rotina ainda pendentes.
+
+Migration 0203 `demonic_monster_badoon` gerada no GitHub em `44244438428`,
+fonte `1e8e83ed`, artefato `14401425587`: um único índice parcial, 167 bytes,
+SHA-256 `6d1cdc0147a7c2f91cea00dcfaba7f8deafcff1f1570e909cada53d2af2373ff`.
+ZIP `afd9ef6619d022ec8670d5f977605d6cd548cfe36a7da02dbeca49998553307e`;
+proveniência, três caminhos/bytes/SHA, prefixo dos 203 recibos e predecessor
+do snapshot conferidos antes da cópia. Sem alteração de dados ou aplicação.
+
+Worker candidato seleciona até 100 vínculos não encerrados com perda
+persistida de SID, concessão, anfitrião, mundo ou posse original. Seleção não
+toma SID/cursor; até quatro encerramentos usam o mesmo coordenador restrito
+e aguardam todos os admitidos. Falha desconhecida/auditoria continua falha
+da manutenção; recibo expurgado concorrentemente é ignorado sem conceder nada.
+O contador `sessoesDeVisitaOrfaConferidas` mede candidatos conferidos, não novas
+sessões, novos encerramentos ou consumo financeiro. Repetição encontra os
+vínculos já fechados fora do índice parcial.
+
+A rotina vem depois da expiração real dos SIDs e antes da retenção de visitas.
+Não depende de uma instância responder HTTP e não transforma cache vencido
+em revogação. Sete integrações candidatas cobrem cinco perdas independentes,
+cache técnico vencido com revalidação e falha/retomada da auditoria; o ensaio
+real de checkpoint também recolhe o antecessor antes de admitir o sucessor,
+preservando concessão e datas. Arquivamento/cache são fixtures identificadas.
+Gates pendentes; SDK/runtime/interface e jornadas ainda não concluídos.
+
+Coletor de controle `a61b5b91` concluiu os oito gates `44242614129`, incluindo
+o navegador. A renovação `abb2a47e` passou nos sete gates fora do navegador;
+seu E2E e o encerramento `224f6586` ainda estão em andamento nesta conferência.
+
+### Cancelamento HTTP e fixtures de negociação
+
+`abb2a47e` concluiu os oito gates `44243218276`. O encerramento `224f6586`
+falhou em `44244085538`: 985 integrações passaram e duas fixtures enviaram
+`suportaSalvamento=false`, apesar do contrato ser `true` ou ausente. O helper
+passa a omitir a capacidade desativada, como o SDK real; o contrato não muda.
+
+Nesse mesmo run, 37 E2E passaram e a leitura CDP do controle voltou a falhar.
+Artefato `14401850952`, ZIP SHA-256
+`87a53a3f0a72f9e0989ee29b2ee50ec148bf41d81b53036248b142333434f5d3`,
+fonte `224f6586`, conferido antes da inspeção local leve. Captura mostra a
+partida pronta com aviso real de dez minutos; rede registra controle 200,
+sem nova navegação e sem corpo recuperável no CDP. A atribuição anterior à
+navegação era incompleta. Headers/tokens do rastreamento não foram impressos.
+
+O helper `comPrazoDePedido` abortava incondicionalmente no `finally`, inclusive
+depois de consumir com sucesso o corpo. A candidata conserva somente a limpeza
+do timer no sucesso e aborta em falha/prazo, sem alterar duração, repetição ou
+admissão. Duas regressões verificam sucesso sem cancelamento tardio e falha
+com cancelamento/erro original; permanecem as provas de timeout e corpo
+pendurado. Novo ensaio remoto precisa confirmar a correção no navegador.
+Sem fallback de leitura, atraso, retry ou afrouxamento do teste.
+Referência: [Fetch, abortar uma operação](https://fetch.spec.whatwg.org/#abort-fetch).
+
+Órfãs `d89fa2c1` terminou `44244955296` com sete gates aprovados, incluindo
+E2E. Integração teve 992 aprovações e somente as duas fixtures de `false`
+já identificadas; o incremento não fica homologado por isso. Correção
+`abcce468` segue em qualificação remota (`44246163559`).
+
+## Finalidade no SDK candidata
+
+`criarRecreio` negocia visitas explicitamente e recebe `visitaId` antes da
+troca de ingresso. UUID/capacidade inválidos são recusados antes de qualquer
+pedido; servidor sem confirmação exata da finalidade não cria contexto ou
+agenda renovação. `contexto.visita` só existe no SID de visitante confirmado,
+com ID fixo e `abrir()` para a API própria. Resposta divergente ou de membro
+é recusada, sem fallback de autoridade ou repetição do pedido. Contexto de
+anfitrião/cliente anterior não ganha uma finalidade de visitante.
+
+O SDK usa o token atual após renovar e bloqueia chamadas depois de sair.
+`mundos.abrir` não é o caminho de visita, mesmo que a participação tenha
+mudado depois; os leitores do servidor também mantêm essa barreira. Esta
+capacidade não cria membro, aprova convite ou admite na instância por si só.
+
+Regressões candidatas cobrem negociação, IDs, versões, respostas divergentes,
+rede, token renovado e saída. Uma integração usa SDK e transporte reais até
+as rotas, admissão/encerramento autenticados da instância e a prova de que
+continua havendo só o membro original. Sem temporizador de renovação em
+segundo plano nessa fixture; não é ensaio de tempo/desempenho. Gates pendentes.
+O runtime, portal e interface de convites ainda não consomem esta finalidade.
+
+## Prazo monotônico do runtime em preparação
+
+Antes de consumir uma permissão curta, o host precisa conhecer a duração
+restante pelo relógio do Recreio. Entrada e renovação candidatas passam a
+retornar `agora` junto de `permissaoAte`, conferidos como janela positiva de
+até 45 s (emissão continua 30 s). A capacidade de visitas segue desligada em
+produção; os contratos básicos existentes não recebem esses campos.
+
+`prazoLocalDaVisita`, exportado pelo host junto da interface de visitas,
+calcula o limite no relógio monotônico do processo a partir do instante de
+envio e da duração informada. Desconta toda a ida/processamento/volta e
+conserva um limite já passado se a resposta atrasou. Não reinicia trinta
+segundos ao receber, usa a hora civil local ou amplia uma concessão. O jogo
+precisa conferir esse limite em cada comando e novamente ao executar sua
+fila, pausando diante de vencimento/resultado desconhecido.
+
+Regressões candidatas cobrem deslocamento de data civil, latência, resposta
+atrasada, relógio inválido/sem precisão e janela inválida. Os receipts reais
+de entrada/renovação e o transporte passam pela mesma validação de janela.
+Gates pendentes; isso ainda não representa integração do runtime ou prova F10.
+
+Correção `abcce468` passou nas 994 integrações/89 arquivos, cinco do Bastidores
+e upgrades 179→204/191→204 em `44246163559`; sete gates aprovados, navegador
+ainda em execução na conferência deste registro.
+
+## Consulta de recibo sem atestar presença
+
+A recuperação por repetição de `entrar` é adequada enquanto há uma conexão
+real. Para limpar uma conexão já fechada com resposta perdida, o produtor
+precisa de consulta pura: `/mundos/{id}/presencas/consultar`, corpo sem operação
+de escrita, nonce e fatos originais; retorna `{ presenca: recibo | null }`.
+Instância/jogo/chave e hash do pedido delimitam o recibo. Não cria, renova,
+encerra, emite nova autoridade ou registra nome/conteúdo.
+
+Consulta própria continua possível após fim de SID/cobertura e modo desligado.
+Um recibo `active` é histórico técnico e não prova presença/autoridade atuais;
+o produtor deve usar admissão/renovação reais para jogar. `null` só significa
+ausência no instante da leitura: escrita já enviada pode ainda confirmar.
+O produtor precisa conservar nonce/pendência até resolver o recibo e encerrar
+a presença original ou observar o SID encerrado; nunca emitir novo atestado
+depois de saber que a conexão fechou apenas para descobrir se o primeiro
+pedido confirmou. Falhas permanecem desconhecidas, sem repetição automática.
+
+Oito integrações candidatas cobrem leitura sem mudança/auditoria, ausência
+com membro/SID/posse ainda válidos, recuperação gratuita, três divergências
+de corpo, outra instância e autenticação/corpo estrito. Quatro regressões do
+transporte cobrem nulidade, recibo fechado, rede e instância registrada.
+Gates pendentes; produtor de presença/visitas no título interno ainda aberto.
+
+### Observação HTTP do ensaio familiar
+
+`abcce468` concluiu os oito gates `44246163559`. A candidata do SDK
+`f3dfddcc` voltou a ter apenas falha E2E em `44246588752`: desta vez o CDP
+não recuperou nem o corpo da abertura de sessão. Cancelar uma operação
+concluída era incorreto e foi corrigido com regressão própria, mas isso não
+explicava sozinho a indisponibilidade intermitente da captura do DevTools.
+
+O ensaio passa a observar uma única resposta HTTP real de controle dentro do
+interceptador já usado pelo aparelho de teste, preservando o IP sintético.
+Encaminha o pedido original com cabeçalhos completos por contexto HTTP sem
+cookies compartilhados, sem retry/redirect; entrega exatamente os mesmos
+bytes/status ao navegador e confere corpo e tela. Não substitui respostas,
+altera limites, injeta dados ou muda o teste de minuto real. O contexto HTTP
+é descartado após a entrega. Erro de transporte/parse continua falha do teste;
+não há leitura alternativa ou repetição silenciosa se falhar.
+
+A captura fica somente no código de E2E; os componentes e APIs do produto
+continuam usando seus transportes reais. Serve para observação de fatos e
+interface, sem alegar medição de latência do fetch do navegador. Referência:
+[Playwright: contexto HTTP isolado](https://playwright.dev/docs/api-testing#context-request-vs-global-request).
+Nova qualificação necessária.
+
+## Produtor de presença por conexão candidato
+
+`packages/recreio/src/host/presenca-da-conexao.ts` mantém uma única chave
+de entrada por conexão física já admitida. Não possui timers ou retry
+automático. Serializa atestados, conserva a intenção de sair durante uma
+resposta em voo e relê a conexão depois de consultar/atestar. Recuperar uma
+entrada incerta depois de desconectar usa apenas consulta e saída; ausência
+na consulta não encerra a pendência. Recibo fechado é terminal nesse produtor.
+Saída com resposta divergente ou sem prova continua pendente e propaga erro.
+
+O pedido de renovação só é exposto enquanto o socket/participação ainda está
+atual. O host deverá agrupá-los após renovar as posses, limitar pendências e
+manter as recuperações negativas depois da saída. O helper não admite
+visitantes e não substitui a conferência integral das APIs do Recreio.
+
+Regressões candidatas incluem desconexão durante a entrada, resposta perdida,
+consulta ausente seguida de commit tardio, tentativa de reabrir produtor
+encerrado e saída incerta. Duas integrações usam HTTP/rotas/PostgreSQL reais,
+descartando a resposta somente depois do commit para provar fechamento único,
+auditoria atômica e preservação do SID/membro. Runtime real, UI e jornadas
+de visita continuam pendentes. Sem migração adicional ou implantação.
+
+Próximos passos desse incremento: ligar o produtor ao servidor interno do
+contador e ao bit negociado no SDK; agrupar renovação após posse, fechar ao
+desconectar e recuperar pendências sem criar presença. Depois integrar entrada
+de visitante sem alocar mundo, prazo monotônico nos comandos e encerramento
+com persistência comprovada. Rodar os oito gates no GitHub a cada candidata.
+
+## Presença ligada ao servidor de referência, candidata
+
+O contador interno negocia o bit na instância e no SID. A página pede a
+capacidade somente para manifesto que a declara e com modo ligado; o SDK
+expõe o fato imutável `sessao.visitas`. O quadro WebSocket solicita atestado,
+mas a API privada continua relendo os bits persistidos, membro, SID e posse.
+Só o contador interno declara visitas e limite simultâneo oito; não é prova
+de desempenho, classificação pública ou alteração no manifesto do Morada.
+
+`e2e/servidor/presencas.ts` mantém até 512 pendências técnicas, recupera quatro
+por vez e agrupa até 64 renovações. A conexão física é relida após esperas;
+saída, substituição, desconexão e início de salvamento fecham o produtor.
+Troca de socket/SID espera o recibo anterior fechar antes de usar outra chave.
+A fila negativa sobrevive à remoção do jogador. Falha aparece no log técnico,
+sem nome/perfil/token e sem declarar que um fechamento foi confirmado.
+
+A sincronização roda separada do batimento de posse: uma falha de rede não
+pode consumir o prazo da posse enquanto espera os lotes. Cada registro de
+instância usa um cliente HTTP novo, preservando a identidade dos pedidos
+anteriores. Se o Recreio rejeita a instância, todos os mundos param; tenta-se
+fechar seus recibos com a identidade antiga antes/ao preparar outro registro.
+Pendências não confirmadas dessa geração deixam de ser observadas pelo novo
+registro; autoridade integral, prazo original e limpeza do servidor continuam
+obrigatórios, como no encerramento abrupto de um processo. Não se convertem
+essas pendências em recibos fechados ou ACKs fictícios.
+
+O ambiente descartável passa a ativar visitas explicitamente. A nova jornada
+de navegador só observa agregados do PostgreSQL: nenhuma presença antes de
+abrir o jogo, uma presença/SID e membro, renovação pelo batimento enquanto o
+socket está conectado e fechamento após saída real, conservando o membro.
+Não injeta atestado nem reduz tempos. Runtime e UI de visitante continuam
+pendentes; não há implantação ou migração de produção neste incremento.
+
+Evidência anterior consultada em 18/11: `139aa64f` concluiu os oito gates
+`44249166071`, 1003 integrações e upgrades com preservação 179→204/191→204.
+`7cfcae2c` também concluiu os oito gates `44248428950`. Produtor `de8e1ea6`
+tem qualidade e 1005 integrações aprovadas em `44250374730`; pipeline ainda
+em curso na consulta. Esta ligação ao runtime exige nova rodada completa.
+
+## Vínculo preparado e guarda local, candidatos
+
+A abertura autenticada entrega `sessaoDeVisitaId`, já preparado para o SID
+atual. O SDK conserva esse vínculo nas reconexões e recusa substituição
+silenciosa. A admissão privada exige esse ID e o confere antes de qualquer
+escrita de entrada. O recibo privado acrescenta `presencaDoAnfitriaoId`, que
+não sai na abertura do navegador e identifica a conexão original a observar.
+Não há membro, papel ou novo direito nesses identificadores. A API negativa
+existente pode encerrar uma admissão cuja resposta se perdeu usando o vínculo
+da abertura, ainda exigindo SID/perfil/mundo/instância/cerca originais.
+
+`criarPermissaoDeVisita` no `/host` prepara a guarda local da admissão: usa
+tempo monotônico conservador e a conexão original do anfitrião. Prazo vencido
+ou resposta incerta suspende; somente renovação integral nova libera de novo.
+Anfitrião ausente/trocado ou negativa explícita encerra de forma terminal.
+Resposta de outro vínculo, repetida, antiga ou com prazo inválido não mantém
+o cache positivo. O jogo deverá conferir ao receber o comando e novamente
+antes de aplicá-lo na fila; o helper sozinho não comprova esse uso no runtime.
+
+As regressões candidatas cobrem comando que vence na fila, corte físico,
+renovação após falha, resposta velha e vínculo divergente sem admitir o SID.
+Uma integração descarta a resposta de admissão e encerra pelo recibo anterior,
+conservando host/membro e a permissão de salvamento em `ready`, sem ACK.
+A troca de aparelho obtém o vínculo da sucessora pela própria API pública.
+Esses contratos ainda não foram implantados; não há migração adicional.
+
+Produtor `de8e1ea6` concluiu os oito gates `44250374730`; a ligação ao servidor
+`18eb95bd` segue em `44251506767`. Runtime e jornadas de visitante continuam
+em implementação.
+
+## Runtime do visitante no contador, candidato
+
+O cliente usa a abertura própria de visita e leva o vínculo preparado no
+primeiro quadro WebSocket. O servidor procura somente um mundo já carregado
+com posse atual: nunca chama a alocação/reivindicação por causa de visitante.
+Admissão privada relê toda a autoridade; o runtime exige a conexão local da
+presença original do anfitrião. Participação temporária tem tipo e ID próprios,
+sem `membroId`, papel ou restauração de membro. O diário usa namespace separado
+para os comandos dessa participação, sem IDs de conta/perfil na difusão.
+
+A guarda monotônica é conferida na chegada, na execução da fila e antes de
+cada tentativa de anexar o comando. Prefixo já admitido para gravação pode
+terminar antes da fotografia; não se omite um fato já confirmado no diário.
+Renovação em lotes ocorre depois das presenças, sem bloquear o batimento da
+posse. Resposta incerta suspende imediatamente e o cliente mostra a pausa.
+Resposta antiga, inclusive negativa posterior a uma retomada nova, suspende
+sem encerrar falsamente a concessão atual. Renovação iniciada antes de um
+checkpoint não é aplicada ao jogador que pausou durante a espera.
+
+Retomar exige nova admissão privada atual, nunca só mensagem do navegador.
+Checkpoint de visitante já admitido usa somente a fronteira histórica de
+persistência do servidor e não renova gameplay por esse caminho. O fim da
+presença original corta comandos imediatamente pela guarda; o ciclo do host
+congela o visitante e tenta a persistência final, preservando o ACK real.
+
+`e2e/servidor/visitas.ts` reserva até 512 vínculos técnicos entre admissões em
+voo, conexões e encerramentos. Não aceita segunda admissão simultânea do mesmo
+vínculo. Recupera fechamentos em lotes de 64, quatro por vez; erro conserva o
+pedido/cliente da instância original e permite atender o próximo lote. Ausência
+no escopo é distinta de recibo fechado e não declara SID encerrado ou salvo.
+Instância explicitamente rejeitada para todos os mundos aposenta a observação
+local antiga; backend, expiração e worker continuam necessários, sem ACK
+inventado. A drenagem pausa novos comandos antes de aguardar o prefixo/foto.
+
+Três integrações novas usam as rotas e PostgreSQL reais para provar rollback
+de auditoria com retomada, resposta negativa perdida após commit com replay
+único e encerramento após admissão cuja resposta foi descartada. O erro fica
+observável e a permissão de salvamento permanece `ready` sem ACK fictício.
+Ainda falta a jornada física completa do visitante e a UI/preflight do portal;
+não declarar essa implementação como homologação integral ou disponibilidade.
+Sem migração adicional ou implantação de produção.
+
+## Consulta da presença própria pelo jogador, candidata
+
+O SDK oferece `social.visitas.presenca(mundoId)` por operação estrita na API de
+visitas. A consulta usa a admissão atual da partida e a composição social,
+trava o mundo antes dos perfis e lê somente a presença do próprio SID já
+vinculado pelo host. Exige membro atual, capacidades originais, instância e
+posse vigentes, conteúdo permitido e prazos atuais. Não usa o escritor de
+entrada de membro, não vincula SID ao mundo e não atesta ou renova presença.
+Visitante não se torna anfitrião. Resposta só inclui jogo/mundo e recibo próprio
+ou ausência; emissão ainda revalida a autoridade inteira. O SDK recusa mundo,
+jogo ou estado divergentes, sem retry automático.
+
+Sete integrações candidatas cobrem leitura sem efeitos, outro jogador sem
+participação criada, presença fechada/vencida, instância em drenagem, posse
+liberada, modo desligado, título sem suporte e visitante. Cinco casos de
+transporte conferem presença/ausência e respostas cruzadas/inválidas.
+
+A candidata da caixa `fccf5097`, rodada `44263841636`, revelou `TS2353` no
+helper dos testes do SDK: o `Pick<OpcoesDoRecreio>` não incluía `social`.
+O helper agora aceita essa opção real; nenhuma supressão de tipo ou mudança
+do contrato comercial foi aplicada. Essa correção e o leitor acima exigem
+nova rodada completa no GitHub. Sem migração ou implantação em produção.
+
+Evidências anteriores: `18eb95bd` passou nos oito gates `44251506767`, 1005
+integrações, upgrades preservados e 39 E2E; a nova jornada física do anfitrião
+durou 11,7 s. `238610bd` passou nos oito gates `44252742292`, com 1007
+integrações e upgrades 179→204/191→204. O runtime acima exige nova rodada.
+
+## Caixa de visitas, conferência e SDK, candidatos
+
+`GET/POST /api/sdk/v1/visitas` e `social.visitas` separam listar/consultar
+recibos próprios de conferir dados atuais. A lista é paginada em dez por
+data/ID, sem nomes, presença, SID ou conta da outra ponta; inclui a concessão
+histórica, sem prometer disponibilidade. Consulta por ID e lista mantêm
+perfil, retenção e jogo do bearer. Autoridade nativa e responsabilidade atual
+usam o mesmo compositor de leitura dos convites permanentes, sem herdar
+administração comercial e sem exigir plano do leitor nativo.
+
+Raiz e concessão são lidas em uma única consulta MVCC, sem N+1 ou trava de
+mundo depois do perfil. O mapeador exige correspondência entre aceite e
+concessão; inconsistência continua erro operacional. Cursor foi compartilhado
+como primitiva de contrato, mantendo os namespaces de visitas/membros
+separados. O contrato também recusa concessão de outro mundo.
+
+`conferir` só fornece nomes/apelidos/avatares depois da composição atual,
+presença original, amizade, revisões, conteúdo e aprovações pertinentes.
+Recibo aceito requer concessão atualmente válida. Fim/bloqueio/alteração
+retira esse detalhe sem apagar o próprio histórico técnico. Todas as leituras
+terminam com conferência dos prazos; não abrem SID, vínculo ou membro.
+
+O SDK negocia social e visitas, mantém o jogo original da sessão e confere
+identidade/escopo nos recibos. Não repete envios automaticamente; depois de
+sair, o objeto retido não autoriza novas consultas. Não expõe aprovação
+parental ou de gestão pelo bearer. A emissão continua exigindo presença
+atestada e pedido estável; sua obtenção pelo cliente e as telas ainda precisam
+ser integradas. A operação de responder não é prova de que o visitante entrou.
+
+Testes candidatos usam SDK/rotas/PostgreSQL reais para caixa, detalhe, replay
+de emissão e redução, mantendo SID sem mundo e sem participação fabricada;
+recusa de outro jogo; leitura nativa sem plano/modos/host; perda de detalhe com
+histórico preservado; paginação de datas iguais, retenção e perfil alheio; e
+aceite inconsistente que não vira lista vazia. Os testes de transporte cobrem
+negociação, cursor, IDs/jogo divergentes, concessão ausente, resposta de membro,
+rede e sessão encerrada. Não certificam a jornada física completa ou a UI.
+
+Evidência anterior: `143fa822` concluiu os oito gates `44259707474`, com 1025
+integrações e upgrades preservados. `065212cd` também concluiu os oito gates
+`44257846279`, com 1021 integrações. A caixa acima exige nova rodada completa.
+Sem migração adicional ou implantação de produção.
+
+## Prévia nativa da entrada, candidata
+
+`/jogar/[jogo]?mundo=...&visita=...` mantém a finalidade de visita desde a
+prévia até a emissão do SID e o WebSocket. UUID inválido, título sem suporte,
+modo desligado e jogo sem mundos não caem na entrada de membro ou de progresso
+individual. A prévia usa o perfil selecionado/pareado atual, restringe a pista
+à concessão desse perfil/mundo/jogo e relê a composição inteira antes de
+devolver somente ID e nome do mundo. Não entrega presença, perfis, tokens ou
+contas do anfitrião. Falha operacional continua erro, sem virar falsa recusa.
+
+`concessao-atual-repository.ts` compartilha os mesmos fatos atuais entre prévia
+e admissão: recibo aceito, concessão ativa, presença original, amizade/revisões,
+conteúdo, aprovações e ausência de participação permanente atual. Mantém a
+ordem raiz/concessão antes de intenção/SID; a admissão conserva suas exigências
+adicionais de vínculo, sessão e prazos. A prévia não emite SID, cria vínculo,
+aloca posse ou adiciona membro. Tem limite próprio por perfil.
+
+Seis integrações candidatas conferem leitura autorizada sem efeitos e recusa
+após saída do host, redução da concessão, bloqueio, liberação da posse e aparelho
+cruzado. Outra prova impede fallback de finalidade mesmo para quem já é membro
+do mundo. Consulta pública segue os contratos locais do Next 16.4.2, com
+`params`/`searchParams` aguardados e props mínimas para o cliente.
+
+Runtime anterior `516a6d65` passou nos oito gates `44254851686`. Esta prévia
+exige nova rodada; caixa/decisões de visita, telas e jornada física completa
+continuam pendentes. Sem migração ou implantação de produção.
+
+Achado a resolver em seguida: uma tentativa encerrada antes da primeira
+admissão não deve consumir a concessão como se o visitante tivesse entrado e
+saído. A API negativa precisa distinguir essa desistência técnica por prova
+persistida (`admitted_at` nulo), preservando a concessão e encerrando o SID
+exato. Admissão efetiva, inclusive resposta perdida após commit, mantém a
+regra de não reabrir a visita após sair. Não usar ausência de resposta como
+prova de que a admissão não aconteceu.
+
+## Desistência antes da admissão, candidata
+
+A API negativa aceita `entrada_nao_concluida`. Conserva a concessão somente
+se `admitted_at` continua nulo e o prazo original ainda está vigente, sob as
+mesmas travas de mundo/perfil/raiz/concessão/vínculo/cursor/SID. Encerra o SID
+exato e seu vínculo; não prolonga, recria ou reaprova a visita. Resposta de
+admissão perdida após commit tem `admitted_at` preenchido e continua encerrando
+a concessão. O host usa essa intenção para a entrada que não chegou a concluir
+localmente. A fila negativa conserva esse pedido em vez de inferir ausência
+de admissão pelo erro da rede.
+
+O leitor da margem anterior considera a espera de mundo somente para SID que
+chegou a ser vinculado a um mundo pelo servidor. Assim, entrada nunca admitida
+pode tentar novamente, preservando o recibo de salvamento em `ready`; nenhum
+ACK é inventado. O caminho de dados de perfil continua aguardando a própria
+prova, e partida já admitida conserva a barreira normal de salvamento.
+
+Quatro integrações candidatas provam primeira entrada posterior com a mesma
+concessão e prazo; resposta perdida após admissão com concessão encerrada e
+barreira de salvamento; corrida real entre admissão/desistência resolvida pela
+evidência persistida; e concessão vencida que não se reabre. O replay da
+tentativa antiga preserva o SID posterior e o anfitrião. Transporte cobre o
+novo motivo sem inferir encerramento da visita ou do salvamento.
+
+A candidata anterior da prévia `e8e7a38b`, em `44256546805`, teve 1016
+integrações aprovadas e uma falha: a fixture enviou motivo `falha` à liberação
+de posse, cujo contrato é `erro`. Isso também bloqueou tipos/builds dos gates
+de navegador. A fixture foi corrigida no incremento atual; não foi alterado
+o contrato para acomodar o teste. Toda a candidata exige nova qualificação.
+Sem migração adicional ou implantação de produção.
+
+## Escopo do jogo nos recibos e reduções, candidato
+
+A revisão das APIs novas identificou que recuperar a emissão, recuperar um
+aceite concluído e reduzir uma visita exigiam o perfil próprio, mas ainda
+permitiam usar o bearer de outro jogo desse mesmo perfil. A candidata vincula
+essas operações também ao jogo do token. Recuperação de emissão filtra o jogo
+na consulta; recuperação de decisão confere antes de devolver inclusive a
+ausência de conclusão; redução confere ao travar o mundo, antes de gravar.
+Não acrescenta trava de mundo depois da de perfil na leitura de recibos.
+
+A autoridade nativa continua própria da conta/perfil ou responsável atuais,
+sem converter o bearer em autorização global. Quatro integrações usam tokens
+reais de outro jogo para provar recusa de emissão/replay, aceite, recusa e
+revogação com recibo/concessão intactos. Conferem também recuperação nativa e
+operação válida com token do mesmo jogo; nenhuma negativa é tomada como
+sucesso operacional. Esses endpoints de visita ainda não foram publicados.
+
+Desistência/prévia corrigidas `065212cd` concluíram os oito gates
+`44257846279`, com 1021 integrações e preservação 179→204/191→204. A correção
+de escopo `143fa822` concluiu os oito gates `44259707474`, com 1025 integrações.
+Sem migração adicional ou implantação de produção.

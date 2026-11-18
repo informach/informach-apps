@@ -51,6 +51,10 @@ export const TrocaDeIngressoSchema = z.strictObject({
   /** Negociação explícita; clientes anteriores não recebem a nova capacidade. */
   suportaSalvamento: z.literal(true).optional(),
   suportaSocial: z.literal(true).optional(),
+  suportaConvitesDirigidos: z.literal(true).optional(),
+  suportaVisitas: z.literal(true).optional(),
+  /** Finalidade fixada antes de emitir o token e sua margem de salvamento. */
+  visitaId: z.uuid().optional(),
   ingresso: z.string().min(1),
   /** Prova para recuperar a mesma abertura; nunca reabre ou renova outro SID. */
   chaveDeTroca: z
@@ -62,6 +66,9 @@ export const TrocaDeIngressoSchema = z.strictObject({
 });
 
 export const SessaoAbertaSchema = z.strictObject({
+  visitaId: z.uuid().optional(),
+  visitas: z.literal(true).optional(),
+  convitesDirigidos: z.literal(true).optional(),
   social: z.literal(true).optional(),
   salvamento: CapacidadeDeSalvamentoSchema.optional(),
   token: z.string().min(1),
@@ -191,6 +198,8 @@ export type MudancaDeAcesso = {
 };
 
 export interface RecreioGameContext {
+  /** Finalidade fixa; ausência não autoriza abrir uma visita pelo protocolo de membro. */
+  visita?: import("./visitas").VisitaDoJogador;
   /** Ausente sem negociação. Desligar novos contatos conserva leitura/proteção autorizadas. */
   social?: import("./social").SocialDoPerfil;
   dados: DadosDoPerfil;
@@ -199,6 +208,8 @@ export interface RecreioGameContext {
   perfil: PerfilDoJogo;
   politica: PoliticaDoPerfil;
   sessao: {
+    /** Capacidade negociada na emissão original; não concede entrada ou presença. */
+    readonly visitas?: true;
     /** Ausente em clientes/servidores sem negociação; nunca é uma sessão de gameplay. */
     readonly salvamento?: SalvamentoDaSessao;
     /** Consulta o estado atual sem renovar nem acertar de novo o tempo concedido. */

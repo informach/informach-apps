@@ -16,6 +16,7 @@ import {
   vigia,
 } from "./apoio";
 import { prepararParticipacoesAfastadas } from "./participacoes-apoio";
+import { observarPresencas } from "./presencas-apoio";
 import { servidorDoContador } from "./servidor-apoio";
 
 /**
@@ -310,6 +311,38 @@ test("duas contas no mesmo mundo: presença, queda de um jogador e queda da inst
     await daAna.sairPeloJogo.click();
     await expect(ana.page).toHaveURL(/\/estante$/);
   });
+});
+
+test("presença do anfitrião acompanha conexão, batimento e saída reais", async ({ browser }) => {
+  await iniciarServidor();
+  const anfitria = await novaPessoa(browser, "Anfitriã"),
+    mundo = await criarMundo(anfitria.page, "Casa com presença");
+  expect(await observarPresencas(mundo)).toMatchObject({ ativas: 0, fechadas: 0, membros: 1 });
+  await anfitria.page.goto(enderecoDoJogo(mundo));
+  await expect(jogoEm(anfitria.page).contador).toHaveText("0");
+  await expect
+    .poll(() => observarPresencas(mundo))
+    .toMatchObject({
+      ativas: 1,
+      fechadas: 0,
+      membros: 1,
+      sessoes_abertas: 1,
+    });
+  await expect
+    .poll(() => observarPresencas(mundo), {
+      message: "o batimento deve renovar a presença do socket ainda conectado",
+    })
+    .toMatchObject({ ativas: 1, renovadas: 1 });
+  await jogoEm(anfitria.page).sairPeloJogo.click();
+  await expect(anfitria.page).toHaveURL(/\/estante$/);
+  await expect
+    .poll(() => observarPresencas(mundo))
+    .toMatchObject({
+      ativas: 0,
+      fechadas: 1,
+      membros: 1,
+      sessoes_abertas: 0,
+    });
 });
 
 test("um perfil joga em um lugar por vez, e sair da conta encerra o jogo", async ({ browser }) => {

@@ -1,7 +1,9 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, eq, gt, inArray, ne, sql } from "@informach/db";
+import { and, db, eq, gt, inArray, ne, or, sql } from "@informach/db";
 import {
+  recreioSocialBlocks as blocks,
+  recreioDirectedSpaceInvites as directed,
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
   recreioProfiles as profiles,
@@ -211,7 +213,17 @@ export async function criarConviteDoMundo(
           gt(invites.expiresAt, AGORA),
         ),
       );
-    if ((abertos?.total ?? 0) >= entrada.tetoDeConvites(mundo.gameId))
+    const [dirigidos] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(directed)
+      .where(
+        and(
+          eq(directed.spaceId, mundo.id),
+          eq(directed.state, "pending"),
+          gt(directed.expiresAt, AGORA),
+        ),
+      );
+    if ((abertos?.total ?? 0) + (dirigidos?.total ?? 0) >= entrada.tetoDeConvites(mundo.gameId))
       throw new ErroDoRecreio("LIMITE_DE_CONVITES");
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [convite] = await tx
@@ -299,7 +311,7 @@ export async function aceitarConviteDoMundo(
       throw new ErroDoRecreio("CONVITE_INVALIDO");
 
     const [emissor] = await tx
-      .select({ id: members.id })
+      .select({ id: members.id, perfilId: members.profileId })
       .from(members)
       .where(
         and(
@@ -310,7 +322,29 @@ export async function aceitarConviteDoMundo(
           sql`${members.profileId} = ${mundo.stewardProfileId}`,
         ),
       );
-    if (!emissor) throw new ErroDoRecreio("CONVITE_INVALIDO");
+    if (!emissor?.perfilId) throw new ErroDoRecreio("CONVITE_INVALIDO");
+    // Convites adultos anteriores também respeitam o bloqueio atual nas duas pontas.
+    // A admissão já conserva a trava do perfil que aceita, compartilhada pelos writers sociais.
+    const [bloqueio] = await tx
+      .select({ id: blocks.actorProfileId })
+      .from(blocks)
+      .where(
+        and(
+          eq(blocks.blocked, true),
+          or(
+            and(
+              eq(blocks.actorProfileId, entrada.perfilId),
+              eq(blocks.targetProfileId, emissor.perfilId),
+            ),
+            and(
+              eq(blocks.actorProfileId, emissor.perfilId),
+              eq(blocks.targetProfileId, entrada.perfilId),
+            ),
+          ),
+        ),
+      )
+      .limit(1);
+    if (bloqueio) throw new ErroDoRecreio("CONVITE_INVALIDO");
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [existente] = await tx
       .select({

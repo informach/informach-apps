@@ -29,6 +29,11 @@ import {
 } from "@/features/politicas/tempo-repository";
 import { emitirPermissaoDeSalvamento } from "@/features/salvamento/emissao-repository";
 import { aguardarSalvamentoAnterior } from "@/features/salvamento/reconexao-repository";
+import {
+  finalidadeDaSessao,
+  prazoDaIntencaoDeVisita,
+  prepararFinalidadeDeVisita,
+} from "@/features/visitas/sessao-repository";
 import { env } from "@/lib/env";
 import {
   AGORA,
@@ -110,10 +115,16 @@ function respostaDaSessao(
   ingresso: IngressoVerificado,
   token: TokenEmitido,
   suportaSocial = false,
+  suportaConvitesDirigidos = false,
+  suportaVisitas = false,
+  visitaId?: string,
 ): SessaoAberta {
   return {
     // A capacidade negociada conserva proteção; a política atual controla novos contatos.
     ...(suportaSocial ? { social: true as const } : {}),
+    ...(suportaSocial && suportaConvitesDirigidos ? { convitesDirigidos: true as const } : {}),
+    ...(suportaVisitas ? { visitas: true as const } : {}),
+    ...(visitaId ? { visitaId } : {}),
     token: token.token,
     expiraEm: token.expiraEm.toISOString(),
     perfil: {
@@ -167,6 +178,9 @@ export async function abrirSessaoComIngresso(entrada: {
   chaveDeTroca?: string;
   suportaSalvamento?: boolean;
   suportaSocial?: boolean;
+  suportaConvitesDirigidos?: boolean;
+  suportaVisitas?: boolean;
+  visitaId?: string;
 }): Promise<SessaoAberta> {
   try {
     const resultado = await db.transaction(async (tx) => {
@@ -207,6 +221,22 @@ export async function abrirSessaoComIngresso(entrada: {
           contexto,
         );
         if (!conferida.admitida) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        const finalidade = await finalidadeDaSessao(tx, conferida.jogo.id);
+        if (
+          (finalidade?.visitId ?? undefined) !== entrada.visitaId ||
+          (finalidade &&
+            (finalidade.state === "closed" ||
+              entrada.suportaVisitas !== true ||
+              !conferida.jogo.supportsVisits))
+        )
+          throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        if (finalidade)
+          await prazoDaIntencaoDeVisita(tx, {
+            visitaId: finalidade.visitId,
+            perfilId: entrada.ingresso.perfilId,
+            jogo: entrada.ingresso.jogo,
+            agora: await contexto.conferirPrazo(),
+          });
         const { token } = await assinarSessao(
           contexto,
           entrada.emissor,
@@ -222,14 +252,38 @@ export async function abrirSessaoComIngresso(entrada: {
         });
         const fim = await contexto.conferirPrazo();
         if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        if (finalidade)
+          await prazoDaIntencaoDeVisita(tx, {
+            visitaId: finalidade.visitId,
+            perfilId: entrada.ingresso.perfilId,
+            jogo: entrada.ingresso.jogo,
+            agora: fim,
+          });
         return {
           admitida: true as const,
           valor: {
-            ...respostaDaSessao(contexto, entrada.ingresso, token, entrada.suportaSocial),
+            ...respostaDaSessao(
+              contexto,
+              entrada.ingresso,
+              token,
+              entrada.suportaSocial,
+              entrada.suportaConvitesDirigidos,
+              entrada.suportaVisitas === true && conferida.jogo.supportsVisits,
+              finalidade?.visitId,
+            ),
             ...(salvamento ? { salvamento } : {}),
           },
         };
       }
+      const intencao = entrada.visitaId
+        ? await prazoDaIntencaoDeVisita(tx, {
+            visitaId: entrada.visitaId,
+            perfilId: entrada.ingresso.perfilId,
+            jogo: entrada.ingresso.jogo,
+            agora: await contexto.conferirPrazo(),
+          })
+        : null;
+      if (intencao && entrada.suportaVisitas !== true) throw new ErroDoRecreio("INGRESSO_INVALIDO");
       const [aberta] = await tx
         .select({
           id: games.id,
@@ -319,8 +373,19 @@ export async function abrirSessaoComIngresso(entrada: {
         contexto,
         entrada.emissor,
         { jogo: entrada.ingresso.jogo, sid: entrada.sid },
-        tempo?.permitido ? tempo.expiraEm : null,
+        intencao || tempo?.permitido
+          ? new Date(
+              Math.min(
+                intencao?.expiraEm.getTime() ?? Infinity,
+                tempo?.permitido ? tempo.expiraEm.getTime() : Infinity,
+              ),
+            )
+          : null,
       );
+      const suportaVisitas =
+        entrada.suportaVisitas === true &&
+        env.RECREIO_VISITS_MODE === "on" &&
+        jogoQueAbre(entrada.ingresso.jogo).capacidades.visitas === true;
       await tx.insert(games).values({
         id: entrada.sid,
         profileId: entrada.ingresso.perfilId,
@@ -329,7 +394,16 @@ export async function abrirSessaoComIngresso(entrada: {
         startedAt: emitidaEm,
         lastRenewedAt: emitidaEm,
         expiresAt: token.expiraEm,
+        supportsVisits: suportaVisitas,
       });
+      if (intencao)
+        await prepararFinalidadeDeVisita(tx, {
+          sid: entrada.sid,
+          perfilId: entrada.ingresso.perfilId,
+          visitaId: intencao.visitaId,
+          mundoId: intencao.mundoId,
+          agora: emitidaEm,
+        });
       await tx
         .update(tickets)
         .set({ openedSessionId: entrada.sid, exchangeKeyHash: hashDaTroca })
@@ -392,12 +466,27 @@ export async function abrirSessaoComIngresso(entrada: {
       );
       const fim = await contexto.conferirPrazo();
       if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+      if (intencao)
+        await prazoDaIntencaoDeVisita(tx, {
+          visitaId: intencao.visitaId,
+          perfilId: entrada.ingresso.perfilId,
+          jogo: entrada.ingresso.jogo,
+          agora: fim,
+        });
       if (trocaExpiraEm && trocaExpiraEm <= fim)
         throw new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "expired" });
       return {
         admitida: true as const,
         valor: {
-          ...respostaDaSessao(contexto, entrada.ingresso, token, entrada.suportaSocial),
+          ...respostaDaSessao(
+            contexto,
+            entrada.ingresso,
+            token,
+            entrada.suportaSocial,
+            entrada.suportaConvitesDirigidos,
+            suportaVisitas,
+            intencao?.visitaId,
+          ),
           ...(salvamento ? { salvamento } : {}),
         },
       };
@@ -449,6 +538,17 @@ export async function gravarRenovacao(entrada: {
           motivo: atual.expiresAt <= agora ? "expired" : "permissions_changed",
         }),
       );
+    const finalidade = await finalidadeDaSessao(tx, atual.id);
+    if (finalidade?.state === "closed")
+      throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "permissions_changed" });
+    const intencao = finalidade
+      ? await prazoDaIntencaoDeVisita(tx, {
+          visitaId: finalidade.visitId,
+          perfilId: entrada.sessao.perfilId,
+          jogo: entrada.sessao.jogo,
+          agora,
+        })
+      : null;
     const tempo = contexto.politica
       ? await prepararConcessaoDeTempo(
           tx,
@@ -463,7 +563,14 @@ export async function gravarRenovacao(entrada: {
       contexto,
       entrada.emissor,
       { jogo: entrada.sessao.jogo, sid: entrada.sessao.sid },
-      tempo?.permitido ? tempo.expiraEm : null,
+      intencao || tempo?.permitido
+        ? new Date(
+            Math.min(
+              intencao?.expiraEm.getTime() ?? Infinity,
+              tempo?.permitido ? tempo.expiraEm.getTime() : Infinity,
+            ),
+          )
+        : null,
     );
     await tx
       .update(games)
@@ -486,6 +593,13 @@ export async function gravarRenovacao(entrada: {
     });
     const fim = await contexto.conferirPrazo();
     if (token.expiraEm <= fim) throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "expired" });
+    if (intencao)
+      await prazoDaIntencaoDeVisita(tx, {
+        visitaId: intencao.visitaId,
+        perfilId: entrada.sessao.perfilId,
+        jogo: entrada.sessao.jogo,
+        agora: fim,
+      });
     return {
       admitida: true as const,
       valor: {

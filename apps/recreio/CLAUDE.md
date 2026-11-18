@@ -106,6 +106,17 @@ Princípios que não se negociam: **o jogo recebe um ingresso, nunca acesso ao b
 
 ## Mundos, membros e convites (lote P5)
 
+F5 está em qualificação, ainda sem implantação. O responsável nativo atual pode
+gerir o mundo de um menor sem jogador próprio; a credencial infantil conserva
+somente gameplay. A estante protegida candidata cria mundos pelo mesmo serviço
+autoritativo e volta a `/aparelho`. `/participantes/[id]` e o painel do host
+oferecem proteção sem amizade: o servidor prova coparticipação sob a ordem
+contas → mundo → perfis. A consulta nativa e a proteção não exigem cobertura.
+Denúncia captura referência opaca, nunca evidência enviada pelo navegador.
+Bloquear não remove membros; códigos adultos também revalidam bloqueios no
+aceite. Convites dirigidos, aprovações e visitas seguem pendentes no
+[registro de F5](../../docs/recreio/mundos-completos-2026-11-17.md).
+
 - `features/mundos`: `service.ts` é chamado pelas rotas do SDK (sessão de jogo) e pelas ações do portal (cookie). Quem chama entrega o perfil já conferido; nenhum id de perfil vem do pedido.
 - Rotas: `GET` e `POST /api/sdk/v1/mundos`, `POST /api/sdk/v1/mundos/{id}/convites`, `POST /api/sdk/v1/convites/aceitar` (token da sessão de jogo ou cookie do portal). Telas: a estante lista os mundos do Morada, com "Criar mundo" e "Entrar com código"; `/mundos/[id]` mostra quem participa e, para o responsável, gera o código; `/convite?codigo=` traz o código preenchido e espera a pessoa confirmar.
 - Criar: teto `limites.mundosCriadosPorPerfil` do manifesto, por jogo, contado sob uma trava por perfil (`LIMITE_DE_MUNDOS`). O mundo nasce `hibernating`, com a política de mundo pedida se o jogo a oferece, senão a padrão.
@@ -146,6 +157,33 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 - **Jogo de teste** (`teste`): um contador por mundo com a lista de quem está presente, para provar a plataforma sem código de jogo. Manifesto em `features/jogos/catalogo.ts` (não entra em `@informach/config/jogos`), cliente em `features/jogo-de-teste`, servidor em `e2e/servidor/main.ts`. Só existe com `RECREIO_JOGO_DE_TESTE=1`, que a validação do ambiente recusa num serviço publicado e em qualquer `NODE_ENV=production` que não seja a verificação isolada em localhost. O cliente só é empacotado num build feito com a variável (`next.config.ts` grava `RECREIO_CLIENTE_DE_TESTE`). Com ela desligada, ingresso, mundos, instâncias e `/jogar/teste` respondem como a um jogo desconhecido.
 - A estante lista os mundos de cada jogo do catálogo do deploy. "Jogar" aparece em cada mundo, na estante e em `/mundos/[id]`, quando o perfil pode jogar, o jogo abre e o portal tem o cliente dele. O cartão do jogo aponta para os mundos.
 - E2E (`pnpm --filter @informach/recreio-app e2e`): build de produção com o jogo de teste, banco descartável, Chromium (desenho por software, para o WebGL) e o servidor de cada jogo como processo que o teste inicia, derruba com sinal e reinicia. `e2e/jogar.spec.ts` prova a plataforma com o jogo de teste; `e2e/morada.spec.ts`, o Morada de verdade. O que é comum fica em `e2e/apoio.ts`. Todo teste falha se o navegador registrar violação da CSP ou erro de página.
+
+## Presença do anfitrião, candidata F5
+
+Somente o contador interno declara visitas. A página negocia o bit quando
+manifesto e `RECREIO_VISITS_MODE` permitem; o cliente o repassa pela sessão e
+o servidor relê os fatos persistidos. `e2e/servidor/presencas.ts` liga o
+produtor do package à conexão física, conserva respostas incertas e agrupa
+renovações após a posse, sem bloquear seus batimentos. Saída ou desconexão
+encerra o produtor mesmo durante o salvamento. A jornada lê agregados do banco
+descartável para verificar entrada, renovação e saída reais. Runtime/UI de
+visitante e implantação F5 continuam pendentes no
+[registro de visitas](../../docs/recreio/visitas-temporarias-2026-11-17.md).
+
+O runtime candidato do contador também separa visitante de membro e só entra
+em mundo já carregado com o anfitrião original conectado. Guarda monotônica
+corta comandos na chegada/fila; renovação incerta pausa e retomada exige
+admissão privada nova. Recibos negativos continuam fora da vida do socket,
+com reserva limitada e recuperação por lote. Checkpoint/finalização não dão
+autoridade de gameplay. A UI/preflight e a jornada física completa do visitante
+ainda precisam ser integradas/qualificadas; o Morada não declara essa capacidade.
+
+A candidata seguinte trata `?visita=` como finalidade fixa e usa a mesma
+conferência da concessão atual na prévia nativa, sem abrir SID/vínculo ou
+alocar mundo. Somente após essa composição entrega o nome do mundo e o UUID
+da concessão ao hospedeiro. Não há fallback silencioso para membro quando
+o título/modo não aceita visitas. Caixa, decisões e jornada completa seguem
+em implementação no registro.
 
 ## Morada na página do jogo (lote X1)
 

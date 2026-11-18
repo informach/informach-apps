@@ -1,6 +1,10 @@
 import "server-only";
-import type { PerfilId } from "@informach/recreio";
+import type { MundoId, PerfilId } from "@informach/recreio";
 import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
+import {
+  confirmarCoparticipacao,
+  travarMundoCompartilhado,
+} from "@/features/mundos/coparticipacao-repository";
 import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
 import { AppError, assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
@@ -14,8 +18,10 @@ export async function comPartidaSocial<T>(
   alvo: PerfilId | null,
   finalidade: "contato" | "protecao",
   executar: (tx: Transacao, atual: ContextoSocial) => Promise<T>,
+  antesDosPerfis?: (tx: Transacao) => Promise<void>,
 ) {
   let composicao: ComposicaoSocial | undefined;
+  let pistaDeMundo: MundoId | null = null;
   const resultado = await comSessaoDeJogoAutoritativa(
     sessao,
     async () => {},
@@ -45,17 +51,29 @@ export async function comPartidaSocial<T>(
       const valor = await executar(tx, {
         origem: origem.fato,
         destino: destino?.fato ?? null,
+        politicaDeJogo: origem.politicaDeJogo,
         contaId,
         conferirPrazo,
+        mundoCompartilhado:
+          alvo && finalidade === "protecao"
+            ? await confirmarCoparticipacao(tx, pistaDeMundo, sessao.perfilId, alvo)
+            : null,
       });
       await conferirPrazo();
       return { executou: true as const, valor };
     },
     {
       antesDaIdentidade: async (tx, referencia) => {
-        composicao = await travarComposicaoSocial(tx, { tipo: "jogador", referencia }, [
-          ...new Set([sessao.perfilId, ...(alvo ? [alvo] : [])]),
-        ]);
+        composicao = await travarComposicaoSocial(
+          tx,
+          { tipo: "jogador", referencia },
+          [...new Set([sessao.perfilId, ...(alvo ? [alvo] : [])])],
+          async () => {
+            await antesDosPerfis?.(tx);
+            if (alvo && finalidade === "protecao")
+              pistaDeMundo = await travarMundoCompartilhado(tx, sessao.perfilId, alvo);
+          },
+        );
       },
     },
   );

@@ -12,6 +12,7 @@ import {
 import { LogOut, Users } from "lucide-react";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { PainelSocialDaPartida } from "@/features/social/components/painel-da-partida";
+import { caminhoDaVisita, type DestinoDeVisita } from "@/features/visitas/navegacao";
 import { carregadorDoJogo } from "../carregadores";
 import { type AvisoDaTroca, observarTrocaDaPartida } from "../controle";
 import {
@@ -32,7 +33,7 @@ type Partida = {
   montado: JogoMontado | null;
   cancelarAcesso: () => void;
   cancelarControle: () => void;
-  intencaoDeSaida: { parada: Parada | null } | null;
+  intencaoDeSaida: { parada: Parada | null; destino?: DestinoDeVisita } | null;
   finalizacao: Promise<void> | null;
 };
 
@@ -80,12 +81,16 @@ export function Hospedeiro({
   estante = "/estante",
   trocaCoordenada = false,
   supervisionado = false,
+  visitas = false,
+  visitaId,
 }: {
   jogo: { id: string; nome: string; origemDaArte?: string | null };
   mundo: { id: MundoId; nome: string } | null;
   estante?: "/estante" | "/aparelho";
   trocaCoordenada?: boolean;
   supervisionado?: boolean;
+  visitas?: boolean;
+  visitaId?: string;
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
   /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
@@ -96,6 +101,7 @@ export function Hospedeiro({
   const [confirmacao, definirConfirmacao] = useState(false);
   const [apiSocial, definirApiSocial] = useState<SocialDoPerfil | null>(null);
   const [painelSocial, definirPainelSocial] = useState(false);
+  const [salvaParaVisitar, definirSalvaParaVisitar] = useState(false);
   const palco = useRef<HTMLDivElement>(null);
   const partida = useRef<Partida | null>(null);
   /** Cada tentativa de abrir tem um número; a que não é mais a atual desiste. */
@@ -117,12 +123,12 @@ export function Hospedeiro({
   }, []);
 
   const tentarFinalizar = useCallback(
-    (parada: Parada | null): boolean => {
+    (parada: Parada | null, destino?: DestinoDeVisita): boolean => {
       const atual = partida.current;
       const capacidade = atual?.contexto.sessao.salvamento;
       const montado = atual?.montado;
       if (!atual || !capacidade || !montado?.finalizar) return false;
-      atual.intencaoDeSaida ??= { parada };
+      atual.intencaoDeSaida ??= { parada, ...(destino ? { destino } : {}) };
       if (atual.finalizacao) return true;
       atual.cancelarControle();
       atual.cancelarAcesso();
@@ -137,10 +143,11 @@ export function Hospedeiro({
             despachar({ tipo: "parou", parada: "conflito_preservado" });
             await desmontar();
           } else if (atual.intencaoDeSaida?.parada === null) {
+            const destinoDaSaida = atual.intencaoDeSaida.destino;
             tentativa.current += 1;
             despachar({ tipo: "sair" });
             await desmontar();
-            window.location.assign(estante);
+            window.location.assign(destinoDaSaida ? caminhoDaVisita(destinoDaSaida) : estante);
           } else {
             despachar({
               tipo: "parou",
@@ -217,6 +224,9 @@ export function Hospedeiro({
             baseUrl: "",
             jogo: jogo.id,
             social: true,
+            convitesDirigidos: true,
+            visitas,
+            ...(visitaId ? { visitaId } : {}),
             salvamentoRestrito: trocaCoordenada,
             obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),
@@ -294,6 +304,7 @@ export function Hospedeiro({
           definirAguardandoTroca(false);
           definirSaidaDoJogo(modulo.saidaPropria === true);
           definirApiSocial(contexto.social ?? null);
+          definirSalvaParaVisitar(Boolean(contexto.sessao.salvamento && montado.finalizar));
           despachar({ tipo: "montado" });
         } catch (erro) {
           if (!atual()) return;
@@ -312,6 +323,8 @@ export function Hospedeiro({
       sair,
       trocaCoordenada,
       supervisionado,
+      visitas,
+      visitaId,
     ],
   );
 
@@ -366,7 +379,19 @@ export function Hospedeiro({
             <Users className="size-5" aria-hidden="true" />
           </button>
           {painelSocial && (
-            <PainelSocialDaPartida api={apiSocial} aoFechar={() => definirPainelSocial(false)} />
+            <PainelSocialDaPartida
+              api={apiSocial}
+              mundoId={mundo?.id}
+              aoVisitar={
+                salvaParaVisitar
+                  ? (destino) => {
+                      definirPainelSocial(false);
+                      tentarFinalizar(null, destino);
+                    }
+                  : undefined
+              }
+              aoFechar={() => definirPainelSocial(false)}
+            />
           )}
         </>
       )}

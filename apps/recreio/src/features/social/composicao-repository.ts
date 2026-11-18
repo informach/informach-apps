@@ -65,14 +65,15 @@ async function pistas(tx: Transacao, autor: PistaDoAutorSocial, ids: readonly Pe
 }
 
 /** Apenas ordem e relações atuais. Quem chama ainda autentica o ator e autoriza a ação. */
-export async function travarComposicaoSocial(
+async function comporPerfisSociais(
   tx: Transacao,
   autor: PistaDoAutorSocial,
   ids: readonly PerfilId[],
   antesDosPerfis?: (tx: Transacao) => Promise<void>,
+  limite = 2,
 ) {
   assertAllowed(
-    (ids.length > 0 || autor.tipo === "equipe") && ids.length <= 2,
+    (ids.length > 0 || autor.tipo === "equipe") && ids.length <= limite,
     "CONTATO",
     "Contato não disponível.",
   );
@@ -124,5 +125,23 @@ export async function travarComposicaoSocial(
     "Contato não disponível.",
   );
   return { contaDoAutor: inicial.contaDoAutor, contas: contasAtuais, perfis, vinculos };
+}
+export function travarComposicaoSocial(
+  tx: Transacao,
+  autor: PistaDoAutorSocial,
+  ids: readonly PerfilId[],
+  antesDosPerfis?: (tx: Transacao) => Promise<void>,
+) {
+  return comporPerfisSociais(tx, autor, ids, antesDosPerfis);
+}
+
+/** Emissor, destinatário, gestor atual e aprovador anterior. Social comum conserva duas pontas. */
+export function travarComposicaoDeConvite(
+  tx: Transacao,
+  autor: PistaDoAutorSocial,
+  ids: readonly PerfilId[],
+  antesDosPerfis: (tx: Transacao) => Promise<void>,
+) {
+  return comporPerfisSociais(tx, autor, ids, antesDosPerfis, 4);
 }
 export type ComposicaoSocial = Awaited<ReturnType<typeof travarComposicaoSocial>>;

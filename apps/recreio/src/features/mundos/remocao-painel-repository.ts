@@ -8,6 +8,7 @@ import {
 } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { travarMundoAntesDosPerfis } from "./ordem-de-travas-repository";
 import type { AutorDaSaida } from "./saida-repository";
 
 /** Somente o responsável atual lê a lista de gestão; nunca depende de assinatura. */
@@ -20,6 +21,7 @@ export async function listarMembrosGerenciaveis(
     await tx.execute(sql`set local statement_timeout = '5s'`);
     await tx.execute(sql`set local lock_timeout = '1s'`);
     await tx.execute(sql`set local transaction_timeout = '15s'`);
+    await travarMundoAntesDosPerfis(tx, autor.perfilId, mundoId, "share");
     const [perfil] = await tx
       .select({ id: profiles.id })
       .from(profiles)

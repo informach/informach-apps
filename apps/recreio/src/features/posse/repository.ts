@@ -37,6 +37,8 @@ import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repos
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { mundoCompativel } from "@/features/mundos/politica";
 import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
+import { conferirCapacidadeDeJogadores } from "@/features/visitas/capacidade-repository";
+import { exigirSessaoSemVisita } from "@/features/visitas/sessao-repository";
 import { AGORA, type Transacao } from "@/lib/repository";
 import type {
   ArmazenamentoDeMundos,
@@ -186,6 +188,7 @@ export async function registrarInstancia(entrada: {
   urlPublica: string;
   versao: string;
   capacidade: number;
+  suportaVisitas?: boolean;
 }): Promise<InstanciaId> {
   const [instancia] = await db
     .insert(instances)
@@ -194,6 +197,7 @@ export async function registrarInstancia(entrada: {
       publicUrl: entrada.urlPublica,
       version: entrada.versao,
       capacity: entrada.capacidade,
+      supportsVisits: entrada.suportaVisitas === true,
       state: "active",
     })
     .returning({ id: instances.id });
@@ -457,6 +461,7 @@ export async function abrirMundoParaMembro(
       await travarMundo(tx, entrada.mundoId, entrada.jogo);
     },
     async (tx, admissao) => {
+      if ("sid" in autor) await exigirSessaoSemVisita(tx, autor.sid);
       const mundo = await travarMundo(tx, entrada.mundoId, entrada.jogo);
       const [membro] = mundo
         ? await tx
@@ -662,6 +667,18 @@ export type EntradaNoBanco = {
 export async function verificarEntradaNoMundo(
   pedido: PedidoComPosse & { sid: SessaoDeJogoId; perfilId: PerfilId },
 ): Promise<EntradaNoBanco> {
+  return comEntradaAtualDeMembro(pedido, async (_tx, entrada) => entrada);
+}
+
+/** Extensões da instância usam a mesma admissão, transação e prazo da entrada real. */
+export async function comEntradaAtualDeMembro<T>(
+  pedido: PedidoComPosse & { sid: SessaoDeJogoId; perfilId: PerfilId },
+  executar: (
+    tx: Transacao,
+    entrada: EntradaNoBanco,
+    conferirPrazo: () => Promise<Date>,
+  ) => Promise<T>,
+): Promise<T> {
   // O segredo de um jogo não distingue sessões em mundos de outro jogo.
   // É só uma pista de escopo: a posse será relida sob trava na admissão.
   const [escopo] = await db
@@ -706,6 +723,7 @@ export async function verificarEntradaNoMundo(
         );
       if (!sessao || (sessao.mundoId !== null && sessao.mundoId !== pedido.mundoId))
         throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      await exigirSessaoSemVisita(tx, pedido.sid);
       const [membro] = await tx
         .select({
           id: members.id,
@@ -722,6 +740,7 @@ export async function verificarEntradaNoMundo(
         .where(and(eq(members.spaceId, pedido.mundoId), eq(members.profileId, pedido.perfilId)));
       if (membro?.state !== "active") throw new ErroDoRecreio("NAO_MEMBRO");
       await conferirConteudoDoMundo(tx, mundo, pedido.jogo, admissao.politica?.politica ?? null);
+      await conferirCapacidadeDeJogadores(tx, pedido);
       // Um comando só, que não casa com sessão encerrada: se ela acabou agora, a entrada é recusada.
       const marcadas = await tx
         .update(gameSessions)
@@ -735,7 +754,7 @@ export async function verificarEntradaNoMundo(
         )
         .returning({ id: gameSessions.id });
       if (marcadas.length === 0) throw new ErroDoRecreio("SESSAO_ENCERRADA");
-      return {
+      const entrada: EntradaNoBanco = {
         membroId: MembroIdSchema.parse(membro.id),
         papel: membro.role,
         participacao: membro.participation,
@@ -745,6 +764,9 @@ export async function verificarEntradaNoMundo(
         versaoDaPolitica: membro.policyVersion,
         politica: politicaDaAdmissao(admissao, jogoDoCatalogo(pedido.jogo)),
       };
+      const resultado = await executar(tx, entrada, admissao.conferirPrazo);
+      await conferirPosse(tx, pedido);
+      return resultado;
     },
     {
       antesDoPerfil: async (tx) => {

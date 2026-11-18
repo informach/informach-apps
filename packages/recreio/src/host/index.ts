@@ -2,7 +2,9 @@ export type {
   CheckpointDoHost,
   ClienteDoHost,
   ClienteDoHostComCheckpoint,
+  ClienteDoHostComPresencas,
   ClienteDoHostComSalvamento,
+  ClienteDoHostComVisitas,
   EntradaDoDiario,
   EntradaPermitida,
   MetaDeFotografia,
@@ -13,4 +15,15 @@ export type {
 } from "../contrato/host";
 export type { SessaoVerificada, VerificadorDeSessao } from "../contrato/tokens";
 export { criarClienteDoHost, type OpcoesDoClienteDoHost } from "./cliente";
+export {
+  criarPermissaoDeVisita,
+  type MedicaoDoPedido,
+  type PermissaoDeVisita,
+} from "./permissao-de-visita";
+export {
+  criarPresencaDaConexao,
+  type OpcoesDaPresencaDaConexao,
+  type PresencaDaConexao,
+} from "./presenca-da-conexao";
+export { prazoLocalDaVisita } from "./tempo-visita";
 export { criarVerificadorDeSessao, type OpcoesDoVerificador } from "./verificador";

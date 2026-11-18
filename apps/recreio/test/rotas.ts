@@ -16,6 +16,36 @@ type Modulo = Partial<Record<"GET" | "POST" | "PUT", Manipulador>>;
 const ID = "([^/]+)";
 
 const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
+  [
+    new RegExp(`^/api/interno/v1/mundos/${ID}/presencas/consultar$`),
+    () => import("@/app/api/interno/v1/mundos/[id]/presencas/consultar/route"),
+  ],
+  [
+    new RegExp(`^/api/interno/v1/mundos/${ID}/visitas/encerrar$`),
+    () => import("@/app/api/interno/v1/mundos/[id]/visitas/encerrar/route"),
+  ],
+  [
+    /^\/api\/interno\/v1\/visitas\/renovar$/,
+    () => import("@/app/api/interno/v1/visitas/renovar/route"),
+  ],
+  [
+    new RegExp(`^/api/interno/v1/mundos/${ID}/visitas/entrada$`),
+    () => import("@/app/api/interno/v1/mundos/[id]/visitas/entrada/route"),
+  ],
+  [/^\/api\/sdk\/v1\/visitas\/abrir$/, () => import("@/app/api/sdk/v1/visitas/abrir/route")],
+  [/^\/api\/sdk\/v1\/visitas$/, () => import("@/app/api/sdk/v1/visitas/route")],
+  [
+    /^\/api\/interno\/v1\/presencas\/renovar$/,
+    () => import("@/app/api/interno/v1/presencas/renovar/route"),
+  ],
+  [
+    new RegExp(`^/api/interno/v1/mundos/${ID}/presencas$`),
+    () => import("@/app/api/interno/v1/mundos/[id]/presencas/route"),
+  ],
+  [
+    /^\/api\/sdk\/v1\/convites-dirigidos$/,
+    () => import("@/app/api/sdk/v1/convites-dirigidos/route"),
+  ],
   [/^\/api\/sdk\/v1\/social$/, () => import("@/app/api/sdk/v1/social/route")],
   [/^\/api\/sdk\/v1\/denuncias$/, () => import("@/app/api/sdk/v1/denuncias/route")],
   [
@@ -38,6 +68,10 @@ const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
   ],
   [/^\/api\/sdk\/v1\/sessao\/sair$/, () => import("@/app/api/sdk/v1/sessao/sair/route")],
   [/^\/api\/sdk\/v1\/mundos$/, () => import("@/app/api/sdk/v1/mundos/route")],
+  [
+    new RegExp(`^/api/sdk/v1/mundos/${ID}/participantes$`),
+    () => import("@/app/api/sdk/v1/mundos/[id]/participantes/route"),
+  ],
   [
     new RegExp(`^/api/sdk/v1/mundos/${ID}/convites$`),
     () => import("@/app/api/sdk/v1/mundos/[id]/convites/route"),

@@ -64,6 +64,154 @@ function ambiente(opcoes: { diarioMaxBytes?: number } = {}) {
 const recusa = (status: number, corpo: unknown) => Response.json(corpo, { status });
 
 describe("cliente HTTP das instâncias", () => {
+  const presenca = {
+    presencaId: "4417ceab-f10e-4311-bbd7-84826a097b00",
+    estado: "active" as const,
+    expiraEm: "2026-11-18T01:00:30.000Z",
+    janelaAte: "2026-11-19T01:00:00.000Z",
+  };
+  const renovar = {
+    mundoId: MUNDO,
+    cerca: 2,
+    sid: SID,
+    perfilId: PERFIL,
+    presencaId: presenca.presencaId,
+  };
+
+  it("renovação em lote exige registro e não transforma prova perdida em sessão encerrada", async () => {
+    const a = ambiente();
+    await expect(a.cliente.renovarPresencas([renovar])).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
+    await a.registrado();
+    a.responder(
+      Response.json({ presencas: [{ presencaId: presenca.presencaId, estado: "perdida" }] }),
+    );
+    expect(await a.cliente.renovarPresencas([renovar])).toEqual({
+      presencas: [{ presencaId: presenca.presencaId, estado: "perdida" }],
+    });
+    expect(a.chamadas.at(-1)).toMatchObject({
+      url: "https://recreio.test/api/interno/v1/presencas/renovar",
+      method: "POST",
+      corpo: { presencas: [renovar] },
+    });
+  });
+
+  it.each([
+    { presencas: [] },
+    { presencas: [{ presencaId: "35a7463c-3860-49ef-85db-374bb93b5520", estado: "perdida" }] },
+    {
+      presencas: [
+        { presencaId: presenca.presencaId, estado: "perdida" },
+        { presencaId: presenca.presencaId, estado: "perdida" },
+      ],
+    },
+  ])("renovação recusa resposta ausente, cruzada ou duplicada: %j", async (resposta) => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(Response.json(resposta));
+    await expect(a.cliente.renovarPresencas([renovar])).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+  });
+
+  it("resposta de renovação perdida não gera retry automático", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(new TypeError("resposta perdida"));
+    await expect(a.cliente.renovarPresencas([renovar])).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+  });
+
+  it("atestado exige registro e usa somente a instância do cliente", async () => {
+    const a = ambiente(),
+      pedido = {
+        mundoId: MUNDO,
+        operacao: "entrar" as const,
+        cerca: 2,
+        sid: SID,
+        perfilId: PERFIL,
+        chaveDeEntrada: "14de4b5a-bdf4-463a-bbd4-3cf344c84426",
+      };
+    await expect(a.cliente.atestarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
+    await a.registrado();
+    a.responder(Response.json(presenca), Response.json({ ...presenca, estado: "closed" }));
+    expect(await a.cliente.atestarPresenca(pedido)).toEqual(presenca);
+    expect(a.chamadas.at(-1)).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/presencas`,
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${SEGREDO}`,
+        "x-recreio-instancia": INSTANCIA,
+        "x-recreio-jogo": "morada",
+      },
+      corpo: {
+        operacao: "entrar",
+        cerca: 2,
+        sid: SID,
+        perfilId: PERFIL,
+        chaveDeEntrada: pedido.chaveDeEntrada,
+      },
+    });
+    expect(
+      await a.cliente.atestarPresenca({
+        mundoId: MUNDO,
+        operacao: "sair",
+        cerca: 2,
+        presencaId: presenca.presencaId,
+      }),
+    ).toMatchObject({ estado: "closed" });
+    expect(a.chamadas.at(-1)?.corpo).toEqual({
+      operacao: "sair",
+      cerca: 2,
+      presencaId: presenca.presencaId,
+    });
+  });
+
+  it("perder resposta de presença não provoca retry automático nem inventa confirmação", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(new TypeError("resposta perdida"));
+    const pedido = {
+      mundoId: MUNDO,
+      operacao: "sair" as const,
+      cerca: 2,
+      presencaId: presenca.presencaId,
+    };
+    await expect(a.cliente.atestarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+    a.responder(Response.json({ ...presenca, estado: "closed" }));
+    expect(await a.cliente.atestarPresenca(pedido)).toMatchObject({ estado: "closed" });
+    expect(a.chamadas).toHaveLength(3);
+  });
+
+  it.each([Response.json({ presencaId: "id-invalido" }), recusa(409, { codigo: "POSSE_PERDIDA" })])(
+    "atestado recusa corpo inválido ou posse perdida",
+    async (resposta) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(resposta);
+      await expect(
+        a.cliente.atestarPresenca({
+          mundoId: MUNDO,
+          operacao: "sair",
+          cerca: 2,
+          presencaId: presenca.presencaId,
+        }),
+      ).rejects.toMatchObject({
+        codigo: resposta.status === 409 ? "POSSE_PERDIDA" : "INDISPONIVEL",
+      });
+    },
+  );
+
   const entrada = (seq: number) => ({ seq, tick: seq, fatoId: `f:${seq}`, bytes: "AA==" });
 
   it("percorre páginas pela última sequência e conserva os bytes de todas", async () => {
@@ -391,6 +539,243 @@ describe("cliente HTTP das instâncias", () => {
         { cerca: 4, motivo: "drenagem" },
       ],
     ]);
+  });
+});
+
+describe("entrada temporária de visitante", () => {
+  const visitaId = "f9579968-a053-494b-b9db-908c407ba86e",
+    pedido = {
+      mundoId: MUNDO,
+      sid: SID,
+      perfilId: PERFIL,
+      cerca: 4,
+      visitaId,
+      sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+    },
+    permitida = {
+      visitaId,
+      sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+      presencaDoAnfitriaoId: "c07fbe33-f2df-4148-95fb-f5f243244777",
+      permissaoAte: "2026-11-18T06:00:30.000Z",
+      agora: "2026-11-18T06:00:00.000Z",
+      apelido: "Visitante",
+      avatar: "sol",
+      politica: { multiplayer: true, textoLivre: false, versao: 1 },
+    };
+  it("exige instância registrada antes de enviar o pedido", async () => {
+    const a = ambiente();
+    await expect(a.cliente.verificarEntradaDeVisita(pedido)).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
+  });
+  it("envia escopo e valida o recibo separado do protocolo de membro", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(Response.json(permitida));
+    expect(await a.cliente.verificarEntradaDeVisita(pedido)).toEqual(permitida);
+    expect(a.chamadas[1]).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/visitas/entrada`,
+      method: "POST",
+      corpo: {
+        visitaId,
+        sessaoDeVisitaId: pedido.sessaoDeVisitaId,
+        sid: SID,
+        perfilId: PERFIL,
+        cerca: 4,
+      },
+      headers: { "x-recreio-instancia": INSTANCIA, authorization: `Bearer ${SEGREDO}` },
+    });
+  });
+  it.each(["membro", "outra_visita", "outro_vinculo", "prazo_longo", "rede"] as const)(
+    "recusa %s sem repetir a admissão automaticamente",
+    async (tipo) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(
+        tipo === "rede"
+          ? new TypeError("fetch failed")
+          : Response.json({
+              ...permitida,
+              ...(tipo === "membro"
+                ? { membroId: SID, papel: "member" }
+                : tipo === "outra_visita"
+                  ? { visitaId: SID }
+                  : tipo === "outro_vinculo"
+                    ? { sessaoDeVisitaId: SID }
+                    : { permissaoAte: "2026-11-18T06:01:00.000Z" }),
+            }),
+      );
+      await expect(a.cliente.verificarEntradaDeVisita(pedido)).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+});
+
+describe("renovação em lote de visitantes", () => {
+  const visita = {
+    mundoId: MUNDO,
+    sid: SID,
+    perfilId: PERFIL,
+    cerca: 4,
+    visitaId: "f9579968-a053-494b-b9db-908c407ba86e",
+    sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+  };
+  it("envia prova inteira e confere a identidade de cada resposta", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const resposta = {
+      visitas: [
+        {
+          sessaoDeVisitaId: visita.sessaoDeVisitaId,
+          estado: "ok",
+          permissaoAte: "2026-11-18T06:00:30.000Z",
+          agora: "2026-11-18T06:00:00.000Z",
+        },
+      ],
+    };
+    a.responder(Response.json(resposta));
+    expect(await a.cliente.renovarVisitas([visita])).toEqual(resposta);
+    expect(a.chamadas[1]).toMatchObject({
+      url: "https://recreio.test/api/interno/v1/visitas/renovar",
+      corpo: { visitas: [visita] },
+    });
+  });
+  it.each(["identidade", "quantidade", "rede"] as const)(
+    "recusa %s divergente sem repetir o lote",
+    async (tipo) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(
+        tipo === "rede"
+          ? new TypeError("fetch failed")
+          : Response.json({
+              visitas: tipo === "quantidade" ? [] : [{ sessaoDeVisitaId: SID, estado: "perdida" }],
+            }),
+      );
+      await expect(a.cliente.renovarVisitas([visita])).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+});
+
+describe("encerramento da sessão visitante", () => {
+  const pedido = {
+    mundoId: MUNDO,
+    sid: SID,
+    perfilId: PERFIL,
+    cerca: 4,
+    visitaId: "f9579968-a053-494b-b9db-908c407ba86e",
+    sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+    motivo: "sair" as const,
+  };
+  it("encaminha desistência sem inferir que a visita ou o salvamento terminaram", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const recibo = {
+      sessaoDeVisitaId: pedido.sessaoDeVisitaId,
+      estado: "closed",
+      sidEncerrado: true,
+      visitaEncerrada: false,
+    };
+    a.responder(Response.json(recibo));
+    expect(
+      await a.cliente.encerrarSessaoDeVisita({ ...pedido, motivo: "entrada_nao_concluida" }),
+    ).toEqual(recibo);
+    expect(a.chamadas[1]?.corpo).toMatchObject({ motivo: "entrada_nao_concluida" });
+  });
+  it("conserva a prova e lê fatos de encerramento sem anunciar salvamento", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const encerrada = {
+      sessaoDeVisitaId: pedido.sessaoDeVisitaId,
+      estado: "closed",
+      sidEncerrado: true,
+      visitaEncerrada: true,
+    };
+    a.responder(Response.json(encerrada));
+    expect(await a.cliente.encerrarSessaoDeVisita(pedido)).toEqual(encerrada);
+    const { mundoId: _mundo, ...corpo } = pedido;
+    expect(a.chamadas[1]).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/visitas/encerrar`,
+      corpo,
+    });
+  });
+  it.each(["outra_sessao", "ack_inventado", "sid_aberto", "rede"] as const)(
+    "recusa %s sem repetir o encerramento",
+    async (tipo) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(
+        tipo === "rede"
+          ? new TypeError("fetch failed")
+          : Response.json({
+              sessaoDeVisitaId: tipo === "outra_sessao" ? SID : pedido.sessaoDeVisitaId,
+              estado: "closed",
+              sidEncerrado: tipo !== "sid_aberto",
+              visitaEncerrada: true,
+              ...(tipo === "ack_inventado" ? { salvo: true } : {}),
+            }),
+      );
+      await expect(a.cliente.encerrarSessaoDeVisita(pedido)).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+});
+
+describe("consulta técnica de presença", () => {
+  const pedido = {
+    mundoId: MUNDO,
+    cerca: 4,
+    sid: SID,
+    perfilId: PERFIL,
+    chaveDeEntrada: "f9579968-a053-494b-b9db-908c407ba86e",
+  };
+  it("envia somente consulta e aceita ausência sem atestar presença", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(Response.json({ presenca: null }));
+    expect(await a.cliente.consultarPresenca(pedido)).toEqual({ presenca: null });
+    const { mundoId: _mundo, ...corpo } = pedido;
+    expect(a.chamadas[1]).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/presencas/consultar`,
+      method: "POST",
+      corpo,
+    });
+  });
+  it("devolve recibo encerrado sem promover o fato a presença atual", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const presenca = {
+      presencaId: SID,
+      estado: "closed",
+      expiraEm: "2026-11-18T06:00:30.000Z",
+      janelaAte: "2026-11-19T06:00:00.000Z",
+    };
+    a.responder(Response.json({ presenca }));
+    expect(await a.cliente.consultarPresenca(pedido)).toEqual({ presenca });
+  });
+  it("erro de rede permanece desconhecido sem repetir uma escrita", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(new TypeError("fetch failed"));
+    await expect(a.cliente.consultarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+  });
+  it("exige instância registrada", async () => {
+    const a = ambiente();
+    await expect(a.cliente.consultarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
   });
 });
 

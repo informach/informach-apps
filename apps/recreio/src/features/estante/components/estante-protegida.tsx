@@ -1,9 +1,10 @@
-import { ehErroDoRecreio } from "@informach/recreio";
+import { ehErroDoRecreio, NOME_DE_MUNDO } from "@informach/recreio";
 import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { jogosProtegidosDisponiveis } from "@/features/familia/disponibilidade";
 import { temCliente } from "@/features/jogar/registro";
 import { jogoAbre, jogosDoCatalogo } from "@/features/jogos/config";
+import { CriarMundo } from "@/features/mundos/components/criar-mundo";
 import { ListaDeMundos } from "@/features/mundos/components/lista-de-mundos";
 import { listarMundos } from "@/features/mundos/service";
 
@@ -56,9 +57,12 @@ export async function EstanteProtegida({ jogador }: { jogador: ReferenciaDeJogad
                 acesso e as regras.
               </p>
             ) : jogo.capacidades.mundos ? (
-              <div className="mt-4">
-                <ListaDeMundos mundos={mundos} jogarEm={jogo.id} />
-              </div>
+              <section className="mt-4" aria-label={`Seus mundos no ${jogo.nome}`}>
+                <ListaDeMundos mundos={mundos} jogarEm={jogo.id} protegido />
+                <div className="mt-5 border-t border-linha pt-4">
+                  <CriarMundo jogo={jogo.id} limites={NOME_DE_MUNDO} protegido />
+                </div>
+              </section>
             ) : (
               <a
                 href={`/jogar/${jogo.id}`}

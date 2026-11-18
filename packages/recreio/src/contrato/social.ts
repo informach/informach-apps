@@ -8,6 +8,7 @@ import {
   type RecursoRecebido,
   type RevisaoDeDenuncia,
 } from "./denuncias";
+import type { ParticipantesDoMundo } from "./participantes";
 
 export const CodigoDeAmigoSchema = z
   .string()
@@ -96,6 +97,12 @@ export const ListaSocialSchema = z.strictObject({
 });
 export type ListaSocial = z.infer<typeof ListaSocialSchema>;
 export interface SocialDoPerfil {
+  /** Presente apenas quando cliente e servidor negociaram os novos recibos. */
+  convitesDeMundo?: import("./convites-dirigidos").ConvitesDirigidosDoPerfil;
+  /** Convites e concessões temporárias, separados da participação permanente. */
+  visitas?: import("./visitas").VisitasDoPerfil;
+  /** Apenas participantes atuais de um mundo do próprio perfil e do jogo da sessão. */
+  participantes(mundoId: string, apos?: string): Promise<ParticipantesDoMundo>;
   listar(apos?: string): Promise<ListaSocial>;
   presenca(modo: ListaSocial["presenca"]): Promise<z.infer<typeof PresencaSocialSalvaSchema>>;
   /** Código mostrado uma vez; nova emissão revoga o anterior. */

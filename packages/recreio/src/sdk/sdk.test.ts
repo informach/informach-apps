@@ -82,6 +82,9 @@ function ambiente() {
         | "aguardarCheckpoint"
         | "aoAguardarCheckpoint"
         | "salvamentoRestrito"
+        | "social"
+        | "visitas"
+        | "visitaId"
       > = {},
     ) => ({
       baseUrl: "https://recreio.test/",
@@ -100,6 +103,324 @@ function ambiente() {
     }),
   };
 }
+
+describe("contrato HTTP dos convites de visita no SDK", () => {
+  it.each(["presente", "ausente", "outro_mundo", "outro_jogo", "fechada"] as const)(
+    "consulta presença própria %s sem repetir ou atestar conexão",
+    async (tipo) => {
+      const a = ambiente(),
+        presenca = {
+          presencaId: MEMBRO,
+          estado: tipo === "fechada" ? "closed" : "active",
+          expiraEm: new Date(INICIO + 30_000).toISOString(),
+          janelaAte: new Date(INICIO + 86_400_000).toISOString(),
+        };
+      a.responder(
+        { corpo: { ...a.aberta(), social: true, visitas: true } },
+        {
+          corpo: {
+            jogo: tipo === "outro_jogo" ? "outro" : "morada",
+            mundoId: tipo === "outro_mundo" ? MEMBRO : MUNDO,
+            presenca: tipo === "ausente" ? null : presenca,
+          },
+        },
+      );
+      const contexto = await criarRecreio(a.opcoes({ social: true, visitas: true })),
+        api = contexto.social?.visitas;
+      if (!api) throw new Error("API ausente");
+      if (tipo === "presente" || tipo === "ausente")
+        expect(await api.presenca(MUNDO)).toEqual({
+          jogo: "morada",
+          mundoId: MUNDO,
+          presenca: tipo === "ausente" ? null : presenca,
+        });
+      else await expect(api.presenca(MUNDO)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+      expect(a.chamadas).toHaveLength(2);
+      expect(a.chamadas[1]?.corpo).toEqual({ operacao: "presenca", mundoId: MUNDO });
+      await expect(api.presenca("invalido")).rejects.toThrow();
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+  const conviteId = "6cf557fc-aa32-4693-a6ea-e8341f5abf05",
+    visitaId = "f9579968-a053-494b-b9db-908c407ba86e",
+    outroPerfil = "e6e5f727-9325-492a-92fe-5a94cda8dab9",
+    recibo = {
+      conviteId,
+      mundoId: MUNDO,
+      jogo: "morada",
+      estado: "pending",
+      criadoEm: new Date(INICIO).toISOString(),
+      expiraEm: new Date(INICIO + QUINZE_MIN).toISOString(),
+    },
+    concessao = { visitaId, mundoId: MUNDO, estado: "active", expiraEm: recibo.expiraEm },
+    aceita = { convite: { ...recibo, estado: "accepted" }, visita: concessao },
+    detalhe = {
+      direcao: "recebido",
+      convite: { ...recibo, aguardaMundo: false, aguardaOrigem: false, aguardaDestino: false },
+      visita: null,
+      nomeDoMundo: "Casa",
+      origem: { apelido: "Lia", avatar: "sol" },
+      destino: { apelido: "Amiga", avatar: "lua" },
+    };
+  it("negocia os dois recursos e mantém caminhos, cursor, token e recibos separados de membro", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: { ...a.aberta(), social: true, visitas: true } },
+      { corpo: recibo },
+      { corpo: { convite: recibo, visita: null } },
+      { corpo: detalhe },
+      { corpo: aceita },
+      {
+        corpo: {
+          convites: [
+            { ...aceita.convite, visita: concessao, perfilId: outroPerfil, direcao: "recebido" },
+          ],
+          proximo: null,
+        },
+      },
+    );
+    const opcoes = a.opcoes({ social: true, visitas: true });
+    const contexto = await criarRecreio(opcoes),
+      api = contexto.social?.visitas;
+    if (!api) throw new Error("Visitas não negociadas");
+    opcoes.jogo = "outro";
+    const pedido = {
+      mundoId: MUNDO,
+      perfilId: outroPerfil,
+      presencaId: "c07fbe33-f2df-4148-95fb-f5f243244777",
+      pedidoId: "a01e9d8e-84ea-420e-b22d-4c372317b8b8",
+    };
+    expect(await api.emitir(pedido)).toEqual(recibo);
+    expect(await api.consultar(conviteId)).toEqual({ convite: recibo, visita: null });
+    expect(await api.conferir(conviteId)).toEqual(detalhe);
+    expect(await api.responder(conviteId, "aceitar")).toEqual(aceita);
+    expect((await api.listar({ em: recibo.criadoEm, id: conviteId })).convites).toHaveLength(1);
+    expect(a.chamadas[1]).toMatchObject({
+      url: "https://recreio.test/api/sdk/v1/visitas",
+      method: "POST",
+      headers: { authorization: "Bearer sessao-1" },
+      corpo: { ...pedido, operacao: "emitir" },
+    });
+    expect(a.chamadas[2]?.corpo).toEqual({ operacao: "consultar", conviteId });
+    expect(a.chamadas[3]?.corpo).toEqual({ operacao: "conferir", conviteId });
+    expect(a.chamadas[4]?.corpo).toEqual({ operacao: "responder", conviteId, acao: "aceitar" });
+    expect(a.chamadas[5]?.url).toBe(
+      `https://recreio.test/api/sdk/v1/visitas?${new URLSearchParams({ aposEm: recibo.criadoEm, aposId: conviteId })}`,
+    );
+  });
+  it.each(["cliente", "servidor", "social"] as const)(
+    "não oferece API sem negociação de %s",
+    async (ausente) => {
+      const a = ambiente();
+      a.responder({
+        corpo: {
+          ...a.aberta(),
+          social: true,
+          ...(ausente === "servidor" ? {} : { visitas: true }),
+        },
+      });
+      const contexto = await criarRecreio(
+        a.opcoes({ visitas: ausente !== "cliente", social: ausente !== "social" }),
+      );
+      expect(contexto.social?.visitas).toBeUndefined();
+    },
+  );
+  it.each([
+    "outro_convite",
+    "outro_jogo",
+    "sem_concessao",
+    "outro_mundo",
+    "membro",
+    "rede",
+  ] as const)("recusa resposta %s sem repetir a operação", async (tipo) => {
+    const a = ambiente();
+    a.responder(
+      { corpo: { ...a.aberta(), social: true, visitas: true } },
+      tipo === "rede"
+        ? new TypeError("fetch failed")
+        : {
+            corpo: {
+              ...aceita,
+              convite: {
+                ...aceita.convite,
+                ...(tipo === "outro_convite" ? { conviteId: visitaId } : {}),
+                ...(tipo === "outro_jogo" ? { jogo: "outro" } : {}),
+                ...(tipo === "membro" ? { membroId: MEMBRO } : {}),
+              },
+              visita:
+                tipo === "sem_concessao"
+                  ? null
+                  : { ...concessao, ...(tipo === "outro_mundo" ? { mundoId: MEMBRO } : {}) },
+            },
+          },
+    );
+    const contexto = await criarRecreio(a.opcoes({ social: true, visitas: true }));
+    if (!contexto.social?.visitas) throw new Error("API ausente");
+    await expect(contexto.social.visitas.consultar(conviteId)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+  });
+  it("não consulta depois de sair nem envia cursor inválido", async () => {
+    const a = ambiente();
+    a.responder({ corpo: { ...a.aberta(), social: true, visitas: true } }, { corpo: {} });
+    const contexto = await criarRecreio(a.opcoes({ social: true, visitas: true })),
+      api = contexto.social?.visitas;
+    if (!api) throw new Error("API ausente");
+    await expect(api.listar({ em: "invalida", id: conviteId })).rejects.toThrow();
+    expect(a.chamadas).toHaveLength(1);
+    await contexto.sessao.sair();
+    await expect(api.listar()).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+    await expect(api.consultar(conviteId)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+    await expect(api.presenca(MUNDO)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+    expect(a.chamadas).toHaveLength(2);
+  });
+});
+
+describe("finalidade de visita no SDK", () => {
+  const visitaId = "f9579968-a053-494b-b9db-908c407ba86e";
+  const mundoDaVisita = {
+    visitaId,
+    sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+    mundoId: MUNDO,
+    onde: "servidor",
+    endereco: "wss://jogo.test/",
+    schemaVersion: 1,
+    revisao: 0,
+  };
+  it("negocia no ingresso e abre pela API própria, sem membro ou papel", async () => {
+    const a = ambiente();
+    a.responder({ corpo: { ...a.aberta(), visitas: true, visitaId } }, { corpo: mundoDaVisita });
+    const contexto = await criarRecreio(a.opcoes({ visitas: true, visitaId }));
+    expect(contexto.visita?.id).toBe(visitaId);
+    if (!contexto.visita) throw new Error("Finalidade não oferecida");
+    expect(await contexto.visita.abrir()).toEqual(mundoDaVisita);
+    expect(a.chamadas[0]?.corpo).toEqual({
+      ingresso: "ingresso-1",
+      suportaVisitas: true,
+      visitaId,
+    });
+    expect(a.chamadas[1]).toMatchObject({
+      url: "https://recreio.test/api/sdk/v1/visitas/abrir",
+      method: "POST",
+      headers: { authorization: "Bearer sessao-1" },
+      corpo: { visitaId },
+    });
+    await expect(contexto.mundos.abrir(MUNDO)).rejects.toMatchObject({ codigo: "SEM_PERMISSAO" });
+    expect(a.chamadas).toHaveLength(2);
+  });
+  it("negociação de anfitrião não inventa uma finalidade de visitante", async () => {
+    const a = ambiente();
+    a.responder({ corpo: { ...a.aberta(), visitas: true } });
+    const contexto = await criarRecreio(a.opcoes({ visitas: true }));
+    expect(contexto.visita).toBeUndefined();
+    expect(contexto.sessao.visitas).toBe(true);
+    expect(a.chamadas[0]?.corpo).toEqual({ ingresso: "ingresso-1", suportaVisitas: true });
+  });
+  it("uma reconexão conserva o vínculo do mesmo SID e recusa substituição silenciosa", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: { ...a.aberta(), visitas: true, visitaId } },
+      { corpo: mundoDaVisita },
+      { corpo: mundoDaVisita },
+      { corpo: { ...mundoDaVisita, sessaoDeVisitaId: MUNDO } },
+    );
+    const contexto = await criarRecreio(a.opcoes({ visitas: true, visitaId }));
+    if (!contexto.visita) throw new Error("Finalidade não oferecida");
+    expect((await contexto.visita.abrir()).sessaoDeVisitaId).toBe(mundoDaVisita.sessaoDeVisitaId);
+    expect((await contexto.visita.abrir()).sessaoDeVisitaId).toBe(mundoDaVisita.sessaoDeVisitaId);
+    await expect(contexto.visita.abrir()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(a.chamadas).toHaveLength(4);
+  });
+  it("conserva o fato negociado mesmo se o objeto de opções for alterado depois", async () => {
+    const a = ambiente(),
+      opcoes = a.opcoes({ visitas: true });
+    a.responder({ corpo: { ...a.aberta(), visitas: true } });
+    const contexto = await criarRecreio(opcoes);
+    opcoes.visitas = false;
+    expect(contexto.sessao.visitas).toBe(true);
+  });
+  it.each(["cliente", "servidor"] as const)(
+    "não anuncia suporte sem adesão do %s",
+    async (ausente) => {
+      const a = ambiente();
+      a.responder({
+        corpo: { ...a.aberta(), ...(ausente === "cliente" ? { visitas: true } : {}) },
+      });
+      const contexto = await criarRecreio(
+        a.opcoes(ausente === "servidor" ? { visitas: true } : {}),
+      );
+      expect(contexto.sessao.visitas).toBeUndefined();
+    },
+  );
+  it.each(["identidade", "capacidade", "omissao"] as const)(
+    "recusa %s divergente na abertura sem agendar renovação",
+    async (tipo) => {
+      const a = ambiente();
+      a.responder({
+        corpo: {
+          ...a.aberta(),
+          ...(tipo === "capacidade" ? {} : { visitas: true }),
+          ...(tipo === "omissao" ? {} : { visitaId: tipo === "identidade" ? MUNDO : visitaId }),
+        },
+      });
+      await expect(criarRecreio(a.opcoes({ visitas: true, visitaId }))).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(a.agendadas).toHaveLength(0);
+    },
+  );
+  it.each(["uuid", "negociacao"] as const)(
+    "recusa %s inválido antes de consumir ingresso",
+    async (tipo) => {
+      const a = ambiente();
+      await expect(
+        criarRecreio(
+          a.opcoes({ visitaId: tipo === "uuid" ? "invalido" : visitaId, visitas: tipo === "uuid" }),
+        ),
+      ).rejects.toMatchObject({ codigo: "ENTRADA_INVALIDA" });
+      expect(a.chamadas).toHaveLength(0);
+    },
+  );
+  it.each(["identidade", "membro", "rede"] as const)(
+    "não aceita %s como resposta da visita nem repete o pedido",
+    async (tipo) => {
+      const a = ambiente();
+      a.responder(
+        { corpo: { ...a.aberta(), visitas: true, visitaId } },
+        tipo === "rede"
+          ? new TypeError("fetch failed")
+          : {
+              corpo: {
+                ...mundoDaVisita,
+                ...(tipo === "identidade"
+                  ? { visitaId: MUNDO }
+                  : { membroId: MEMBRO, papel: "member" }),
+              },
+            },
+      );
+      const contexto = await criarRecreio(a.opcoes({ visitas: true, visitaId }));
+      if (!contexto.visita) throw new Error("Finalidade ausente");
+      await expect(contexto.visita.abrir()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+  it("usa token renovado, mantém a finalidade e impede pedidos depois da saída", async () => {
+    const a = ambiente();
+    a.responder({ corpo: { ...a.aberta(), visitas: true, visitaId } });
+    const contexto = await criarRecreio(a.opcoes({ visitas: true, visitaId }));
+    if (!contexto.visita) throw new Error("Finalidade ausente");
+    a.responder({ corpo: a.sessao("renovada", INICIO + 2 * QUINZE_MIN) });
+    await a.disparar();
+    a.responder({ corpo: mundoDaVisita });
+    await contexto.visita.abrir();
+    expect(a.chamadas.at(-1)?.headers.authorization).toBe("Bearer renovada");
+    expect(contexto.visita.id).toBe(visitaId);
+    a.responder({ corpo: {} });
+    await contexto.sessao.sair();
+    await expect(contexto.visita.abrir()).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+  });
+});
 
 describe("abertura da sessão", () => {
   it("prazo renovado que não avança espera o vencimento sem rajada de pedidos e conserva o salvamento", async () => {

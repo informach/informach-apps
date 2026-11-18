@@ -22,10 +22,11 @@ import { users } from "./core";
  * Recreio, a plataforma de jogos. Só `apps/recreio` grava aqui; o servidor de
  * um jogo fala com o Recreio por HTTP e nunca lê estas tabelas.
  *
- * Duas famílias de linhas, com políticas de exclusão opostas:
+ * Fronteiras de exclusão:
  *
- * - **Pessoais** (`groups`, perfis adultos, `device_sessions`, `game_tickets`,
- *   `game_sessions`, `entitlements`): saem em cascata com `core.users`.
+ * - **Identidade** (`groups`, perfis adultos): restringe a exclusão de
+ *   `core.users` até o encerramento coordenado resolver seus vínculos.
+ *   Aparelhos, ingressos, sessões e concessões seguem as FKs próprias.
  * - **Do mundo** (`spaces`, `space_members`, `space_invites`, `space_leases`,
  *   `space_snapshots`, `space_journal`): nenhuma cascata vinda de `core.users`
  *   as alcança. A referência ao perfil vira NULL e o mundo continua para os
@@ -211,6 +212,10 @@ export const recreioSpaces = recreio.table(
     journalSeq: bigint("journal_seq", { mode: "number" }).notNull().default(0),
     /** Última cerca emitida para este mundo; só cresce. */
     leaseEpoch: integer("lease_epoch").notNull().default(0),
+    /** Revisão da gestão, independente das fotografias e da posse do servidor. */
+    managementRevision: integer("management_revision").notNull().default(1),
+    /** Só o arquivamento explícito preenche; registros legados podem não ter data. */
+    archivedAt: moment("archived_at"),
     /** Resumo que o jogo publica para a tela de mundos; nunca o estado em si. */
     summary: jsonb("summary").$type<Record<string, unknown>>(),
     createdAt: time("created_at"),
@@ -232,6 +237,7 @@ export const recreioSpaces = recreio.table(
       "recreio_spaces_counters",
       sql`${t.schemaVersion} >= 1 and ${t.revision} >= 0 and ${t.journalSeq} >= 0 and ${t.leaseEpoch} >= 0`,
     ),
+    check("recreio_spaces_management_revision", sql`${t.managementRevision} >= 1`),
   ],
 );
 
@@ -295,6 +301,8 @@ export const recreioGameSessions = recreio.table(
       .references(() => recreioDeviceSessions.id, { onDelete: "cascade" }),
     gameId: text("game_id").notNull(),
     spaceId: uuid("space_id").references(() => recreioSpaces.id, { onDelete: "set null" }),
+    /** Negociação inicial do cliente; um SID legado nunca ganha visitas por atualização. */
+    supportsVisits: boolean("supports_visits").notNull().default(false),
     startedAt: time("started_at"),
     lastRenewedAt: time("last_renewed_at"),
     /** Barreira do checkpoint: nunca é removida para reativar o mesmo SID. */
@@ -350,6 +358,7 @@ export const recreioSpaceMembers = recreio.table(
   (t) => [
     uniqueIndex("recreio_space_members_profile").on(t.spaceId, t.profileId),
     unique("recreio_space_members_space_id").on(t.spaceId, t.id),
+    unique("recreio_space_members_identity_profile").on(t.spaceId, t.id, t.profileId),
     foreignKey({
       name: "recreio_space_members_inviter_world_fk",
       columns: [t.spaceId, t.invitedByMemberId],
@@ -486,6 +495,8 @@ export const recreioGameInstances = recreio.table(
     gameId: text("game_id").notNull(),
     publicUrl: text("public_url").notNull(),
     version: text("version").notNull(),
+    /** Capacidade declarada no registro; instâncias legadas permanecem sem visitas. */
+    supportsVisits: boolean("supports_visits").notNull().default(false),
     state: text("state").$type<"active" | "draining" | "gone">().notNull().default("active"),
     /** Quantos mundos a instância aceita ao mesmo tempo. */
     capacity: integer("capacity").notNull(),

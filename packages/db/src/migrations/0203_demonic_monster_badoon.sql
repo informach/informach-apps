@@ -1,0 +1,1 @@
+CREATE INDEX "recreio_visit_session_open" ON "recreio"."world_visit_sessions" USING btree ("created_at","id") WHERE "recreio"."world_visit_sessions"."state"<>'closed';

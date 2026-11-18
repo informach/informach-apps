@@ -1,0 +1,336 @@
+# Recreio: convites dirigidos e aprovações
+
+Incremento de F5, subordinado ao fechamento web autorizado. Este plano não
+declara implementação ou ativação. Mantém os códigos adultos existentes no
+seu contrato e prazo; não os reinterpreta como aprovação para menores.
+
+## Persistência e integridade
+
+Convite dirigido tem registro próprio, sem código transmissível. O destinatário
+é um perfil conhecido por amizade atualmente autorizada; o servidor determina
+contas, papéis, políticas, gerações e participação existente. UUID da tentativa
+é único por emissor e vincula o corpo canônico. Resposta perdida recupera o
+mesmo recibo durante trinta dias; não existe retry automático. O convite vale
+até 24 horas. Tabelas de aprovação do mundo e do responsável são distintas.
+
+O convite guarda revisão de gestão, de amizade e das políticas observadas.
+Qualquer mudança exige convite novo, sem restaurar aprovação por retorno de
+perfil, aparelho, amizade ou papel. A proveniência do emissor é a participação
+do próprio perfil naquele mundo, com FK composta. IDs de origem/destino não
+podem desaparecer por uma exclusão indireta: F7 revoga e elimina esses recibos
+antes de desvincular a identidade, conservando os membros e o progresso.
+
+Este primeiro contrato admite somente membro. Visitas terão concessão separada,
+prazo e SID do anfitrião, além de negociação de SDK/host; não usar participação
+permanente temporária. O servidor recusa visita enquanto esse incremento não
+estiver implementado e homologado.
+
+## Autoridade e ordem das travas
+
+1. Emissão/aceite usam a autoridade real de jogo (cookie de jogador ou SID),
+   cobertura e classificação atuais. Composição das contas das duas pontas é
+   travada em ordem antes do mundo e dos perfis. Releitura após esperar é
+   obrigatória; recalcular política confirma sua invalidação antes da recusa.
+2. Responsável ou coadministrador adulto pode convidar. Membro segue `no`,
+   `with_approval` ou `yes`. Em `yes`, participação só é direta quando coincide
+   com o identificador já atribuído ao membro e não é nula; um texto enviado
+   pelo cliente nunca comprova propriedade da família do jogo. Novo espaço de
+   participação exige aprovação do mundo. O jogo continua validando sua regra.
+3. Aprovação do mundo exige adulto nativo atual com papel válido, ou responsável
+   atual pelo perfil menor que é responsável pelo mundo. Compõe também essa
+   terceira ponta antes das travas. Compra ou grupo não concedem papel.
+4. Todo perfil menor envolvido exige aprovação nativa recente do responsável
+   atual, vinculada ao vínculo, geração e política observados. É independente
+   da amizade aprovada e da decisão do mundo. O adulto não precisa de jogador.
+5. Aceite relê amizade e bloqueios nas duas pontas, aprovações, revisão de
+   gestão, papéis, perfil/aparelho, política e conteúdo/lotação. O destinatário
+   é o perfil atual da autoridade, nunca um campo de identidade do pedido.
+   Reingresso conserva o ID do membro e exige convite posterior à saída.
+
+Recibos, aprovação, aceite e auditoria são atômicos. Releitura do relógio no
+fim impede que uma espera na auditoria atravesse o prazo. Transferência,
+remoção, rebaixamento do emissor, arquivo e moderação revogam convites ainda
+não aceitos. Bloqueio impede emissão/aceite mesmo antes da manutenção.
+
+## Superfícies e verificação
+
+Contratos portáteis/SDK em `packages/recreio`; serviços, repositories, ações e
+rotas no app. A entrada de destinatário nasce da lista de amigos autorizados,
+sem busca pública. Portal/host mostram pendência, validade e confirmação
+explícita; a área nativa oferece decisões do mundo e dos menores. Uma falha de
+resposta manda conferir o recibo e não simula rollback ou aprovação.
+
+Provar no GitHub: amizade revogada/bloqueada antes e durante o aceite; política,
+geração e responsável trocados; aprovação parental sem papel no mundo e vice-
+versa; membro tentando participação alheia; duas aceitações/última vaga;
+saída/remoção/transferência/arquivo concorrentes; SID de outro jogo ou encerrado;
+nonce reutilizado com outro corpo e resposta perdida; falha real de auditoria;
+expiração durante trava e depois da auditoria; duas contas e menor pareado no
+título interno Livre. Migrations geradas no GitHub e upgrade com dados. Antes
+de produção, concluir também moderação, retenção, direitos e fontes operacionais.
+
+## Geração e revisão da fundação
+
+O artefato `14380776251`, run `44198406955`, origem `57cd67fd`, foi **recusado
+antes da cópia**. Seu SQL 0193 criava a FK de proveniência antes da restrição
+única de `space_members` referenciada por ela. Não editar o SQL para reordenar.
+Gerar primeiro somente a restrição composta, a partir do snapshot 0192; depois
+restaurar a exportação das três tabelas e gerar a migration seguinte, que já
+encontrará a chave no schema anterior. Os arquivos desse artefato recusado não
+entram no checkout ou em produção. As tabelas ainda não têm escritores nem
+leitores publicados. Aprovação depende dos dois artefatos conferidos, banco
+descartável e upgrade com dados no GitHub.
+
+Predecessora correta gerada em `44198889651`, origem
+`e4d99d4cb26ebcde4c9b96d5c9b753a057f1ec02`, artefato `14379858339`.
+ZIP `de8d3f3811b31c70706c3060039524ab9c95d8bdd5a2b381aa2cdf8930becc12`.
+Conferidos origem, allowlist, bytes e SHA-256 antes e depois da cópia intacta:
+
+- `0193_careless_gladiator.sql`, 131 bytes,
+  `188aa8a306f70867b5ffafade098f7bc3c7937d8b85c7538ca3df4a7dc69ad3a`.
+- Snapshot, 853543 bytes,
+  `2c1faaa59095d924cddf00d1827d7853b2c8981734b0cd563198fecca3f490e2`.
+- Journal, 29345 bytes,
+  `7b62a627a8b1cdce208aef2035f95ad1f35e3802b1804722a205fdeb3ca83eee`.
+
+SQL contém somente a restrição única composta da tabela existente, cujo volume
+de produção é pequeno. As três tabelas retornam à exportação para gerar 0194.
+Ainda não executar migration isolada ou publicar como fluxo de convite pronto.
+
+0194 foi gerada no run `44199344843`, origem
+`59f3495d71f0de3cc64adf10a795e7982009443f`, artefato `14379468637`.
+ZIP `1be7fd81fbfa2e3fbc9f8b3cd70fa4b7dd3ba53ef30b7702f258cf99839bde6d`.
+Cópia intacta conferida antes e depois por bytes e SHA-256:
+
+- SQL `0194_funny_photon.sql`, 8252 bytes,
+  `2f543ff2b6771af2143d8a120c7b1bc3ddb5b98da4bc31292b17c43b355c2977`.
+- Snapshot, 872993 bytes,
+  `3b8ec3ddb47ad47cb37d86235901a72058e6d31af1cdab396371685526259f8d`.
+- Journal, 29487 bytes,
+  `645234b6fa61df855928462b9f0998960fbf5d49af8ead76865378f8070428b6`.
+
+A revisão também exige proveniência da aprovação do mundo feita por responsável
+de um menor que detenha o mundo: vínculo, geração e versão da política ficam no
+recibo. Conferir só o adulto atual permitiria reaproveitar aprovação anterior a
+uma revogação e retorno da mesma pessoa. Esses campos entram em geração aditiva
+posterior, antes de qualquer escritor publicado; não editar 0194 gerada.
+
+0195 gerada no run `44201183378`, origem
+`11ae500e0135283b05be6addbe2ae6aa72bf5b20`, artefato `14381307675`.
+ZIP `9c209a772426fc9577c300c38caa101b46d73349a10bf5a8aa786e4e86981c1c`.
+Os três arquivos foram conferidos e copiados intactos:
+
+- SQL `0195_workable_wendell_vaughn.sql`, 1561 bytes,
+  `8489518d2804af96f0aa4c175affc84e2e665753da05053057634b0e8632277f`.
+- Snapshot, 874625 bytes,
+  `ff20c1779de4bc0b1f727c30e5c34697ff8aeb7dd7009b3288d98e05f3ae9276`.
+- Journal, 29640 bytes,
+  `9ff90f8ab2aebe6b99ba74875e4714428ccf3a0e9ff99451a520418e6fbdc94a`.
+
+A geração das duas pontas também pertence ao convite original. Renovar uma
+amizade parental não incrementa sua revisão; por isso esse número sozinho não
+invalida o convite anterior à desconexão de aparelhos. A geração de cada menor
+é capturada na emissão e comparada antes de aprovar/aceitar. Migration aditiva
+seguinte, sem backfill inventado: raiz antiga sem geração não pode autorizar
+menor. Nenhum escritor dessas tabelas foi publicado ou ativado.
+
+0196 gerada em `44202821509`, origem
+`7b34737aa41f6d91243b52e55eda1de626b722fc`, artefato `14381368767`, ZIP
+`28797eb0a84fb78fe3db9f7d3f379872f4469071c680c9a67356473ee2b40490`.
+Somente adiciona duas colunas UUID opcionais; nada presume ou preenche uma
+geração histórica. Allowlist, bytes e hashes conferidos antes/depois da cópia:
+
+- `0196_wise_domino.sql`, 205 bytes,
+  `c259fc3ddda542fd2df2417f88d65c8c5f2ef21458eef5ea84882f58ab155e0f`.
+- Snapshot, 874983 bytes,
+  `bad2f17a20d9a0a1ce862f85365c2fd320fa05b586635130b7942a74352546ea`.
+- Journal, 29781 bytes,
+  `7172155ef53fb2aa3d527f8bef9156c5c1cd5b47f295e81c00d06965ca746ba2`.
+
+## Backend candidato, ainda sem publicação
+
+Emissão, resposta e aprovações possuem serviços separados, schemas estritos,
+limites por ator e transações com contas ordenadas → mundo → perfis. Emissão e
+aceite exigem a autoridade real de jogo; recusar/revogar funciona sem cobertura
+e com novos contatos desligados. Nenhuma rota ou tela ativa esse backend neste
+marco. Retenção e revogação são integradas aos escritores de gestão e à
+manutenção; invalidação da equipe confere as duas pontas do caso.
+
+As integrações candidatas exercitam os serviços contra PostgreSQL descartável:
+replay, corpo divergente, bloqueios, remoção de amizade, decisão de terceiro
+com papel no mundo, arquivo, saída/reingresso, rollback de auditoria e prazo,
+retenção sem exclusão de membros e duas aprovações parentais independentes em
+título interno L. Essa descrição não é prova de que os testes passaram.
+Gates, concorrência adicional, upgrade, HTTP/SDK, caixas de entrada, superfícies
+nativas e E2E dos convites dirigidos ainda precisam ser concluídos. Visitas e
+sucessão de mundo infantil continuam abertas; F5 não está pronta.
+
+Backend `622be7d1` aprovado nos oito gates `44203618156`: 757 integrações em
+82 arquivos, além dos gates de qualidade, navegador, checkpoint, cliente,
+simulação longa, versões e equipe. Dezesseis testes novos exercitam os serviços
+dirigidos; não são prova de jornada de convites pela interface. Não houve
+implantação de 0191–0196.
+
+## Candidata HTTP e SDK
+
+O próximo incremento adiciona `GET/POST /api/sdk/v1/convites-dirigidos`, corpo
+estrito de até 4096 bytes e SID atual. A caixa mostra dez recibos próprios,
+com cursor por data/UUID, jogo, direção, estado, prazo e perfil opaco da outra
+ponta; sem nomes, conta, geração, política, presença ou conteúdo. SID filtra o
+próprio jogo. Consulta nativa da caixa e consulta do responsável atual não
+exigem cobertura. Leitura detalhada pelo jogo ainda exige sua autoridade atual.
+
+SDK oferece `social.convitesDeMundo` somente com opção explícita
+`convitesDirigidos: true` junto de `social: true` e resposta negociada do
+servidor. Clientes anteriores não recebem campo novo na abertura. Recibos são
+emitidos, consultados e respondidos manualmente, sem retry automático. O teto
+de convites pendentes do mundo é compartilhado com os códigos adultos; a
+retenção por emissor/destinatário também é limitada sob as travas dos perfis.
+
+Cinco integrações novas candidatas provam capacidade, dois SIDs reais,
+resposta perdida depois do commit, recuperação explícita, identidade/campos
+estranhos, rejeição de aprovação parental pelo SDK, SID encerrado, outro jogo
+e paginação. Ainda sem resultado dos gates deste incremento. Nenhum componente
+do host ou tela nativa oferece os novos botões neste marco. Faltam superfícies,
+aprovações nativas utilizáveis, concorrência adicional, upgrade e E2E completo.
+
+HTTP/SDK `8fffef03` aprovado nos oito gates `44206115029`, com 762 integrações
+em 83 arquivos. A capacidade foi negociada por SIDs reais; o teste de outro
+jogo conserva seu convite pendente, sem conceder entrada. Isso não comprova
+as telas introduzidas no incremento seguinte.
+
+## Candidata de decisões nativas
+
+O responsável encontra os recibos do próprio menor na supervisão, sem precisar
+de jogador ou cobertura. A consulta de detalhes não exige login recente; a
+aprovação exige login nativo recente, geração e versão atuais. Nomes e mundo
+só aparecem após revalidar amizade, conteúdo e responsabilidade. A tela
+identifica a confirmação que cabe àquela pessoa, sem confundi-la com a do outro
+responsável. Cada envio é explícito e não se repete automaticamente.
+
+O painel de gestão do mundo lista convites aguardando sua decisão. Coadmin ou
+responsável atual do mundo aprova pelo próprio login; no mundo de um menor,
+atua seu responsável atual. A aprovação conserva a autoridade do papel mesmo
+com participação `no_access`, sem emprestar cobertura ao convidado. Leitura
+nativa compõe também o aprovador anterior antes do mundo/perfis: no máximo
+quatro perfis de domínio, mais o perfil próprio opcional já exigido pela
+autoridade nativa, sem ampliar o social comum de duas pontas.
+
+O responsável também pode encerrar convite pendente de seu menor, com contato
+novo desligado, sem assinatura e com a outra ponta suspensa. Esse caminho só
+admite o próprio perfil cuidado, trava o mundo antes dele e não depende da
+política ou aparelho da outra ponta. Recusa/revogação e auditoria são atômicas.
+Se o convite já foi aceito, devolve esse fato sem remover membros/progresso.
+
+Seis integrações adicionais candidatas verificam leitura versus login recente,
+aprovações independentes na projeção, encerramento parental e sua auditoria,
+ausência de remoção após aceite e composição nativa com quatro perfis. A
+regressão de aprovação do mundo passa a provar a autoridade sem cobertura.
+Gates desse incremento, E2E novo, emissão/caixa utilizável no host e portal,
+concorrência adicional, upgrade e visitas ainda pendem. Nenhuma ativação ou
+migration F5 foi feita em produção.
+
+Decisões nativas `68cf29c9` passaram nos oito gates `44209217588`, com 768
+integrações em 83 arquivos. Incluem o build de produção e as jornadas já
+existentes de gestão, sem provar ainda a interação com as novas aprovações.
+
+## Candidata do host e jornadas familiares
+
+O host negocia a capacidade nova e permite convidar um amigo para o mundo em
+que o perfil está, conferir recibos, aceitar/recusar/cancelar e paginar. A
+partida continua montada e nenhum convite chama saída ou troca de mundo. A
+tentativa de emissão conserva o mesmo UUID após resposta perdida. Fechar o
+painel não dispara outra consulta ou atualização posterior.
+
+A operação `conferir` é distinta do recibo histórico: só mostra mundo e
+apelidos enquanto o convite estiver pendente, com amizade, conteúdo e
+autoridade atuais. Bloquear retira essa projeção; a caixa mínima e a recusa
+continuam disponíveis. Emissão recusa destinatário que já participa do mundo;
+replay de um recibo anterior continua recuperável sem restaurar membros.
+
+Duas jornadas novas candidatas exercitam o host contra a instância real do
+contador: dois adultos em mundos distintos, com ACK retido depois do commit
+e painel fechado; e dois adultos sem jogador com dois aparelhos infantis,
+cadastro/supervisão/pareamento/amizade e ambas as aprovações de mundo pela
+interface. O convidado só muda de mundo depois de sair pelo jogo. Nenhuma
+fixture insere convites, aprovações ou membros nessas jornadas. As capturas
+mobile e os resultados dos gates ainda precisam ser conferidos. Portal fora
+da partida, decisão de terceiro pela interface, concorrência adicional,
+upgrade, visitas e sucessão infantil continuam pendentes.
+
+O host `39c618a09c6842e1eb77e43570f8c69e1d4bc17c` passou nos oito gates
+`44211978937`: 769 integrações/83 arquivos e 35 E2E. Os logs confirmam as duas
+jornadas novas executadas (28,3 s famílias; 13,5 s adultos/ACK). O artefato
+`14387815016`, ZIP SHA-256
+`737b0b0712bef86fd126a439807e83cd04463536047b4b50211c3e20c06cc41f`, não
+contém as duas imagens novas porque o workflow tinha uma lista explícita sem
+esses nomes. Não houve revisão visual dessas imagens. A candidata seguinte
+acrescenta os nomes à lista e exige nova coleta remota.
+
+## Candidata de convites fora da partida
+
+`/convites` oferece caixa, detalhe atual, aceite, recusa e cancelamento para o
+perfil real do aparelho nativo ou pareado. `/amigos/[id]/convidar` revalida a
+amizade antes de mostrar o contato e até dez mundos próprios por página. A
+consulta não concede jogo nem participação; emissão e aceite mantêm cobertura,
+política e permissões na transação autoritativa. Nenhuma dessas telas abre SID.
+
+A leitura nativa de recibo/detalhe deixa de exigir cobertura comercial, mas
+mantém identidade atual, contas → mundo → perfis, amizade/revisões e conteúdo
+para a projeção pendente. Bearer do SDK continua exigindo SID admitido. Novos
+testes candidatos exercitam leitura gratuita versus aceite pago, escopo dos
+mundos, bloqueio e envio/aceite pelo portal. Gates, capturas, decisão de terceiro,
+concorrência adicional, upgrade, visitas e sucessão infantil ainda pendentes.
+
+A candidata seguinte acrescenta disputa simultânea pela última vaga e observação
+do bloqueio real em `pg_stat_activity`, sem conservar as travas dos perfis
+enquanto o aceite espera o mundo.
+Outra jornada de navegador exercita o participante emitindo e o responsável
+pelo mundo decidindo pela interface nativa. O ensaio de upgrade `--mundos`
+parte da fonte implantada `396fe932`/0190 com dois mundos, três membros, dois
+convites antigos, duas fotografias, quatro fatos e cercas 7. Confere bytes,
+IDs, revisões e recibos antes/depois e na repetição. Essas provas estão escritas
+para o GitHub; ainda não há resultado desse incremento.
+
+`4f7644c6` passou na qualidade e em 771 integrações no run `44215413930`.
+`28b20437` comprovou a disputa pela última vaga (772 testes passaram), mas o
+novo teste que esperava um bloqueio da mesma conta durante a espera pelo mundo
+falhou por `lock_timeout`. A composição conserva a serialização de contas antes
+de esperar o mundo; esse bloqueio não pode ultrapassá-la. A correção separa a
+prova de perfis livres durante a espera e a prova de bloqueio admitido primeiro.
+Nesta última, um trigger de auditoria e uma trava exclusiva do ensaio permitem
+observar a cadeia real de espera das duas operações antes de liberar o commit.
+Os limites de produção não foram ampliados. O ensaio de upgrade novo não chegou
+a executar no run que falhou a integração; permanece pendente.
+
+O E2E `44215413930` terminou com 35 jornadas aprovadas e uma falha. A nova
+jornada concluiu envio/aceite, mas buscava um heading onde a estante publica
+um link; o seletor já foi corrigido na candidata seguinte. A vigia também
+capturou duas violações CSP `script-src eval` ao carregar as telas nativas.
+O painel compartilhado importava o SDK inteiro só para reconhecer recusas,
+levando o grafo de schemas ao portal fora do hospedeiro que configura o Zod.
+O subpath puro `@informach/recreio/erros` permite compartilhar as recusas sem
+carregar SDK/Zod nessa interface. A política CSP e sua vigia são preservadas.
+O corretivo ainda precisa de nova prova remota; o resultado anterior não
+autoriza implantação.
+
+Integração da correção de serialização `4af5832f`, run `44216938602`, aprovada:
+774 testes/83 arquivos e cinco testes da projeção administrativa. Os dois
+ensaios de upgrade passaram: 179→197 e 191→197 recibos. O segundo preservou os
+dois mundos, três membros, dois convites antigos, duas fotografias, quatro
+fatos e cerca 7, além de perfis, progresso e conquistas; repetição sem mudança.
+O E2E desse source ainda contém a importação corrigida no incremento de CSP,
+portanto essa evidência de backend não representa aprovação do portal inteiro.
+
+Corretivo `36dc48467add7f726428b05ab37b7e4b3d2edc8b` aprovado nos oito gates
+`44217620284`. O E2E terminou com 37 jornadas aprovadas/9,5 min, vigia CSP sem
+violações. Logs confirmam envio/aceite fora da partida (11,7 s), decisão do
+responsável do mundo (16,8 s), host/ACK (15 s) e duas famílias (29,1 s). Não há
+CI compartilhado, implantação ou ativação F5 decorrente desse resultado.
+
+As três capturas faltantes foram recuperadas no artefato `14389535490` do source
+anterior `4f7644c6`, ZIP
+`6bc492334a9e3414770aafbd17c52511953a28ed6a1466fe7f47cc6127eeba0d`.
+Conferidas visualmente em 390 px: aprovação do responsável, painel na partida
+e caixa no portal, sem corte horizontal. Essa revisão visual não altera a
+falha registrada do E2E anterior; a correção de CSP foi provada no run seguinte.

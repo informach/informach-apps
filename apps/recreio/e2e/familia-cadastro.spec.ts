@@ -1,5 +1,7 @@
+import { ControleDaSessaoSchema } from "@informach/recreio/contrato";
 import { expect, test } from "@playwright/test";
 import {
+  capturarJsonDoPortal,
   comecarVigia,
   conceder,
   fecharAparelhos,
@@ -179,12 +181,28 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
   expect(ingressoMorada).toEqual({ status: 403, corpo: { codigo: "POLITICA_INCOMPATIVEL" } });
   await page.getByRole("heading", { name: "Sua estante", exact: true }).scrollIntoViewIfNeeded();
   await tela(page, "estante-protegida-mobile");
+  const respostaDoControle = capturarJsonDoPortal(page.context(), "/api/sdk/v1/sessao/controle");
   await page
     .getByRole("link", { name: "Jogar Prova de progresso por perfil", exact: true })
     .click();
   await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("0");
+  const resposta = await respostaDoControle;
+  expect(resposta.status).toBe(200);
+  const controle = ControleDaSessaoSchema.parse(resposta.corpo),
+    tempo = controle.tempo;
+  if (!tempo?.pausaEm)
+    throw new Error("O servidor não informou a pausa do perfil com limite de dez minutos.");
+  expect(tempo.limiteDiarioMinutos).toBe(10);
+  expect(["daily_limit", "day_change"]).toContain(tempo.motivo);
+  const faltam = Date.parse(tempo.pausaEm) - Date.parse(controle.agora);
+  expect(faltam).toBeGreaterThan(0);
+  expect(faltam).toBeLessThanOrEqual(600_000);
+  // O dia em Brasília pode terminar antes do limite diário configurado.
+  const minutos = Math.ceil(faltam / 60_000);
   await expect(
-    page.getByRole("status").filter({ hasText: "Faltam cerca de 10 minutos para a pausa." }),
+    page.getByRole("status").filter({
+      hasText: `Faltam cerca de ${minutos} ${minutos === 1 ? "minuto" : "minutos"} para a pausa.`,
+    }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Ganhar ponto", exact: true }).click();
   await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("1");

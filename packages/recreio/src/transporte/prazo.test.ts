@@ -4,6 +4,37 @@ import { comPrazoDePedido, TEMPO_LIMITE_DO_PEDIDO_MS } from "./prazo";
 afterEach(() => vi.useRealTimers());
 
 describe("prazo da operação HTTP completa", () => {
+  it("conclusão limpa o prazo e conserva o sinal concluído sem emitir cancelamento tardio", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const cancelada = vi.fn();
+    expect(
+      await comPrazoDePedido(async (sinal) => {
+        signal = sinal;
+        sinal.addEventListener("abort", cancelada, { once: true });
+        return new Response('{"concluido":true}').json();
+      }),
+    ).toEqual({ concluido: true });
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(TEMPO_LIMITE_DO_PEDIDO_MS + 1);
+    expect(signal?.aborted).toBe(false);
+    expect(cancelada).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("falha aborta o trabalho associado e preserva o erro original", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const falha = new Error("leitura interrompida");
+    await expect(
+      comPrazoDePedido(async (sinal) => {
+        signal = sinal;
+        throw falha;
+      }),
+    ).rejects.toBe(falha);
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("termina mesmo se o adapter não atender ao cancelamento e ignora resultado atrasado", async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;

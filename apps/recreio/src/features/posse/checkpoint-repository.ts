@@ -3,12 +3,12 @@ import { and, db, eq, sql } from "@informach/db";
 import {
   recreioGameSessions as games,
   recreioSessionHandoffs as handoffs,
-  recreioSpaceMembers as members,
   recreioSpaces as spaces,
 } from "@informach/db/schema";
 import { ErroDoRecreio, type MundoId, PerfilIdSchema } from "@informach/recreio";
 import type { CheckpointDoHost } from "@informach/recreio/contrato";
 import { confirmarCheckpointDoJogo } from "@/features/sessao-de-jogo/checkpoint-repository";
+import { conferirParticipacaoParaEncerramento } from "@/features/visitas/encerramento-contexto-repository";
 import { conferirFotografiaDeCheckpoint } from "./prova-fotografia";
 import { conferirConteudoDoMundo, conferirPosse } from "./repository";
 import type { Host } from "./service";
@@ -65,12 +65,12 @@ export async function confirmarCheckpointDoMundoNoBanco(
           .select({ mundoId: games.spaceId })
           .from(games)
           .where(eq(games.id, entrada.sid));
-        const [membro] = await tx
-          .select({ estado: members.state })
-          .from(members)
-          .where(and(eq(members.spaceId, mundoId), eq(members.profileId, pista.perfilId)));
-        if (sessao?.mundoId !== mundoId || membro?.estado !== "active")
-          throw new ErroDoRecreio("SEM_PERMISSAO");
+        if (sessao?.mundoId !== mundoId) throw new ErroDoRecreio("SEM_PERMISSAO");
+        await conferirParticipacaoParaEncerramento(tx, {
+          mundoId,
+          perfilId: pista.perfilId,
+          sid: entrada.sid,
+        });
         await conferirConteudoDoMundo(tx, mundo, host.jogo, admissao.politica?.politica ?? null);
         if (!entrada.confirmado) return null;
         const prova = {

@@ -160,6 +160,7 @@ export async function protegerContatoSupervisionado(
           alvoId: entrada.perfilId,
           contaId: atual.contaId,
           conferirPrazo: atual.conferirPrazo,
+          mundoCompartilhado: atual.mundoCompartilhado,
         },
         entrada,
       ),

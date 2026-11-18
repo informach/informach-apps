@@ -12,6 +12,8 @@ import type { ContaId, MundoId, PerfilId, SessaoDeAparelhoId } from "@informach/
 import { encerrarSessoesAbertas, travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { prepararRevogacaoDeConvites } from "./convites-revogacao-repository";
+import { travarMundoAntesDosPerfis } from "./ordem-de-travas-repository";
 import { revogarPropostasDoMembro } from "./responsabilidade-repository";
 
 export type AutorDaSaida = {
@@ -25,6 +27,7 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
     await tx.execute(sql`set local statement_timeout = '5s'`);
     await tx.execute(sql`set local lock_timeout = '1s'`);
     await tx.execute(sql`set local transaction_timeout = '15s'`);
+    await travarMundoAntesDosPerfis(tx, autor.perfilId, mundoId, "update");
     // A autoridade fica estável; SHARE conserva as FKs e os demais leitores disponíveis.
     const [perfil] = await tx
       .select({ id: profiles.id })
@@ -90,6 +93,7 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
     );
     const filtro = sql`${games.profileId} = ${perfil.id} and ${games.spaceId} = ${mundo.id}`;
     await revogarPropostasDoMembro(tx, mundo.id, membro.id, autor.contaId);
+    const revogarConvites = await prepararRevogacaoDeConvites(tx, mundo.id, membro.id);
     await travarEncerramentos(tx);
     await tx
       .select({ id: games.id })
@@ -98,6 +102,7 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
       .for("update");
     // Reler o relógio depois de todas as travas disputáveis, antes da mudança.
     await exigirPrazo();
+    await revogarConvites(autor.contaId, "member_left");
     await tx
       .update(members)
       .set({ state: "former", leftAt: AGORA })

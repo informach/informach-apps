@@ -1,9 +1,5 @@
-import { and, db, eq, inArray, isNull, sql } from "@informach/db";
-import {
-  events,
-  recreioGameSessions as sessions,
-  recreioMinorDailyUsage as usage,
-} from "@informach/db/schema";
+import { and, db, eq, inArray, sql } from "@informach/db";
+import { events, recreioGameSessions as sessions } from "@informach/db/schema";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   encerrarSessoesAbertas,
@@ -71,17 +67,9 @@ describe("expiração limitada das sessões", () => {
     // aqui todas as sessões abertas que pretende observar (inclusive válidas).
     // Somente no banco descartável e sem paralelismo de arquivos, impostos pela config.
     await db.transaction(async (tx) => {
-      // Outras fixtures podem ter agregado infantil ligado a uma sessão aberta.
-      // Limpar primeiro essa dependência no banco descartável; conservar a FK de produção.
-      await tx
-        .delete(usage)
-        .where(
-          inArray(
-            usage.sessionId,
-            tx.select({ id: sessions.id }).from(sessions).where(isNull(sessions.endedAt)),
-          ),
-        );
-      await tx.delete(sessions).where(isNull(sessions.endedAt));
+      // Encerrar a autoridade das fixtures preserva agregados, presenças e o cursor.
+      // A existência de referências técnicas não autoriza apagar a sessão.
+      await encerrarSessoesAbertas(tx, sql`true`, "expired", { porQuem: "recreio" });
     });
   });
 

@@ -18,6 +18,9 @@ export async function comAutorDeMundos<T>(
   jogo: string,
   antesDoPerfil: (tx: Transacao) => Promise<void>,
   executar: (tx: Transacao, admissao: Admissao) => Promise<T>,
+  opcoes: {
+    antesDaIdentidade?: (tx: Transacao, referencia: ReferenciaDeJogador) => Promise<void>;
+  } = {},
 ): Promise<T> {
   try {
     if ("sid" in autor) {
@@ -26,13 +29,14 @@ export async function comAutorDeMundos<T>(
         autor,
         async () => {},
         (tx, _conta, admissao) => executar(tx, admissao),
-        { antesDoPerfil },
+        { antesDoPerfil, antesDaIdentidade: opcoes.antesDaIdentidade },
       );
     }
     const resultado = await db.transaction(async (tx) => {
       await tx.execute(sql`set local transaction_timeout='15s'`);
       await tx.execute(sql`set local statement_timeout='5s'`);
       await tx.execute(sql`set local lock_timeout='2s'`);
+      await opcoes.antesDaIdentidade?.(tx, autor);
       const identidade = await prepararIdentidadeDoJogo(tx, autor);
       await antesDoPerfil(tx);
       const admitido = await admitirAparelhoDeJogo(

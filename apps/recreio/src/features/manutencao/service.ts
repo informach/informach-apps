@@ -4,12 +4,16 @@ import {
   exigirFilaDeSegurancaEmDia,
   limparDenuncias,
 } from "@/features/moderacao/retencao-repository";
+import { limparConvitesDirigidos } from "@/features/mundos/convites-dirigidos-retencao-repository";
 import { fecharPossesVencidas, marcarInstanciasSumidas } from "@/features/posse/repository";
+import { limparPresencasDeAnfitriao } from "@/features/presencas/retencao-repository";
 import {
   apagarIngressosAntigos,
   encerrarSessoesVencidas,
 } from "@/features/sessao-de-jogo/repository";
 import { limparRegistrosSociais } from "@/features/social/retencao-repository";
+import { limparSessoesVisitantesOrfas } from "@/features/visitas/orfas-repository";
+import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
 import {
   apagarConvitesAntigos,
   apagarIntencoesAntigas,
@@ -32,6 +36,16 @@ export async function executarManutencao(): Promise<{
   ingressosApagados: number;
   sessoesExpiradas: number;
   convitesApagados: number;
+  convitesDirigidosVencidos: number;
+  recibosDeConviteDirigidoApagados: number;
+  presencasDeAnfitriaoVencidas: number;
+  presencasDeAnfitriaoApagadas: number;
+  convitesDeVisitaVencidos: number;
+  visitasVencidas: number;
+  recibosDeVisitaApagados: number;
+  concessoesDeVisitaApagadas: number;
+  sessoesDeVisitaApagadas: number;
+  sessoesDeVisitaOrfaConferidas: number;
   cadastrosPendentesApagados: number;
   recibosDeCadastroApagados: number;
   pareamentosApagados: number;
@@ -62,7 +76,11 @@ export async function executarManutencao(): Promise<{
   const instanciasSumidas = await marcarInstanciasSumidas();
   const ingressosApagados = await apagarIngressosAntigos();
   const sessoesExpiradas = await encerrarSessoesVencidas();
+  const visitasOrfas = await limparSessoesVisitantesOrfas();
   const convitesApagados = await apagarConvitesAntigos();
+  const dirigidos = await limparConvitesDirigidos();
+  const visitas = await limparRecibosDeVisita();
+  const presencas = await limparPresencasDeAnfitriao();
   const intencoes = await apagarIntencoesAntigas();
   const diasDeUsoApagados = await apagarUsoAntigo();
   const recibosDeSalvamentoApagados = await apagarSalvamentosAntigos();
@@ -76,7 +94,11 @@ export async function executarManutencao(): Promise<{
     instanciasSumidas,
     ingressosApagados,
     sessoesExpiradas,
+    ...visitasOrfas,
     convitesApagados,
+    ...dirigidos,
+    ...visitas,
+    ...presencas,
     ...intencoes,
     diasDeUsoApagados,
     recibosDeSalvamentoApagados,

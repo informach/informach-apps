@@ -1,6 +1,7 @@
 "use client";
 import type { ContatoSocial } from "@informach/recreio/contrato";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
+import Link from "next/link";
 import { useId, useState } from "react";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
 import {
@@ -79,6 +80,14 @@ export function CartaoDeContato(p: Props) {
         <p className="mt-3 text-sm text-tinta-suave">
           A identificação fica reservada enquanto faltam as permissões necessárias.
         </p>
+      )}
+      {p.tipo === "jogador" && p.novosContatos && c.amizade && !c.bloqueado && (
+        <Link
+          href={`/amigos/${c.perfilId}/convidar`}
+          className="mt-4 inline-flex min-h-11 items-center font-bold text-ceu underline"
+        >
+          Convidar para um mundo
+        </Link>
       )}
       <fieldset className="mt-4" disabled={!hidratado || acao.pendente}>
         <legend className="sr-only">Cuidados e decisões sobre {nome}</legend>

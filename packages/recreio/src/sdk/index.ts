@@ -1,5 +1,12 @@
 import type { z } from "zod";
 import {
+  CaixaDeConvitesDirigidosSchema,
+  ConviteDirigidoSchema,
+  type ConvitesDirigidosDoPerfil,
+  DetalheDeConviteDirigidoSchema,
+  MutacaoDeConviteDirigidoSchema,
+} from "../contrato/convites-dirigidos";
+import {
   ChaveDeDadosSchema,
   ConquistaSchema,
   DadoLidoSchema,
@@ -18,6 +25,11 @@ import {
   RecursoRecebidoSchema,
   RevisaoDeDenunciaSchema,
 } from "../contrato/denuncias";
+import { ConsultaCronologicaSchema } from "../contrato/paginacao";
+import {
+  ConsultaDeParticipantesSchema,
+  ParticipantesDoMundoSchema,
+} from "../contrato/participantes";
 import {
   EstadoDeSalvamentoSchema,
   type PedidoDeSalvamentoDePerfil,
@@ -53,7 +65,19 @@ import {
   type SocialDoPerfil,
 } from "../contrato/social";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
+import {
+  CaixaDeVisitasSchema,
+  DetalheDeConviteDeVisitaSchema,
+  MutacaoDeVisitaSchema,
+  PresencaParaConviteSchema,
+  ReciboDeConviteDeVisitaSchema,
+  ResultadoDaDecisaoDeVisitaSchema,
+  VisitaAbertaSchema,
+  type VisitaDoJogador,
+  type VisitasDoPerfil,
+} from "../contrato/visitas";
 import { ErroDoRecreio, ehErroDoRecreio } from "../dominio/erros";
+import { UuidSchema } from "../dominio/ids";
 import { base64ParaBytes, bytesParaBase64 } from "../transporte/bytes";
 import { type Buscar, erroDaResposta, lerCorpo, pedir, semBarraFinal } from "../transporte/http";
 import { comPrazoDePedido, TEMPO_LIMITE_DO_PEDIDO_MS } from "../transporte/prazo";
@@ -75,6 +99,18 @@ export const REPETIR_RENOVACAO_APOS_MS = 15_000;
 /** Agenda uma chamada e devolve a função que a cancela. */
 export type Agendar = (chamar: () => void, emMs: number) => () => void;
 
+function consultaCronologica(apos?: { em: string; id: string }): string {
+  const consulta = ConsultaCronologicaSchema.parse(
+    apos ? { aposEm: apos.em, aposId: apos.id } : {},
+  );
+  const parametros = new URLSearchParams();
+  if (consulta.aposEm && consulta.aposId) {
+    parametros.set("aposEm", consulta.aposEm);
+    parametros.set("aposId", consulta.aposId);
+  }
+  return parametros.toString();
+}
+
 export type OpcoesDoRecreio = {
   /** Origem do Recreio. Vazio serve quando o jogo roda na própria origem do portal. */
   baseUrl: string;
@@ -93,6 +129,12 @@ export type OpcoesDoRecreio = {
   salvamentoRestrito?: boolean;
   /** Negociação explícita, após os leitores sociais do servidor estarem implantados. */
   social?: boolean;
+  /** Requer social; publicar depois dos endpoints e leitores dos convites dirigidos. */
+  convitesDirigidos?: boolean;
+  /** Negociação explícita; publicar após admissão/renovação/encerramento da instância. */
+  visitas?: boolean;
+  /** Finalidade do próximo SID. Não é uma credencial ou prova de entrada. */
+  visitaId?: string;
   /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
   aguardarCheckpoint?: boolean;
   aoAguardarCheckpoint?: () => void;
@@ -109,6 +151,11 @@ const agendarComTimeout: Agendar = (chamar, emMs) => {
 };
 
 export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGameContext> {
+  const jogoDaSessao = opcoes.jogo;
+  const finalidade = opcoes.visitaId === undefined ? null : UuidSchema.safeParse(opcoes.visitaId);
+  if (finalidade && (!finalidade.success || opcoes.visitas !== true))
+    throw new ErroDoRecreio("ENTRADA_INVALIDA");
+  const visitaId = finalidade?.success ? finalidade.data : undefined;
   const buscar: Buscar = opcoes.fetch ?? ((url, init) => fetch(url, init));
   const agora = opcoes.agora ?? (() => Date.now());
   const agendar = opcoes.agendar ?? agendarComTimeout;
@@ -152,6 +199,9 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       ...(chaveDeTroca === undefined ? {} : { chaveDeTroca }),
       ...(opcoes.salvamentoRestrito ? { suportaSalvamento: true } : {}),
       ...(opcoes.social ? { suportaSocial: true } : {}),
+      ...(opcoes.social && opcoes.convitesDirigidos ? { suportaConvitesDirigidos: true } : {}),
+      ...(opcoes.visitas ? { suportaVisitas: true } : {}),
+      ...(visitaId === undefined ? {} : { visitaId }),
     },
   } as const;
   const aberta = await (async () => {
@@ -191,6 +241,9 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       }
     }
   })();
+  if (aberta.visitaId !== visitaId || (visitaId !== undefined && aberta.visitas !== true))
+    throw new ErroDoRecreio("INDISPONIVEL");
+  const visitasHabilitadas = opcoes.visitas === true && aberta.visitas === true;
 
   let token = aberta.token;
   let expiraEm = aberta.expiraEm;
@@ -366,7 +419,134 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     },
   };
 
+  const convites: ConvitesDirigidosDoPerfil = {
+    async conferir(conviteId) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", DetalheDeConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ operacao: "conferir", conviteId }),
+      });
+    },
+    async listar(apos) {
+      exigirSessao();
+      const query = consultaCronologica(apos);
+      return enviar(
+        `/convites-dirigidos${query ? `?${query}` : ""}`,
+        CaixaDeConvitesDirigidosSchema,
+        { method: "GET", token },
+      );
+    },
+    async consultar(conviteId) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", ConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ operacao: "consultar", conviteId }),
+      });
+    },
+    async emitir(pedido) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", ConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ ...pedido, operacao: "emitir" }),
+      });
+    },
+    async responder(conviteId, acao) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", ConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ operacao: "responder", conviteId, acao }),
+      });
+    },
+  };
+  async function operarVisita<T>(
+    esquema: z.ZodType<T>,
+    pedido: z.input<typeof MutacaoDeVisitaSchema>,
+  ): Promise<T> {
+    exigirSessao();
+    return enviar("/visitas", esquema, {
+      method: "POST",
+      token,
+      corpo: MutacaoDeVisitaSchema.parse(pedido),
+    });
+  }
+  function conferirReciboDeVisita(convite: { conviteId: string; jogo: string }, id?: string): void {
+    if (convite.jogo !== jogoDaSessao || (id !== undefined && convite.conviteId !== id))
+      throw new ErroDoRecreio("INDISPONIVEL");
+  }
+  const visitas: VisitasDoPerfil = {
+    async presenca(mundoId) {
+      const resposta = await operarVisita(PresencaParaConviteSchema, {
+        operacao: "presenca",
+        mundoId,
+      });
+      if (resposta.jogo !== jogoDaSessao || resposta.mundoId !== mundoId)
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return resposta;
+    },
+    async listar(apos) {
+      exigirSessao();
+      const query = consultaCronologica(apos);
+      const caixa = await enviar(`/visitas${query ? `?${query}` : ""}`, CaixaDeVisitasSchema, {
+        method: "GET",
+        token,
+      });
+      for (const convite of caixa.convites) conferirReciboDeVisita(convite);
+      return caixa;
+    },
+    async consultar(conviteId) {
+      const resultado = await operarVisita(ResultadoDaDecisaoDeVisitaSchema, {
+        operacao: "consultar",
+        conviteId,
+      });
+      conferirReciboDeVisita(resultado.convite, conviteId);
+      return resultado;
+    },
+    async conferir(conviteId) {
+      const resultado = await operarVisita(DetalheDeConviteDeVisitaSchema, {
+        operacao: "conferir",
+        conviteId,
+      });
+      conferirReciboDeVisita(resultado.convite, conviteId);
+      return resultado;
+    },
+    async emitir(pedido) {
+      const recibo = await operarVisita(ReciboDeConviteDeVisitaSchema, {
+        ...pedido,
+        operacao: "emitir",
+      });
+      conferirReciboDeVisita(recibo);
+      if (recibo.mundoId !== pedido.mundoId) throw new ErroDoRecreio("INDISPONIVEL");
+      return recibo;
+    },
+    async responder(conviteId, acao) {
+      const resultado = await operarVisita(ResultadoDaDecisaoDeVisitaSchema, {
+        operacao: "responder",
+        conviteId,
+        acao,
+      });
+      conferirReciboDeVisita(resultado.convite, conviteId);
+      return resultado;
+    },
+  };
   const social: SocialDoPerfil = {
+    ...(visitasHabilitadas ? { visitas } : {}),
+    ...(opcoes.convitesDirigidos && aberta.convitesDirigidos ? { convitesDeMundo: convites } : {}),
+    async participantes(mundoId, apos) {
+      exigirSessao();
+      const consulta = ConsultaDeParticipantesSchema.parse({
+        mundoId,
+        ...(apos === undefined ? {} : { apos }),
+      });
+      return enviar(
+        `/mundos/${encodeURIComponent(consulta.mundoId)}/participantes${consulta.apos ? `?apos=${encodeURIComponent(consulta.apos)}` : ""}`,
+        ParticipantesDoMundoSchema,
+        { method: "GET", token },
+      );
+    },
     async denuncias(protocolo) {
       exigirSessao();
       const consulta = ConsultaDeDenunciasSchema.parse(
@@ -460,7 +640,30 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       });
     },
   };
+  let vinculoDaVisita: string | undefined;
+  const visita: VisitaDoJogador | undefined =
+    visitaId === undefined
+      ? undefined
+      : {
+          id: visitaId,
+          async abrir() {
+            exigirSessao();
+            const aberta = await enviar("/visitas/abrir", VisitaAbertaSchema, {
+              method: "POST",
+              token,
+              corpo: { visitaId },
+            });
+            if (
+              aberta.visitaId !== visitaId ||
+              (vinculoDaVisita !== undefined && aberta.sessaoDeVisitaId !== vinculoDaVisita)
+            )
+              throw new ErroDoRecreio("INDISPONIVEL");
+            vinculoDaVisita = aberta.sessaoDeVisitaId;
+            return aberta;
+          },
+        };
   return {
+    ...(visita ? { visita } : {}),
     ...(opcoes.social && aberta.social ? { social } : {}),
     dados: {
       async ler(chave) {
@@ -520,6 +723,9 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {
+      get visitas(): true | undefined {
+        return visitasHabilitadas ? true : undefined;
+      },
       get salvamento() {
         return capacidadeDeSalvamento ? salvamento : undefined;
       },
@@ -624,6 +830,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       },
       async abrir(id) {
         exigirSessao();
+        if (visita) throw new ErroDoRecreio("SEM_PERMISSAO");
         return enviar(`${mundo(id)}/abrir`, MundoAbertoSchema, { method: "POST", token });
       },
       async convidar(id, convite) {
@@ -640,6 +847,15 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
 
 export type { ControleDaSessao } from "../contrato/sdk";
 export type { ProtecaoDeContato, SocialDoPerfil } from "../contrato/social";
+export type {
+  CaixaDeVisitas,
+  DetalheDeConviteDeVisita,
+  ReciboDeConviteDeVisita,
+  ResultadoDaDecisaoDeVisita,
+  VisitaAberta,
+  VisitaDoJogador,
+  VisitasDoPerfil,
+} from "../contrato/visitas";
 export type { JogoMontado, ModuloDoJogo, OpcoesDeMontagem } from "./modulo";
 export type { MudancaDeAcesso, RecreioGameContext };
 /**

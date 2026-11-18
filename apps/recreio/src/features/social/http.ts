@@ -64,7 +64,7 @@ export async function consultarSocialPeloSdk(sessao: SessaoDeJogoAtiva, entrada:
   }
 }
 
-function traduzirRecusaSocial(erro: unknown): never {
+export function traduzirRecusaSocial(erro: unknown): never {
   if (erro instanceof AppError) {
     if (["CONTATO", "PEDIDO", "CONTATO_EXISTENTE"].includes(erro.code))
       throw new ErroDoRecreio("NAO_ENCONTRADO");

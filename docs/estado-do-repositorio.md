@@ -1,5 +1,40 @@
 # Estado do trabalho no repositório
 
+**18/11 — Recreio/F5 em qualificação:** gestão/coadministração, convites dirigidos,
+sucessão parental, presença física, visitas temporárias, SDK e telas nativas estão
+em candidatas; a plataforma ainda não está concluída. O último incremento
+inteiramente qualificado anterior é `143fa822` (oito gates/1025 integrações).
+A base seguinte chegou a 1054 integrações aprovadas, preservando 179→204/191→204.
+`f21630ea` e `af148638` passaram nos sete gates técnicos e em 40 E2E, incluindo a
+jornada física infantil completa: dois responsáveis, nenhum membro fabricado,
+saída sem reuso, corte pelo anfitrião e progresso preservado. Capturas parentais
+e de aceite de 390 px foram inspecionadas.
+
+A candidata atual acrescenta provas separadas de saída manual no gate comum e
+`Salvar e visitar` no gate de checkpoint com a capacidade real; o ensaio anterior exigia
+esse botão no modo desligado. As jornadas compartilham apoio, sem pular casos
+ou ativar produção. Oito gates/capturas atuais e CI compartilhado continuam
+necessários; CI anterior `44272436756` usa `adfe3971`. Histórico, falhas de
+fixtures e proveniência estão no [registro de visitas](recreio/visitas-temporarias-2026-11-17.md),
+[plano de mundos](recreio/mundos-completos-2026-11-17.md) e
+[sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
+
+Produção continua no portal `396fe932` e Morada `644b3841`, conferidos no Railway
+com prontidão HTTP 200 em 18/11; famílias/social/checkpoint continuam desligados.
+As migrations F5 0191–0203 estão ausentes de produção. Antes da integração
+pública, preservar a main concorrente e os pins, controlar o migrator sem seeds
+e obter restauração atual e compatibilidade dos consumidores. D3–D8 do Morada
+continuam separados. F5 e a plataforma não estão prontos para venda.
+
+**18/11 — F6–F11 restantes:** os quatro preços foram confirmados; o teste sem
+cartão da proposta compara 48 h e sete dias, começando na primeira sessão
+autorizada. O adapter comercial ainda precisa levar período financeiro finito
+à admissão; status antigo não deve produzir acesso ilimitado. [Levantamento
+comercial](recreio/comercial-levantamento-2026-11-18.md). Cobrança, privacidade,
+objetos/backup agendado com restauração do objeto, catálogo/acessibilidade,
+custo/carga remota e homologação final permanecem abertos no
+[fechamento da plataforma](recreio/fechamento-plataforma-2026-11-16.md).
+
 **17/11, 23:59 UTC — Recreio:** infraestrutura de moderação implantada no portal
 e Bastidores em `396fe932`, após oito gates e CI compartilhado. Restauração
 lógica atual comparada, migrations 0184–0190 aplicadas sem seed, 191 recibos e

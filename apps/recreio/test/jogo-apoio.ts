@@ -10,7 +10,7 @@ import {
 import {
   CABECALHO_DA_INSTANCIA,
   CABECALHO_DO_JOGO,
-  type ClienteDoHostComSalvamento,
+  type ClienteDoHostComVisitas,
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
 import { criarClienteDoHost } from "@informach/recreio/host";
@@ -45,7 +45,7 @@ export type SessaoDeTeste = { token: string; sid: SessaoDeJogoId };
 export async function entrarNoJogo(
   jogador: Jogador,
   jogo = MORADA,
-  opcoes: { continuarAqui?: boolean } = {},
+  opcoes: { continuarAqui?: boolean; suportaVisitas?: true } = {},
 ): Promise<SessaoDeTeste> {
   const resposta = await pedir("POST", "/api/sdk/v1/sessao", {
     corpo: { ingresso: await ingressoDe(jogador, jogo), ...opcoes },
@@ -79,7 +79,7 @@ export function enderecoDo(jogo: string): string {
 }
 
 /** O cliente HTTP de verdade, com as rotas chamadas no processo. */
-export function clienteDoHost(jogo = MORADA): ClienteDoHostComSalvamento {
+export function clienteDoHost(jogo = MORADA): ClienteDoHostComVisitas {
   return criarClienteDoHost({
     baseUrl: ORIGEM,
     jogo,
@@ -91,18 +91,23 @@ export function clienteDoHost(jogo = MORADA): ClienteDoHostComSalvamento {
 }
 
 export type InstanciaDeTeste = {
-  cliente: ClienteDoHostComSalvamento;
+  cliente: ClienteDoHostComVisitas;
   instanciaId: InstanciaId;
   jogo: string;
 };
 
 /** Uma instância registrada no endereço configurado do jogo. */
-export async function novaInstancia(jogo = MORADA, capacidade = 10): Promise<InstanciaDeTeste> {
+export async function novaInstancia(
+  jogo = MORADA,
+  capacidade = 10,
+  opcoes: { suportaVisitas?: true } = {},
+): Promise<InstanciaDeTeste> {
   const cliente = clienteDoHost(jogo);
   const { instanciaId } = await cliente.registrar({
     urlPublica: enderecoDo(jogo),
     versao: "teste",
     capacidade,
+    ...opcoes,
   });
   return { cliente, instanciaId, jogo };
 }

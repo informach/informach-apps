@@ -38,6 +38,23 @@ vi.mock("@informach/config/jogos", async (original) => {
 });
 
 describe("página do jogo", () => {
+  it("finalidade de visita não cai silenciosamente na entrada de membro de título sem suporte", async () => {
+    const jogador = await novoJogador(),
+      mundo = await mundoDe(jogador, TESTE);
+    for (const visita of [randomUUID(), "invalida", [randomUUID(), randomUUID()]]) {
+      expect(
+        await prepararPaginaDoJogo(
+          {
+            perfilId: jogador.perfil.id,
+            sessaoDeAparelhoId: jogador.ator.sessaoDeAparelhoId,
+          },
+          TESTE,
+          mundo,
+          visita,
+        ),
+      ).toEqual({ tipo: "mundo_indisponivel", jogo: { id: TESTE, nome: "Jogo de teste" } });
+    }
+  });
   it("só o jogo com cliente no portal tem página", async () => {
     expect(temCliente(TESTE)).toBe(true);
     expect(temCliente(MORADA)).toBe(true);

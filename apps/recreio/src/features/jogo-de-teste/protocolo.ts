@@ -23,6 +23,8 @@ export const DoClienteSchema = z.discriminatedUnion("t", [
     token: z.string().min(1),
     mundoId: z.uuid(),
     salvamento: z.literal(true).optional(),
+    visitas: z.literal(true).optional(),
+    visita: z.strictObject({ id: z.uuid(), sessaoId: z.uuid() }).optional(),
   }),
   /** Somar 1. O `id` é do comando: repetir o mesmo comando não soma duas vezes. */
   z.strictObject({ t: z.literal("somar"), id: z.uuid() }),
@@ -37,7 +39,7 @@ export type DoCliente = z.infer<typeof DoClienteSchema>;
 // --- Do servidor para o cliente ---
 
 export const PresenteSchema = z.strictObject({
-  /** O id de membro no mundo. O servidor do jogo não repassa o id do perfil. */
+  /** Participação opaca: membro ou vínculo temporário. Nunca é o ID do perfil. */
   id: z.uuid(),
   apelido: z.string(),
 });
@@ -58,6 +60,7 @@ export const DoServidorSchema = z.discriminatedUnion("t", [
   z.strictObject({ t: z.literal("checkpoint"), id: z.uuid(), confirmado: z.boolean() }),
   z.strictObject({ t: z.literal("retomado") }),
   z.strictObject({ t: z.literal("salvamento"), confirmado: z.boolean() }),
+  z.strictObject({ t: z.literal("visita"), estado: z.enum(["ativa", "pausada"]) }),
 ]);
 export type DoServidor = z.infer<typeof DoServidorSchema>;
 

@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."space_members" ADD CONSTRAINT "recreio_space_members_identity_profile" UNIQUE("space_id","id","profile_id");

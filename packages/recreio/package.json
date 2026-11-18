@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./contrato": "./src/contrato/index.ts",
     "./emissor": "./src/emissor/index.ts",
+    "./erros": "./src/dominio/erros.ts",
     "./host": "./src/host/index.ts",
     "./sdk": "./src/sdk/index.ts",
     "./testing": "./src/testing/index.ts",

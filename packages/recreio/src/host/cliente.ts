@@ -6,7 +6,7 @@ import {
   CAMINHO_DA_API_DO_HOST,
   CheckpointDoHostSchema,
   type ClienteDoHost,
-  type ClienteDoHostComSalvamento,
+  type ClienteDoHostComVisitas,
   DIARIO_PAGINA_MAX_BYTES,
   DIARIO_RECUPERACAO_MAX_ENTRADAS,
   DiarioConfirmadoSchema,
@@ -19,8 +19,24 @@ import {
   RespostaDoBatimentoSchema,
   SalvamentoDoHostSchema,
 } from "../contrato/host";
+import {
+  AtestadoDePresencaSchema,
+  ConsultaDePresencaSchema,
+  PresencaConsultadaSchema,
+  ReciboDePresencaSchema,
+  RenovacaoDePresencasSchema,
+  RespostaDaRenovacaoDePresencasSchema,
+} from "../contrato/presencas";
 import { EstadoDeSalvamentoSchema } from "../contrato/salvamento";
 import { ResultadoDeCheckpointSchema } from "../contrato/sdk";
+import {
+  EncerramentoDeSessaoDeVisitaSchema,
+  EntradaDeVisitanteSchema,
+  PedidoDeEntradaDeVisitaSchema,
+  RenovacaoDeVisitasSchema,
+  RespostaDaRenovacaoDeVisitasSchema,
+  SessaoDeVisitaEncerradaSchema,
+} from "../contrato/visitas";
 import { ErroDoRecreio } from "../dominio/erros";
 import type { InstanciaId } from "../dominio/ids";
 import {
@@ -60,7 +76,7 @@ const TEMPO_LIMITE_MS = 10_000;
  * `X-Recreio-Instancia`. Antes de registrar, qualquer outra chamada recusa com
  * `NAO_AUTENTICADO` sem sair para a rede.
  */
-export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHostComSalvamento {
+export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHostComVisitas {
   if (!Number.isSafeInteger(opcoes.fotografiaMaxBytes) || opcoes.fotografiaMaxBytes <= 0)
     throw new Error("fotografiaMaxBytes precisa ser um inteiro positivo");
   if (!Number.isSafeInteger(opcoes.diarioMaxBytes) || opcoes.diarioMaxBytes <= 0)
@@ -107,6 +123,77 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
       const registrada = await lerCorpo(resposta, InstanciaRegistradaSchema);
       instanciaId = registrada.instanciaId;
       return registrada;
+    },
+
+    async renovarPresencas(presencas) {
+      eu();
+      const pedido = RenovacaoDePresencasSchema.parse({ presencas }),
+        resposta = await enviarJson("/presencas/renovar", pedido),
+        renovadas = await lerCorpo(resposta, RespostaDaRenovacaoDePresencasSchema);
+      if (
+        renovadas.presencas.length !== pedido.presencas.length ||
+        renovadas.presencas.some((r, i) => r.presencaId !== pedido.presencas[i]?.presencaId)
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return renovadas;
+    },
+
+    async encerrarSessaoDeVisita({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+          `${mundo(mundoId)}/visitas/encerrar`,
+          EncerramentoDeSessaoDeVisitaSchema.parse(pedido),
+        ),
+        encerrada = await lerCorpo(resposta, SessaoDeVisitaEncerradaSchema);
+      if (encerrada.sessaoDeVisitaId !== pedido.sessaoDeVisitaId)
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return encerrada;
+    },
+
+    async renovarVisitas(visitas) {
+      eu();
+      const pedido = RenovacaoDeVisitasSchema.parse({ visitas }),
+        resposta = await enviarJson("/visitas/renovar", pedido),
+        renovadas = await lerCorpo(resposta, RespostaDaRenovacaoDeVisitasSchema);
+      if (
+        renovadas.visitas.length !== pedido.visitas.length ||
+        renovadas.visitas.some((r, i) => r.sessaoDeVisitaId !== pedido.visitas[i]?.sessaoDeVisitaId)
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return renovadas;
+    },
+
+    async verificarEntradaDeVisita({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+          `${mundo(mundoId)}/visitas/entrada`,
+          PedidoDeEntradaDeVisitaSchema.parse(pedido),
+        ),
+        entrada = await lerCorpo(resposta, EntradaDeVisitanteSchema);
+      if (
+        entrada.visitaId !== pedido.visitaId ||
+        entrada.sessaoDeVisitaId !== pedido.sessaoDeVisitaId
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return entrada;
+    },
+
+    async consultarPresenca({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+        `${mundo(mundoId)}/presencas/consultar`,
+        ConsultaDePresencaSchema.parse(pedido),
+      );
+      return lerCorpo(resposta, PresencaConsultadaSchema);
+    },
+
+    async atestarPresenca({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+        `${mundo(mundoId)}/presencas`,
+        AtestadoDePresencaSchema.parse(pedido),
+      );
+      return lerCorpo(resposta, ReciboDePresencaSchema);
     },
 
     async batimento(batimento) {

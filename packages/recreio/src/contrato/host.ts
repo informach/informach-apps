@@ -8,8 +8,24 @@ import {
 } from "../dominio/ids";
 import { PAPEIS_NO_MUNDO, PARTICIPACAO_MAX } from "../dominio/mundos";
 import { TIPOS_DE_FOTOGRAFIA } from "../dominio/posse";
+import type {
+  AtestadoDePresenca,
+  ConsultaDePresenca,
+  PresencaConsultada,
+  PresencaRenovada,
+  ReciboDePresenca,
+  RenovacaoDePresenca,
+} from "./presencas";
 import type { EstadoDeSalvamento } from "./salvamento";
 import type { ResultadoDeCheckpoint } from "./sdk";
+import type {
+  EncerramentoDeSessaoDeVisita,
+  EntradaDeVisitante,
+  PedidoDeEntradaDeVisitaSchema,
+  RenovacaoDeVisita,
+  SessaoDeVisitaEncerrada,
+  VisitaRenovada,
+} from "./visitas";
 
 /**
  * API das instâncias: o que um servidor de jogo pede ao Recreio. O servidor do
@@ -38,6 +54,8 @@ export const RegistroDeInstanciaSchema = z.strictObject({
   versao: z.string().min(1).max(64),
   /** Quantos mundos a instância aceita ao mesmo tempo. */
   capacidade: z.number().int().positive(),
+  /** Negociação da instância, sem alterar instâncias registradas anteriormente. */
+  suportaVisitas: z.literal(true).optional(),
 });
 export type RegistroDeInstancia = z.infer<typeof RegistroDeInstanciaSchema>;
 
@@ -45,6 +63,7 @@ export const InstanciaRegistradaSchema = z.strictObject({
   instanciaId: InstanciaIdSchema,
   batimentoMs: z.number().int().positive(),
   posseTtlMs: z.number().int().positive(),
+  visitas: z.literal(true).optional(),
 });
 export type InstanciaRegistrada = z.infer<typeof InstanciaRegistradaSchema>;
 
@@ -261,6 +280,46 @@ export interface ClienteDoHostComSalvamento extends ClienteDoHostComCheckpoint {
   salvarSessao(
     pedido: SalvamentoDoHost & { mundoId: z.infer<typeof MundoIdSchema> },
   ): Promise<EstadoDeSalvamento>;
+}
+
+/** Extensão explícita: o host básico e seus adapters não prometem oferecer visitas. */
+export interface ClienteDoHostComVisitas extends ClienteDoHostComPresencas {
+  /** Só este vínculo/SID, inclusive depois da perda de autoridade. Não comprova salvamento. */
+  encerrarSessaoDeVisita(
+    pedido: EncerramentoDeSessaoDeVisita & {
+      mundoId: z.infer<typeof MundoIdSchema>;
+    },
+  ): Promise<SessaoDeVisitaEncerrada>;
+  /** Após posses e presenças; só conexões com admissão confirmada, sem repetir automaticamente. */
+  renovarVisitas(visitas: readonly RenovacaoDeVisita[]): Promise<{ visitas: VisitaRenovada[] }>;
+  /** Entrada temporária sem membro/papel, com prazo local obrigatório. Não repetir automaticamente. */
+  verificarEntradaDeVisita(
+    pedido: z.infer<typeof PedidoDeEntradaDeVisitaSchema> & {
+      mundoId: z.infer<typeof MundoIdSchema>;
+    },
+  ): Promise<EntradaDeVisitante>;
+}
+
+export interface ClienteDoHostComPresencas extends ClienteDoHostComSalvamento {
+  /** Só recibo próprio; nunca cria/renova. `null` não resolve uma escrita ainda em voo. */
+  consultarPresenca(
+    pedido: ConsultaDePresenca & { mundoId: z.infer<typeof MundoIdSchema> },
+  ): Promise<PresencaConsultada>;
+  /** Após renovar as posses; somente conexões que continuam ativas na instância. */
+  renovarPresencas(
+    presencas: readonly RenovacaoDePresenca[],
+  ): Promise<{ presencas: PresencaRenovada[] }>;
+  /**
+   * Entrada somente após a conexão real do membro; saída ao desconectar.
+   * Resposta é recibo técnico. Perder a resposta não autoriza repetir a conexão
+   * ou admitir visitantes. Sem conexão, recuperar só por consultarPresenca e sair;
+   * repetir entrada com a mesma chave exige que a conexão ainda esteja viva.
+   */
+  atestarPresenca(
+    pedido: AtestadoDePresenca & {
+      mundoId: z.infer<typeof MundoIdSchema>;
+    },
+  ): Promise<ReciboDePresenca>;
 }
 
 /** Capacidade adicional; o host básico não promete implementar checkpoint de troca. */

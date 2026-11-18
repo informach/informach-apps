@@ -1,0 +1,2 @@
+ALTER TABLE "recreio"."game_instances" ADD COLUMN "supports_visits" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."game_sessions" ADD COLUMN "supports_visits" boolean DEFAULT false NOT NULL;

@@ -15,21 +15,24 @@ export const metadata = { title: "Jogar" };
  * o perfil precisa ter o direito de jogar; o mundo vem de `?mundo=<id>`.
  *
  * Nada de quem joga é escrito na página: só o id do jogo, o id do mundo e os
- * nomes dos dois. O perfil chega ao jogo pelo ingresso, pedido pelo navegador.
+ * nomes dos dois e a finalidade opaca da visita, quando conferida. O perfil
+ * chega ao jogo pelo ingresso, pedido pelo navegador.
  */
 export default async function Jogar({
   params,
   searchParams,
 }: {
   params: Promise<{ jogo: string }>;
-  searchParams: Promise<{ mundo?: string | string[] }>;
+  searchParams: Promise<{ mundo?: string | string[]; visita?: string | string[] }>;
 }) {
   const ator = await paginaDoJogador();
   const estante = ator.protegido ? "/aparelho" : "/estante";
+  const consulta = await searchParams;
   const pagina = await prepararPaginaDoJogo(
     { perfilId: ator.perfil.id, sessaoDeAparelhoId: ator.sessaoDeAparelhoId },
     (await params).jogo,
-    (await searchParams).mundo,
+    consulta.mundo,
+    consulta.visita,
   );
   if (pagina.tipo === "inexistente") notFound();
   // A estante já explica a situação do acesso e é onde se escolhe o mundo.
@@ -55,6 +58,8 @@ export default async function Jogar({
       estante={estante}
       trocaCoordenada={env.RECREIO_CHECKPOINT_MODE === "on"}
       supervisionado={ator.protegido}
+      visitas={env.RECREIO_VISITS_MODE === "on" && pagina.jogo.visitas === true}
+      visitaId={pagina.tipo === "pronto" ? pagina.visitaId : undefined}
     />
   );
 }

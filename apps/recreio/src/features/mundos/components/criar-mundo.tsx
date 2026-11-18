@@ -3,15 +3,18 @@ import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
+import { criarMundoProtegidoAction } from "@/features/estante/actions";
 import { criarMundoAction } from "../actions";
 
 /** "Criar mundo": só o nome. Os limites chegam do servidor, que é quem confere. */
 export function CriarMundo({
   jogo,
   limites,
+  protegido = false,
 }: {
   jogo: string;
   limites: { min: number; max: number };
+  protegido?: boolean;
 }) {
   const [nome, setNome] = useState("");
   const [erro, setErro] = useState("");
@@ -22,7 +25,10 @@ export function CriarMundo({
     evento.preventDefault();
     setErro("");
     iniciar(async () => {
-      const resultado = await criarMundoAction({ jogo, nome });
+      const resultado = await (protegido ? criarMundoProtegidoAction : criarMundoAction)({
+        jogo,
+        nome,
+      });
       if (resultado.ok) {
         window.location.assign(resultado.data.destination);
         return;

@@ -76,7 +76,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - if: matrix.gate == 'quality'
         run: |
-          pnpm check
+          pnpm check --diagnostic-level=error
           pnpm compasso:test:infrastructure
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
@@ -91,6 +91,11 @@ jobs:
           git fetch --no-tags --depth=1 origin 338236d041d3c7be0d4fb1fbbe0373a7101f8e07
           pnpm --filter @informach/db typecheck
           pnpm --filter @informach/db exec tsx src/testing/recreio-group-upgrade.ts
+      - name: Upgrade Recreio worlds from deployed schema with retained bytes and members
+        if: matrix.gate == 'integration'
+        run: |
+          git fetch --no-tags --depth=1 origin 396fe9326e3b1fac28a2b1bb86d9664c5b74e18a
+          pnpm --filter @informach/db exec tsx src/testing/recreio-group-upgrade.ts --mundos
       - name: Verify production process receives SIGTERM
         if: matrix.gate == 'quality'
         run: |
@@ -181,7 +186,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Preserve synthetic account screens
-        # Somente telas de conta sintéticas; nenhuma captura do jogo.
+        # Somente telas sintéticas explicitadas; sem traces ou conteúdo real de famílias.
         if: always() && matrix.gate == 'e2e'
         uses: actions/upload-artifact@v4
         with:
@@ -220,6 +225,27 @@ jobs:
             apps/recreio/tmp/telas/host-social-mobile-cuidados.png
             apps/recreio/tmp/telas/host-controle-morada-mobile.png
             apps/recreio/tmp/telas/host-social-morada-mobile.png
+            apps/recreio/tmp/telas/mundos-gestao-mobile.png
+            apps/recreio/tmp/telas/mundos-menor-gestao-mobile.png
+            apps/recreio/tmp/telas/participantes-protecao-mobile.png
+            apps/recreio/tmp/telas/convites-dirigidos-partida-mobile.png
+            apps/recreio/tmp/telas/convites-responsavel-mobile.png
+            apps/recreio/tmp/telas/convites-portal-mobile.png
+            apps/recreio/tmp/telas/sucessao-menor-mobile.png
+            apps/recreio/tmp/telas/visitas-responsavel-mobile.png
+            apps/recreio/tmp/telas/visitas-aceite-mobile.png
+            apps/recreio/tmp/telas/visitas-gestao-mobile.png
+            apps/recreio/tmp/telas/visitas-partida-manual-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic visit transition screens
+        if: always() && matrix.gate == 'checkpoint'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-visitas-checkpoint-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/visitas-gestao-mobile.png
+            apps/recreio/tmp/telas/visitas-partida-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic staff queue screen
