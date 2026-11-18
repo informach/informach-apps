@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**18/11 — jornada familiar corrigida:** `70f85381` teve sete gates e 39 E2E
+aprovados; a nova jornada guardou `/visitas` antes de terminar a navegação do
+Link e voltou à lista após as aprovações. Captura/trace conferidos no artefato
+`14411596454`. O teste confirma o endereço do detalhe antes de guardá-lo,
+sem aumentar espera ou alterar produto. Fonte `745e5faf` e novo corretivo
+exigem qualificação completa. Sem implantação de F5.
+
 **18/11 — correção da fixture de fila:** a gestão `031c689c` passou em
 1053/1054 integrações; uma fixture duplicava pendências da mesma ponta/presença,
 corretamente recusadas pelo índice 23505. Destinatários distintos corrigem o

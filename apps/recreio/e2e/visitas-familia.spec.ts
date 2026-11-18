@@ -247,6 +247,7 @@ test("visita infantil exige os dois responsáveis, não cria membro e termina ao
     await painel.getByRole("button", { name: "Voltar à partida", exact: true }).click();
     await b.infantil.goto("/visitas");
     await b.infantil.getByRole("link", { name: "Conferir visita", exact: true }).click();
+    await expect(b.infantil).toHaveURL(/\/visitas\/[0-9a-f-]{36}$/);
     const paginaDoConvite = new URL(b.infantil.url()).pathname;
     await expect(
       b.infantil.getByRole("button", { name: "Aceitar visita", exact: true }),

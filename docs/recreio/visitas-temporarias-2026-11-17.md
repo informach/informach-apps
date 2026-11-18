@@ -1,5 +1,22 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Correção da navegação na prova familiar, candidata
+
+`70f85381`/`44266657089` concluiu sete gates e 39 jornadas de navegador.
+A jornada nova falhou antes do aceite: guardou `page.url()` imediatamente após
+clicar no Link, antes de a navegação terminar, e guardou `/visitas` em vez do
+detalhe. Depois das aprovações parentais, navegou para essa lista e procurou
+um botão de aceite que não existe ali. O trace confirma os dois `goto` para
+`/visitas`; a captura infantil mostra a lista, sem erro de página/CSP.
+
+O teste agora confirma `/visitas/<UUID>` antes de guardar o endereço. Não
+amplia timeout, não troca a prova de hidratação e não altera autorização ou
+produto para acomodar a fixture. Exige nova rodada completa. Artefato
+`14411596454`, fonte `70f853816b83d03b1f6b119e4b369509f69161e1`, 7600692 bytes,
+SHA-256 `c648d2fc21f6c8d57256c06079e6c7b2d3fbd5fd9ffdab156142e77f27d3d8a6`,
+conferido antes da extração. Trace contém credenciais sintéticas e não foi
+publicado nem transcrito integralmente. Sem migration ou produção.
+
 ## Correção da fixture de paginação, candidata
 
 A rodada da gestão `031c689c`/`44267435863` teve 1053 integrações aprovadas
