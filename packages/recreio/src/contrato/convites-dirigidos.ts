@@ -49,14 +49,27 @@ export const CaixaDeConvitesDirigidosSchema = z.strictObject({
   proximo: z.strictObject({ em: z.iso.datetime(), id: UuidSchema }).nullable(),
 });
 export type CaixaDeConvitesDirigidos = z.infer<typeof CaixaDeConvitesDirigidosSchema>;
+export const DetalheDeConviteDirigidoSchema = z.strictObject({
+  convite: ConviteDirigidoSchema,
+  nomeDoMundo: z.string().min(1).max(128),
+  origem: z.strictObject({ apelido: z.string().min(1).max(80), avatar: z.string().min(1).max(64) }),
+  destino: z.strictObject({
+    apelido: z.string().min(1).max(80),
+    avatar: z.string().min(1).max(64),
+  }),
+});
+export type DetalheDeConviteDirigido = z.infer<typeof DetalheDeConviteDirigidoSchema>;
 export const MutacaoDeConviteDirigidoSchema = z.discriminatedUnion("operacao", [
   NovoConviteDirigidoSchema.extend({ operacao: z.literal("emitir") }),
   RespostaAConviteDirigidoSchema.extend({ operacao: z.literal("responder") }),
   z.strictObject({ operacao: z.literal("consultar"), conviteId: UuidSchema }),
+  z.strictObject({ operacao: z.literal("conferir"), conviteId: UuidSchema }),
 ]);
 export interface ConvitesDirigidosDoPerfil {
   listar(apos?: { em: string; id: string }): Promise<CaixaDeConvitesDirigidos>;
   consultar(conviteId: string): Promise<ConviteDirigido>;
+  /** Dados do convite pendente sob amizade, conteúdo e autorização atuais. */
+  conferir(conviteId: string): Promise<DetalheDeConviteDirigido>;
   /** Conservar pedidoId após resposta perdida; nenhum envio tem retry automático. */
   emitir(pedido: z.input<typeof NovoConviteDirigidoSchema>): Promise<ConviteDirigido>;
   responder(conviteId: string, acao: "aceitar" | "recusar" | "revogar"): Promise<ConviteDirigido>;

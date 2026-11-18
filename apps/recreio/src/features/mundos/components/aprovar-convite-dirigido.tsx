@@ -87,6 +87,7 @@ export function AprovarConviteDirigido({
           ? "Você confirma a participação do perfil sob seus cuidados. O convite não libera conteúdo fora das regras que você definiu."
           : "Você autoriza a entrada neste mundo. Cada perfil continua sujeito ao próprio acesso e aos cuidados de seu responsável."}
       </p>
+      <p className="text-sm font-semibold">Confirmações ao abrir este convite</p>
       <ul className="grid gap-2 text-sm">
         <li>Decisão do mundo: {painel.convite.aguardaMundo ? "aguardando" : "confirmada"}</li>
         <li>
@@ -126,7 +127,7 @@ export function AprovarConviteDirigido({
           </span>
         </label>
       ) : (
-        <p role="status">As confirmações deste painel já foram registradas.</p>
+        <p role="status">Sua confirmação já foi registrada.</p>
       )}
       <button
         type="submit"

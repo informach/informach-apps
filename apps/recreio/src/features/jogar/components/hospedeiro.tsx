@@ -217,6 +217,7 @@ export function Hospedeiro({
             baseUrl: "",
             jogo: jogo.id,
             social: true,
+            convitesDirigidos: true,
             salvamentoRestrito: trocaCoordenada,
             obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),

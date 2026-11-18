@@ -4,7 +4,10 @@ import { jogadorDoAparelho } from "@/features/autoridade-de-jogo/http";
 import { autorDaFamilia } from "@/features/familia/autor";
 import { runAction } from "@/lib/action";
 import { assertAllowed } from "@/lib/errors";
-import { consultarConviteDirigido } from "./convites-dirigidos-consulta-repository";
+import {
+  conferirConviteDirigido,
+  consultarConviteDirigido,
+} from "./convites-dirigidos-consulta-repository";
 import {
   aprovarConviteDoMenor,
   aprovarEntradaNoMundo,
@@ -34,6 +37,9 @@ export async function consultarConviteDirigidoAction(perfilId: unknown, conviteI
   return runAction(async () =>
     consultarConviteDirigido(await jogadorEsperado(perfilId), conviteId),
   );
+}
+export async function conferirConviteDirigidoAction(perfilId: unknown, conviteId: unknown) {
+  return runAction(async () => conferirConviteDirigido(await jogadorEsperado(perfilId), conviteId));
 }
 export async function aprovarConviteDoMenorAction(entrada: unknown) {
   return runAction(async () => aprovarConviteDoMenor(await autorDaFamilia(), entrada));

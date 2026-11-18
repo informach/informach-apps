@@ -16,10 +16,17 @@ import { comResponsavelSocialNativo } from "@/features/social/responsavel-contex
 import { assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import type { Transacao } from "@/lib/repository";
-import { amizadeAtualDoConvite } from "./convites-dirigidos-amizade-repository";
-import { comJogadorNoConvite } from "./convites-dirigidos-contexto-repository";
+import {
+  amizadeAtualDoConvite,
+  conferirConteudoDoConvite,
+} from "./convites-dirigidos-amizade-repository";
+import {
+  type ContextoDeConvite,
+  comJogadorNoConvite,
+} from "./convites-dirigidos-contexto-repository";
 import {
   aprovacoesDoConvite,
+  type ConviteDoMundo,
   conferirRevisoesDoConvite,
   resumoDoConvite,
 } from "./convites-dirigidos-estado-repository";
@@ -103,7 +110,11 @@ export async function caixaDeConvitesDirigidos(
     : comJogadorSocial(autor, null, (tx, ctx) => ler(tx, ctx.conferirPrazo));
 }
 
-export async function consultarConviteDirigido(autor: AutorDeMundos, entrada: unknown) {
+async function comReciboDoPerfil<T>(
+  autor: AutorDeMundos,
+  entrada: unknown,
+  executar: (tx: Transacao, ctx: ContextoDeConvite, convite: ConviteDoMundo) => Promise<T>,
+) {
   const id = UuidSchema.parse(entrada);
   await limitarTentativas({
     chave: `convite-dirigido-consulta:${autor.perfilId}`,
@@ -135,6 +146,7 @@ export async function consultarConviteDirigido(autor: AutorDeMundos, entrada: un
       const [convite] = await tx.select().from(invites).where(eq(invites.id, id));
       assertAllowed(
         convite &&
+          convite.spaceId === ctx.mundo.id &&
           convite.originProfileId === pista.originProfileId &&
           convite.targetProfileId === pista.targetProfileId &&
           convite.retainUntil > (await ctx.conferirPrazo()),
@@ -150,11 +162,37 @@ export async function consultarConviteDirigido(autor: AutorDeMundos, entrada: un
           "O convite venceu.",
         );
       }
-      return resumoDoConvite(
+      return executar(tx, ctx, convite);
+    },
+  );
+}
+
+export function consultarConviteDirigido(autor: AutorDeMundos, entrada: unknown) {
+  return comReciboDoPerfil(autor, entrada, async (tx, ctx, convite) =>
+    resumoDoConvite(convite, ctx.mundo.gameId, await aprovacoesDoConvite(tx, ctx, convite)),
+  );
+}
+/** O recibo histórico não autoriza ler nomes ou metadados atuais de um mundo. */
+export function conferirConviteDirigido(autor: AutorDeMundos, entrada: unknown) {
+  return comReciboDoPerfil(autor, entrada, async (tx, ctx, convite) => {
+    assertAllowed(
+      convite.state === "pending",
+      "PEDIDO",
+      "Este convite já foi concluído. Confira o recibo.",
+    );
+    await conferirConteudoDoConvite(tx, ctx);
+    const origem = ctx.composicao.perfis.find((p) => p.id === convite.originProfileId),
+      destino = ctx.composicao.perfis.find((p) => p.id === convite.targetProfileId);
+    assertAllowed(origem && destino, "PEDIDO", "Convite não disponível.");
+    return {
+      convite: resumoDoConvite(
         convite,
         ctx.mundo.gameId,
         await aprovacoesDoConvite(tx, ctx, convite),
-      );
-    },
-  );
+      ),
+      nomeDoMundo: ctx.mundo.name,
+      origem: { apelido: origem.nickname, avatar: origem.avatar },
+      destino: { apelido: destino.nickname, avatar: destino.avatar },
+    };
+  });
 }

@@ -4,6 +4,7 @@ import {
   ConsultaDeConvitesDirigidosSchema,
   ConviteDirigidoSchema,
   type ConvitesDirigidosDoPerfil,
+  DetalheDeConviteDirigidoSchema,
   MutacaoDeConviteDirigidoSchema,
 } from "../contrato/convites-dirigidos";
 import {
@@ -381,6 +382,14 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   };
 
   const convites: ConvitesDirigidosDoPerfil = {
+    async conferir(conviteId) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", DetalheDeConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ operacao: "conferir", conviteId }),
+      });
+    },
     async listar(apos) {
       exigirSessao();
       const consulta = ConsultaDeConvitesDirigidosSchema.parse(

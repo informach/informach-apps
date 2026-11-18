@@ -8,7 +8,7 @@ import {
   recreioDirectedSpaceInvites as invites,
   recreioSpaceMembers as members,
 } from "@informach/db/schema";
-import { podeConvidar } from "@informach/recreio";
+import { ErroDoRecreio, podeConvidar } from "@informach/recreio";
 import type { NovoConviteDirigido } from "@informach/recreio/contrato";
 import type { AutorDeMundos } from "@/features/autoridade-de-jogo/mundos-repository";
 import { assertAllowed } from "@/lib/errors";
@@ -81,6 +81,11 @@ export function gravarConviteDirigido(autor: AutorDeMundos, pedido: NovoConviteD
         "Convite não disponível.",
       );
       const permissao = podeConvidar(emissor.role, ctx.mundo.membersInvite);
+      const [participante] = await tx
+        .select({ estado: members.state })
+        .from(members)
+        .where(and(eq(members.spaceId, ctx.mundo.id), eq(members.profileId, pedido.perfilId)));
+      if (participante && participante.estado !== "former") throw new ErroDoRecreio("JA_MEMBRO");
       assertAllowed(permissao.pode, "PERMISSAO", "Este mundo não permite convites de membros.");
       const mundoAprovou =
         !permissao.precisaDeAprovacao &&

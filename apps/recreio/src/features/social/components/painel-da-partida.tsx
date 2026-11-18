@@ -11,6 +11,10 @@ import { ehErroDoRecreio } from "@informach/recreio/sdk";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { CATEGORIAS_DE_DENUNCIA } from "@/features/moderacao/categorias";
 import { ProtocolosNaPartida } from "@/features/moderacao/components/protocolos-na-partida";
+import {
+  ConvitesNaPartida,
+  EmitirConviteNaPartida,
+} from "@/features/mundos/components/convites-na-partida";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
 
 type Executar = <T>(acao: () => Promise<T>, confirmado?: (dados: T) => void) => void;
@@ -193,6 +197,7 @@ export function PainelSocialDaPartida({
                     executar={executar}
                     pendente={pendente}
                     podeCriar={lista.podeCriarContatos}
+                    mundoId={mundoId}
                   />
                 ))}
               </div>
@@ -265,6 +270,7 @@ export function PainelSocialDaPartida({
         </>
       )}
       <ProtocolosNaPartida api={api} />
+      {api.convitesDeMundo && <ConvitesNaPartida api={api.convitesDeMundo} />}
     </dialog>
   );
 }
@@ -482,12 +488,14 @@ function ContatoNaPartida({
   executar,
   pendente,
   podeCriar,
+  mundoId,
 }: {
   contato: ContatoSocial | ParticipanteDoMundo;
   api: SocialDoPerfil;
   executar: Executar;
   pendente: boolean;
   podeCriar: boolean;
+  mundoId?: string;
 }) {
   const social = "amizade" in c ? c : null;
   const pedido = social?.pedido;
@@ -593,6 +601,15 @@ function ContatoNaPartida({
           {denuncia ? "Fechar denúncia" : "Denunciar contato"}
         </button>
       </fieldset>
+      {social?.amizade && !c.bloqueado && mundoId && podeCriar && api.convitesDeMundo && (
+        <EmitirConviteNaPartida
+          key={`${mundoId}:${c.perfilId}`}
+          api={api.convitesDeMundo}
+          mundoId={mundoId}
+          perfilId={c.perfilId}
+          disabled={pendente}
+        />
+      )}
       {denuncia && (
         <form
           id={`${id}-denuncia`}

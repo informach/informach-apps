@@ -75,6 +75,100 @@ async function amizade(a: Page, b: Page) {
   await expect(b.getByText("Amizade confirmada", { exact: true })).toBeVisible();
 }
 
+test("convite dirigido atravessa dois mundos sem sair da partida e recupera o ACK com painel fechado", async ({
+  browser,
+}) => {
+  const a = await novaPessoa(browser, "Sol anfitrião"),
+    b = await novaPessoa(browser, "Mar convidado");
+  await amizade(a.page, b.page);
+  const mundoA = await criarMundo(a.page, "Jogo de teste", "Casa do convite dirigido"),
+    mundoB = await criarMundo(b.page, "Jogo de teste", "Casa de quem recebeu");
+  await contador.iniciar();
+  await a.page.goto(`/jogar/teste?mundo=${mundoA}`);
+  await b.page.goto(`/jogar/teste?mundo=${mundoB}`);
+  await expect(a.page.getByLabel("Valor do contador", { exact: true })).toHaveText("0");
+  await expect(b.page.getByLabel("Valor do contador", { exact: true })).toHaveText("0");
+  await a.page.getByRole("button", { name: "Somar 1", exact: true }).click();
+  await expect(a.page.getByLabel("Valor do contador", { exact: true })).toHaveText("1");
+  await a.page.getByRole("button", { name: "Amigos e proteção", exact: true }).click();
+  const painelA = a.page.getByRole("dialog", { name: "Amigos e proteção", exact: true });
+  const conviteA = painelA.getByRole("region", {
+    name: "Convites de mundos na partida",
+    exact: true,
+  });
+  await expect(conviteA.getByText("Nenhum convite nesta página.", { exact: true })).toBeVisible();
+  const confirmado = sinal(),
+    soltar = sinal();
+  let enviado = false,
+    getsDepois = 0;
+  a.page.on("request", (p) => {
+    if (
+      enviado &&
+      p.method() === "GET" &&
+      new URL(p.url()).pathname === "/api/sdk/v1/convites-dirigidos"
+    )
+      getsDepois++;
+  });
+  await a.page.route("**/api/sdk/v1/convites-dirigidos", async (rota) => {
+    const resposta = await rota.fetch();
+    const corpo: unknown =
+      rota.request().method() === "POST" ? rota.request().postDataJSON() : null;
+    if (corpo && typeof corpo === "object" && "operacao" in corpo && corpo.operacao === "emitir") {
+      confirmado.concluir();
+      await soltar.promessa;
+    }
+    await rota.fulfill({ response: resposta });
+  });
+  try {
+    await painelA.getByRole("button", { name: "Convidar para este mundo", exact: true }).click();
+    await confirmado.promessa;
+    await painelA.getByRole("button", { name: "Voltar à partida", exact: true }).click();
+    enviado = true;
+    soltar.concluir();
+    await a.page.getByRole("button", { name: "Somar 1", exact: true }).click();
+    await expect(a.page.getByLabel("Valor do contador", { exact: true })).toHaveText("2");
+    expect(getsDepois).toBe(0);
+  } finally {
+    soltar.concluir();
+    await a.page.unroute("**/api/sdk/v1/convites-dirigidos");
+  }
+  let saidas = 0;
+  b.page.on("request", (p) => {
+    if (new URL(p.url()).pathname === "/api/sdk/v1/sessao/sair") saidas++;
+  });
+  await b.page.getByRole("button", { name: "Amigos e proteção", exact: true }).click();
+  const painelB = b.page.getByRole("dialog", { name: "Amigos e proteção", exact: true }),
+    convitesB = painelB.getByRole("region", { name: "Convites de mundos na partida", exact: true });
+  await expect(convitesB.getByText("Convite recebido", { exact: true })).toBeVisible();
+  await convitesB.getByRole("button", { name: "Conferir convite", exact: true }).click();
+  const detalhe = convitesB.getByRole("region", { name: "Participação a confirmar", exact: true });
+  await expect(
+    detalhe.getByRole("heading", { name: "Casa do convite dirigido", exact: true }),
+  ).toBeVisible();
+  await expect(
+    detalhe.getByRole("button", { name: "Aceitar participação", exact: true }),
+  ).toBeEnabled();
+  await b.page.setViewportSize({ width: 390, height: 844 });
+  await detalhe.scrollIntoViewIfNeeded();
+  expect(await painelB.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await tela(b.page, "convites-dirigidos-partida-mobile");
+  await detalhe.getByRole("button", { name: "Aceitar participação", exact: true }).click();
+  await expect(convitesB.getByText(/Participação confirmada/)).toBeVisible();
+  expect(saidas).toBe(0);
+  await expect(b.page).toHaveURL(`/jogar/teste?mundo=${mundoB}`);
+  await expect(b.page.getByLabel("Valor do contador", { exact: true })).toHaveText("0");
+  await painelB.getByRole("button", { name: "Voltar à partida", exact: true }).click();
+  await b.page.getByRole("button", { name: "Sair por dentro do jogo", exact: true }).click();
+  await expect(b.page).toHaveURL(/\/estante$/);
+  await b.page.goto(`/jogar/teste?mundo=${mundoA}`);
+  await expect(b.page.getByLabel("Valor do contador", { exact: true })).toHaveText("2");
+  await b.page.getByRole("button", { name: "Somar 1", exact: true }).click();
+  await expect(a.page.getByLabel("Valor do contador", { exact: true })).toHaveText("3");
+  await b.page.getByRole("button", { name: "Sair por dentro do jogo", exact: true }).click();
+  await a.page.getByRole("button", { name: "Sair por dentro do jogo", exact: true }).click();
+  await expect(a.page).toHaveURL(/\/estante$/);
+});
+
 test("participante sem amizade recebe proteção pelo portal e dentro da partida", async ({
   browser,
 }) => {

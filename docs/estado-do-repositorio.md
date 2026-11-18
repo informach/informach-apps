@@ -6,8 +6,10 @@ parental gratuita em todos os mundos atuais do menor passou nos oito gates
 `44197543292`, fonte congelada `a59e1923`. Backend dos convites dirigidos
 `622be7d1` passou nos oito gates `44203618156`, com 757 integrações. HTTP/SDK
 `8fffef03` passou nos oito gates `44206115029`, com 762 integrações. Decisões
-nativas do responsável e da gestão do mundo em candidata, sem gates próprios
-ou E2E novo ainda. Emissão/caixa no host e portal continuam abertas. Migrations 0191–0196
+nativas do responsável e da gestão do mundo `68cf29c9` passaram nos oito gates
+`44209217588`, com 768 integrações. Host e duas jornadas novas de convites em
+candidata, ainda sem gates/capturas conferidos. Emissão/caixa fora da partida
+continuam abertas. Migrations 0191–0196
 geradas no GitHub, ausentes de produção neste checkout.
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).
 F4 passou nos gates/CI compartilhado e foi implantada em `396fe932`, com social

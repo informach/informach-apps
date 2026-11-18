@@ -4,7 +4,12 @@ import { criarRecreio } from "@informach/recreio/sdk";
 import { expect, it, vi } from "vitest";
 import { emitirConviteDirigido } from "@/features/mundos/convites-dirigidos-service";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
-import { aceitarAmizade, emitirCodigoDeAmigo, pedirAmizade } from "@/features/social/service";
+import {
+  aceitarAmizade,
+  emitirCodigoDeAmigo,
+  pedirAmizade,
+  protegerContato,
+} from "@/features/social/service";
 import { eventosCom, type Jogador, novoJogador } from "./apoio";
 import { mundoDe } from "./jogo-apoio";
 import { despachar, ORIGEM, pedir } from "./rotas";
@@ -85,7 +90,19 @@ it("capacidade é opt-in e dois SIDs reais emitem, consultam e aceitam sem expor
     /requestHash|accessGeneration|policyVersion|nickname|userId|guardian|accountId/,
   );
   expect(await destino.consultar(criado.conviteId)).toEqual(criado);
+  expect(await destino.conferir(criado.conviteId)).toMatchObject({
+    convite: criado,
+    nomeDoMundo: "Casa de teste",
+    origem: { apelido: c.a.perfil.apelido },
+    destino: { apelido: c.b.perfil.apelido },
+  });
   expect((await destino.responder(criado.conviteId, "aceitar")).estado).toBe("accepted");
+  await expect(destino.conferir(criado.conviteId)).rejects.toMatchObject({
+    codigo: "NAO_ENCONTRADO",
+  });
+  await expect(origem.emitir({ ...c.pedido, pedidoId: crypto.randomUUID() })).rejects.toMatchObject(
+    { codigo: "JA_MEMBRO" },
+  );
   for (const sdk of [a, b, sdkAntigo]) await sdk.sessao.sair();
 });
 
@@ -202,4 +219,28 @@ it("caixa pagina dez recibos por timestamp e UUID sem duplicar ou usar seletor d
     12,
   );
   await sdk.sessao.sair();
+});
+
+it("bloqueio retira nomes e detalhes atuais, conservando recibo mínimo e recusa", async () => {
+  const c = await preparar(),
+    a = await abrir(c.a),
+    b = await abrir(c.b),
+    origem = a.social?.convitesDeMundo,
+    destino = b.social?.convitesDeMundo;
+  if (!origem || !destino) throw new Error("Capacidade ausente");
+  const criado = await origem.emitir(c.pedido);
+  expect((await destino.conferir(criado.conviteId)).nomeDoMundo).toBe("Casa de teste");
+  await protegerContato(ref(c.a), { perfilId: c.b.perfil.id, bloqueado: true, silenciado: true });
+  const r = await pedir("POST", "/api/sdk/v1/convites-dirigidos", {
+    token: b.sessao.token(),
+    corpo: { operacao: "conferir", conviteId: criado.conviteId },
+  });
+  expect(r).toMatchObject({ status: 404, corpo: { codigo: "NAO_ENCONTRADO" } });
+  expect(JSON.stringify(r.corpo)).not.toContain("Casa de teste");
+  const caixa = await destino.listar();
+  expect(caixa.convites[0]?.conviteId).toBe(criado.conviteId);
+  expect(JSON.stringify(caixa)).not.toContain("Casa de teste");
+  expect((await destino.responder(criado.conviteId, "recusar")).estado).toBe("declined");
+  await a.sessao.sair();
+  await b.sessao.sair();
 });

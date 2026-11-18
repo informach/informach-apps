@@ -229,3 +229,31 @@ regressão de aprovação do mundo passa a provar a autoridade sem cobertura.
 Gates desse incremento, E2E novo, emissão/caixa utilizável no host e portal,
 concorrência adicional, upgrade e visitas ainda pendem. Nenhuma ativação ou
 migration F5 foi feita em produção.
+
+Decisões nativas `68cf29c9` passaram nos oito gates `44209217588`, com 768
+integrações em 83 arquivos. Incluem o build de produção e as jornadas já
+existentes de gestão, sem provar ainda a interação com as novas aprovações.
+
+## Candidata do host e jornadas familiares
+
+O host negocia a capacidade nova e permite convidar um amigo para o mundo em
+que o perfil está, conferir recibos, aceitar/recusar/cancelar e paginar. A
+partida continua montada e nenhum convite chama saída ou troca de mundo. A
+tentativa de emissão conserva o mesmo UUID após resposta perdida. Fechar o
+painel não dispara outra consulta ou atualização posterior.
+
+A operação `conferir` é distinta do recibo histórico: só mostra mundo e
+apelidos enquanto o convite estiver pendente, com amizade, conteúdo e
+autoridade atuais. Bloquear retira essa projeção; a caixa mínima e a recusa
+continuam disponíveis. Emissão recusa destinatário que já participa do mundo;
+replay de um recibo anterior continua recuperável sem restaurar membros.
+
+Duas jornadas novas candidatas exercitam o host contra a instância real do
+contador: dois adultos em mundos distintos, com ACK retido depois do commit
+e painel fechado; e dois adultos sem jogador com dois aparelhos infantis,
+cadastro/supervisão/pareamento/amizade e ambas as aprovações de mundo pela
+interface. O convidado só muda de mundo depois de sair pelo jogo. Nenhuma
+fixture insere convites, aprovações ou membros nessas jornadas. As capturas
+mobile e os resultados dos gates ainda precisam ser conferidos. Portal fora
+da partida, decisão de terceiro pela interface, concorrência adicional,
+upgrade, visitas e sucessão infantil continuam pendentes.

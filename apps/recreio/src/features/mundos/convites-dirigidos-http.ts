@@ -7,6 +7,7 @@ import { traduzirRecusaSocial } from "@/features/social/http";
 import { AppError } from "@/lib/errors";
 import {
   caixaDeConvitesDirigidos,
+  conferirConviteDirigido,
   consultarConviteDirigido,
 } from "./convites-dirigidos-consulta-repository";
 import { emitirConviteDirigido, responderConviteDirigido } from "./convites-dirigidos-service";
@@ -38,6 +39,8 @@ export async function executarConvitePeloSdk(
         });
       case "consultar":
         return await consultarConviteDirigido(autor, pedido.conviteId);
+      case "conferir":
+        return await conferirConviteDirigido(autor, pedido.conviteId);
     }
   } catch (erro) {
     return traduzirRecusaDeConvite(erro);
