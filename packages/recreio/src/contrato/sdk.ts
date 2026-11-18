@@ -208,6 +208,8 @@ export interface RecreioGameContext {
   perfil: PerfilDoJogo;
   politica: PoliticaDoPerfil;
   sessao: {
+    /** Capacidade negociada na emissão original; não concede entrada ou presença. */
+    readonly visitas?: true;
     /** Ausente em clientes/servidores sem negociação; nunca é uma sessão de gameplay. */
     readonly salvamento?: SalvamentoDaSessao;
     /** Consulta o estado atual sem renovar nem acertar de novo o tempo concedido. */

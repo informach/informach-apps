@@ -220,6 +220,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   })();
   if (aberta.visitaId !== visitaId || (visitaId !== undefined && aberta.visitas !== true))
     throw new ErroDoRecreio("INDISPONIVEL");
+  const visitasHabilitadas = opcoes.visitas === true && aberta.visitas === true;
 
   let token = aberta.token;
   let expiraEm = aberta.expiraEm;
@@ -630,6 +631,9 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {
+      get visitas(): true | undefined {
+        return visitasHabilitadas ? true : undefined;
+      },
       get salvamento() {
         return capacidadeDeSalvamento ? salvamento : undefined;
       },

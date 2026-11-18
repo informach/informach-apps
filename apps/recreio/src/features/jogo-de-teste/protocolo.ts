@@ -23,6 +23,7 @@ export const DoClienteSchema = z.discriminatedUnion("t", [
     token: z.string().min(1),
     mundoId: z.uuid(),
     salvamento: z.literal(true).optional(),
+    visitas: z.literal(true).optional(),
   }),
   /** Somar 1. O `id` é do comando: repetir o mesmo comando não soma duas vezes. */
   z.strictObject({ t: z.literal("somar"), id: z.uuid() }),

@@ -26,9 +26,17 @@ Negociação anterior `92c2010b` também passou nos oito gates. Retenção e ín
 179→202/191→202. Contexto `468008de` passou nos oito gates `44232334360`, com
 873 integrações. Emissão `fb75f103` concluiu os oito gates `44233704383`, com
 892 integrações; aprovações `42900ed9` concluíram os oito gates `44235115992`.
-Aceite/concessão e redução gratuita na candidata seguinte, sem admissão ou
-endpoint de visitante. Visitas e operação F5 permanecem pendentes. Migrations 0191–0201
-geradas no GitHub, ausentes de produção.
+Aceite/concessão `79202b31` passou nos oito gates `44237514615`. Finalidade,
+entrada, checkpoint, encerramento e limpeza de SID visitante estão nas candidatas
+seguintes. Prazo monotônico `d3b07a4c` passou nos oito gates `44247255726`;
+consulta sem atestado `7cfcae2c`, nos oito `44248428950`. Captura HTTP real do
+controle `139aa64f` passou nos oito `44249166071`, com 1003 integrações,
+preservação dos upgrades 179→204/191→204 e E2E. O produtor por conexão
+`de8e1ea6` passou na qualidade e em 1005 integrações; demais gates ainda em
+curso na última consulta. Integração ao servidor de referência, renovação em
+lotes e jornada física de presença são a candidata atual. Runtime/UI de
+visitante e operação F5 permanecem pendentes. Migrations 0191–0203 geradas no
+GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).
 F4 passou nos gates/CI compartilhado e foi implantada em `396fe932`, com social

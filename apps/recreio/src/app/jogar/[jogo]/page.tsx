@@ -55,6 +55,7 @@ export default async function Jogar({
       estante={estante}
       trocaCoordenada={env.RECREIO_CHECKPOINT_MODE === "on"}
       supervisionado={ator.protegido}
+      visitas={env.RECREIO_VISITS_MODE === "on" && pagina.jogo.visitas === true}
     />
   );
 }

@@ -21,7 +21,10 @@ export type PaginaDoJogo =
   | { tipo: "sem_acesso" }
   /** Faltou dizer qual mundo: a estante é onde se escolhe. */
   | { tipo: "sem_mundo" }
-  | { tipo: "pronto_sem_mundo"; jogo: { id: string; nome: string; origemDaArte: string | null } }
+  | {
+      tipo: "pronto_sem_mundo";
+      jogo: { id: string; nome: string; origemDaArte: string | null; visitas?: true };
+    }
   /** O mundo não existe, é de outro jogo ou o perfil não participa dele: a mesma resposta. */
   | { tipo: "mundo_indisponivel"; jogo: { id: string; nome: string } }
   | {
@@ -30,7 +33,7 @@ export type PaginaDoJogo =
        * `origemDaArte`: de onde o cliente baixa a arte (`RECREIO_GAME_ORIGINS[jogo].assets`),
        * a mesma origem que a política de segurança desta página libera; `null` sem arte.
        */
-      jogo: { id: string; nome: string; origemDaArte: string | null };
+      jogo: { id: string; nome: string; origemDaArte: string | null; visitas?: true };
       mundo: { id: MundoId; nome: string };
     };
 
@@ -57,6 +60,7 @@ export async function prepararPaginaDoJogo(
         id: manifesto.id,
         nome: manifesto.nome,
         origemDaArte: origensDoJogo(manifesto.id)?.assets ?? null,
+        ...(manifesto.capacidades.visitas ? { visitas: true } : {}),
       },
     };
 
@@ -72,7 +76,11 @@ export async function prepararPaginaDoJogo(
   if (!mundo || mundo.jogo !== manifesto.id) return { tipo: "mundo_indisponivel", jogo };
   return {
     tipo: "pronto",
-    jogo: { ...jogo, origemDaArte: origensDoJogo(manifesto.id)?.assets ?? null },
+    jogo: {
+      ...jogo,
+      origemDaArte: origensDoJogo(manifesto.id)?.assets ?? null,
+      ...(manifesto.capacidades.visitas ? { visitas: true } : {}),
+    },
     mundo: { id: mundo.id, nome: mundo.nome },
   };
 }

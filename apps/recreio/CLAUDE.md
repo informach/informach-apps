@@ -158,6 +158,18 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 - A estante lista os mundos de cada jogo do catálogo do deploy. "Jogar" aparece em cada mundo, na estante e em `/mundos/[id]`, quando o perfil pode jogar, o jogo abre e o portal tem o cliente dele. O cartão do jogo aponta para os mundos.
 - E2E (`pnpm --filter @informach/recreio-app e2e`): build de produção com o jogo de teste, banco descartável, Chromium (desenho por software, para o WebGL) e o servidor de cada jogo como processo que o teste inicia, derruba com sinal e reinicia. `e2e/jogar.spec.ts` prova a plataforma com o jogo de teste; `e2e/morada.spec.ts`, o Morada de verdade. O que é comum fica em `e2e/apoio.ts`. Todo teste falha se o navegador registrar violação da CSP ou erro de página.
 
+## Presença do anfitrião, candidata F5
+
+Somente o contador interno declara visitas. A página negocia o bit quando
+manifesto e `RECREIO_VISITS_MODE` permitem; o cliente o repassa pela sessão e
+o servidor relê os fatos persistidos. `e2e/servidor/presencas.ts` liga o
+produtor do package à conexão física, conserva respostas incertas e agrupa
+renovações após a posse, sem bloquear seus batimentos. Saída ou desconexão
+encerra o produtor mesmo durante o salvamento. A jornada lê agregados do banco
+descartável para verificar entrada, renovação e saída reais. Runtime/UI de
+visitante e implantação F5 continuam pendentes no
+[registro de visitas](../../docs/recreio/visitas-temporarias-2026-11-17.md).
+
 ## Morada na página do jogo (lote X1)
 
 ### Troca de aparelho em homologação (17/11)

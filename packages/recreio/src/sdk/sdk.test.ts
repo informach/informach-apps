@@ -139,8 +139,30 @@ describe("finalidade de visita no SDK", () => {
     a.responder({ corpo: { ...a.aberta(), visitas: true } });
     const contexto = await criarRecreio(a.opcoes({ visitas: true }));
     expect(contexto.visita).toBeUndefined();
+    expect(contexto.sessao.visitas).toBe(true);
     expect(a.chamadas[0]?.corpo).toEqual({ ingresso: "ingresso-1", suportaVisitas: true });
   });
+  it("conserva o fato negociado mesmo se o objeto de opções for alterado depois", async () => {
+    const a = ambiente(),
+      opcoes = a.opcoes({ visitas: true });
+    a.responder({ corpo: { ...a.aberta(), visitas: true } });
+    const contexto = await criarRecreio(opcoes);
+    opcoes.visitas = false;
+    expect(contexto.sessao.visitas).toBe(true);
+  });
+  it.each(["cliente", "servidor"] as const)(
+    "não anuncia suporte sem adesão do %s",
+    async (ausente) => {
+      const a = ambiente();
+      a.responder({
+        corpo: { ...a.aberta(), ...(ausente === "cliente" ? { visitas: true } : {}) },
+      });
+      const contexto = await criarRecreio(
+        a.opcoes(ausente === "servidor" ? { visitas: true } : {}),
+      );
+      expect(contexto.sessao.visitas).toBeUndefined();
+    },
+  );
   it.each(["identidade", "capacidade", "omissao"] as const)(
     "recusa %s divergente na abertura sem agendar renovação",
     async (tipo) => {

@@ -203,6 +203,7 @@ export const jogoDeTeste: ModuloDoJogo = {
             token: contexto.sessao.token(),
             mundoId,
             ...(contexto.sessao.salvamento ? { salvamento: true } : {}),
+            ...(contexto.sessao.visitas ? { visitas: true } : {}),
           });
       });
       atual.addEventListener("message", (evento) => {

@@ -102,6 +102,7 @@ const testEnv = {
   RECREIO_ACCESS_MODE: "fechado",
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
+  RECREIO_VISITS_MODE: "on",
   RECREIO_MODERATION_SECRET: randomBytes(32).toString("hex"),
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:

@@ -37,9 +37,10 @@ import {
 import { sessaoVencida } from "@informach/recreio/contrato";
 import {
   type ClienteDoHost,
-  type ClienteDoHostComSalvamento,
+  type ClienteDoHostComVisitas,
   criarClienteDoHost,
   criarVerificadorDeSessao,
+  type PresencaDaConexao,
 } from "@informach/recreio/host";
 import { config as carregarEnv } from "dotenv";
 import { type WebSocket, WebSocketServer } from "ws";
@@ -54,6 +55,7 @@ import {
   QUADRO_MAX_BYTES,
 } from "../../src/features/jogo-de-teste/protocolo";
 import { JOGO_DE_TESTE, JOGO_DE_TESTE_ID } from "../../src/features/jogos/catalogo";
+import { PresencasDaInstancia } from "./presencas";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 carregarEnv({ path: resolve(app, ".env.local"), quiet: true });
@@ -98,13 +100,35 @@ function registrarNoLog(mensagem: string, dados: Record<string, unknown> = {}): 
   );
 }
 
-const host: ClienteDoHostComSalvamento = criarClienteDoHost({
-  baseUrl: cfg.origemDoPortal,
-  jogo: JOGO_DE_TESTE_ID,
-  segredo: cfg.segredo,
-  fotografiaMaxBytes: JOGO_DE_TESTE.limites.fotografiaMaxBytes,
-  diarioMaxBytes: JOGO_DE_TESTE.limites.diarioPendenteMaxBytes,
-});
+function clienteDoPortal(): ClienteDoHostComVisitas {
+  return criarClienteDoHost({
+    baseUrl: cfg.origemDoPortal,
+    jogo: JOGO_DE_TESTE_ID,
+    segredo: cfg.segredo,
+    fotografiaMaxBytes: JOGO_DE_TESTE.limites.fotografiaMaxBytes,
+    diarioMaxBytes: JOGO_DE_TESTE.limites.diarioPendenteMaxBytes,
+  });
+}
+function produtorDePresencas(cliente: ClienteDoHostComVisitas): PresencasDaInstancia {
+  return new PresencasDaInstancia(cliente, (mundo, erro) =>
+    registrarNoLog("presença pendente", { mundo, codigo: codigoDe(erro) }),
+  );
+}
+let host = clienteDoPortal();
+let presencas = produtorDePresencas(host);
+const sincronizacoesDePresenca = new WeakSet<PresencasDaInstancia>();
+
+function sincronizarPresencas(apenasEncerramentos = false): void {
+  const geracao = presencas;
+  if (sincronizacoesDePresenca.has(geracao)) return;
+  sincronizacoesDePresenca.add(geracao);
+  const operacao = apenasEncerramentos ? geracao.recuperarEncerramentos() : geracao.sincronizar();
+  void operacao
+    .catch((erro: unknown) =>
+      registrarNoLog("sincronização de presenças falhou", { codigo: codigoDe(erro) }),
+    )
+    .finally(() => sincronizacoesDePresenca.delete(geracao));
+}
 const verificador = criarVerificadorDeSessao({
   emissor: cfg.origemDoPortal,
   jogo: JOGO_DE_TESTE_ID,
@@ -125,6 +149,8 @@ type Jogador = {
   sid: SessaoDeJogoId;
   perfilId: PerfilId;
   membroId: string;
+  visitas: boolean;
+  presenca: PresencaDaConexao | null;
   apelido: string;
   /** Prazo do token da sessão, em milissegundos. A renovação o empurra. */
   expiraEm: number;
@@ -159,6 +185,7 @@ type Mundo = {
 let batimentoMs = 10_000;
 let posseTtlMs = 30_000;
 let cursor: string | null = null;
+let visitasDaInstancia = false;
 const mundos = new Map<MundoId, Mundo>();
 const carregando = new Map<MundoId, Promise<Mundo>>();
 const hibernando = new Map<MundoId, Promise<void>>();
@@ -203,6 +230,7 @@ function pararMundo(mundo: Mundo, codigo: string): void {
   if (mundos.get(mundo.id) === mundo) mundos.delete(mundo.id);
   registrarNoLog("mundo parado", { mundo: mundo.id, codigo });
   for (const jogador of mundo.jogadores) {
+    void presencas.fechar(jogador.presenca);
     if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
     fim(jogador.socket, codigo);
   }
@@ -307,6 +335,7 @@ function codigoDe(erro: unknown): string {
 
 function removerJogador(mundo: Mundo, jogador: Jogador): void {
   if (!mundo.jogadores.delete(jogador)) return;
+  void presencas.fechar(jogador.presenca);
   if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
   difundir(mundo);
   hibernarSeVazio(mundo);
@@ -314,6 +343,8 @@ function removerJogador(mundo: Mundo, jogador: Jogador): void {
 
 function tirar(mundo: Mundo, jogador: Jogador, codigo?: string, motivo?: string): void {
   if (!mundo.jogadores.has(jogador)) return;
+  // A visita termina quando o anfitrião sai, mesmo durante a margem de salvamento.
+  void presencas.fechar(jogador.presenca);
   const fimElegivel =
     codigo === undefined ||
     codigo === "SESSAO_INVALIDA" ||
@@ -338,6 +369,7 @@ function tirar(mundo: Mundo, jogador: Jogador, codigo?: string, motivo?: string)
 
 /** Congela antes de enfileirar; o prefixo admitido é persistido antes da prova final. */
 function finalizar(mundo: Mundo, jogador: Jogador): Promise<boolean> {
+  void presencas.fechar(jogador.presenca);
   if (jogador.finalizacao) return jogador.finalizacao;
   if (!jogador.salvamento || mundo.parado || !mundo.jogadores.has(jogador))
     return Promise.resolve(false);
@@ -405,6 +437,7 @@ async function entrar(
   socket: WebSocket,
   quadro: Extract<DoCliente, { t: "entrar" }>,
 ): Promise<{ mundo: Mundo; jogador: Jogador }> {
+  if (descendo) throw new ErroDoRecreio("INDISPONIVEL");
   // Assinatura, emissor, audiência (este jogo), tipo e prazo.
   const sessao = await verificador.verificar(quadro.token);
   const mundoId = MundoIdSchema.parse(quadro.mundoId);
@@ -423,7 +456,7 @@ async function entrar(
     else hibernarSeVazio(mundo);
     throw erro;
   }
-  if (mundo.parado) throw new ErroDoRecreio("POSSE_PERDIDA");
+  if (mundo.parado || descendo) throw new ErroDoRecreio("POSSE_PERDIDA");
   // O mesmo membro entrando de novo (outra sessão, ou a conexão antiga que
   // ainda não caiu) toma o lugar da entrada anterior.
   for (const outro of [...mundo.jogadores])
@@ -431,6 +464,7 @@ async function entrar(
       if (outro.finalizacao || outro.fimDaMargem !== null)
         throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
       if (outro.esperaDesconexao) clearTimeout(outro.esperaDesconexao);
+      void presencas.fechar(outro.presenca);
       mundo.jogadores.delete(outro);
       fim(outro.socket, "SESSAO_ENCERRADA", "replaced");
     }
@@ -439,6 +473,8 @@ async function entrar(
     sid: sessao.sid,
     perfilId: sessao.perfilId,
     membroId: entrada.membroId,
+    visitas: visitasDaInstancia && quadro.visitas === true,
+    presenca: null,
     apelido: entrada.apelido,
     expiraEm: sessao.expiraEm,
     pausado: false,
@@ -450,8 +486,39 @@ async function entrar(
     esperaDesconexao: null,
   };
   mundo.jogadores.add(jogador);
+  prepararPresenca(mundo, jogador);
   difundir(mundo);
   return { mundo, jogador };
+}
+
+function prepararPresenca(mundo: Mundo, jogador: Jogador): void {
+  if (
+    descendo ||
+    mundo.parado ||
+    !jogador.visitas ||
+    jogador.pausado ||
+    jogador.finalizacao ||
+    jogador.fimDaMargem !== null ||
+    jogador.socket.readyState !== jogador.socket.OPEN ||
+    (jogador.presenca && !jogador.presenca.concluida)
+  )
+    return;
+  jogador.presenca = presencas.abrir(
+    {
+      mundoId: mundo.id,
+      cerca: mundo.cerca,
+      sid: jogador.sid,
+      perfilId: jogador.perfilId,
+      chaveDeEntrada: crypto.randomUUID(),
+    },
+    () =>
+      !descendo &&
+      !mundo.parado &&
+      mundo.jogadores.has(jogador) &&
+      jogador.socket.readyState === jogador.socket.OPEN &&
+      !jogador.finalizacao &&
+      jogador.fimDaMargem === null,
+  );
 }
 
 /** Soma 1: primeiro o diário, depois o estado e os clientes. */
@@ -608,13 +675,20 @@ async function renovar(mundo: Mundo, jogador: Jogador, token: string): Promise<v
 // --- Batimento e autocerca ---
 
 async function registrar(): Promise<void> {
-  const registrada = await host.registrar({
+  // Um cliente por registro: recibos antigos nunca passam a usar a identidade
+  // de outra instância. Rejeição do registro conserva a geração anterior.
+  const cliente = clienteDoPortal();
+  const registrada = await cliente.registrar({
     urlPublica: cfg.urlPublica,
     versao: "teste",
     capacidade: 20,
+    suportaVisitas: true,
   });
+  host = cliente;
+  presencas = produtorDePresencas(cliente);
   batimentoMs = registrada.batimentoMs;
   posseTtlMs = registrada.posseTtlMs;
+  visitasDaInstancia = registrada.visitas === true;
   cursor = null;
   registrarNoLog("instância registrada", { instancia: registrada.instanciaId });
 }
@@ -635,9 +709,11 @@ async function bater(): Promise<void> {
     });
   } catch (erro) {
     registrarNoLog("batimento falhou", { codigo: codigoDe(erro) });
+    sincronizarPresencas(true);
     // O Recreio não conhece mais esta instância: larga tudo e registra de novo.
     if (ehErroDoRecreio(erro, "NAO_AUTENTICADO")) {
       for (const mundo of lista) pararMundo(mundo, "POSSE_PERDIDA");
+      void presencas.fecharTodas();
       await registrar().catch(() => undefined);
     }
     // Sem resposta, o prazo local não anda, e a autocerca para os mundos a tempo.
@@ -658,6 +734,12 @@ async function bater(): Promise<void> {
       // Token vencido sem renovação: a sessão não vale mais aqui.
       else if (sessaoVencida(jogador.expiraEm, agora)) tirar(mundo, jogador, "SESSAO_INVALIDA");
     }
+  if (!descendo) {
+    for (const mundo of mundos.values())
+      for (const jogador of mundo.jogadores) prepararPresenca(mundo, jogador);
+    // A rede de presenças não pode atrasar o próximo batimento da posse.
+    sincronizarPresencas();
+  }
 }
 
 function cercar(): void {
@@ -757,6 +839,7 @@ async function subir(): Promise<void> {
 
 /** Descida ordenada: avisa o Recreio, guarda cada mundo e solta as posses. */
 async function descer(): Promise<void> {
+  const fechandoPresencas = presencas.fecharTodas();
   await host.drenar().catch(() => undefined);
   for (const mundo of [...mundos.values()]) {
     await mundo.fila.catch(() => undefined);
@@ -770,6 +853,7 @@ async function descer(): Promise<void> {
     // Passageiro para o cliente: ele abre o mundo de novo e acha outra instância.
     pararMundo(mundo, "INDISPONIVEL");
   }
+  await fechandoPresencas;
 }
 
 let descendo = false;

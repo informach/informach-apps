@@ -832,3 +832,42 @@ contador e ao bit negociado no SDK; agrupar renovação após posse, fechar ao
 desconectar e recuperar pendências sem criar presença. Depois integrar entrada
 de visitante sem alocar mundo, prazo monotônico nos comandos e encerramento
 com persistência comprovada. Rodar os oito gates no GitHub a cada candidata.
+
+## Presença ligada ao servidor de referência, candidata
+
+O contador interno negocia o bit na instância e no SID. A página pede a
+capacidade somente para manifesto que a declara e com modo ligado; o SDK
+expõe o fato imutável `sessao.visitas`. O quadro WebSocket solicita atestado,
+mas a API privada continua relendo os bits persistidos, membro, SID e posse.
+Só o contador interno declara visitas e limite simultâneo oito; não é prova
+de desempenho, classificação pública ou alteração no manifesto do Morada.
+
+`e2e/servidor/presencas.ts` mantém até 512 pendências técnicas, recupera quatro
+por vez e agrupa até 64 renovações. A conexão física é relida após esperas;
+saída, substituição, desconexão e início de salvamento fecham o produtor.
+Troca de socket/SID espera o recibo anterior fechar antes de usar outra chave.
+A fila negativa sobrevive à remoção do jogador. Falha aparece no log técnico,
+sem nome/perfil/token e sem declarar que um fechamento foi confirmado.
+
+A sincronização roda separada do batimento de posse: uma falha de rede não
+pode consumir o prazo da posse enquanto espera os lotes. Cada registro de
+instância usa um cliente HTTP novo, preservando a identidade dos pedidos
+anteriores. Se o Recreio rejeita a instância, todos os mundos param; tenta-se
+fechar seus recibos com a identidade antiga antes/ao preparar outro registro.
+Pendências não confirmadas dessa geração deixam de ser observadas pelo novo
+registro; autoridade integral, prazo original e limpeza do servidor continuam
+obrigatórios, como no encerramento abrupto de um processo. Não se convertem
+essas pendências em recibos fechados ou ACKs fictícios.
+
+O ambiente descartável passa a ativar visitas explicitamente. A nova jornada
+de navegador só observa agregados do PostgreSQL: nenhuma presença antes de
+abrir o jogo, uma presença/SID e membro, renovação pelo batimento enquanto o
+socket está conectado e fechamento após saída real, conservando o membro.
+Não injeta atestado nem reduz tempos. Runtime e UI de visitante continuam
+pendentes; não há implantação ou migração de produção neste incremento.
+
+Evidência anterior consultada em 18/11: `139aa64f` concluiu os oito gates
+`44249166071`, 1003 integrações e upgrades com preservação 179→204/191→204.
+`7cfcae2c` também concluiu os oito gates `44248428950`. Produtor `de8e1ea6`
+tem qualidade e 1005 integrações aprovadas em `44250374730`; pipeline ainda
+em curso na consulta. Esta ligação ao runtime exige nova rodada completa.

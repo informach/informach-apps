@@ -80,12 +80,14 @@ export function Hospedeiro({
   estante = "/estante",
   trocaCoordenada = false,
   supervisionado = false,
+  visitas = false,
 }: {
   jogo: { id: string; nome: string; origemDaArte?: string | null };
   mundo: { id: MundoId; nome: string } | null;
   estante?: "/estante" | "/aparelho";
   trocaCoordenada?: boolean;
   supervisionado?: boolean;
+  visitas?: boolean;
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
   /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
@@ -218,6 +220,7 @@ export function Hospedeiro({
             jogo: jogo.id,
             social: true,
             convitesDirigidos: true,
+            visitas,
             salvamentoRestrito: trocaCoordenada,
             obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),
@@ -313,6 +316,7 @@ export function Hospedeiro({
       sair,
       trocaCoordenada,
       supervisionado,
+      visitas,
     ],
   );
 
