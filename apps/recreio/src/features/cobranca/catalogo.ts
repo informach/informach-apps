@@ -1,5 +1,8 @@
 import "server-only";
-import type { createStripePaymentFactReader } from "@informach/billing/payment-facts";
+import type {
+  createStripePaymentFactReader,
+  PaymentReadBudget,
+} from "@informach/billing/payment-facts";
 import {
   getConfiguredProducts,
   isStripePriceIdConfigured,
@@ -18,6 +21,7 @@ export async function conferirCatalogoDoRecreio(entrada: {
   variaveis: Readonly<Record<string, unknown>>;
   portalId: string;
   urlDoApp: string;
+  budget?: PaymentReadBudget;
 }) {
   const produtos = produtosDoRecreio(entrada.modo, entrada.variaveis);
   if (
@@ -26,12 +30,18 @@ export async function conferirCatalogoDoRecreio(entrada: {
   )
     throw new Error("Catálogo comercial do Recreio ainda não configurado.");
   const origem = new URL(entrada.urlDoApp).origin;
-  await entrada.leitor.verifyCatalog(produtos, entrada.modo, entrada.portalId, {
-    planUpdates: "application",
-    app: "recreio",
-    returnUrl: `${origem}/conta/assinatura`,
-    termsUrl: `${origem}/termos`,
-    privacyUrl: `${origem}/privacidade`,
-  });
+  await entrada.leitor.verifyCatalog(
+    produtos,
+    entrada.modo,
+    entrada.portalId,
+    {
+      planUpdates: "application",
+      app: "recreio",
+      returnUrl: `${origem}/conta/assinatura`,
+      termsUrl: `${origem}/termos`,
+      privacyUrl: `${origem}/privacidade`,
+    },
+    entrada.budget,
+  );
   return produtos;
 }

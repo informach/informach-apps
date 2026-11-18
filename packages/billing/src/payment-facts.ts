@@ -50,38 +50,61 @@ export type NativePlanPortalPolicy = {
   privacyUrl: string;
 };
 
+/** Optional worker deadline; legacy callers retain their existing SDK policy. */
+export type PaymentReadBudget = { deadlineMs: number };
+
 export function createStripePaymentFactReader(config: {
   secretKey: string;
   client?: Stripe;
   expectedMode?: StripeMode;
+  timeoutMs?: number;
+  maxNetworkRetries?: number;
 }) {
   const stripe =
     config.client ??
     new Stripe(config.secretKey, {
       apiVersion: "2026-04-22.dahlia",
-      timeout: 30000,
-      maxNetworkRetries: 2,
+      timeout: config.timeoutMs ?? 30000,
+      maxNetworkRetries: config.maxNetworkRetries ?? 2,
     });
+  function requestOptions(budget?: PaymentReadBudget): Stripe.RequestOptions | undefined {
+    if (!budget) return undefined;
+    const remaining = budget.deadlineMs - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0)
+      throw new Error("Financial reconciliation read deadline exceeded");
+    return {
+      timeout: Math.max(1, Math.min(config.timeoutMs ?? 30000, remaining)),
+      maxNetworkRetries: 0,
+    };
+  }
   function conferirModo(resource: { livemode: boolean }) {
     if (config.expectedMode !== undefined && resource.livemode !== (config.expectedMode === "prod"))
       throw new Error("Financial resource belongs to another Stripe mode");
   }
-  async function chargeForPayment(payment: Stripe.InvoicePayment): Promise<Stripe.Charge> {
+  async function chargeForPayment(
+    payment: Stripe.InvoicePayment,
+    budget?: PaymentReadBudget,
+  ): Promise<Stripe.Charge> {
+    requestOptions(budget);
     if (payment.payment.type === "payment_intent" && payment.payment.payment_intent) {
       const intent =
         typeof payment.payment.payment_intent === "string"
-          ? await stripe.paymentIntents.retrieve(payment.payment.payment_intent, {
-              expand: ["latest_charge"],
-            })
+          ? await stripe.paymentIntents.retrieve(
+              payment.payment.payment_intent,
+              {
+                expand: ["latest_charge"],
+              },
+              requestOptions(budget),
+            )
           : payment.payment.payment_intent;
       const charge = intent.latest_charge;
       if (charge && typeof charge !== "string") return charge;
-      if (charge) return stripe.charges.retrieve(charge);
+      if (charge) return stripe.charges.retrieve(charge, {}, requestOptions(budget));
     }
     // Read-only legacy payment reconciliation, never creates a Charges payment.
     if (payment.payment.type === "charge" && payment.payment.charge)
       return typeof payment.payment.charge === "string"
-        ? stripe.charges.retrieve(payment.payment.charge)
+        ? stripe.charges.retrieve(payment.payment.charge, {}, requestOptions(budget))
         : payment.payment.charge;
     throw new Error("Invoice settlement needs manual reconciliation before granting access");
   }
@@ -179,6 +202,7 @@ export function createStripePaymentFactReader(config: {
       mode: StripeMode,
       portalConfigurationId: string,
       nativePolicy?: NativePlanPortalPolicy,
+      budget?: PaymentReadBudget,
     ) {
       const ids = new Set<string>();
       const productIds = new Set<string>();
@@ -195,10 +219,10 @@ export function createStripePaymentFactReader(config: {
         )
           throw new Error("Invalid subscription catalog");
         ids.add(id);
-        const price = await stripe.prices.retrieve(id);
+        const price = await stripe.prices.retrieve(id, {}, requestOptions(budget));
         const product =
           typeof price.product === "string"
-            ? await stripe.products.retrieve(price.product)
+            ? await stripe.products.retrieve(price.product, {}, requestOptions(budget))
             : price.product;
         if (
           !price.active ||
@@ -218,11 +242,16 @@ export function createStripePaymentFactReader(config: {
       }
       if (!nativePolicy && productIds.size !== 1)
         throw new Error("Suite prices must belong to one product");
-      const portal = await stripe.billingPortal.configurations.retrieve(portalConfigurationId, {
-        // Stripe omits the allowed products unless explicitly expanded. Without
-        // this, a valid portal is rejected and every Edi checkout is blocked.
-        expand: ["features.subscription_update.products"],
-      });
+      const portal = await stripe.billingPortal.configurations.retrieve(
+        portalConfigurationId,
+        {
+          // Stripe omits the allowed products unless explicitly expanded. Without
+          // this, a valid portal is rejected and every Edi checkout is blocked.
+          expand: ["features.subscription_update.products"],
+        },
+        requestOptions(budget),
+      );
+      requestOptions(budget);
       const updates = portal.features.subscription_update;
       if (nativePolicy) {
         const cancellation = portal.features.subscription_cancel;
@@ -289,26 +318,37 @@ export function createStripePaymentFactReader(config: {
       }
       return null;
     },
-    async listSubscriptionIds(customerId: string): Promise<string[]> {
+    async listSubscriptionIds(customerId: string, budget?: PaymentReadBudget): Promise<string[]> {
       const ids: string[] = [];
-      for await (const subscription of stripe.subscriptions.list({
-        customer: customerId,
-        status: "all",
-        limit: 100,
-      })) {
+      for await (const subscription of stripe.subscriptions.list(
+        {
+          customer: customerId,
+          status: "all",
+          limit: 100,
+        },
+        requestOptions(budget),
+      )) {
+        requestOptions(budget);
         conferirModo(subscription);
         if (ids.length >= MAX_HISTORY)
           throw new Error("Subscription history exceeds reconciliation limit");
         ids.push(subscription.id);
       }
+      requestOptions(budget);
       return ids;
     },
     async read(
       subscriptionId: string,
       acceptedPriceIds: ReadonlySet<string>,
+      budget?: PaymentReadBudget,
     ): Promise<SubscriptionPaymentSnapshot | null> {
       const observedAt = new Date();
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const subscription = await stripe.subscriptions.retrieve(
+        subscriptionId,
+        {},
+        requestOptions(budget),
+      );
+      requestOptions(budget);
       conferirModo(subscription);
       if (subscription.items.data.length !== 1)
         throw new Error("Suite subscriptions require exactly one recurring item");
@@ -320,11 +360,15 @@ export function createStripePaymentFactReader(config: {
           : subscription.customer.id;
       const periods: PaidPeriodFact[] = [];
       let invoices = 0;
-      for await (const invoice of stripe.invoices.list({
-        subscription: subscription.id,
-        status: "paid",
-        limit: 100,
-      })) {
+      for await (const invoice of stripe.invoices.list(
+        {
+          subscription: subscription.id,
+          status: "paid",
+          limit: 100,
+        },
+        requestOptions(budget),
+      )) {
+        requestOptions(budget);
         conferirModo(invoice);
         if (++invoices > MAX_HISTORY)
           throw new Error("Invoice history exceeds reconciliation limit");
@@ -342,18 +386,23 @@ export function createStripePaymentFactReader(config: {
         let allocated = 0;
         let disputed = false;
         let payments = 0;
-        for await (const payment of stripe.invoicePayments.list({
-          invoice: invoice.id,
-          status: "paid",
-          limit: 100,
-        })) {
+        for await (const payment of stripe.invoicePayments.list(
+          {
+            invoice: invoice.id,
+            status: "paid",
+            limit: 100,
+          },
+          requestOptions(budget),
+        )) {
+          requestOptions(budget);
           const amount = payment.amount_paid;
           if (++payments > MAX_HISTORY)
             throw new Error("Invoice payment history exceeds reconciliation limit");
           if (amount === null || !Number.isSafeInteger(amount) || amount < 0)
             throw new Error("Paid invoice settlement has no valid amount");
           if (amount === 0) continue;
-          const charge = await chargeForPayment(payment);
+          const charge = await chargeForPayment(payment, budget);
+          requestOptions(budget);
           conferirModo(charge);
           const chargeCustomerId =
             typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
@@ -378,7 +427,11 @@ export function createStripePaymentFactReader(config: {
           if (charge.disputed) {
             let unresolved = false;
             let disputes = 0;
-            for await (const dispute of stripe.disputes.list({ charge: charge.id, limit: 100 })) {
+            for await (const dispute of stripe.disputes.list(
+              { charge: charge.id, limit: 100 },
+              requestOptions(budget),
+            )) {
+              requestOptions(budget);
               if (++disputes > MAX_HISTORY)
                 throw new Error("Dispute history exceeds reconciliation limit");
               if (dispute.status !== "won" && dispute.status !== "warning_closed")
@@ -391,7 +444,15 @@ export function createStripePaymentFactReader(config: {
         if (invoice.amount_paid !== allocated)
           throw new Error("Invoice has an unsupported or missing settlement");
         const fullyRefunded = invoice.amount_paid > 0 && refunded >= invoice.amount_paid;
-        for await (const line of stripe.invoices.listLineItems(invoice.id, { limit: 100 })) {
+        let lines = 0;
+        for await (const line of stripe.invoices.listLineItems(
+          invoice.id,
+          { limit: 100 },
+          requestOptions(budget),
+        )) {
+          requestOptions(budget);
+          if (++lines > MAX_HISTORY)
+            throw new Error("Invoice line history exceeds reconciliation limit");
           const details = line.parent?.subscription_item_details;
           const price = line.pricing?.price_details?.price;
           const priceId = typeof price === "string" ? price : price?.id;
@@ -417,6 +478,7 @@ export function createStripePaymentFactReader(config: {
           });
         }
       }
+      requestOptions(budget);
       return {
         customerId,
         subscriptionId: subscription.id,

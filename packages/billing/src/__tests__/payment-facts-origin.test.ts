@@ -1,9 +1,9 @@
 import Stripe from "stripe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createStripePaymentFactReader } from "../payment-facts";
 
 /** Real SDK decoding, closed fixture HTTP; no invoice or external payment. */
-function fixture() {
+function fixture(aposLeitura?: (path: string) => void) {
   const subscription = {
     id: "sub_origin",
     object: "subscription",
@@ -40,6 +40,7 @@ function fixture() {
       url = new URL(request.url);
     if (request.method !== "GET") throw new Error("Reader may only use GET");
     paths.push(url.pathname);
+    aposLeitura?.(url.pathname);
     let body: unknown;
     if (url.pathname === "/v1/subscriptions/sub_origin") body = subscription;
     else if (url.pathname === "/v1/subscriptions") body = list([subscription]);
@@ -103,5 +104,42 @@ describe("financial mode and native purchase origin", () => {
       "another Stripe mode",
     );
     expect(f.paths).not.toContain("/v1/invoice_payments");
+  });
+  it("refuses an expired worker budget before sending a provider request", async () => {
+    const f = fixture(),
+      budget = { deadlineMs: Date.now() - 1 };
+    await expect(f.reader.read("sub_origin", new Set(["price_origin"]), budget)).rejects.toThrow(
+      "deadline exceeded",
+    );
+    await expect(f.reader.listSubscriptionIds("cus_origin", budget)).rejects.toThrow(
+      "deadline exceeded",
+    );
+    expect(f.paths).toEqual([]);
+  });
+  it("does not continue to invoices after the subscription read exhausts the budget", async () => {
+    const inicio = Date.now(),
+      relogio = vi.spyOn(Date, "now").mockReturnValue(inicio);
+    try {
+      const f = fixture(() => relogio.mockReturnValue(inicio + 1001));
+      await expect(
+        f.reader.read("sub_origin", new Set(["price_origin"]), { deadlineMs: inicio + 1000 }),
+      ).rejects.toThrow("deadline exceeded");
+      expect(f.paths).toEqual(["/v1/subscriptions/sub_origin"]);
+    } finally {
+      relogio.mockRestore();
+    }
+  });
+  it("rejects a late subscription history response instead of accepting a partial observation", async () => {
+    const inicio = Date.now(),
+      relogio = vi.spyOn(Date, "now").mockReturnValue(inicio);
+    try {
+      const f = fixture(() => relogio.mockReturnValue(inicio + 1001));
+      await expect(
+        f.reader.listSubscriptionIds("cus_origin", { deadlineMs: inicio + 1000 }),
+      ).rejects.toThrow("deadline exceeded");
+      expect(f.paths).toEqual(["/v1/subscriptions"]);
+    } finally {
+      relogio.mockRestore();
+    }
   });
 });

@@ -1,20 +1,24 @@
 import "server-only";
 import { createBillingService } from "@informach/billing";
 import { inspectUserCheckoutAuthorization } from "@informach/billing/checkout-authorizations";
-import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
+import {
+  createStripePaymentFactReader,
+  type PaymentReadBudget,
+} from "@informach/billing/payment-facts";
 import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { db } from "@informach/db";
 import { conferirCatalogoDoRecreio, produtosDoRecreio } from "@/features/cobranca/catalogo";
 import { emailDoPagante } from "@/features/cobranca/clientes-repository";
+import type { RuntimeDeConciliacao } from "@/features/cobranca/conciliacao-runtime";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
 import { env } from "./env";
 import { assertAllowed } from "./errors";
 import { packageLogger } from "./observability";
 
 let runtime: RuntimeDeCompra | undefined;
+let composicao: ReturnType<typeof criarComposicao> | undefined;
 /** Configuração e clientes vivem só na composição; nunca em página/formulário. */
-export function getRuntimeDaCompra(): RuntimeDeCompra {
-  if (runtime) return runtime;
+function criarComposicao() {
   const chave = env.STRIPE_SECRET_KEY,
     segredo = env.STRIPE_WEBHOOK_SECRET,
     portalId = env.STRIPE_PORTAL_CONFIGURATION_ID;
@@ -32,8 +36,15 @@ export function getRuntimeDaCompra(): RuntimeDeCompra {
     secretKey: chave,
     webhookSecret: segredo,
     appName: "Recreio",
+    timeoutMs: 10_000,
+    maxNetworkRetries: 0,
   });
-  const leitor = createStripePaymentFactReader({ secretKey: chave });
+  const leitor = createStripePaymentFactReader({
+    secretKey: chave,
+    expectedMode: "dev",
+    timeoutMs: 10_000,
+    maxNetworkRetries: 0,
+  });
   const billing = createBillingService({
     db,
     app: "recreio",
@@ -50,16 +61,32 @@ export function getRuntimeDaCompra(): RuntimeDeCompra {
     resolveSubjectEmail: emailDoPagante,
     logger: packageLogger,
   });
-  runtime = {
-    async conferirCatalogo() {
+  return {
+    produtos,
+    provider,
+    leitor,
+    billing,
+    async conferirCatalogo(budget?: PaymentReadBudget) {
       await conferirCatalogoDoRecreio({
         leitor,
         modo: "dev",
         variaveis: env,
         portalId,
         urlDoApp: env.NEXT_PUBLIC_APP_URL,
+        budget,
       });
     },
+  };
+}
+function getComposicao() {
+  composicao ??= criarComposicao();
+  return composicao;
+}
+export function getRuntimeDaCompra(): RuntimeDeCompra {
+  if (runtime) return runtime;
+  const { produtos, provider, billing, conferirCatalogo } = getComposicao();
+  runtime = {
+    conferirCatalogo,
     precoDoProduto(id) {
       const produto = produtos.find((p) => p.id === id);
       assertAllowed(produto, "OFERTA", "Confira a oferta atual antes de continuar.");
@@ -75,4 +102,12 @@ export function getRuntimeDaCompra(): RuntimeDeCompra {
       ),
   };
   return runtime;
+}
+
+/** Read-only financial worker uses the same approved catalog, mode and clients. */
+export function getRuntimeDaConciliacao(): RuntimeDeConciliacao {
+  const { produtos, provider, leitor, conferirCatalogo } = getComposicao();
+  const lerCheckout = provider.findCheckoutSession;
+  assertAllowed(lerCheckout, "INDISPONIVEL", "A conferência financeira não está disponível.");
+  return { modo: "dev", produtos, leitor, conferirCatalogo, lerCheckout };
 }

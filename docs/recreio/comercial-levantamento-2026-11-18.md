@@ -38,6 +38,15 @@ Nunca reenvia o POST da intenção antiga nessa troca. Aceite antigo, sessão ab
 ou resultado desconhecido conservam a proteção; há regressões com SDK/PG para
 expiração seguida de novo aceite e inspeção indisponível.
 
+A candidata de prazo de leitura acrescenta orçamento de noventa segundos por
+pagante, compartilhado entre catálogo, assinaturas, faturas, pagamentos e
+vínculo de Checkout. O SDK nativo usa dez segundos por chamada e nenhuma
+retentativa automática configurada; verificações de prazo recusam respostas
+tardias e a persistência continua exigindo a admissão pelo relógio do banco.
+Os padrões dos consumidores legados são preservados. A composição nativa de
+conciliação passa a reutilizar catálogo, modo e clientes do Checkout; ainda não
+há cron/webhook implantado. Novas regressões de prazo aguardam gates remotos.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

@@ -108,4 +108,14 @@ describe("Stripe checkout lifecycle boundary", () => {
       { idempotencyKey: "stable_key" },
     );
   });
+  it("does not inspect Checkout after the worker deadline", async () => {
+    const f = fixture();
+    await expect(
+      f.provider.findCheckoutSession?.("cus_owner", "intent_106", "cs_106", {
+        deadlineMs: Date.now() - 1,
+      }),
+    ).rejects.toThrow("deadline exceeded");
+    expect(f.client.checkout.sessions.retrieve).not.toHaveBeenCalled();
+    expect(f.client.checkout.sessions.list).not.toHaveBeenCalled();
+  });
 });

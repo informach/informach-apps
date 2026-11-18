@@ -58,6 +58,13 @@ export function criarProcessadorDeConciliacao(deps: {
           let tentativa: TentativaDeConciliacao | undefined;
           try {
             tentativa = await iniciarConciliacaoLocked(trabalho);
+            const budget = { deadlineMs: Date.now() + 90_000 };
+            const conferirPrazo = () =>
+              assertAllowed(
+                Date.now() < budget.deadlineMs,
+                "COBRANCA",
+                "A leitura financeira excedeu o prazo de conferência.",
+              );
             assertAllowed(
               tentativa.customer,
               "CLIENTE_FINANCEIRO",
@@ -69,8 +76,9 @@ export function criarProcessadorDeConciliacao(deps: {
               "ORIGEM_FINANCEIRA",
               "O ambiente financeiro exige conferência.",
             );
-            catalogo ??= runtime.conferirCatalogo();
+            catalogo ??= runtime.conferirCatalogo(budget);
             await catalogo;
+            conferirPrazo();
             const aceitos = new Set(
               runtime.produtos
                 .filter((p) => p.app === "recreio" && p.kind === "subscription")
@@ -83,7 +91,9 @@ export function criarProcessadorDeConciliacao(deps: {
             );
             const ids = await runtime.leitor.listSubscriptionIds(
               tentativa.customer.providerCustomerId,
+              budget,
             );
+            conferirPrazo();
             assertAllowed(
               ids.length <= 600 && new Set(ids).size === ids.length,
               "ORIGEM_FINANCEIRA",
@@ -91,7 +101,9 @@ export function criarProcessadorDeConciliacao(deps: {
             );
             const snapshots: SubscriptionPaymentSnapshot[] = [];
             for (const id of ids) {
-              const snapshot = await runtime.leitor.read(id, aceitos);
+              conferirPrazo();
+              const snapshot = await runtime.leitor.read(id, aceitos, budget);
+              conferirPrazo();
               assertAllowed(
                 snapshot && snapshot.customerId === tentativa.customer.providerCustomerId,
                 "ORIGEM_FINANCEIRA",
@@ -151,7 +163,9 @@ export function criarProcessadorDeConciliacao(deps: {
                 tentativa.customer.providerCustomerId,
                 origem.id,
                 origem.providerSessionId,
+                budget,
               );
+              conferirPrazo();
               assertAllowed(
                 checkout?.status === "complete" &&
                   checkout.subscriptionId === snapshot.subscriptionId,
@@ -166,6 +180,7 @@ export function criarProcessadorDeConciliacao(deps: {
             }
             const admitida = tentativa;
             const produtos = runtime.produtos;
+            conferirPrazo();
             await confirmarConciliacaoLocked(admitida, async (tx, agora) =>
               persistirFatosDaConciliacao(tx, admitida, { snapshots, produtos, vinculos, agora }),
             );

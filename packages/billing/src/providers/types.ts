@@ -205,6 +205,7 @@ export interface BillingProviderClient {
     customerId: string,
     intentId: string,
     sessionId?: string | null,
+    budget?: { deadlineMs: number },
   ): Promise<ProviderCheckoutState | null>;
   /** Refuse an existing nonterminal subscription; expire other payable sessions. */
   prepareSubscriptionCheckout?(customerId: string, preserveSessionId?: string): Promise<void>;
