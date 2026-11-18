@@ -1,0 +1,25 @@
+{
+  "workflowRunId": "44337220466",
+  "jobId": "134917089101",
+  "source": "832abb8764e53f315e811083646d55cf4a119bfb",
+  "mode": "dev",
+  "result": "failed",
+  "stage": "hosted_checkout_human_verification",
+  "evidence": {
+    "artifactId": "14442581807",
+    "bytes": 1656,
+    "sha256": "f1b758e4a51fc928c6a161c594f57f299b6fa377d967755e7a601de34825af9c",
+    "integrityVerified": true,
+    "diagnosticInspected": true,
+    "observedChallengeControls": ["Verify Answers", "About hCaptcha & Accessibility Options"]
+  },
+  "cleanup": {
+    "customerId": "cus_VeTstvg4jOUl6B",
+    "testSubscriptionIds": [],
+    "expiredCheckoutIds": ["cs_test_a0cM7FPBOYIMMjvK5mzSGMSbCvcXFAWLBewChWNPNFZRqGEfv5JqoAup0g"],
+    "confirmedByJourney": true
+  },
+  "paidCheckoutProven": false,
+  "productionChanged": false,
+  "nextRequiredEvidence": "human_hosted_checkout_qualification"
+}

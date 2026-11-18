@@ -4,6 +4,12 @@ Incremento restante de F6, autorizado pelo fechamento da plataforma. Fonte de
 produto relida: `artes-3d/paginas/recreio.html`, seção Planos e acesso. Este plano
 não implementa nem habilita trocas por si só.
 
+A classificação pura das doze trocas entre as quatro ofertas está em
+`troca-regras.ts`, ainda sem ligação com a cobrança: aumento de cobertura é
+imediato; redução de cobertura aguarda o fim do período. Mantida a cobertura,
+mensal → anual é aumento e anual → mensal é redução. Essa decisão não comprova
+proporcional, aceite, agenda, persistência ou disponibilidade em produção.
+
 ## Comportamento obrigatório
 
 - Aumento: imediato, com proporcional calculado pelo Stripe e apresentado antes

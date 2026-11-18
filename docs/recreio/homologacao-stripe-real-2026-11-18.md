@@ -1,6 +1,6 @@
 # Recreio — jornada externa Stripe de teste
 
-Candidata de verificação de F6/F11, ainda sem evidência de execução. Não habilita
+Candidata de verificação de F6/F11, executada e ainda não aprovada. Não habilita
 venda, não usa chaves live e não se conecta ao banco de produção.
 
 O workflow Recreio recebe `sandbox_journey=true` e a conta Stripe esperada.
@@ -43,6 +43,22 @@ A candidata passa a procurar confirmação nos frames do formulário e a expirar
 Checkouts abertos na própria limpeza. Ajustes usam a candidata de operação;
 os dezesseis gates serão repetidos na mesma fonte final antes da integração.
 
-Fontes primárias: [CLI e autenticação](https://github.com/stripe/stripe-cli/wiki/Using-Stripe-API-Keys),
+A execução `44337220466`, fonte `832abb8764e53f315e811083646d55cf4a119bfb`,
+localizou e acionou a confirmação. O diagnóstico mostrou o desafio hCaptcha
+(`Verify Answers`/opções de acessibilidade); o retorno ao portal não ocorreu.
+Não houve assinatura criada. A própria limpeza expirou o Checkout aberto e
+confirmou zero assinaturas. O artefato sanitizado foi baixado com tamanho e
+SHA-256 conferidos na API do GitHub:
+[registro da execução](evidencias/stripe-jornada-44337220466.json).
+
+O Stripe documenta que suas interfaces de pagamento têm medidas que impedem
+automação. Esta execução exige homologação humana do Checkout hospedado; não
+autoriza contornar o desafio, relaxar proteção nem substituir esta prova por
+um pagamento criado por API. Os testes remotos dos contratos HTTP/SDK locais
+continuam distintos da prova externa. Não repetir automaticamente a jornada
+hospedada enquanto esta limitação persistir.
+
+Fontes primárias: [limites da automação](https://docs.stripe.com/automated-testing),
+[CLI e autenticação](https://github.com/stripe/stripe-cli/wiki/Using-Stripe-API-Keys),
 [listen](https://github.com/stripe/stripe-cli/blob/master/pkg/cmd/listen.go),
 [release fixada](https://github.com/stripe/stripe-cli/releases/tag/v1.55.12).
