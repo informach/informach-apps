@@ -267,6 +267,59 @@ export async function observarCreditoAnual(entrada: {
     ),
     "annual_renewal_funding_not_traced",
   );
+  const encerrada = await stripe.subscriptions.cancel(sub.id, {
+    prorate: false,
+    invoice_now: false,
+  });
+  verify(
+    encerrada.id === sub.id &&
+      id(encerrada.customer) === customerId &&
+      encerrada.status === "canceled" &&
+      !encerrada.livemode,
+    "annual_origin_contract_not_closed",
+  );
+  const seguinte = await stripe.subscriptions.create(
+    {
+      customer: customerId,
+      items: [{ price: family.priceId, quantity: 1 }],
+      payment_behavior: "error_if_incomplete",
+      metadata: { ...sub.metadata, checkout_intent_id: randomUUID(), product_id: family.productId },
+    },
+    { idempotencyKey: `${prefix}:annual-credit-following-contract` },
+  );
+  const seguinteInvoiceId = id(seguinte.latest_invoice);
+  verify(
+    !seguinte.livemode &&
+      id(seguinte.customer) === customerId &&
+      seguinte.status === "active" &&
+      seguinteInvoiceId,
+    "annual_following_contract_scope_differs",
+  );
+  const seguinteInvoice = await invoiceFacts(seguinteInvoiceId);
+  verify(
+    seguinteInvoice.invoice.amount_paid === 0 &&
+      seguinteInvoice.invoice.starting_balance < 0 &&
+      seguinteInvoice.invoice.total === family.amountCents,
+    "annual_following_contract_not_credit_funded",
+  );
+  proof.followingContract = { id: seguinte.id, invoice: seguinteInvoice.sanitized };
+  const conferirCliente = () =>
+    conferencia.conferirCliente(
+      {
+        clienteId: customerId,
+        paganteId: sub.metadata.subject_id ?? "",
+        assinaturaIds: [sub.id, seguinte.id],
+        precosAceitos: prices,
+      },
+      { deadlineMs: Date.now() + 90_000 },
+    );
+  const transferida = await conferirCliente();
+  verify(
+    transferida.financiamento.periodos.some(
+      (p) => p.faturaId === seguinteInvoiceId && p.estado === "comprovado",
+    ),
+    "annual_carried_credit_funding_not_traced",
+  );
   let paymentIntentId: string | undefined;
   for await (const allocation of stripe.invoicePayments.list({
     invoice: initialInvoiceId,
@@ -302,14 +355,13 @@ export async function observarCreditoAnual(entrada: {
     refunded?.periods.some((p) => p.invoiceId === initialInvoiceId && p.fullyRefunded),
     "annual_source_refund_not_detected",
   );
-  const revogada = await conferirOrigem();
+  const revogada = await conferirCliente();
   verify(
-    revogada &&
-      [upgradeInvoiceId, renewalId].every((invoiceId) =>
-        revogada.financiamento.periodos.some(
-          (p) => p.faturaId === invoiceId && p.estado === "revogado",
-        ),
+    [upgradeInvoiceId, renewalId, seguinteInvoiceId].every((invoiceId) =>
+      revogada.financiamento.periodos.some(
+        (p) => p.faturaId === invoiceId && p.estado === "revogado",
       ),
+    ),
     "annual_source_refund_did_not_revoke_dependencies",
   );
   Object.assign(proof, {
@@ -324,6 +376,7 @@ export async function observarCreditoAnual(entrada: {
     creditFundingGraphApiVerified: true,
     sourceRefundPropagationVerified: true,
     originalCreditedPeriodLimited: true,
+    creditAcrossContractsApiVerified: true,
     creditFundingPeriods: revogada.financiamento.periodos.map((p) => ({
       invoiceId: p.faturaId,
       lineId: p.linhaId,

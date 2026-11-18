@@ -176,3 +176,25 @@ passaram; o cenário de FK encontrou primeiro a chave única porque duas fixture
 usavam o mesmo hash sintético. Cada fixture passa a gerar seu próprio hash;
 o teste conserva a exigência de erro de FK para verificar a proteção pretendida,
 em vez de aceitar uma recusa por outra constraint. Sem alteração da DDL.
+
+## Composição dos contratos do cliente
+
+A extensão `conferirCliente` recebe o inventário servidor de assinaturas do
+customer, confere a origem do mesmo pagante em cada leitura e calcula o ledger
+uma única vez para o conjunto. Une capturas repetidas somente se os fatos
+forem idênticos; alteração durante a leitura exige nova conferência. Cada
+contrato é relido no fim. O resultado tem marca privada, modo e pagante, mas
+não substitui o aceite/contrato nativo que o escritor ainda deve admitir no
+banco. Um corpo JSON do navegador não produz essa marca.
+
+A API restrita a um contrato permanece separada. Ausência de contratos no
+pedido não apaga movimentos existentes nem prova que não há saldo; referências
+desconhecidas ficam em revisão. Quatro casos novos cobrem crédito carregado
+de contrato encerrado, estorno da origem no contrato seguinte, metadata de
+outro pagante e inventário duplicado/incompleto. Ainda precisam do gate remoto.
+
+O ensaio externo anual passa a encerrar a primeira assinatura própria sem
+pró-rata, abrir uma segunda usando o saldo e verificar a propagação do estorno
+para as duas. Recursos conservam a etiqueta do mesmo relógio/run para limpeza;
+continua apenas Stripe de teste, sem compra/aceite/jogo nativos. A extensão ainda
+precisa de prova externa própria; o recibo `44404065298` cobre um contrato.

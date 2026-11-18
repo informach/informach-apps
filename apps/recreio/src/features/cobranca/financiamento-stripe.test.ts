@@ -1,7 +1,7 @@
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
 import Stripe from "stripe";
 import { describe, expect, it } from "vitest";
-import { criarConferenciaDeFinanciamento } from "./financiamento-stripe";
+import { conferirMarcaFinanceira, criarConferenciaDeFinanciamento } from "./financiamento-stripe";
 
 /** The SDK and graph are real; HTTP data is closed and follows the externally
  * observed annual credit/renewal values. No native acceptance/access is claimed. */
@@ -15,7 +15,13 @@ function fixture() {
     subject_id: "payer_fixture",
     product_id: "recreio_individual_annual",
   };
+  const cancellation: {
+    cancel_at: number | null;
+    trial_end: number | null;
+    canceled_at: number | null;
+  } = { cancel_at: null, trial_end: null, canceled_at: null };
   const subscription = {
+    ...cancellation,
     id: "sub_funding",
     object: "subscription",
     customer: "cus_funding",
@@ -23,9 +29,6 @@ function fixture() {
     status: "active",
     metadata,
     cancel_at_period_end: false,
-    cancel_at: null,
-    trial_end: null,
-    canceled_at: null,
     items: {
       has_more: false,
       data: [
@@ -39,6 +42,7 @@ function fixture() {
       ],
     },
   };
+  const subscriptions = new Map([[subscription.id, subscription]]);
   const line = (
     id: string,
     invoice: string,
@@ -148,12 +152,13 @@ function fixture() {
     },
   ];
   const paths: string[] = [];
-  let balanceReads = 0,
-    subReads = 0,
+  let balance = -34320,
+    balanceReads = 0,
     changeBalance = false,
     changeHead = false,
     repeatLedger = false,
     changeContract = false;
+  const subReads = new Map<string, number>();
   const list = (data: unknown[], has_more = false) => ({
     object: "list",
     data,
@@ -167,22 +172,31 @@ function fixture() {
     paths.push(path);
     if (request.method !== "GET") throw new Error("Funding conference is read only");
     let body: unknown;
-    if (path === "/v1/subscriptions/sub_funding") {
-      subReads++;
+    if (path.startsWith("/v1/subscriptions/")) {
+      const current = subscriptions.get(path.split("/")[3] ?? "");
+      if (!current) throw new Error("Unknown closed subscription");
+      const count = (subReads.get(current.id) ?? 0) + 1;
+      subReads.set(current.id, count);
       body =
-        changeContract && subReads > 1
+        changeContract && count > 1
           ? {
-              ...subscription,
+              ...current,
               items: {
                 has_more: false,
-                data: subscription.items.data.map((item) => ({
+                data: current.items.data.map((item) => ({
                   ...item,
                   price: { id: "price_annual" },
                 })),
               },
             }
-          : subscription;
-    } else if (path === "/v1/invoices") body = list(invoices);
+          : current;
+    } else if (path === "/v1/invoices")
+      body = list(
+        invoices.filter(
+          (f) =>
+            f.parent.subscription_details.subscription === url.searchParams.get("subscription"),
+        ),
+      );
     else if (path === "/v1/invoice_payments") {
       const invoiceId = url.searchParams.get("invoice");
       body = list(
@@ -218,8 +232,8 @@ function fixture() {
         id: "cus_funding",
         object: "customer",
         livemode: false,
-        balance: changeBalance && balanceReads > 1 ? 0 : -34320,
-        invoice_credit_balance: { brl: 34320 },
+        balance: changeBalance && balanceReads > 1 ? 0 : balance,
+        invoice_credit_balance: { brl: -balance },
         email: "not-returned@example.test",
       };
     } else if (path === "/v1/customers/cus_funding/balance_transactions") {
@@ -270,6 +284,58 @@ function fixture() {
     },
     changeContract() {
       changeContract = true;
+    },
+    followingContract() {
+      subscription.status = "canceled";
+      subscription.canceled_at = start + 2 * month;
+      const following = {
+        ...structuredClone(subscription),
+        id: "sub_following",
+        status: "active",
+        canceled_at: null,
+        metadata: {
+          ...metadata,
+          checkout_intent_id: "ba821981-d2aa-4d38-8ab4-f580dfda4f3f",
+          product_id: "recreio_family_monthly",
+        },
+        items: {
+          has_more: false,
+          data: [
+            {
+              id: "si_following",
+              quantity: 1,
+              price: { id: "price_family" },
+              current_period_start: start + 2 * month,
+              current_period_end: start + 3 * month,
+            },
+          ],
+        },
+      };
+      subscriptions.set(following.id, following);
+      const next = invoice("in_following", 12790, 0, -34320, -21530, start + 2 * month);
+      next.parent.subscription_details.subscription = following.id;
+      invoices.push(next);
+      const nextLine = line(
+        "il_following",
+        next.id,
+        12790,
+        "price_family",
+        start + 2 * month,
+        start + 3 * month,
+      );
+      nextLine.parent.subscription_item_details.subscription = following.id;
+      lines.set(next.id, [nextLine]);
+      const prior = ledger[0];
+      if (!prior) throw new Error("Missing closed ledger head");
+      ledger.unshift({
+        ...prior,
+        id: "cbtxn_following",
+        invoice: next.id,
+        amount: 12790,
+        ending_balance: -21530,
+      });
+      balance = -21530;
+      return following;
     },
   };
 }
@@ -357,5 +423,82 @@ describe("conferência privada do saldo e da origem das faturas", () => {
       f.conference.conferir(f.input, { deadlineMs: Date.now() - 1 }),
     ).rejects.toMatchObject({ motivo: "prazo_da_leitura" });
     expect(f.paths).toEqual([]);
+  });
+  it("composes canceled and current contracts before tracing a carried customer credit", async () => {
+    const f = fixture(),
+      following = f.followingContract();
+    await expect(f.read()).rejects.toMatchObject({ motivo: "ledger_sem_origem_unica" });
+    const result = await f.conference.conferirCliente(
+      {
+        clienteId: f.input.clienteId,
+        paganteId: "payer_fixture",
+        assinaturaIds: [f.input.assinaturaId, following.id],
+        precosAceitos: f.input.precosAceitos,
+      },
+      { deadlineMs: Date.now() + 90_000 },
+    );
+    conferirMarcaFinanceira(result);
+    expect(result.leituras).toHaveLength(2);
+    expect(result.leituras.map((l) => l.snapshot.status)).toEqual(["canceled", "active"]);
+    expect(result.financiamento.periodos).toHaveLength(4);
+    expect(result.financiamento.periodos.find((p) => p.faturaId === "in_following")).toMatchObject({
+      estado: "comprovado",
+      capturasDeOrigem: ["ch_funding"],
+    });
+    expect(result.leituras[1]?.snapshot.periods).toEqual([]);
+  });
+  it("an old source refund also revokes credit used by a later contract", async () => {
+    const f = fixture(),
+      following = f.followingContract();
+    f.charge.amount_refunded = 59900;
+    f.charge.refunded = true;
+    const result = await f.conference.conferirCliente(
+      {
+        clienteId: f.input.clienteId,
+        paganteId: "payer_fixture",
+        assinaturaIds: [f.input.assinaturaId, following.id],
+        precosAceitos: f.input.precosAceitos,
+      },
+      { deadlineMs: Date.now() + 90_000 },
+    );
+    expect(result.financiamento.periodos.find((p) => p.faturaId === "in_following")?.estado).toBe(
+      "revogado",
+    );
+  });
+  it("another adult's metadata never becomes a native source merely by sharing a customer response", async () => {
+    const f = fixture(),
+      following = f.followingContract();
+    following.metadata.subject_id = "foreign_payer";
+    await expect(
+      f.conference.conferirCliente(
+        {
+          clienteId: f.input.clienteId,
+          paganteId: "payer_fixture",
+          assinaturaIds: [f.input.assinaturaId, following.id],
+          precosAceitos: f.input.precosAceitos,
+        },
+        { deadlineMs: Date.now() + 90_000 },
+      ),
+    ).rejects.toMatchObject({ motivo: "origem_comercial_de_outro_pagante" });
+    expect(f.paths.some((p) => p.endsWith("/balance_transactions"))).toBe(false);
+  });
+  it("duplicate or omitted contract inventory cannot create a complete funding proof", async () => {
+    const f = fixture(),
+      input = {
+        clienteId: f.input.clienteId,
+        paganteId: "payer_fixture",
+        assinaturaIds: [f.input.assinaturaId, f.input.assinaturaId],
+        precosAceitos: f.input.precosAceitos,
+      };
+    await expect(
+      f.conference.conferirCliente(input, { deadlineMs: Date.now() + 90_000 }),
+    ).rejects.toMatchObject({ motivo: "inventario_de_contratos_invalido" });
+    expect(f.paths).toEqual([]);
+    await expect(
+      f.conference.conferirCliente(
+        { ...input, assinaturaIds: [] },
+        { deadlineMs: Date.now() + 90_000 },
+      ),
+    ).rejects.toMatchObject({ motivo: "ledger_sem_origem_unica" });
   });
 });
