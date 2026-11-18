@@ -184,6 +184,8 @@ a conta de quem aceitou. `targetId` conserva a conta afetada de cada partida.
 
 Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo é de várias contas, então o evento só se liga a uma pessoa pelo ator (a conta do perfil que agiu), e quem investiga um mundo filtra por `spaceId`.
 
+- `recreio.visit_session_closed`: `{ spaceId, visitId, sessionId, visitSessionId, profileId, reason }`; ator nulo, atestado restrito da instância original. Motivos fechados `left`, `visit_ended`, `session_ended`, `replaced`. Cursor/SID, vínculo, eventual encerramento da concessão e eventos são atômicos. Repetição não altera datas ou emite outro evento. O recibo só confirma SID realmente encerrado; não representa ACK de salvamento nem encerra sucessor/partida de outro mundo.
+
 - `recreio.visit_session_admitted`: `{ spaceId, visitId, sessionId, visitSessionId, profileId, previousSessionId }`. Só a primeira admissão desse SID gera evento; repetição/revalidação não cria outra concessão. `previousSessionId` é nulo ou o SID realmente substituído por checkpoint confirmado e ingresso consumido para este sucessor. Vínculos, SID e evento são atômicos. Não contém membro/papel, apelido, política completa, endereço, token, prova ou conteúdo de jogo.
 
 - `recreio.space_created`: `{ spaceId, gameId, profileId, memberId, contentPolicy }`. `contentPolicy` é o id da política de mundo do manifesto do jogo.

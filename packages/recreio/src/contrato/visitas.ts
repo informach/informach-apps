@@ -117,3 +117,17 @@ export type VisitaRenovada = z.infer<typeof VisitaRenovadaSchema>;
 export const RespostaDaRenovacaoDeVisitasSchema = z.strictObject({
   visitas: z.array(VisitaRenovadaSchema).min(1).max(VISITAS_POR_RENOVACAO_MAX),
 });
+
+export const EncerramentoDeSessaoDeVisitaSchema = PedidoDeEntradaDeVisitaSchema.extend({
+  sessaoDeVisitaId: UuidSchema,
+  motivo: z.enum(["sair", "autoridade_perdida"]),
+});
+export type EncerramentoDeSessaoDeVisita = z.infer<typeof EncerramentoDeSessaoDeVisitaSchema>;
+/** Só fatos de encerramento; não é ACK de salvamento. */
+export const SessaoDeVisitaEncerradaSchema = z.strictObject({
+  sessaoDeVisitaId: UuidSchema,
+  estado: z.literal("closed"),
+  sidEncerrado: z.literal(true),
+  visitaEncerrada: z.boolean(),
+});
+export type SessaoDeVisitaEncerrada = z.infer<typeof SessaoDeVisitaEncerradaSchema>;

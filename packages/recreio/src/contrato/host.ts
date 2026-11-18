@@ -17,9 +17,11 @@ import type {
 import type { EstadoDeSalvamento } from "./salvamento";
 import type { ResultadoDeCheckpoint } from "./sdk";
 import type {
+  EncerramentoDeSessaoDeVisita,
   EntradaDeVisitante,
   PedidoDeEntradaDeVisitaSchema,
   RenovacaoDeVisita,
+  SessaoDeVisitaEncerrada,
   VisitaRenovada,
 } from "./visitas";
 
@@ -280,6 +282,12 @@ export interface ClienteDoHostComSalvamento extends ClienteDoHostComCheckpoint {
 
 /** Extensão explícita: o host básico e seus adapters não prometem oferecer visitas. */
 export interface ClienteDoHostComVisitas extends ClienteDoHostComPresencas {
+  /** Só este vínculo/SID, inclusive depois da perda de autoridade. Não comprova salvamento. */
+  encerrarSessaoDeVisita(
+    pedido: EncerramentoDeSessaoDeVisita & {
+      mundoId: z.infer<typeof MundoIdSchema>;
+    },
+  ): Promise<SessaoDeVisitaEncerrada>;
   /** Após posses e presenças; só conexões com admissão confirmada, sem repetir automaticamente. */
   renovarVisitas(visitas: readonly RenovacaoDeVisita[]): Promise<{ visitas: VisitaRenovada[] }>;
   /** Entrada temporária sem membro/papel, com prazo local obrigatório. Não repetir automaticamente. */

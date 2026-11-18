@@ -28,10 +28,12 @@ import {
 import { EstadoDeSalvamentoSchema } from "../contrato/salvamento";
 import { ResultadoDeCheckpointSchema } from "../contrato/sdk";
 import {
+  EncerramentoDeSessaoDeVisitaSchema,
   EntradaDeVisitanteSchema,
   PedidoDeEntradaDeVisitaSchema,
   RenovacaoDeVisitasSchema,
   RespostaDaRenovacaoDeVisitasSchema,
+  SessaoDeVisitaEncerradaSchema,
 } from "../contrato/visitas";
 import { ErroDoRecreio } from "../dominio/erros";
 import type { InstanciaId } from "../dominio/ids";
@@ -132,6 +134,18 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
       )
         throw new ErroDoRecreio("INDISPONIVEL");
       return renovadas;
+    },
+
+    async encerrarSessaoDeVisita({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+          `${mundo(mundoId)}/visitas/encerrar`,
+          EncerramentoDeSessaoDeVisitaSchema.parse(pedido),
+        ),
+        encerrada = await lerCorpo(resposta, SessaoDeVisitaEncerradaSchema);
+      if (encerrada.sessaoDeVisitaId !== pedido.sessaoDeVisitaId)
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return encerrada;
     },
 
     async renovarVisitas(visitas) {

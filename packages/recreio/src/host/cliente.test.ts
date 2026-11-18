@@ -641,6 +641,57 @@ describe("renovação em lote de visitantes", () => {
   );
 });
 
+describe("encerramento da sessão visitante", () => {
+  const pedido = {
+    mundoId: MUNDO,
+    sid: SID,
+    perfilId: PERFIL,
+    cerca: 4,
+    visitaId: "f9579968-a053-494b-b9db-908c407ba86e",
+    sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+    motivo: "sair" as const,
+  };
+  it("conserva a prova e lê fatos de encerramento sem anunciar salvamento", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const encerrada = {
+      sessaoDeVisitaId: pedido.sessaoDeVisitaId,
+      estado: "closed",
+      sidEncerrado: true,
+      visitaEncerrada: true,
+    };
+    a.responder(Response.json(encerrada));
+    expect(await a.cliente.encerrarSessaoDeVisita(pedido)).toEqual(encerrada);
+    const { mundoId: _mundo, ...corpo } = pedido;
+    expect(a.chamadas[1]).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/visitas/encerrar`,
+      corpo,
+    });
+  });
+  it.each(["outra_sessao", "ack_inventado", "sid_aberto", "rede"] as const)(
+    "recusa %s sem repetir o encerramento",
+    async (tipo) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(
+        tipo === "rede"
+          ? new TypeError("fetch failed")
+          : Response.json({
+              sessaoDeVisitaId: tipo === "outra_sessao" ? SID : pedido.sessaoDeVisitaId,
+              estado: "closed",
+              sidEncerrado: tipo !== "sid_aberto",
+              visitaEncerrada: true,
+              ...(tipo === "ack_inventado" ? { salvo: true } : {}),
+            }),
+      );
+      await expect(a.cliente.encerrarSessaoDeVisita(pedido)).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+});
+
 describe("JSON em cabeçalho", () => {
   it("vai e volta com acentos e recusa o que não é base64url de JSON", () => {
     const valor = { titulo: "Família Ipê", subtitulo: "Verão 🌞" };

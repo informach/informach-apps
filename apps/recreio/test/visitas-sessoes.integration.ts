@@ -34,6 +34,7 @@ import {
 import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
 import { emitirConviteDeVisita, responderConviteDeVisita } from "@/features/visitas/service";
 import { env } from "@/lib/env";
+import { revogar } from "../scripts/concessoes";
 import {
   aposentarInstancias,
   CHECAGEM,
@@ -63,6 +64,13 @@ function renovar(c: Cenario, s: Sessao) {
     { ...entrada(c, s), sessaoDeVisitaId: s.finalidade.id },
   ]);
 }
+function fechar(c: Cenario, s: Sessao) {
+  return c.instancia.cliente.encerrarSessaoDeVisita({
+    ...entrada(c, s),
+    sessaoDeVisitaId: s.finalidade.id,
+    motivo: "sair",
+  });
+}
 function entrada(c: Cenario, s: Sessao) {
   return {
     mundoId: c.mundoId,
@@ -87,6 +95,171 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it("encerramento concorrente fecha só o SID visitante e sua concessão uma vez", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  const [a, b] = await Promise.all([fechar(c, s), fechar(c, s)]);
+  expect(a).toEqual(b);
+  expect(a).toMatchObject({ estado: "closed", sidEncerrado: true, visitaEncerrada: true });
+  const [sessao] = await db.select().from(games).where(eq(games.id, s.sid));
+  expect(sessao).toMatchObject({
+    endedAt: expect.any(Date),
+    endReason: "left",
+    endedSeq: expect.any(Number),
+  });
+  expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]).toMatchObject({
+    state: "revoked",
+    endReason: "left",
+  });
+  expect((await db.select().from(games).where(eq(games.id, c.host.sid)))[0]?.endedAt).toBeNull();
+  expect((await db.select().from(permits).where(eq(permits.sessionId, s.sid)))[0]?.status).toBe(
+    "ready",
+  );
+  const eventos = await eventosCom("sessionId", s.sid);
+  expect(eventos.filter((e) => e.eventType === "recreio.game_session_ended")).toHaveLength(1);
+  expect(eventos.filter((e) => e.eventType === "recreio.visit_session_closed")).toHaveLength(1);
+  await expect(admitir(c, s)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+});
+
+it("encerramento preparado reduz a intenção sem fingir admissão ou ACK", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  expect(await fechar(c, s)).toMatchObject({ sidEncerrado: true, visitaEncerrada: true });
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0],
+  ).toMatchObject({ state: "closed", admittedAt: null, permissionUntil: null });
+  expect(
+    (await eventosCom("sessionId", s.sid)).filter(
+      (e) => e.eventType === "recreio.visit_session_admitted",
+    ),
+  ).toHaveLength(0);
+});
+
+it("encerramento continua gratuito após saída do anfitrião, perda da posse/cobertura e modos desligados", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  await sairDaSessao(c.host.token);
+  await c.instancia.cliente.atestarPresenca({
+    mundoId: c.mundoId,
+    cerca: c.posse.cerca,
+    presencaId: c.presenca.presencaId,
+    operacao: "sair",
+  });
+  await c.instancia.cliente.liberarPosse({
+    mundoId: c.mundoId,
+    cerca: c.posse.cerca,
+    motivo: "erro",
+  });
+  await revogar({ email: c.destino.conta.email, motivo: "teste_visita" });
+  env.RECREIO_VISITS_MODE = "off";
+  env.RECREIO_SOCIAL_MODE = "off";
+  expect(await fechar(c, s)).toMatchObject({ sidEncerrado: true, visitaEncerrada: true });
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]?.state,
+  ).toBe("closed");
+});
+
+it.each(["sid", "perfil", "vinculo", "cerca", "instancia"] as const)(
+  "encerramento recusa %s diferente da prova original",
+  async (tipo) => {
+    const c = await cenario(),
+      s = await abrir(c);
+    await admitir(c, s);
+    const cliente =
+      tipo === "instancia" ? (await novaInstancia(OUTRO_JOGO)).cliente : c.instancia.cliente;
+    await expect(
+      cliente.encerrarSessaoDeVisita({
+        ...entrada(c, s),
+        sessaoDeVisitaId: s.finalidade.id,
+        motivo: "sair",
+        ...(tipo === "sid" ? { sid: c.host.sid } : {}),
+        ...(tipo === "perfil" ? { perfilId: c.origem.perfil.id } : {}),
+        ...(tipo === "vinculo" ? { sessaoDeVisitaId: crypto.randomUUID() } : {}),
+        ...(tipo === "cerca" ? { cerca: c.posse.cerca + 1 } : {}),
+      }),
+    ).rejects.toMatchObject({ codigo: "NAO_ENCONTRADO" });
+    expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedAt).toBeNull();
+    expect((await db.select().from(games).where(eq(games.id, c.host.sid)))[0]?.endedAt).toBeNull();
+  },
+);
+
+it("encerramento preserva a razão de uma revogação anterior", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  await responderConviteDeVisita(c.autor, { conviteId: c.convite.conviteId, acao: "revogar" });
+  const [antes] = await db.select().from(visits).where(eq(visits.id, c.visitaId));
+  await fechar(c, s);
+  expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]).toEqual(antes);
+});
+
+it("mensagem atrasada nunca encerra outra partida do mesmo perfil", async () => {
+  const c = await cenario();
+  c.pedido.suportaSalvamento = false;
+  const s = await abrir(c);
+  await admitir(c, s);
+  await sairDaSessao(s.aberta.token);
+  const mundoId = await mundoDe(c.destino, OUTRO_JOGO),
+    atual = await entrarNoJogo(c.destino, OUTRO_JOGO);
+  expect((await abrirPelaRota(atual, mundoId)).status).toBe(200);
+  await c.instancia.cliente.reivindicarPosse(mundoId);
+  await fechar(c, s);
+  expect((await db.select().from(games).where(eq(games.id, atual.sid)))[0]?.endedAt).toBeNull();
+});
+
+it("intenção antiga nunca revoga o sucessor admitido quando ela própria não chegou a entrar", async () => {
+  const c = await cenario();
+  c.pedido.suportaSalvamento = false;
+  const antiga = await abrir(c);
+  await sairDaSessao(antiga.aberta.token);
+  const ingresso = await emitirIngresso(c.destino.ator, { jogo: OUTRO_JOGO });
+  c.pedido.ingresso = ingresso.ingresso;
+  c.pedido.chaveDeTroca = "b".repeat(43);
+  const nova = await abrir(c);
+  await admitir(c, nova);
+  expect(await fechar(c, antiga)).toMatchObject({ visitaEncerrada: false, sidEncerrado: true });
+  expect((await db.select().from(games).where(eq(games.id, nova.sid)))[0]?.endedAt).toBeNull();
+  expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]?.state).toBe(
+    "active",
+  );
+});
+
+it.each(["recreio.visit_closed", "recreio.visit_session_closed"] as const)(
+  "falha em %s reverte vínculo, concessão e cursor do SID",
+  async (evento) => {
+    const c = await cenario(),
+      s = await abrir(c);
+    await admitir(c, s);
+    await db.execute(
+      sql`create function audit.visita_encerramento_falha() returns trigger language plpgsql as $$ begin if new.event_type='${sql.raw(evento)}' then raise exception 'audit unavailable'; end if; return new; end $$`,
+    );
+    await db.execute(
+      sql`create trigger visita_encerramento_falha before insert on audit.events for each row execute function audit.visita_encerramento_falha()`,
+    );
+    try {
+      await expect(fechar(c, s)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    } finally {
+      await db.execute(sql`drop trigger visita_encerramento_falha on audit.events`);
+      await db.execute(sql`drop function audit.visita_encerramento_falha()`);
+    }
+    expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]).toMatchObject({
+      endedAt: null,
+      endedSeq: null,
+      endReason: null,
+    });
+    expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]?.state).toBe(
+      "active",
+    );
+    expect(
+      (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]
+        ?.state,
+    ).toBe("active");
+    await fechar(c, s);
+  },
+);
 
 it("renovação em lote conserva vínculo/janela e não emite novas admissões", async () => {
   const c = await cenario(),
@@ -474,11 +647,16 @@ it("checkpoint real permite sucessor da mesma visita e conserva os dois SIDs sem
     }),
   ).toMatchObject({ estado: "confirmed" });
   const nova = await trocarIngresso(pedido),
-    novoSid = SessaoDeJogoIdSchema.parse(claimsDe(nova.token).sid),
-    permitida = await c.instancia.cliente.verificarEntradaDeVisita({
-      ...entrada(c, s),
-      sid: novoSid,
-    });
+    novoSid = SessaoDeJogoIdSchema.parse(claimsDe(nova.token).sid);
+  expect(await fechar(c, s)).toMatchObject({ sidEncerrado: true, visitaEncerrada: false });
+  const [historica] = await db
+    .select()
+    .from(visitSessions)
+    .where(eq(visitSessions.sessionId, s.sid));
+  const permitida = await c.instancia.cliente.verificarEntradaDeVisita({
+    ...entrada(c, s),
+    sid: novoSid,
+  });
   expect(permitida.visitaId).toBe(c.visitaId);
   expect(
     (await db.select().from(visitSessions).where(eq(visitSessions.sessionId, s.sid)))[0],
@@ -487,6 +665,14 @@ it("checkpoint real permite sucessor da mesma visita e conserva os dois SIDs sem
     (await db.select().from(visitSessions).where(eq(visitSessions.sessionId, novoSid)))[0]?.state,
   ).toBe("active");
   expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endReason).toBe("replaced");
+  expect(await fechar(c, s)).toMatchObject({ sidEncerrado: true, visitaEncerrada: false });
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.sessionId, s.sid)))[0],
+  ).toEqual(historica);
+  expect((await db.select().from(games).where(eq(games.id, novoSid)))[0]?.endedAt).toBeNull();
+  expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]?.state).toBe(
+    "active",
+  );
   expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
   await expect(admitir(c, s)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
 });

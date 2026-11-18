@@ -611,3 +611,38 @@ do item e corpos vazios/duplicados/excedentes. O transporte confere corpo,
 quantidade/identidade e perda de rede. A prova de SID vencido altera o prazo
 da fixture; não substitui o ensaio de minuto real ou afirma encerramento.
 Gates pendentes; encerramento técnico, SDK/runtime e jornada continuam abertos.
+
+Admissão `67cb5bb8` concluiu os oito gates `44242328850`: 964 integrações/89
+arquivos, cinco do Bastidores, upgrades 179→203/191→203. A correção do coletor
+do navegador `a61b5b91` e a renovação em lote `abb2a47e` seguem em qualificação.
+
+## Encerramento técnico candidato
+
+`/mundos/{id}/visitas/encerrar` aceita somente o vínculo/SID/perfil/visita e
+instância/cerca originais. Não exige modo habilitado, cobertura, anfitrião
+online, posse vigente ou perfil ativo para reduzir esse acesso. Serializa
+mundo → perfil → raiz/concessão/vínculo → cursor global → SID; não toma SID
+antes do cursor nem usa admissão positiva para justificar encerramento.
+
+Fecha somente o SID vinculado, com sequência real e auditoria atômica, e
+encerra sua concessão quando não existe sucessor legítimo. Checkpoint F3
+completo e ingresso ligado ao novo SID preservam a concessão para o sucessor;
+uma intenção antiga que nunca entrou também não revoga outra já aberta na
+mesma concessão. Mensagem atrasada nunca encerra a partida nova. Histórico de
+revogação e datas de encerramento anteriores são conservados, inclusive
+quando a admissão do sucessor lê um antecessor já fechado pelo host.
+
+O recibo exige `sidEncerrado=true` conferido no banco e informa separadamente
+se a visita terminou. Não afirma salvamento: permissão ainda `ready` não vira
+`completed` por causa da saída. Fotografia/hash e ACK continuam obrigatórios
+no protocolo próprio. Falha da auditoria reverte também o SID e seu cursor.
+
+Integrações candidatas cobrem repetição/concorrência, intenção preparada,
+fechamento após perda de posse/cobertura/modo/anfitrião, identidades divergentes,
+revogação anterior, outra partida preservada, intenção antiga e sucessor,
+dois rollbacks de auditoria e checkpoint com fechamento antes/depois da
+entrada do sucessor. O transporte recusa ID divergente, SID aberto, ACK
+inventado e rede perdida, sem repetição automática. Gates pendentes.
+
+Ainda faltam manutenção das sessões visitantes órfãs, integração no
+SDK/runtime/interface e jornadas familiares. Não foi habilitado em produção.

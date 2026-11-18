@@ -144,10 +144,11 @@ export async function admitirEntradaDeVisitaNoBanco(
               .from(visitSessions)
               .where(and(eq(visitSessions.visitId, visita.id), eq(visitSessions.state, "active")));
           if (ativa && ativa.id !== anterior.id) throw new ErroDoRecreio("CHECKPOINT_NECESSARIO");
-          await tx
-            .update(visitSessions)
-            .set({ state: "closed", closedAt: agora, updatedAt: agora, closeReason: "replaced" })
-            .where(eq(visitSessions.id, anterior.id));
+          if (anterior.state !== "closed")
+            await tx
+              .update(visitSessions)
+              .set({ state: "closed", closedAt: agora, updatedAt: agora, closeReason: "replaced" })
+              .where(eq(visitSessions.id, anterior.id));
           anteriorId = anterior.sessionId;
         }
       }
