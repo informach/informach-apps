@@ -243,3 +243,25 @@ recuperação técnica, pagamento pendente/pago, estorno da fatura, falhas de
 auditoria antes do POST e na aplicação e mudança concorrente da seleção. Esta
 extensão ainda precisa de verificação remota. Telas/ações completas, cobrança
 live, origem dos créditos e F6 integral continuam pendentes.
+
+Para investigar regressões sem repetir todos os builds/E2E, o workflow manual
+aceita `verification_gate=quality` ou `commercial-reconciliation`. São rodadas
+auxiliares e identificadas pelo job efetivamente executado. Push e a opção
+padrão `all` conservam os dezesseis gates; uma rodada parcial não qualifica
+integração/produção. Sua concorrência é separada para não cancelar uma
+qualificação completa em andamento. Nenhuma carga é deslocada para a máquina.
+
+O rastreamento financeiro restante precisa cobrir também proporcionais mensais
+com crédito de uma fatura anterior. Observar estorno na origem não comprova
+propagação para o período dependente. A prova mensal externa atual estorna a
+origem depois da renovação; não certifica esse corte durante o período do
+aumento. O financiamento precisa de origem/arestas próprias e estado explícito
+de comprovação: não rotular uma captura parcial como estorno total ou contestação
+para obter uma recusa. A mesma cadeia deve impedir reutilizar um período já
+creditado ao retornar a um preço anterior. A venda continua bloqueada.
+
+`03fa9ee6`/`44396550083`: o gate de conciliação passou com 94 testes em seis
+arquivos, quinze no arquivo de cotação/execução do aumento. Tipos/unidade do
+gate quality também passaram. A rodada completa ainda precisa terminar; o CI
+dos consumidores compartilhados foi solicitado para a mesma fonte. Nenhuma
+dessas provas encerra a origem financeira dos créditos descrita acima.
