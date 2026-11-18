@@ -83,6 +83,7 @@ const PessoaNaVisitaSchema = z.strictObject({
 });
 export const DetalheDeConviteDeVisitaSchema = z
   .strictObject({
+    direcao: z.enum(["enviado", "recebido"]),
     convite: ReciboDeConviteDeVisitaSchema.extend({
       aguardaMundo: z.boolean(),
       aguardaOrigem: z.boolean(),

@@ -203,8 +203,6 @@ it.each(["fechada", "vencida", "instancia", "posse", "modo"] as const)(
     });
     if (tipo === "modo")
       expect(resposta).toMatchObject({ status: 503, corpo: { codigo: "INDISPONIVEL" } });
-    else if (tipo === "posse")
-      expect(resposta).toMatchObject({ status: 409, corpo: { codigo: "POSSE_PERDIDA" } });
     else expect(resposta).toMatchObject({ status: 200, corpo: { presenca: null } });
   },
 );

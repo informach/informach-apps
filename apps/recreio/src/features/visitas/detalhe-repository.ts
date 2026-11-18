@@ -109,6 +109,7 @@ export async function conferirConviteDeVisita(
         "O convite venceu.",
       );
       return {
+        direcao: convite.originProfileId === autor.perfilId ? "enviado" : "recebido",
         convite: {
           ...reciboDoConviteDeVisita(convite, ctx.mundo.gameId),
           aguardaMundo: aprovacoes !== null && !aprovacoes.mundo,

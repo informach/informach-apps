@@ -67,6 +67,12 @@ export default async function Supervisao({
       >
         Conferir convites de mundos
       </Link>
+      <Link
+        href={`/conta/perfis/${perfilId.data}/visitas`}
+        className="mt-3 ml-5 inline-flex min-h-11 items-center font-bold text-ceu underline"
+      >
+        Cuidar das visitas
+      </Link>
     </div>
   );
 }

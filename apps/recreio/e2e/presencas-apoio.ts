@@ -19,13 +19,19 @@ export async function observarPresencas(mundo: string) {
         renovadas: number;
         membros: number;
         sessoes_abertas: number;
+        visitas_ativas: number;
+        visitas_encerradas: number;
+        visitantes_admitidos: number;
       }[]
     >`select
       count(*) filter (where state='active')::int as ativas,
       count(*) filter (where state='closed')::int as fechadas,
       count(*) filter (where state='active' and updated_at>created_at+interval '1 second')::int as renovadas,
       (select count(*)::int from recreio.space_members where space_id=${mundo}::uuid) as membros,
-      (select count(*)::int from recreio.game_sessions where space_id=${mundo}::uuid and ended_at is null) as sessoes_abertas
+      (select count(*)::int from recreio.game_sessions where space_id=${mundo}::uuid and ended_at is null) as sessoes_abertas,
+      (select count(*)::int from recreio.world_visits where space_id=${mundo}::uuid and state='active') as visitas_ativas,
+      (select count(*)::int from recreio.world_visits where space_id=${mundo}::uuid and state<>'active') as visitas_encerradas,
+      (select count(*)::int from recreio.world_visit_sessions where space_id=${mundo}::uuid and admitted_at is not null and state='active') as visitantes_admitidos
       from recreio.world_host_presences where space_id=${mundo}::uuid`;
     if (!resultado) throw new Error("Agregação de presença não retornou resultado");
     return resultado;

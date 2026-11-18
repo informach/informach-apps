@@ -16,6 +16,7 @@ import {
   EmitirConviteNaPartida,
 } from "@/features/mundos/components/convites-na-partida";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
+import { ConvidarParaVisita } from "@/features/visitas/components/convidar-na-partida";
 
 type Executar = <T>(acao: () => Promise<T>, confirmado?: (dados: T) => void) => void;
 const CAMPO =
@@ -605,6 +606,15 @@ function ContatoNaPartida({
         <EmitirConviteNaPartida
           key={`${mundoId}:${c.perfilId}`}
           api={api.convitesDeMundo}
+          mundoId={mundoId}
+          perfilId={c.perfilId}
+          disabled={pendente}
+        />
+      )}
+      {social?.amizade && !c.bloqueado && mundoId && podeCriar && api.visitas && (
+        <ConvidarParaVisita
+          key={`visita:${mundoId}:${c.perfilId}`}
+          api={api.visitas}
           mundoId={mundoId}
           perfilId={c.perfilId}
           disabled={pendente}

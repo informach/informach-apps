@@ -1,5 +1,43 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Atualização — telas e jornada familiar em candidata
+
+A partida oferece convite de visita a um amigo usando a presença do próprio
+SID já atestado. Consulta perdida não emite convite; envio iniciado bloqueia
+nova tentativa no componente e orienta conferir a lista se a resposta for
+desconhecida. Não há retry automático nem atestado produzido pelo navegador.
+O fechamento do painel antes da consulta terminar impede emissão posterior.
+
+`/visitas` mostra recibos próprios paginados, sem nomes da outra ponta;
+`/visitas/[conviteId]` confere autorização atual antes dos nomes e decisões.
+Direção é derivada no servidor diretamente do recibo, sem depender da primeira
+página da lista. Aceitar não abre jogo. O link de entrada conserva a finalidade
+de visita e passa novamente pela prévia autoritativa. A lista conserva redução
+própria sem exigir presença, plano ou conferência positiva do detalhe.
+
+Na conta, supervisão aponta para `/conta/perfis/[id]/visitas`. O responsável
+consulta recibos sem jogador, aprova somente o próprio menor com login recente
+e confirmação explícita, ou encerra mesmo após perda do anfitrião. Confirmações
+do mundo e de cada responsável são mostradas separadamente. Resposta perdida
+orienta conferir o estado antes de repetir. Gestão nativa do mundo, caixa na
+partida e transição direta entre partidas ainda precisam de UI própria.
+
+Uma nova jornada candidata usa dois adultos sem jogador e dois aparelhos
+infantis: amizade e duas aprovações reais, convite pelo host conectado, aceite
+sem SID, admissão física sem membro, saída voluntária sem reutilizar concessão,
+segundo convite e perda do anfitrião com comando cortado e progresso mantido.
+Observação somente de agregados no PostgreSQL descartável comprova os vínculos;
+não prepara presença, aprovação ou concessão. Capturas de 390 px são produzidas
+no GitHub e ainda precisam ser inspecionadas.
+
+`fccf5097` concluiu 1034 integrações, mas a qualidade falhou no helper tipado.
+`13ad8954` passou na qualidade e em 1048 de 1049 integrações na rodada
+`44265253316`; a única falha repetiu a expectativa incorreta de perda de posse
+de `0441e077`. Liberar a posse deixa o mundo hibernando; o leitor devolve
+`presenca: null`, sem admissão, em vez de erro de posse. A expectativa agora
+confere essa ausência. Não foi alterado o contrato para produzir erro artificial.
+As telas e a jornada exigem nova rodada completa. Sem migration ou produção.
+
 ## Atualização — leitura e decisões nativas em candidata
 
 O painel nativo do responsável e da gestão confere as partes, responsabilidade,

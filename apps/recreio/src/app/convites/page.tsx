@@ -32,6 +32,9 @@ export default async function Convites() {
           <Marca tamanho={30} />
         </Link>
         <nav aria-label="Navegação dos convites" className="flex flex-wrap gap-3">
+          <Link href="/visitas" className="rb rb-vazado">
+            Visitas com amigos
+          </Link>
           <Link href="/amigos" className="rb rb-vazado">
             Amigos
           </Link>

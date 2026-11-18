@@ -1,5 +1,15 @@
 # Estado do trabalho no repositório
 
+**18/11 — UI de visitas em candidata:** convites na partida, caixa/detalhe
+do jogador e supervisão parental com aprovação/encerramento estão preparados.
+Jornada remota nova prevê dois responsáveis/aparelhos, visita sem membro,
+saída sem reentrada, novo convite, perda do host e progresso preservado.
+`13ad8954` passou na qualidade; 1048/1049 integrações aprovadas, com única
+expectativa de perda de posse corrigida para ausência de presença. Rodada
+completa e capturas novas ainda pendentes. Sem implantação. UI de gestão do
+mundo e troca direta entre partidas permanecem pendentes no
+[registro](recreio/visitas-temporarias-2026-11-17.md).
+
 **18/11 — decisões nativas de visitas em candidata:** painel gratuito do
 responsável e da gestão relê presença/amizade/conteúdo e mantém aprovações
 separadas; ações nativas vinculam o perfil esperado e conservam login recente

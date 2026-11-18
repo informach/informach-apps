@@ -155,6 +155,7 @@ describe("contrato HTTP dos convites de visita no SDK", () => {
     concessao = { visitaId, mundoId: MUNDO, estado: "active", expiraEm: recibo.expiraEm },
     aceita = { convite: { ...recibo, estado: "accepted" }, visita: concessao },
     detalhe = {
+      direcao: "recebido",
       convite: { ...recibo, aguardaMundo: false, aguardaOrigem: false, aguardaDestino: false },
       visita: null,
       nomeDoMundo: "Casa",
