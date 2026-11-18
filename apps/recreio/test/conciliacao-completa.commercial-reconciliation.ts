@@ -15,10 +15,11 @@ import {
 } from "@/features/cobranca/conciliacao-job";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
-import { consultarMinhaCompra } from "@/features/cobranca/service";
+import { consultarMinhaCobranca, consultarMinhaCompra } from "@/features/cobranca/service";
 import { entrarNoJogo, ingressoDe } from "./jogo-apoio";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
 import { pedir } from "./rotas";
+import { adultoDoTeste } from "./teste-apoio";
 
 /** Full native/SDK/PG path, exclusively synthetic provider HTTP. These tests do
  * not claim external sandbox communication, actual charges or invoice payment.
@@ -49,6 +50,32 @@ async function fixture(comJogador = false) {
 }
 
 describe("conciliação nativa com origem, períodos e resultado duráveis", () => {
+  it("pagante sem jogador vê apenas a própria situação financeira atual", async () => {
+    const f = await fixture(),
+      pago = f.concluirCheckout();
+    expect((await f.processar()).conciliadas).toBe(1);
+    const item = pago.assinatura.items.data[0];
+    if (!item) throw new Error("Fixture recurring item absent");
+    const estado = await consultarMinhaCobranca(f.adulto.autor);
+    expect(estado.financeiro).toMatchObject({
+      podeContratar: false,
+      temCliente: true,
+      assinatura: {
+        produtoId: f.entrada.productId,
+        estado: "ATIVO",
+        fimDoPeriodo: new Date(item.current_period_end * 1000).toISOString(),
+      },
+    });
+    const serializado = JSON.stringify(estado);
+    expect(serializado).not.toContain(f.providerCustomerId);
+    expect(serializado).not.toContain(pago.assinatura.id);
+    const outro = await adultoDoTeste();
+    expect((await consultarMinhaCobranca(outro.autor)).financeiro).toEqual({
+      podeContratar: true,
+      temCliente: false,
+      assinatura: null,
+    });
+  });
   it("grava pagamento/origem e resolve o pedido usando somente GETs no provedor", async () => {
     const f = await fixture(),
       pago = f.concluirCheckout();

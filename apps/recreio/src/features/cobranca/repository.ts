@@ -5,6 +5,7 @@ import { stripeDestination } from "@informach/billing/destinations";
 import type { StripeMode } from "@informach/config";
 import { and, db, desc, eq, isNull, sql } from "@informach/db";
 import {
+  customers,
   recreioGroups as groups,
   recreioPurchaseAuthorizations as purchases,
 } from "@informach/db/schema";
@@ -14,7 +15,8 @@ import {
   autorizarContaNativa,
   type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
-import { lerFatosDoGrupo } from "@/features/acesso/repository";
+import { decidirPlanoLido } from "@/features/acesso/decisao";
+import { type FatosDoGrupo, lerFatosDoGrupo } from "@/features/acesso/repository";
 import { admitirGrupoDoTitular } from "@/features/grupo/autoridade-repository";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
 import {
@@ -30,6 +32,14 @@ import { comCicloDeCobranca } from "./lifecycle";
 import { type AceiteDaCompra, conferirOfertaDaCompra, type OfertaAceita } from "./regras";
 
 type Compra = typeof purchases.$inferSelect;
+function podePrepararCompra(fatos: FatosDoGrupo, agora: Date) {
+  return (
+    !fatos.assinaturaAtiva &&
+    (!fatos.assinaturaInativa ||
+      (["canceled", "incomplete_expired"].includes(fatos.assinaturaInativa.status) &&
+        fatos.assinaturaInativa.fimDoPeriodo <= agora))
+  );
+}
 async function limites(tx: Transacao) {
   await tx.execute(sql`set local transaction_timeout='15s'`);
   await tx.execute(sql`set local statement_timeout='5s'`);
@@ -122,11 +132,7 @@ export async function prepararCompraNoBanco(
           const fatos = await lerFatosDoGrupo(atual.grupoId, tx);
           const agoraDaOferta = await atual.nativa.conferirPrazo(autor.login);
           assertAllowed(
-            fatos &&
-              !fatos.assinaturaAtiva &&
-              (!fatos.assinaturaInativa ||
-                (["canceled", "incomplete_expired"].includes(fatos.assinaturaInativa.status) &&
-                  fatos.assinaturaInativa.fimDoPeriodo <= agoraDaOferta)),
+            fatos && podePrepararCompra(fatos, agoraDaOferta),
             "COBRANCA",
             "Confira a assinatura existente antes de preparar uma nova compra.",
           );
@@ -200,6 +206,54 @@ export async function consultarMinhaCompraNoBanco(autor: IdentidadeNativa) {
       .limit(1);
     await atual.nativa.conferirPrazo();
     return linha ? recibo(linha) : null;
+  });
+}
+
+/** Own payer only, with no player requirement. Courtesy/trial coverage does not
+ * mislabel the financial subscription as paid or expose another adult's bill.
+ */
+export async function consultarSituacaoFinanceiraNoBanco(autor: IdentidadeNativa) {
+  const [pista] = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.ownerUserId, autor.contaId));
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    if (!pista) {
+      const nativa = await autorizarContaNativa(tx, autor);
+      await nativa.conferirPrazo();
+      return { podeContratar: true, temCliente: false, assinatura: null };
+    }
+    const grupoId = GrupoIdSchema.parse(pista.id);
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+    const fatos = await lerFatosDoGrupo(grupoId, tx);
+    assertAllowed(fatos, "COBRANCA", "Assinatura não disponível.");
+    const [cliente] = await tx
+      .select({ id: customers.id })
+      .from(customers)
+      .where(
+        and(
+          eq(customers.provider, "stripe"),
+          eq(customers.app, "recreio"),
+          eq(customers.subjectType, "user"),
+          eq(customers.subjectId, autor.contaId),
+        ),
+      );
+    const agora = await atual.nativa.conferirPrazo();
+    const decisao = decidirPlanoLido({ ...fatos, concessoes: [] }, agora);
+    const assinatura = fatos.assinaturaAtiva ?? fatos.assinaturaInativa;
+    return {
+      podeContratar: podePrepararCompra(fatos, agora),
+      temCliente: Boolean(cliente),
+      assinatura: assinatura
+        ? {
+            produtoId: assinatura.productId,
+            estado: decisao.estado,
+            fimDoPeriodo: assinatura.fimDoPeriodo.toISOString(),
+            cancelamentoEm: assinatura.cancelaEm?.toISOString() ?? null,
+          }
+        : null,
+    };
   });
 }
 

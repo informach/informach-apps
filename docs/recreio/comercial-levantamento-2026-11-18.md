@@ -65,6 +65,24 @@ também o recibo, permitindo nova entrega. Seis jornadas com HMAC real do SDK,
 PostgreSQL e transporte fechado estão em qualificação. Não são prova de entrega
 externa Stripe, e o endpoint não foi configurado no provedor ou em produção.
 
+`55b42fc7` concluiu os dezesseis gates `44320518912`; acesso pago obrigatório,
+cortes de SID e recuperação por novo aceite ficaram qualificados nessa fonte.
+CI compartilhado `93b70ec6`/`44309938778` também concluiu, cobrindo a base anterior
+à exigência de prova paga. Não substitui novo CI compartilhado da integração final.
+O agendador `dcd8c590` encontrou apenas uma expectativa HTTP incorreta no teste
+novo: a recusa 401 é texto, enquanto o helper escolhido exigia JSON. Foram
+1128 integrações aprovadas e uma falha de parsing. Corrigido para inspecionar a
+resposta original em `65c9f89b`; novas provas remotas continuam obrigatórias.
+
+A candidata da situação financeira mostra contrato pago, pendência e encerramento
+somente ao pagante nativo atual, sem exigir jogador ou revelar identificadores
+Stripe. Usa a decisão de acesso comum sem concessões de cortesia para nomear a
+assinatura. Pedido concluído não representa confirmação atual após estorno.
+A oferta de nova compra respeita a mesma elegibilidade do writer. Gate financeiro
+cobre leitura e isolamento; jornada de navegador prepara fatos SQL explicitamente
+sintéticos para inspecionar telas paga/em conferência em 390 px, separada da
+prova SDK de liquidação. Ainda em qualificação, sem implantação.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

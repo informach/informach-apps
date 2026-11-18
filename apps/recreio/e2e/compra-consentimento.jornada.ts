@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import postgres from "postgres";
 import { comecarVigia, fecharAparelhos, hidratado, novaPessoa, tela, vigia } from "./apoio";
@@ -94,4 +95,87 @@ test("adulto sem jogador confere quatro ofertas, autoriza, relê e encerra; outr
     pedidos: 1,
     envios: 0,
   });
+});
+
+test("situação paga e revisão financeira aparecem ao pagante sem jogador", async ({ browser }) => {
+  const a = await novaPessoa(browser, "Clara", { semPerfil: true });
+  await a.page.goto("/conta/assinatura");
+  await a.page.setViewportSize({ width: 390, height: 844 });
+  const form = a.page.getByRole("form", { name: "Conferir e autorizar uma oferta", exact: true });
+  await form.getByRole("radio", { name: /Recreio Individual mensal/ }).check();
+  await form.getByRole("checkbox", { name: /Declaro ter 18 anos/ }).check();
+  await form.getByRole("checkbox", { name: /Conferi o plano, o valor e o período/ }).check();
+  const registrar = form.getByRole("button", {
+    name: "Registrar autorização de compra",
+    exact: true,
+  });
+  await hidratado(registrar);
+  await Promise.all([a.page.waitForEvent("domcontentloaded"), registrar.click()]);
+  const [pedido] =
+    await banco`select p.id,p.payer_user_id,p.group_id from recreio.purchase_authorizations p
+    join core.users u on u.id=p.payer_user_id where u.email=${a.email} and p.resolved_at is null`;
+  if (!pedido) throw new Error("Native accepted purchase absent");
+  const sufixo = randomUUID().replaceAll("-", ""),
+    customer = `cus_ui_${sufixo}`,
+    sub = `sub_ui_${sufixo}`;
+  // Explicit SQL financial fixture for presentation only. Native provider/SDK
+  // settlement and revocation have separate gates; no Stripe communication here.
+  await banco.begin(async (tx) => {
+    const [cliente] = await tx`insert into billing.customers
+      (provider,app,subject_type,subject_id,email,provider_customer_id)
+      values ('stripe','recreio','user',${pedido.payer_user_id},${a.email},${customer}) returning id`;
+    if (!cliente) throw new Error("Synthetic customer absent");
+    const [assinatura] = await tx`insert into billing.subscriptions
+      (customer_id,provider,provider_subscription_id,provider_price_id,product_id,status,current_period_start,current_period_end,provider_observed_at)
+      values (${cliente.id},'stripe',${sub},'price_ui_recreio','recreio_individual_monthly','active',
+        clock_timestamp()-interval '1 day',clock_timestamp()+interval '30 days',clock_timestamp()) returning id,current_period_start,current_period_end`;
+    if (!assinatura) throw new Error("Synthetic subscription absent");
+    await tx`insert into billing.subscription_payment_periods
+      (subscription_id,provider,provider_invoice_id,provider_line_id,provider_price_id,period_start,period_end,paid_at,reconciled_at)
+      values (${assinatura.id},'stripe',${`in_ui_${sufixo}`},${`il_ui_${sufixo}`},'price_ui_recreio',
+        ${assinatura.current_period_start},${assinatura.current_period_end},clock_timestamp()-interval '1 minute',clock_timestamp())`;
+    await tx`update recreio.purchase_authorizations set request_started_at=clock_timestamp(),provider_session_id=${`cs_ui_${sufixo}`},
+      provider_subscription_id=${sub},resolved_at=clock_timestamp(),resolution='checkout_completed',review_required=false where id=${pedido.id}`;
+    await tx`insert into recreio.billing_reconciliations
+      (payer_user_id,group_id,provider_mode,last_attempt_at,last_confirmed_at,attempt_count,review_required,review_reason,next_attempt_at)
+      values (${pedido.payer_user_id},${pedido.group_id},'dev',clock_timestamp(),clock_timestamp(),1,false,null,clock_timestamp()+interval '5 minutes')`;
+  });
+  await a.page.reload();
+  const situacao = a.page.getByRole("region", { name: "Situação da assinatura", exact: true });
+  await expect(
+    situacao.getByText("Pagamento confirmado. Acesso disponível aos perfis cobertos.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    a.page.getByRole("form", { name: "Conferir e autorizar uma oferta", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    a.page.getByText("Pedido concluído. Confira acima a situação atual da assinatura.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(
+    await a.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
+  await tela(a.page, "compra-paga-mobile");
+  expect((await fatos(a.email))?.perfis).toBe(0);
+  const b = await novaPessoa(browser, "Daniel", { semPerfil: true });
+  await b.page.goto("/conta/assinatura");
+  await expect(
+    b.page.getByRole("region", { name: "Situação da assinatura", exact: true }),
+  ).toHaveCount(0);
+  await banco`update recreio.billing_reconciliations set review_required=true,review_reason='adverse_event',updated_at=clock_timestamp()
+    where payer_user_id=${pedido.payer_user_id} and provider_mode='dev'`;
+  await a.page.reload();
+  await expect(
+    situacao.getByText(
+      "Pagamento em conferência. O acesso da assinatura está temporariamente indisponível.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    a.page.getByRole("form", { name: "Conferir e autorizar uma oferta", exact: true }),
+  ).toHaveCount(0);
+  await tela(a.page, "compra-conferencia-mobile");
 });

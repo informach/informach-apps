@@ -1,4 +1,5 @@
 "use client";
+import type { EstadoDeAcesso } from "@informach/recreio";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -16,6 +17,18 @@ type Estado = Awaited<ReturnType<typeof consultarMinhaCobranca>>;
 const dinheiro = (valor: number) =>
   (valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const periodo = (intervalo: "month" | "year") => (intervalo === "month" ? "por mês" : "por ano");
+const SITUACOES: Record<EstadoDeAcesso, string> = {
+  ATIVO: "Pagamento confirmado. Acesso disponível aos perfis cobertos.",
+  CANCELAMENTO_AGENDADO: "Cancelamento agendado. O acesso continua até o fim do período pago.",
+  PAGAMENTO_PENDENTE:
+    "Pagamento em conferência. O acesso da assinatura está temporariamente indisponível.",
+  ENCERRADO: "Assinatura encerrada. Seu progresso continua guardado.",
+  SEM_ACESSO: "A assinatura ainda não libera acesso.",
+  TESTE: "Período de teste vigente.",
+  TESTE_ENCERRADO: "Período de teste encerrado.",
+  SUSPENSO: "Acesso suspenso.",
+  REVOGADO: "Acesso revogado.",
+};
 
 export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: string }) {
   const [produtoId, selecionar] = useState("");
@@ -108,6 +121,29 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
           Ambiente de homologação: os envios usam pagamento de teste e não geram cobrança real.
         </p>
       )}
+      {estado.financeiro.assinatura && (
+        <section aria-labelledby="situacao-da-assinatura" className="painel mt-6 p-5 sm:p-6">
+          <h2 id="situacao-da-assinatura" className="font-display text-xl font-bold">
+            Situação da assinatura
+          </h2>
+          <p className="mt-3 font-bold">
+            {estado.ofertas.find((o) => o.productId === estado.financeiro.assinatura?.produtoId)
+              ?.nome ?? "Sua assinatura"}
+          </p>
+          <p className="mt-3 text-tinta-suave">{SITUACOES[estado.financeiro.assinatura.estado]}</p>
+          <p className="mt-3 text-sm text-tinta-suave">
+            Período atual até{" "}
+            <time dateTime={estado.financeiro.assinatura.fimDoPeriodo}>
+              {new Date(estado.financeiro.assinatura.fimDoPeriodo).toLocaleString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+                dateStyle: "short",
+                timeStyle: "short",
+              })}
+            </time>
+            .
+          </p>
+        </section>
+      )}
       {compra && (
         <section aria-labelledby="recibo-da-compra" className="painel mt-6 p-5 sm:p-6">
           <h2 id="recibo-da-compra" className="font-display text-xl font-bold">
@@ -125,11 +161,13 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
               ? "Pedido encerrado antes do envio."
               : compra.resolucao === "expired_unpaid"
                 ? "Sessão de pagamento expirada sem assinatura."
-                : compra.emConferencia
-                  ? "Pedido em conferência. Aguarde a confirmação antes de fazer outra compra."
-                  : compra.tentativaIniciadaEm
-                    ? "Envio registrado. A assinatura depende da confirmação do pagamento."
-                    : "Autorização registrada. Nenhuma compra foi enviada."}
+                : compra.resolucao === "checkout_completed"
+                  ? "Pedido concluído. Confira acima a situação atual da assinatura."
+                  : compra.emConferencia
+                    ? "Pedido em conferência. Aguarde a confirmação antes de fazer outra compra."
+                    : compra.tentativaIniciadaEm
+                      ? "Envio registrado. A assinatura depende da confirmação do pagamento."
+                      : "Autorização registrada. Nenhuma compra foi enviada."}
           </p>
           <p className="mt-3 text-sm text-tinta-suave">
             Registrar este pedido ou voltar da página de pagamento não libera jogos. Você pode
@@ -159,7 +197,7 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
           )}
         </section>
       )}
-      {!ativa && estado.modo !== "off" && (
+      {!ativa && estado.financeiro.podeContratar && estado.modo !== "off" && (
         <form
           aria-labelledby="autorizar-compra"
           className="painel mt-6 p-5 sm:p-6"

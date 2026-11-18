@@ -10,6 +10,7 @@ import { limitarTentativas } from "@/lib/rate-limit";
 import { AceiteDaCompraSchema, ofertasParaOAdulto } from "./regras";
 import {
   consultarMinhaCompraNoBanco,
+  consultarSituacaoFinanceiraNoBanco,
   encerrarCompraNaoEnviadaNoBanco,
   prepararCompraNoBanco,
 } from "./repository";
@@ -39,7 +40,8 @@ export async function consultarMinhaCompra(autor: IdentidadeNativa) {
 }
 export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
   const compra = await consultarMinhaCompra(autor);
-  return { modo: env.RECREIO_BILLING_MODE, compra, ofertas: ofertasParaOAdulto() };
+  const financeiro = await consultarSituacaoFinanceiraNoBanco(autor);
+  return { modo: env.RECREIO_BILLING_MODE, compra, financeiro, ofertas: ofertasParaOAdulto() };
 }
 export async function encerrarCompraNaoEnviada(autor: IdentidadeNativa, entrada: unknown) {
   const id = z.uuid().parse(entrada);
