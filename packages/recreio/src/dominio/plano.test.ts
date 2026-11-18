@@ -49,6 +49,7 @@ describe("plano do grupo sem perfil fictício do pagante", () => {
           cancelaEm: fim,
           inicioDoPeriodo: cortesia.inicio,
           fimDoPeriodo: fim,
+          pagamentoConfirmadoAte: fim,
           fimDoTeste: null,
         },
         concessoes: [cortesia],
@@ -70,6 +71,7 @@ describe("plano do grupo sem perfil fictício do pagante", () => {
       cancelaEm: null,
       inicioDoPeriodo: cortesia.inicio,
       fimDoPeriodo: fim,
+      pagamentoConfirmadoAte: fim,
       fimDoTeste: null,
     };
     expect(decidirPlanoDoGrupo({ ...base, assinatura })).toMatchObject({

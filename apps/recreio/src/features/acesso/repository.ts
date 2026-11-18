@@ -1,21 +1,26 @@
 import "server-only";
 import { getProSubscription } from "@informach/billing";
-import { and, type Database, db, desc, eq, inArray } from "@informach/db";
+import { and, type Database, db, desc, eq, inArray, isNotNull } from "@informach/db";
 import {
   customers,
   recreioEntitlements as entitlements,
+  recreioBillingReconciliations as financialJobs,
   recreioGroups as groups,
+  subscriptionPaymentPeriods as paidPeriods,
   recreioProfiles as profiles,
+  recreioPurchaseAuthorizations as purchases,
   subscriptions,
 } from "@informach/db/schema";
 import {
   type Concessao,
+  type FatosDoPagamento,
   type GrupoId,
   GrupoIdSchema,
   type PerfilId,
   PerfilIdSchema,
   type StatusDaAssinatura,
 } from "@informach/recreio";
+import { schema as EnvironmentSchema } from "@/lib/environment";
 
 /**
  * Leitura dos fatos do direito de jogar. A área `features/acesso` é o único
@@ -44,7 +49,83 @@ export type AssinaturaLida = {
   fimDoTeste: Date | null;
   /** Data em que a assinatura termina por cancelamento agendado. */
   cancelaEm: Date | null;
+  financeiro: Pick<
+    FatosDoPagamento,
+    "precoId" | "origemAdmitida" | "conferidoEm" | "emConferencia" | "periodos"
+  >;
 };
+
+const ModoFinanceiroSchema = EnvironmentSchema.pick({ STRIPE_MODE: true });
+function semFinanceiro(precoId: string): AssinaturaLida["financeiro"] {
+  return { precoId, origemAdmitida: false, conferidoEm: null, emConferencia: true, periodos: [] };
+}
+
+/** Uses the same mode schema without loading Next/runtime secrets: operational
+ * concession scripts can still compose this reader with their own environment.
+ */
+async function lerPagamentoDaAssinatura(
+  ativa: NonNullable<Awaited<ReturnType<typeof getProSubscription>>>,
+  grupoId: GrupoId,
+  donoId: string,
+  conexao: Pick<Database, "select">,
+): Promise<AssinaturaLida["financeiro"]> {
+  const modo = ModoFinanceiroSchema.safeParse({ STRIPE_MODE: process.env.STRIPE_MODE });
+  if (!modo.success) throw new Error("Invalid environment: STRIPE_MODE");
+  const [[conferencia], [origem], periodos] = await Promise.all([
+    conexao
+      .select({ confirmedAt: financialJobs.lastConfirmedAt, review: financialJobs.reviewRequired })
+      .from(financialJobs)
+      .where(
+        and(
+          eq(financialJobs.payerUserId, donoId),
+          eq(financialJobs.groupId, grupoId),
+          eq(financialJobs.providerMode, modo.data.STRIPE_MODE),
+        ),
+      )
+      .limit(1),
+    conexao
+      .select({ id: purchases.id })
+      .from(purchases)
+      .where(
+        and(
+          eq(purchases.payerUserId, donoId),
+          eq(purchases.groupId, grupoId),
+          eq(purchases.providerMode, modo.data.STRIPE_MODE),
+          eq(purchases.providerSubscriptionId, ativa.providerSubscriptionId),
+          eq(purchases.productId, ativa.productId),
+          eq(purchases.resolution, "checkout_completed"),
+          eq(purchases.reviewRequired, false),
+          isNotNull(purchases.requestStartedAt),
+          isNotNull(purchases.providerSessionId),
+          isNotNull(purchases.resolvedAt),
+        ),
+      )
+      .limit(1),
+    conexao
+      .select({
+        precoId: paidPeriods.providerPriceId,
+        inicio: paidPeriods.periodStart,
+        fim: paidPeriods.periodEnd,
+        pagoEm: paidPeriods.paidAt,
+        estornado: paidPeriods.fullyRefunded,
+        contestado: paidPeriods.disputed,
+      })
+      .from(paidPeriods)
+      .where(and(eq(paidPeriods.subscriptionId, ativa.id), eq(paidPeriods.provider, "stripe"))),
+  ]);
+  return {
+    precoId: ativa.providerPriceId,
+    origemAdmitida: Boolean(
+      origem &&
+        ativa.providerObservedAt &&
+        conferencia?.confirmedAt &&
+        ativa.providerObservedAt <= conferencia.confirmedAt,
+    ),
+    conferidoEm: conferencia?.confirmedAt ?? null,
+    emConferencia: conferencia?.review ?? true,
+    periodos,
+  };
+}
 
 export type FatosLidos = {
   perfil: {
@@ -76,6 +157,7 @@ async function assinaturaInativaMaisRecente(
       id: subscriptions.id,
       status: subscriptions.status,
       productId: subscriptions.productId,
+      providerPriceId: subscriptions.providerPriceId,
       inicioDoPeriodo: subscriptions.currentPeriodStart,
       fimDoPeriodo: subscriptions.currentPeriodEnd,
       fimDoTeste: subscriptions.trialEnd,
@@ -94,7 +176,7 @@ async function assinaturaInativaMaisRecente(
     )
     .orderBy(desc(subscriptions.currentPeriodEnd), desc(subscriptions.createdAt))
     .limit(1);
-  return linha ?? null;
+  return linha ? { ...linha, financeiro: semFinanceiro(linha.providerPriceId) } : null;
 }
 
 /** Tudo o que `decidirAcesso` precisa saber sobre um perfil, ou `null` se ele não existe. */
@@ -171,6 +253,7 @@ export async function lerFatosDoGrupo(
       fimDoPeriodo: ativa.currentPeriodEnd,
       fimDoTeste: ativa.trialEnd,
       cancelaEm: ativa.cancelAtPeriodEnd,
+      financeiro: await lerPagamentoDaAssinatura(ativa, grupoId, grupo.ownerUserId, conexao),
     },
     assinaturaInativa: inativa,
     concessoes,

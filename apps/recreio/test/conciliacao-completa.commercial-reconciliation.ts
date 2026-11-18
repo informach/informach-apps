@@ -1,5 +1,6 @@
 import { and, db, eq, sql } from "@informach/db";
 import {
+  recreioGameSessions as gameSessions,
   recreioBillingReconciliations as jobs,
   subscriptionPaymentPeriods as periods,
   recreioPurchaseAuthorizations as purchases,
@@ -7,16 +8,19 @@ import {
   subscriptions,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
+import { avaliarAcesso } from "@/features/acesso/service";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
 import { consultarMinhaCompra } from "@/features/cobranca/service";
+import { entrarNoJogo, ingressoDe } from "./jogo-apoio";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
+import { pedir } from "./rotas";
 
 /** Full native/SDK/PG path, exclusively synthetic provider HTTP. These tests do
  * not claim external sandbox communication, actual charges or invoice payment.
  */
-async function fixture() {
-  const f = await fixtureDePagamento();
+async function fixture(comJogador = false) {
+  const f = await fixtureDePagamento(comJogador);
   await criarExecutorDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id);
   const falhas: string[] = [];
   const processar = criarProcessadorDeConciliacao({
@@ -195,4 +199,43 @@ describe("conciliação nativa com origem, períodos e resultado duráveis", () 
     expect((await f.job())?.lastConfirmedAt).toBeInstanceOf(Date);
     await expect(consultarMinhaCompra(f.adulto.autor)).rejects.toMatchObject({ code: "AUTH" });
   });
+  it.each(["estorno", "contestacao", "indisponibilidade", "evidencia-ausente"] as const)(
+    "%s corta a SID paga existente e impede reabertura",
+    async (tipo) => {
+      const f = await fixture(true),
+        pago = f.concluirCheckout();
+      expect((await f.processar()).conciliadas).toBe(1);
+      const jogador = f.adulto.jogador;
+      if (!jogador) throw new Error("Native fixture player absent");
+      expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+        podeJogar: true,
+        origem: "assinatura",
+      });
+      const aberta = await entrarNoJogo(jogador);
+      if (tipo === "estorno") {
+        pago.charge.refunded = true;
+        pago.charge.amount_refunded = pago.charge.amount_captured;
+      }
+      if (tipo === "contestacao") {
+        pago.charge.disputed = true;
+        pago.disputas.push({ id: "dp_cut_fixture", status: "needs_response" });
+      }
+      if (tipo === "indisponibilidade") f.indisponibilizar();
+      if (tipo === "evidencia-ausente") pago.pago = false;
+      await f.reagendar();
+      await f.processar();
+      expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+        podeJogar: false,
+        estado: "PAGAMENTO_PENDENTE",
+      });
+      const [sid] = await db.select().from(gameSessions).where(eq(gameSessions.id, aberta.sid));
+      expect(sid).toMatchObject({ endReason: "access_lost" });
+      expect(sid?.endedAt).toBeInstanceOf(Date);
+      expect(sid?.endedSeq).toBeGreaterThan(0);
+      expect(
+        await pedir("POST", "/api/sdk/v1/sessao/renovar", { token: aberta.token }),
+      ).toMatchObject({ status: 403, corpo: { codigo: "ACESSO_PERDIDO" } });
+      await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+    },
+  );
 });

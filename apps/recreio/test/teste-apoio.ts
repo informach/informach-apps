@@ -15,6 +15,7 @@ import { resolverAtor } from "@/features/sessao/service";
 import { VERSAO_DO_TESTE } from "@/features/teste/constantes";
 import { autorizarExperimento } from "@/features/teste/service";
 import { type Jogador, loginReal, novaConta } from "./apoio";
+import { registrarPagamentoSintetico } from "./pagamento-sintetico-apoio";
 
 export async function adultoDoTeste(comJogador = false) {
   const conta = await novaConta(),
@@ -94,14 +95,19 @@ export async function assinaturaDeFixture(p: Awaited<ReturnType<typeof adultoDoT
     })
     .returning();
   if (!customer) throw new Error("Cliente de fixture ausente");
-  await db.insert(subscriptions).values({
-    customerId: customer.id,
-    provider: "stripe",
-    providerSubscriptionId: `sub_fixture_${randomUUID()}`,
-    providerPriceId: "price_fixture_recreio",
-    productId: "recreio_individual_monthly",
-    status: "active",
-    currentPeriodStart: new Date(Date.now() - 1000),
-    currentPeriodEnd: fim,
-  });
+  const [assinatura] = await db
+    .insert(subscriptions)
+    .values({
+      customerId: customer.id,
+      provider: "stripe",
+      providerSubscriptionId: `sub_fixture_${randomUUID()}`,
+      providerPriceId: "price_fixture_recreio",
+      productId: "recreio_individual_monthly",
+      status: "active",
+      currentPeriodStart: new Date(Date.now() - 1000),
+      currentPeriodEnd: fim,
+    })
+    .returning();
+  if (!assinatura) throw new Error("Assinatura sintética ausente");
+  await registrarPagamentoSintetico(p.conta, assinatura);
 }

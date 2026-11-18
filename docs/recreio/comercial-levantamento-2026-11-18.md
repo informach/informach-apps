@@ -7,6 +7,24 @@ ensaio pago ou venda. F5 foi implantado com recursos desligados em `d014bd90`,
 
 ## Incremento de teste gratuito, em qualificação
 
+### Evidência mais recente e candidata de admissão
+
+`33a64ab5` concluiu os dezesseis gates `44314786583`, incluindo onze cenários
+de conciliação completa com PostgreSQL e SDK Stripe por transporte fechado.
+Contrato concluído sem fatura paga não concede acesso; falha preserva a data
+da última confirmação e os fatos financeiros antigos. Isso ainda não comprova
+comunicação com o Sandbox nem implantação de worker/webhook.
+
+A candidata seguinte torna a prova financeira obrigatória na admissão real:
+origem admitida para o pagante/grupo/modo, fatura paga compatível e conferência
+bem-sucedida nos últimos quinze minutos. Ingresso e renovação ficam limitados
+por esse prazo. As regressões incluem ausência de origem/fatura, modo errado,
+revisão, estorno, contestação, preço divergente e confirmação vencida. Quatro
+jornadas adicionais abrem uma SID paga e verificam seu encerramento após fatos
+adversos ou falha de leitura. Fixtures positivas antigas agora declaram os
+fatos financeiros sintéticos; não passam a representar pagamentos externos.
+Essa alteração ainda aguarda os dezesseis gates remotos.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

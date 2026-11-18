@@ -40,7 +40,7 @@ export type StatusDaAssinatura =
   | "canceled"
   | "paused";
 
-/** O mesmo conjunto de `PRO_STATUSES` do billing: só estes dão acesso. */
+/** Situações elegíveis do billing, sempre com comprovação financeira e prazo. */
 export const STATUS_QUE_JOGAM: readonly StatusDaAssinatura[] = ["active", "trialing"];
 
 /** Cobrança em aberto: sem acesso enquanto pendente, como nos outros apps. */
@@ -52,6 +52,8 @@ export type AssinaturaDoGrupo = {
   tier: TierDoPlano;
   inicioDoPeriodo: Date;
   fimDoPeriodo: Date;
+  /** Limite conciliado da fatura e da conferência atual; status sozinho não autoriza. */
+  pagamentoConfirmadoAte: Date | null;
   /** Obrigatório para um status trialing conceder acesso. */
   fimDoTeste: Date | null;
   /** Data em que o acesso termina por cancelamento agendado, se houver. */
@@ -192,7 +194,15 @@ export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
   });
 
   const assinatura = fatos.assinatura;
-  const prazo = assinatura !== null ? prazoDaAssinatura(assinatura, fatos.agora) : null;
+  const prazoContratual = assinatura !== null ? prazoDaAssinatura(assinatura, fatos.agora) : null;
+  const pagamentoAte = assinatura?.pagamentoConfirmadoAte?.getTime();
+  const prazo =
+    prazoContratual !== null &&
+    pagamentoAte !== undefined &&
+    Number.isFinite(pagamentoAte) &&
+    pagamentoAte > fatos.agora.getTime()
+      ? new Date(Math.min(prazoContratual.getTime(), pagamentoAte))
+      : null;
   if (assinatura !== null && STATUS_QUE_JOGAM.includes(assinatura.status) && prazo !== null) {
     return {
       estado: assinatura.cancelaEm === null ? "ATIVO" : "CANCELAMENTO_AGENDADO",
@@ -218,7 +228,11 @@ export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
     };
   }
 
-  if (assinatura !== null && STATUS_PENDENTES.includes(assinatura.status)) {
+  if (
+    assinatura !== null &&
+    (STATUS_PENDENTES.includes(assinatura.status) ||
+      (STATUS_QUE_JOGAM.includes(assinatura.status) && prazoContratual !== null && prazo === null))
+  ) {
     return recusa("PAGAMENTO_PENDENTE", "pagamento_pendente");
   }
 

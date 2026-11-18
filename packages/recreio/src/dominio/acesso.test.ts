@@ -46,6 +46,7 @@ const assinatura = (status: StatusDaAssinatura, cancelaEm: Date | null = null) =
   id: "sub_1",
   status,
   tier: "individual" as const,
+  pagamentoConfirmadoAte: em(29),
   inicioDoPeriodo: em(-1),
   fimDoPeriodo: em(29),
   fimDoTeste: status === "trialing" ? em(7) : null,
@@ -53,6 +54,16 @@ const assinatura = (status: StatusDaAssinatura, cancelaEm: Date | null = null) =
 });
 
 describe("decidirAcesso", () => {
+  it.each([null, new Date(Number.NaN), agora])(
+    "status ativo sem prazo pago vigente não joga: %s",
+    (pagoAte) => {
+      expect(
+        decidirAcesso(
+          fatos({ assinatura: { ...assinatura("active"), pagamentoConfirmadoAte: pagoAte } }),
+        ),
+      ).toMatchObject({ podeJogar: false, estado: "PAGAMENTO_PENDENTE" });
+    },
+  );
   it("sem plano nem concessão não joga", () => {
     const decisao = decidirAcesso(fatos());
     expect(decisao).toMatchObject({

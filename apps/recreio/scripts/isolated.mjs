@@ -122,6 +122,10 @@ const testEnv = {
   NEXT_PUBLIC_APP_URL: origin,
   SENDGRID_API_KEY: "SG.local-not-sent",
   SENDGRID_FROM: "Recreio <nao-responda@example.test>",
+  STRIPE_MODE: "dev",
+  STRIPE_SECRET_KEY: "sk_test_isolated_not_sent",
+  STRIPE_WEBHOOK_SECRET: "whsec_isolated_not_sent",
+  STRIPE_PORTAL_CONFIGURATION_ID: "",
   // No E2E os códigos de acesso ficam em arquivos, onde o teste os lê.
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),

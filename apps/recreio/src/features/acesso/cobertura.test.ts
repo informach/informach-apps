@@ -71,6 +71,7 @@ describe("cobertura pelo plano em vigor", () => {
           cancelaEm: null,
           inicioDoPeriodo: dias(-1),
           fimDoPeriodo: dias(29),
+          pagamentoConfirmadoAte: dias(29),
           fimDoTeste: null,
         },
         teveAssinatura: true,
