@@ -593,6 +593,54 @@ describe("entrada temporária de visitante", () => {
   );
 });
 
+describe("renovação em lote de visitantes", () => {
+  const visita = {
+    mundoId: MUNDO,
+    sid: SID,
+    perfilId: PERFIL,
+    cerca: 4,
+    visitaId: "f9579968-a053-494b-b9db-908c407ba86e",
+    sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+  };
+  it("envia prova inteira e confere a identidade de cada resposta", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const resposta = {
+      visitas: [
+        {
+          sessaoDeVisitaId: visita.sessaoDeVisitaId,
+          estado: "ok",
+          permissaoAte: "2026-11-18T06:00:30.000Z",
+        },
+      ],
+    };
+    a.responder(Response.json(resposta));
+    expect(await a.cliente.renovarVisitas([visita])).toEqual(resposta);
+    expect(a.chamadas[1]).toMatchObject({
+      url: "https://recreio.test/api/interno/v1/visitas/renovar",
+      corpo: { visitas: [visita] },
+    });
+  });
+  it.each(["identidade", "quantidade", "rede"] as const)(
+    "recusa %s divergente sem repetir o lote",
+    async (tipo) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(
+        tipo === "rede"
+          ? new TypeError("fetch failed")
+          : Response.json({
+              visitas: tipo === "quantidade" ? [] : [{ sessaoDeVisitaId: SID, estado: "perdida" }],
+            }),
+      );
+      await expect(a.cliente.renovarVisitas([visita])).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+});
+
 describe("JSON em cabeçalho", () => {
   it("vai e volta com acentos e recusa o que não é base64url de JSON", () => {
     const valor = { titulo: "Família Ipê", subtitulo: "Verão 🌞" };

@@ -58,6 +58,11 @@ import { referenciaSocial } from "./social-apoio";
 
 type Cenario = Awaited<ReturnType<typeof cenario>>;
 type Sessao = Awaited<ReturnType<typeof abrir>>;
+function renovar(c: Cenario, s: Sessao) {
+  return c.instancia.cliente.renovarVisitas([
+    { ...entrada(c, s), sessaoDeVisitaId: s.finalidade.id },
+  ]);
+}
 function entrada(c: Cenario, s: Sessao) {
   return {
     mundoId: c.mundoId,
@@ -82,6 +87,137 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it("renovação em lote conserva vínculo/janela e não emite novas admissões", async () => {
+  const c = await cenario(),
+    s = await abrir(c),
+    inicial = await admitir(c, s),
+    [concessao] = await db.select().from(visits).where(eq(visits.id, c.visitaId)),
+    renovadas = await renovar(c, s);
+  expect(renovadas.visitas).toEqual([
+    { sessaoDeVisitaId: s.finalidade.id, estado: "ok", permissaoAte: expect.any(String) },
+  ]);
+  expect((await db.select().from(visits).where(eq(visits.id, c.visitaId)))[0]?.expiresAt).toEqual(
+    concessao?.expiresAt,
+  );
+  expect(renovadas.visitas[0]?.sessaoDeVisitaId).toBe(inicial.sessaoDeVisitaId);
+  expect(
+    (await eventosCom("sessionId", s.sid)).filter(
+      (e) => e.eventType === "recreio.visit_session_admitted",
+    ),
+  ).toHaveLength(1);
+});
+
+it("renovação não admite intenção preparada nem troca a identidade do vínculo", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  expect((await renovar(c, s)).visitas).toEqual([
+    { sessaoDeVisitaId: s.finalidade.id, estado: "perdida" },
+  ]);
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBeNull();
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]?.state,
+  ).toBe("prepared");
+  await admitir(c, s);
+  const alheio = crypto.randomUUID();
+  expect(
+    (await c.instancia.cliente.renovarVisitas([{ ...entrada(c, s), sessaoDeVisitaId: alheio }]))
+      .visitas,
+  ).toEqual([{ sessaoDeVisitaId: alheio, estado: "perdida" }]);
+});
+
+it("lote mistura prova atual e SID desconhecido preservando ordem e escopo", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  const alheio = crypto.randomUUID(),
+    resposta = await c.instancia.cliente.renovarVisitas([
+      { ...entrada(c, s), sessaoDeVisitaId: s.finalidade.id },
+      {
+        ...entrada(c, s),
+        sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
+        sessaoDeVisitaId: alheio,
+      },
+    ]);
+  expect(resposta.visitas).toMatchObject([
+    { sessaoDeVisitaId: s.finalidade.id, estado: "ok" },
+    { sessaoDeVisitaId: alheio, estado: "perdida" },
+  ]);
+});
+
+it.each(["revogada", "modo", "sid_vencido"] as const)(
+  "renovação nega %s sem fabricar encerramento de SID",
+  async (tipo) => {
+    const c = await cenario(),
+      s = await abrir(c);
+    await admitir(c, s);
+    if (tipo === "revogada")
+      await responderConviteDeVisita(c.autor, { conviteId: c.convite.conviteId, acao: "revogar" });
+    if (tipo === "modo") env.RECREIO_VISITS_MODE = "off";
+    if (tipo === "sid_vencido")
+      await db.execute(
+        sql`update recreio.game_sessions set expires_at=clock_timestamp()-interval '1 second' where id=${s.sid}::uuid`,
+      );
+    expect((await renovar(c, s)).visitas).toEqual([
+      { sessaoDeVisitaId: s.finalidade.id, estado: "perdida" },
+    ]);
+    expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedAt).toBeNull();
+  },
+);
+
+it("falha operacional na renovação devolve erro e reverte o item, em vez de declarar perda de autorização", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  const [antes] = await db
+    .select()
+    .from(visitSessions)
+    .where(eq(visitSessions.id, s.finalidade.id));
+  await db.execute(
+    sql`create function recreio.visita_renovacao_falha() returns trigger language plpgsql as $$ begin raise exception 'database unavailable'; end $$`,
+  );
+  await db.execute(
+    sql`create trigger visita_renovacao_falha before update on recreio.world_visit_sessions for each row execute function recreio.visita_renovacao_falha()`,
+  );
+  try {
+    await expect(renovar(c, s)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+  } finally {
+    await db.execute(sql`drop trigger visita_renovacao_falha on recreio.world_visit_sessions`);
+    await db.execute(sql`drop function recreio.visita_renovacao_falha()`);
+  }
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0],
+  ).toEqual(antes);
+  expect((await renovar(c, s)).visitas[0]?.estado).toBe("ok");
+});
+
+it.each(["vazio", "duplicado", "grande"] as const)(
+  "lote recusa %s antes de executar qualquer item",
+  async (tipo) => {
+    const c = await cenario(),
+      s = await abrir(c),
+      base = { ...entrada(c, s), sessaoDeVisitaId: s.finalidade.id },
+      visitas =
+        tipo === "vazio"
+          ? []
+          : tipo === "duplicado"
+            ? [base, base]
+            : Array.from({ length: 65 }, () => ({
+                ...base,
+                sid: crypto.randomUUID(),
+                sessaoDeVisitaId: crypto.randomUUID(),
+              }));
+    const resposta = await pedir("POST", "/api/interno/v1/visitas/renovar", {
+      headers: cabecalhosDoHost(OUTRO_JOGO, c.instancia.instanciaId),
+      corpo: { visitas },
+    });
+    expect(resposta).toMatchObject({ status: 400, corpo: { codigo: "ENTRADA_INVALIDA" } });
+    expect(
+      (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]
+        ?.state,
+    ).toBe("prepared");
+  },
+);
 
 it("abertura pública só aponta à posse original e entrada autenticada admite sem membro", async () => {
   const c = await cenario(),

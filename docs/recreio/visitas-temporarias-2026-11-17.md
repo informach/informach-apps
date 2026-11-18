@@ -588,3 +588,26 @@ A candidata passa a identificar o controle pelo token da abertura nova e ler
 os dois corpos imediatamente nos respectivos eventos. Conserva a prova da
 pausa real informada pelo servidor, incluindo virada do dia; não muda relógio,
 limite, tentativas ou comportamento do produto. Nova qualificação necessária.
+
+## Renovação em lote candidata
+
+`POST /api/interno/v1/visitas/renovar` recebe de 1 a 64 provas distintas de
+SID/vínculo, em até 32 KiB, autenticadas pela instância. Cada item relê a
+admissão completa e exige vínculo já ativo com a identidade fornecida; nunca
+admite intenção preparada, troca SID ou amplia a janela da visita. Modo
+desligado devolve negativas, sem alegar que houve encerramento de sessão.
+
+Até quatro transações são admitidas por vez; `allSettled` aguarda todas,
+inclusive diante de falha. Recusas de autoridade devolvem somente o ID do
+vínculo e `perdida`. Falha desconhecida/de banco/auditoria continua erro HTTP;
+um item já confirmado em outro mundo pode ter sido renovado, portanto o host
+precisa pausar os comandos até nova prova quando a resposta falhar. Ordem e
+identidades de toda a resposta são conferidas pelo transporte, sem repetição
+automática. Antes do lote, o runtime deve renovar posses e presenças.
+
+Integrações candidatas cobrem vínculo atual, intenção preparada, identidade,
+lote misto, revogação/modo/SID vencido, falha real do PostgreSQL com rollback
+do item e corpos vazios/duplicados/excedentes. O transporte confere corpo,
+quantidade/identidade e perda de rede. A prova de SID vencido altera o prazo
+da fixture; não substitui o ensaio de minuto real ou afirma encerramento.
+Gates pendentes; encerramento técnico, SDK/runtime e jornada continuam abertos.

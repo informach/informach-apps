@@ -91,6 +91,7 @@ export async function admitirEntradaDeVisitaNoBanco(
   host: Host,
   mundoId: MundoId,
   pedido: z.infer<typeof PedidoDeEntradaDeVisitaSchema>,
+  sessaoDeVisitaId?: string,
 ): Promise<EntradaDeVisitante> {
   const [pista] = await db
     .select({ sessao: games, versao: profiles.policyVersion })
@@ -116,6 +117,11 @@ export async function admitirEntradaDeVisitaNoBanco(
     pedido.visitaId,
     async (tx, entrada) => {
       const { ctx, anfitriao, visita, intencao, sessao, perfil } = entrada;
+      if (
+        sessaoDeVisitaId !== undefined &&
+        (intencao.id !== sessaoDeVisitaId || intencao.state !== "active")
+      )
+        throw new ErroDoRecreio("SEM_PERMISSAO");
       if (
         ctx.mundo.id !== mundoId ||
         anfitriao.presenca.instanceId !== host.instanciaId ||

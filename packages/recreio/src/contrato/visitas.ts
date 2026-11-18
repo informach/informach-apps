@@ -86,3 +86,34 @@ export const VisitaAbertaSchema = z.strictObject({
   revisao: z.int().nonnegative(),
 });
 export type VisitaAberta = z.infer<typeof VisitaAbertaSchema>;
+
+export const VISITAS_POR_RENOVACAO_MAX = 64;
+export const RenovacaoDeVisitaSchema = PedidoDeEntradaDeVisitaSchema.extend({
+  mundoId: MundoIdSchema,
+  sessaoDeVisitaId: UuidSchema,
+});
+export type RenovacaoDeVisita = z.infer<typeof RenovacaoDeVisitaSchema>;
+export const RenovacaoDeVisitasSchema = z.strictObject({
+  visitas: z
+    .array(RenovacaoDeVisitaSchema)
+    .min(1)
+    .max(VISITAS_POR_RENOVACAO_MAX)
+    .refine(
+      (v) =>
+        new Set(v.map((p) => p.sid)).size === v.length &&
+        new Set(v.map((p) => p.sessaoDeVisitaId)).size === v.length,
+      "Sessão de visita repetida",
+    ),
+});
+export const VisitaRenovadaSchema = z.discriminatedUnion("estado", [
+  z.strictObject({
+    sessaoDeVisitaId: UuidSchema,
+    estado: z.literal("ok"),
+    permissaoAte: z.iso.datetime(),
+  }),
+  z.strictObject({ sessaoDeVisitaId: UuidSchema, estado: z.literal("perdida") }),
+]);
+export type VisitaRenovada = z.infer<typeof VisitaRenovadaSchema>;
+export const RespostaDaRenovacaoDeVisitasSchema = z.strictObject({
+  visitas: z.array(VisitaRenovadaSchema).min(1).max(VISITAS_POR_RENOVACAO_MAX),
+});

@@ -27,7 +27,12 @@ import {
 } from "../contrato/presencas";
 import { EstadoDeSalvamentoSchema } from "../contrato/salvamento";
 import { ResultadoDeCheckpointSchema } from "../contrato/sdk";
-import { EntradaDeVisitanteSchema, PedidoDeEntradaDeVisitaSchema } from "../contrato/visitas";
+import {
+  EntradaDeVisitanteSchema,
+  PedidoDeEntradaDeVisitaSchema,
+  RenovacaoDeVisitasSchema,
+  RespostaDaRenovacaoDeVisitasSchema,
+} from "../contrato/visitas";
 import { ErroDoRecreio } from "../dominio/erros";
 import type { InstanciaId } from "../dominio/ids";
 import {
@@ -124,6 +129,19 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
       if (
         renovadas.presencas.length !== pedido.presencas.length ||
         renovadas.presencas.some((r, i) => r.presencaId !== pedido.presencas[i]?.presencaId)
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return renovadas;
+    },
+
+    async renovarVisitas(visitas) {
+      eu();
+      const pedido = RenovacaoDeVisitasSchema.parse({ visitas }),
+        resposta = await enviarJson("/visitas/renovar", pedido),
+        renovadas = await lerCorpo(resposta, RespostaDaRenovacaoDeVisitasSchema);
+      if (
+        renovadas.visitas.length !== pedido.visitas.length ||
+        renovadas.visitas.some((r, i) => r.sessaoDeVisitaId !== pedido.visitas[i]?.sessaoDeVisitaId)
       )
         throw new ErroDoRecreio("INDISPONIVEL");
       return renovadas;
