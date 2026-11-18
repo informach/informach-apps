@@ -387,3 +387,45 @@ Fundação `e30cdbc8` concluiu os oito gates `44230126377`, com 858 integraçõe
 upgrades com dados e checkpoint real aprovados. Retenção `566c1d3a` continua
 em verificação no run `44231363456`. Esse resultado ainda não cobre os nove
 testes e o contexto acrescentados depois dessas fontes.
+
+Retenção `566c1d3a` concluiu os oito gates `44231363456`, com 864 integrações
+e upgrades 179→202/191→202. Contexto `468008de` passou em 873 integrações e nos
+sete gates fora de E2E; navegador ainda em execução na leitura deste registro.
+
+## Emissão candidata de convites de visita
+
+Serviço interno com corpo estrito: mundo, destinatário, presença original e
+UUID de tentativa. O perfil de origem vem do autor autenticado. Nova emissão
+revalida ambas as pontas, amizade, bloqueios, regras infantis/conteúdo,
+permissão de convidar e anfitrião atual. Participante com política `yes` pode
+convidar para visitar sem texto opaco de participação. `with_approval` conserva
+pedido pendente sem decisão do mundo; `no` recusa. Nenhum desses fatos substitui
+aprovação parental.
+
+Membro atual/afastado/sem acesso não recebe visita para contornar o vínculo.
+Ex-membro pode receber convite, mantendo a participação antiga como `former`.
+Somente convite e eventual decisão automática do mundo são gravados, com
+auditoria estrita; não se cria concessão, SID ou participação permanente.
+Expiração é o menor prazo entre 24 horas e a janela original da presença, sem
+alongar no replay. Recebimento/reentrada ainda exigirão todos os demais fatos.
+
+Uma tentativa repetida recupera só recibo técnico próprio (IDs, jogo, estado,
+datas), mesmo após fim da presença, bloqueio, perda de cobertura e modos
+desligados, com identidade nativa atual. Não devolve presença, nomes ou prova
+de autorização atual. Corpo divergente conflita. Outra chave para o mesmo
+pedido pendente exige resolvê-lo antes. Teto de 20 tentativas/10 minutos por
+origem, 64 pendências por mundo e 1000 recibos na união origem/destinatário.
+São limites da fila, não número de jogadores admitidos.
+
+Dezenove integrações candidatas cobrem amizade real, concorrência/replay,
+recuperação gratuita reduzida, nonce divergente, bloqueio, políticas do mundo,
+participação existente/ex-membro, rollback de auditoria/prazo, corpo estrito
+e histórico retido sem apagar recibos para abrir espaço. Papéis/membros e
+as mil linhas históricas são fixtures SQL explícitas; não alegam mil jogadores
+ou homologação do fluxo de gestão. SDK/HTTP de visitas, aprovações, aceite,
+admissão/runtime e interface continuam pendentes; serviço não exposto em rota.
+
+Releitura da proposta privada `paginas/recreio.html` v2.2 confirma: visitas
+não são membros, terminam com a saída do anfitrião ou em 24 h e exigem convite
+novo para voltar. `membrosMax` deve ser medido; o teto de filas acima não é
+prova de capacidade de jogo. Mantém-se a medição remota do F10/F11.

@@ -160,7 +160,7 @@ async function admitirAnfitriao(tx: Transacao, ctx: ContextoDeConvite, presencaI
     return agora;
   };
   await conferirPrazo();
-  return { presenca, conferirPrazo };
+  return { presenca, membro, conferirPrazo };
 }
 export type AnfitriaoAdmitido = Awaited<ReturnType<typeof admitirAnfitriao>>;
 
