@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import Stripe from "stripe";
 import { fecharAparelhos, hidratado, novaPessoa } from "./apoio";
@@ -26,14 +26,20 @@ async function conciliar() {
 }
 
 async function preencher(page: Page, selector: string, value: string, required = true) {
-  for (const frame of page.frames()) {
-    const campo = frame.locator(selector).first();
-    if (await campo.isVisible().catch(() => false)) {
-      await campo.fill(value);
-      return;
+  let alvo: Locator | undefined;
+  const encontrar = async () => {
+    for (const frame of page.frames()) {
+      const campo = frame.locator(selector).first();
+      if (await campo.isVisible().catch(() => false)) {
+        alvo = campo;
+        return true;
+      }
     }
-  }
-  if (required) throw new Error(`Hosted test payment field absent: ${selector}`);
+    return false;
+  };
+  if (required) await expect.poll(encontrar, { timeout: 30_000 }).toBe(true);
+  else await encontrar();
+  if (alvo) await alvo.fill(value);
 }
 
 test.afterAll(async () => {
