@@ -81,13 +81,11 @@ describe("integridade SQL da origem financeira nativa", () => {
   it("mantém o período original e separa prova imutável do relógio atual", async () => {
     const f = await fixture();
     await db.insert(sources).values(f.source);
-    await db
-      .insert(current)
-      .values({
-        paymentPeriodId: f.periodo.id,
-        observationId: f.row.id,
-        observedAt: f.row.firstObservedAt,
-      });
+    await db.insert(current).values({
+      paymentPeriodId: f.periodo.id,
+      observationId: f.row.id,
+      observedAt: f.row.firstObservedAt,
+    });
     const [original] = await db.select().from(periods).where(eq(periods.id, f.periodo.id));
     expect(original).toEqual(f.periodo);
     expect(
@@ -118,13 +116,11 @@ describe("integridade SQL da origem financeira nativa", () => {
       ).toBe("23503");
     expect(
       await codigoDoBanco(
-        db
-          .insert(current)
-          .values({
-            paymentPeriodId: outro.periodo.id,
-            observationId: f.row.id,
-            observedAt: new Date(),
-          }),
+        db.insert(current).values({
+          paymentPeriodId: outro.periodo.id,
+          observationId: f.row.id,
+          observedAt: new Date(),
+        }),
       ),
     ).toBe("23503");
   });
@@ -180,13 +176,11 @@ describe("integridade SQL da origem financeira nativa", () => {
       ).toBe("23514");
     expect(
       await codigoDoBanco(
-        db
-          .insert(current)
-          .values({
-            paymentPeriodId: f.periodo.id,
-            observationId: f.row.id,
-            observedAt: sql`'infinity'::timestamptz`,
-          }),
+        db.insert(current).values({
+          paymentPeriodId: f.periodo.id,
+          observationId: f.row.id,
+          observedAt: sql`'infinity'::timestamptz`,
+        }),
       ),
     ).toBe("23514");
   });
