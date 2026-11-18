@@ -23,6 +23,9 @@ estava em andamento.
 4. Guardar recibo, oferta inicial, seleção e pagamento no mesmo commit da
    confirmação/revogação. Se os perfis mudaram, conservar fatos financeiros e
    marcar a revisão da seleção no contrato inicial. Acesso continua recusado.
+   `purchase_selection_processed_at` registra uma única captura inicial,
+   inclusive quando exige revisão. Confirmações financeiras posteriores não
+   reaplicam escolhas antigas nem voltam a marcar revisão por perfis novos.
 5. Generalizar a confirmação nativa já implementada: revisão um refere a compra
    original; revisões seguintes referem a troca aplicada. Nenhuma delas quita
    fatura. Audit da compra referencia a compra, sem inventar uma troca.
@@ -37,7 +40,7 @@ distintas.
 
 ## Migração e implantação
 
-Mudança de schema: tabela aditiva e retirada da checagem que só permitia revisão
+Mudança de schema: tabela/marcador aditivos e retirada da checagem que só permitia revisão
 de seleção após troca. O contrato já vincula a compra original por FK composta;
 `coverage_review_required=true` apenas recusa acesso. A revisão inicial pode
 precisar dessa mesma proteção. As demais FKs/revisões permanecem.

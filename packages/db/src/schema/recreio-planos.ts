@@ -155,6 +155,11 @@ export const recreioBillingContracts = recreio.table(
     providerMode: text("provider_mode").$type<"dev" | "prod">().notNull(),
     originProductId: text("origin_product_id").notNull(),
     originPriceId: text("origin_price_id").notNull(),
+    /** Processed once when the initial payment is confirmed, including a
+     * selection requiring native review. Never replay the original choices. */
+    purchaseSelectionProcessedAt: timestamp("purchase_selection_processed_at", {
+      withTimezone: true,
+    }),
     currentProductId: text("current_product_id").notNull(),
     currentPriceId: text("current_price_id").notNull(),
     revision: integer("revision").notNull().default(1),
