@@ -1,6 +1,40 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, foreignKey, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { recreio, recreioEntitlements, recreioGroups } from "./recreio";
+
+/** Consentimento nativo do pagante; ainda não inicia relógio, concessão ou SID. */
+export const recreioTrialEnrollments = recreio.table(
+  "trial_enrollments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    payerUserId: text("payer_user_id").notNull(),
+    groupId: uuid("group_id").notNull(),
+    policyVersion: text("policy_version").notNull(),
+    adultDeclarationVersion: text("adult_declaration_version").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull(),
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+  },
+  (t) => [
+    unique("recreio_trial_enrollment_identity").on(t.id, t.groupId, t.payerUserId, t.policyVersion),
+    uniqueIndex("recreio_trial_enrollment_active")
+      .on(t.payerUserId)
+      .where(sql`${t.withdrawnAt} is null`),
+    foreignKey({
+      name: "recreio_trial_enrollment_payer",
+      columns: [t.groupId, t.payerUserId],
+      foreignColumns: [recreioGroups.id, recreioGroups.ownerUserId],
+    }).onDelete("restrict"),
+    check("recreio_trial_enrollment_policy", sql`length(${t.policyVersion}) between 2 and 64`),
+    check(
+      "recreio_trial_enrollment_declaration",
+      sql`length(${t.adultDeclarationVersion}) between 2 and 64`,
+    ),
+    check(
+      "recreio_trial_enrollment_withdrawal",
+      sql`${t.withdrawnAt} is null or ${t.withdrawnAt} >= ${t.acceptedAt}`,
+    ),
+  ],
+);
 
 /** Recibo conservado enquanto conta/grupo existem, confirmado junto à primeira SID.
  * Não é pré-cadastro nem autorização de cobrança. O encerramento F7 resolve
@@ -11,6 +45,7 @@ export const recreioTrialClaims = recreio.table(
   {
     payerUserId: text("payer_user_id").primaryKey(),
     groupId: uuid("group_id").notNull(),
+    enrollmentId: uuid("enrollment_id").notNull(),
     entitlementId: uuid("entitlement_id").notNull(),
     entitlementKind: text("entitlement_kind").$type<"trial">().notNull().default("trial"),
     entitlementTier: text("entitlement_tier").$type<"family">().notNull().default("family"),
@@ -23,9 +58,14 @@ export const recreioTrialClaims = recreio.table(
     uniqueIndex("recreio_trial_claim_group").on(t.groupId),
     uniqueIndex("recreio_trial_claim_entitlement").on(t.entitlementId),
     foreignKey({
-      name: "recreio_trial_claim_payer",
-      columns: [t.groupId, t.payerUserId],
-      foreignColumns: [recreioGroups.id, recreioGroups.ownerUserId],
+      name: "recreio_trial_claim_enrollment",
+      columns: [t.enrollmentId, t.groupId, t.payerUserId, t.policyVersion],
+      foreignColumns: [
+        recreioTrialEnrollments.id,
+        recreioTrialEnrollments.groupId,
+        recreioTrialEnrollments.payerUserId,
+        recreioTrialEnrollments.policyVersion,
+      ],
     }).onDelete("restrict"),
     foreignKey({
       name: "recreio_trial_claim_entitlement_identity",

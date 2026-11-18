@@ -125,10 +125,22 @@ de upgrade e execução; sem migration ou concessão de teste em produção.
    inicial não inicia teste nem está publicado. Ingresso provisório deve provar
    elegibilidade sem iniciar concessão ou dar gameplay; somente a transação que
    confirma a primeira SID pode criar a concessão. Falha e recusa revertem tudo.
+   Antes disso, `trial_enrollments` conserva o consentimento nativo recente do
+   pagante e a versão da declaração adulta, sem jogador fictício e sem iniciar
+   prazo. Não confundir aceite do experimento com verificação externa de idade.
+   A FK do recibo fixa o consentimento, pagante, grupo e versão exatos; retirar
+   consentimento não concede outro teste. Não guardar SID eterna como FK do
+   recibo: a retenção técnica das sessões deve continuar funcionando.
 4. Admissão de teste: preservar contas → grupo → perfil → aparelho, conferir a
    composição depois de esperar, reutilizar o kernel e a decisão única. Quatro
    perfis concorrentes não podem criar quatro testes. Históricos existentes não
    são reiniciados. Modo desligado por padrão; fixtures separadas com modo real.
+   Intenções comerciais e a primeira sessão usam o mesmo mutex de ciclo de
+   cobrança por pagante, tomado antes da transação, com rede fora de TX. A
+   identidade do pagante é pista até ser relida sob trava. O ingresso elegível
+   é uma capacidade distinta de gameplay, sem `podeJogar` fictício. Se a abertura
+   começar uma concessão e depois recusar política, tempo, troca ou assinatura,
+   a transação reverte a concessão; recibo só é confirmado depois da SID real.
 5. Checkout/portal nativos: preparar consentimento e autoridade atual sem exigir
    jogador, usar intenção recuperável do billing e reler autorização antes de
    devolver dados financeiros. Rede fora das transações. Portal não pode trocar
