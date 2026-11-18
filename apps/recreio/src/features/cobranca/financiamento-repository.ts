@@ -181,12 +181,27 @@ export async function persistirFinanciamentoLocked(
       origins: origens,
     };
     const hash = createHash("sha256").update(JSON.stringify(evidencia)).digest("hex");
-    const [anterior] = await tx
-      .select({ observadoEm: current.observedAt, hash: observations.evidenceHash })
+    // Lock the mutable pointer as a relation, without a schema-qualified OF
+    // clause (PostgreSQL requires an unqualified relation name there).
+    const [ponteiro] = await tx
+      .select()
       .from(current)
-      .innerJoin(observations, eq(observations.id, current.observationId))
       .where(eq(current.paymentPeriodId, periodo.id))
-      .for("update", { of: current });
+      .for("update");
+    const [conteudo] = ponteiro
+      ? await tx
+          .select({ hash: observations.evidenceHash })
+          .from(observations)
+          .where(
+            and(
+              eq(observations.id, ponteiro.observationId),
+              eq(observations.paymentPeriodId, periodo.id),
+            ),
+          )
+      : [];
+    conferir(!ponteiro || conteudo);
+    const anterior =
+      ponteiro && conteudo ? { observadoEm: ponteiro.observedAt, hash: conteudo.hash } : null;
     conferir(
       !anterior ||
         anterior.observadoEm < tentativa.startedAt ||

@@ -228,3 +228,9 @@ acesso ainda não usam o escritor. Nenhum serviço foi ativado ou implantado.
 nome `actorId` na auditoria e parâmetro HTTP ocultando o cliente). No gate
 `44412944839`, os 98 testes anteriores passaram e os seis novos pararam no
 endpoint sintético do cliente. Correção restrita às fixtures; repetir os gates.
+
+`452abbf4`/`44413633618`: 100 casos passaram, quatro encontraram a cláusula
+`FOR UPDATE OF` gerada com nome qualificado pelo schema, recusada pelo
+PostgreSQL. A leitura passa a travar o ponteiro diretamente e ler o conteúdo
+imutável por ID/período; conserva a trava do período e o mesmo contrato
+monotônico. Não remove a proteção para contornar a falha SQL.
