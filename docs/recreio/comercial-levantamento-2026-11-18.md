@@ -26,7 +26,7 @@ incorretas: chave UUID no lugar de 32 bytes base64url e lookup do catálogo
 sintético ainda fechado no array original. Ambas foram corrigidas, preservando
 as validações reais. `4d1c65a6`/`90310297`/`96bebae0` tiveram as execuções
 substituídas canceladas; não são fontes integralmente aprovadas.
-`7865be4f`, `44291557541`, repete as nove provas com sucesso; outros gates em curso.
+`7865be4f`, `44291557541`, concluiu os onze gates, incluindo as nove provas de início.
 
 A etapa seguinte fecha a preparação do mundo antes da primeira sessão: prévia,
 criação e leitura do próprio mundo podem usar a elegibilidade consentida sem
@@ -35,7 +35,19 @@ do SDK permanecem no kernel completo. As travas de mundo/criador continuam antes
 do perfil. A estante distingue essa preparação do acesso já concedido.
 Uma prova adicional de servidor e a jornada `trial-play` com o contador físico
 cobrem preparar → abrir SID → jogar → salvar → reabrir, sem reiniciar o teste.
-Essas novas provas ainda precisam executar; não comprovam diversão do Morada.
+`77510596`, `44292518300`, passou em `trial-play` e nas dez provas de
+`trial-experiment`, além de qualidade, consentimento, checkpoint, versões,
+cliente e equipe. Integração, longa e E2E comum ainda em curso. A jornada
+física usa o contador da plataforma; não comprova diversão do Morada.
+
+A política seguinte de catálogo reutiliza o leitor Stripe do billing, com
+opção explícita de troca de plano na aplicação. A política original de três
+argumentos da Suíte Edi permanece exigindo um produto e os preços expandidos.
+No Recreio, os quatro preços vêm do catálogo comum, podendo pertencer a dois
+produtos; o portal precisa manter troca desligada, cancelamento no fim sem
+pró-rata, faturas/pagamento, URLs e app próprios e login público desligado.
+O SDK Stripe real é usado nas provas com transporte HTTP de fixture, sem casts
+de cliente e sem rede externa. Não é homologação com Stripe sandbox.
 F6 não foi implantado; não houve teste gratuito ou cobrança em produção.
 
 ## Contratos confirmados

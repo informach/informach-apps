@@ -32,6 +32,17 @@ export type SubscriptionPaymentSnapshot = {
 };
 const MAX_HISTORY = 600;
 
+/** Apps with coverage selection must keep plan changes in their native flow.
+ * The legacy three-argument catalog verification keeps the Edi portal policy.
+ */
+export type NativePlanPortalPolicy = {
+  planUpdates: "application";
+  app: string;
+  returnUrl: string;
+  termsUrl: string;
+  privacyUrl: string;
+};
+
 export function createStripePaymentFactReader(config: { secretKey: string; client?: Stripe }) {
   const stripe =
     config.client ??
@@ -152,9 +163,12 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
       products: readonly Product[],
       mode: StripeMode,
       portalConfigurationId: string,
+      nativePolicy?: NativePlanPortalPolicy,
     ) {
       const ids = new Set<string>();
       const productIds = new Set<string>();
+      if (!products.length || (nativePolicy && products.some((p) => p.app !== nativePolicy.app)))
+        throw new Error("Invalid subscription catalog scope");
       for (const expected of products) {
         const id = expected.stripePriceId[mode];
         if (
@@ -187,13 +201,39 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
           throw new Error("Stripe catalog does not match the approved offer");
         productIds.add(product.id);
       }
-      if (productIds.size !== 1) throw new Error("Suite prices must belong to one product");
+      if (!nativePolicy && productIds.size !== 1)
+        throw new Error("Suite prices must belong to one product");
       const portal = await stripe.billingPortal.configurations.retrieve(portalConfigurationId, {
         // Stripe omits the allowed products unless explicitly expanded. Without
         // this, a valid portal is rejected and every Edi checkout is blocked.
         expand: ["features.subscription_update.products"],
       });
       const updates = portal.features.subscription_update;
+      if (nativePolicy) {
+        const cancellation = portal.features.subscription_cancel;
+        const customerUpdates = portal.features.customer_update;
+        if (
+          !portal.active ||
+          portal.livemode !== (mode === "prod") ||
+          portal.metadata.app !== nativePolicy.app ||
+          portal.default_return_url !== nativePolicy.returnUrl ||
+          portal.business_profile.terms_of_service_url !== nativePolicy.termsUrl ||
+          portal.business_profile.privacy_policy_url !== nativePolicy.privacyUrl ||
+          portal.login_page.enabled ||
+          updates.enabled ||
+          !cancellation.enabled ||
+          cancellation.mode !== "at_period_end" ||
+          cancellation.proration_behavior !== "none" ||
+          !portal.features.payment_method_update.enabled ||
+          !portal.features.invoice_history.enabled ||
+          (customerUpdates.enabled &&
+            customerUpdates.allowed_updates.some(
+              (field) => !["name", "address", "email", "tax_id"].includes(field),
+            ))
+        )
+          throw new Error("Stripe portal must preserve native plan and coverage decisions");
+        return;
+      }
       if (
         !portal.active ||
         portal.livemode !== (mode === "prod") ||
