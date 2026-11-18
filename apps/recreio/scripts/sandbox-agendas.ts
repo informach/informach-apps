@@ -10,6 +10,7 @@ import { PRODUCTS } from "@informach/config";
 import Stripe from "stripe";
 import { z } from "zod";
 import { isStripeTestSecret } from "../src/lib/environment";
+import { observarCreditoAnual } from "./sandbox-creditos-api";
 
 class BoundaryError extends Error {
   constructor(readonly code: string) {
@@ -50,6 +51,9 @@ async function main() {
     "invalid_test_executor",
   );
   const prefix = `recreio:provider-test:${runId}:${process.env.GITHUB_RUN_ATTEMPT}`;
+  const scenario = z
+    .enum(["monthly_upgrade", "annual_credit"])
+    .parse(process.env.RECREIO_SANDBOX_PLANS_SCENARIO ?? "monthly_upgrade");
   const catalogPath = resolve(temporary, "recreio-stripe-plans-catalog.json");
   await new Promise<void>((resolve, reject) => {
     const child = spawn(process.execPath, [pnpm, "exec", "tsx", "scripts/sandbox-catalogo.ts"], {
@@ -77,19 +81,22 @@ async function main() {
     })
     .parse(JSON.parse(await readFile(catalogPath, "utf8")));
   const products = PRODUCTS.filter((p) => p.app === "recreio" && p.kind === "subscription");
-  function offer(tier: "family" | "individual"): {
+  function offer(
+    tier: "family" | "individual",
+    interval: "month" | "year" = "month",
+  ): {
     productId: string;
     priceId: string;
     amountCents: number;
   } {
-    const product = products.find((p) => p.tier === tier && p.interval === "month");
+    const product = products.find((p) => p.tier === tier && p.interval === interval);
     verify(product?.listPrice && product.stripePriceEnvironmentVariable, "approved_offer_missing");
     const priceId = catalog.variables[product.stripePriceEnvironmentVariable];
     verify(typeof priceId === "string" && priceId.startsWith("price_"), "verified_price_missing");
     return { productId: product.id, priceId, amountCents: product.listPrice.amountCents };
   }
   const family = offer("family"),
-    individual = offer("individual");
+    individual = offer("individual", scenario === "annual_credit" ? "year" : "month");
   const stripe = new Stripe(key, {
     apiVersion: "2026-04-22.dahlia",
     timeout: 10_000,
@@ -203,239 +210,255 @@ async function main() {
         initialInvoice.currency === "brl",
       "initial_invoice_differs",
     );
-    const billing = createStripeProvider({
-      secretKey: "unused",
-      webhookSecret: "unused",
-      appName: "Recreio provider API fixture",
-      client: stripe,
-    });
-    verify(billing.previewInvoice, "preview_api_missing");
-    const prorationDate = clock.frozen_time;
-    const preview = await billing.previewInvoice({
-      customerId: customer.id,
-      providerSubscriptionId: sub.id,
-      newPriceId: family.priceId,
-      prorationBehavior: "always_invoice",
-      prorationDate,
-    });
-    verify(
-      preview.currency === "BRL" &&
-        preview.amountDueCents === family.amountCents - individual.amountCents,
-      "upgrade_quote_differs",
-    );
-    const declined = await stripe.paymentMethods.create(
-      { type: "card", card: { token: "tok_chargeCustomerFail" } },
-      { idempotencyKey: `${prefix}:declined-method` },
-    );
-    verify(!declined.livemode, "declined_method_not_test");
-    await stripe.paymentMethods.attach(
-      declined.id,
-      { customer: customer.id },
-      { idempotencyKey: `${prefix}:attach-declined` },
-    );
-    await stripe.subscriptions.update(
-      sub.id,
-      { default_payment_method: declined.id },
-      { idempotencyKey: `${prefix}:use-declined` },
-    );
-    const upgradeRequest: Parameters<typeof billing.updateSubscription>[0] = {
-      providerSubscriptionId: sub.id,
-      newPriceId: family.priceId,
-      prorationBehavior: "always_invoice",
-      prorationDate,
-      paymentBehavior: "pending_if_incomplete",
-      idempotencyKey: `${prefix}:upgrade`,
-    };
-    const update = await billing.updateSubscription(upgradeRequest);
-    const upgradeInvoiceId = update.latestInvoice?.id;
-    verify(
-      upgradeInvoiceId &&
-        upgradeInvoiceId !== firstInvoiceId &&
-        update.latestInvoice?.status === "open",
-      "upgrade_payment_not_pending",
-    );
-    const replay = await billing.updateSubscription(upgradeRequest);
-    verify(replay.latestInvoice?.id === upgradeInvoiceId, "upgrade_replay_created_other_invoice");
-    const pending = await stripe.subscriptions.retrieve(sub.id);
-    verify(
-      !pending.livemode &&
-        pending.pending_update &&
-        pending.items.data[0]?.price.id === individual.priceId &&
-        pending.metadata.product_id === origin.productId,
-      "unpaid_upgrade_changed_contract",
-    );
-    const unpaid = await reader.read(sub.id, acceptedPrices);
-    verify(
-      unpaid?.priceId === individual.priceId &&
-        !unpaid.periods.some((p) => p.priceId === family.priceId),
-      "unpaid_upgrade_created_paid_period",
-    );
-    const paidUpgrade = await stripe.invoices.pay(
-      upgradeInvoiceId,
-      { payment_method: payment.id },
-      { idempotencyKey: `${prefix}:pay-upgrade` },
-    );
-    verify(
-      paidUpgrade.status === "paid" &&
-        paidUpgrade.amount_paid === preview.amountDueCents &&
-        !paidUpgrade.livemode,
-      "upgrade_invoice_differs",
-    );
-    let upgraded = await stripe.subscriptions.retrieve(sub.id);
-    const upgradeDeadline = Date.now() + 60_000;
-    while (upgraded.pending_update || upgraded.items.data[0]?.price.id !== family.priceId) {
-      verify(Date.now() < upgradeDeadline, "paid_upgrade_not_effective");
-      await setTimeout(2000);
-      upgraded = await stripe.subscriptions.retrieve(sub.id);
-    }
-    verify(
-      !upgraded.livemode &&
-        id(upgraded.customer) === customer.id &&
-        upgraded.metadata.product_id === origin.productId &&
-        upgraded.items.data[0]?.current_period_end === item.current_period_end,
-      "upgrade_scope_or_period_differs",
-    );
-    const fundedUpgrade = await reader.read(sub.id, acceptedPrices);
-    verify(
-      fundedUpgrade?.periods.some(
-        (p) =>
-          p.invoiceId === paidUpgrade.id &&
-          p.priceId === family.priceId &&
-          !p.fullyRefunded &&
-          !p.disputed,
-      ),
-      "upgrade_paid_period_not_proven",
-    );
-    await stripe.subscriptions.update(
-      sub.id,
-      { default_payment_method: payment.id },
-      { idempotencyKey: `${prefix}:restore-method` },
-    );
-    Object.assign(proof, {
-      upgradeInvoiceId,
-      upgradeAmountPaid: paidUpgrade.amount_paid,
-      fixedProrationDate: prorationDate,
-      pendingUpgradeKeptOriginalPrice: true,
-      upgradePaymentApplied: true,
-    });
-    const adapter = createStripeRecreioPlanSchedules({
-      secretKey: "unused",
-      client: stripe,
-      mode: "dev",
-      now: () => {
-        verify(clock, "test_clock_missing");
-        return new Date(clock.frozen_time * 1000);
-      },
-    });
-    const input = {
-      intentId: randomUUID(),
-      customerId: customer.id,
-      subscriptionId: sub.id,
-      fromPriceId: family.priceId,
-      toPriceId: individual.priceId,
-      toProductId: individual.productId,
-      interval: "month" as const,
-      effectiveAt: new Date(item.current_period_end * 1000),
-      requestStartedAt: new Date(clock.frozen_time * 1000),
-      origin,
-    };
-    scheduleId = await adapter.create(input);
-    verify((await adapter.create(input)) === scheduleId, "schedule_replay_differs");
-    const request = { ...input, scheduleId, cancel: false };
-    verify((await adapter.reconcile(request)) === "scheduled", "schedule_not_confirmed");
-    verify((await adapter.reconcile(request)) === "scheduled", "schedule_replay_not_confirmed");
-    await advance(item.current_period_end + 7200);
-    verify((await adapter.reconcile(request)) === "applied", "future_phase_not_applied");
-    const changed = await stripe.subscriptions.retrieve(sub.id);
-    verify(
-      !changed.livemode &&
-        changed.id === sub.id &&
-        changed.metadata.product_id === origin.productId &&
-        changed.items.data[0]?.price.id === individual.priceId,
-      "changed_contract_or_origin_differs",
-    );
-    const after = await reader.read(sub.id, acceptedPrices);
-    verify(
-      after?.periods.some(
-        (p) => p.priceId === individual.priceId && !p.fullyRefunded && !p.disputed,
-      ),
-      "renewal_payment_not_proven",
-    );
-    const renewalId = id(changed.latest_invoice);
-    verify(renewalId && renewalId !== firstInvoiceId, "renewal_invoice_missing");
-    const renewal = await stripe.invoices.retrieve(renewalId);
-    verify(
-      !renewal.livemode &&
-        renewal.status === "paid" &&
-        renewal.amount_paid === individual.amountCents,
-      "renewal_invoice_differs",
-    );
-    const canceling = await stripe.subscriptions.update(
-      sub.id,
-      { cancel_at_period_end: true },
-      { idempotencyKey: `${prefix}:cancel-at-end` },
-    );
-    verify(
-      canceling.cancel_at_period_end && canceling.status === "active",
-      "cancellation_not_scheduled",
-    );
-    const nextEnd = canceling.items.data[0]?.current_period_end;
-    verify(nextEnd, "cancellation_period_missing");
-    await advance(nextEnd + 7200);
-    const terminal = await stripe.subscriptions.retrieve(sub.id);
-    verify(terminal.status === "canceled" && !terminal.livemode, "cancellation_not_effective");
-    let paymentIntentId: string | undefined;
-    for await (const allocation of stripe.invoicePayments.list({
-      invoice: firstInvoiceId,
-      status: "paid",
-      limit: 100,
-    })) {
-      verify(!paymentIntentId, "initial_invoice_payment_ambiguous");
+    if (scenario === "annual_credit") {
+      await observarCreditoAnual({
+        stripe,
+        reader,
+        sub,
+        customerId: customer.id,
+        initialInvoiceId: firstInvoiceId,
+        individual,
+        family,
+        prefix,
+        advance,
+        proof,
+        verify,
+      });
+    } else {
+      const billing = createStripeProvider({
+        secretKey: "unused",
+        webhookSecret: "unused",
+        appName: "Recreio provider API fixture",
+        client: stripe,
+      });
+      verify(billing.previewInvoice, "preview_api_missing");
+      const prorationDate = clock.frozen_time;
+      const preview = await billing.previewInvoice({
+        customerId: customer.id,
+        providerSubscriptionId: sub.id,
+        newPriceId: family.priceId,
+        prorationBehavior: "always_invoice",
+        prorationDate,
+      });
       verify(
-        allocation.amount_paid === individual.amountCents,
-        "initial_invoice_allocation_differs",
+        preview.currency === "BRL" &&
+          preview.amountDueCents === family.amountCents - individual.amountCents,
+        "upgrade_quote_differs",
       );
-      if (allocation.payment.type === "payment_intent")
-        paymentIntentId = id(allocation.payment.payment_intent);
+      const declined = await stripe.paymentMethods.create(
+        { type: "card", card: { token: "tok_chargeCustomerFail" } },
+        { idempotencyKey: `${prefix}:declined-method` },
+      );
+      verify(!declined.livemode, "declined_method_not_test");
+      await stripe.paymentMethods.attach(
+        declined.id,
+        { customer: customer.id },
+        { idempotencyKey: `${prefix}:attach-declined` },
+      );
+      await stripe.subscriptions.update(
+        sub.id,
+        { default_payment_method: declined.id },
+        { idempotencyKey: `${prefix}:use-declined` },
+      );
+      const upgradeRequest: Parameters<typeof billing.updateSubscription>[0] = {
+        providerSubscriptionId: sub.id,
+        newPriceId: family.priceId,
+        prorationBehavior: "always_invoice",
+        prorationDate,
+        paymentBehavior: "pending_if_incomplete",
+        idempotencyKey: `${prefix}:upgrade`,
+      };
+      const update = await billing.updateSubscription(upgradeRequest);
+      const upgradeInvoiceId = update.latestInvoice?.id;
+      verify(
+        upgradeInvoiceId &&
+          upgradeInvoiceId !== firstInvoiceId &&
+          update.latestInvoice?.status === "open",
+        "upgrade_payment_not_pending",
+      );
+      const replay = await billing.updateSubscription(upgradeRequest);
+      verify(replay.latestInvoice?.id === upgradeInvoiceId, "upgrade_replay_created_other_invoice");
+      const pending = await stripe.subscriptions.retrieve(sub.id);
+      verify(
+        !pending.livemode &&
+          pending.pending_update &&
+          pending.items.data[0]?.price.id === individual.priceId &&
+          pending.metadata.product_id === origin.productId,
+        "unpaid_upgrade_changed_contract",
+      );
+      const unpaid = await reader.read(sub.id, acceptedPrices);
+      verify(
+        unpaid?.priceId === individual.priceId &&
+          !unpaid.periods.some((p) => p.priceId === family.priceId),
+        "unpaid_upgrade_created_paid_period",
+      );
+      const paidUpgrade = await stripe.invoices.pay(
+        upgradeInvoiceId,
+        { payment_method: payment.id },
+        { idempotencyKey: `${prefix}:pay-upgrade` },
+      );
+      verify(
+        paidUpgrade.status === "paid" &&
+          paidUpgrade.amount_paid === preview.amountDueCents &&
+          !paidUpgrade.livemode,
+        "upgrade_invoice_differs",
+      );
+      let upgraded = await stripe.subscriptions.retrieve(sub.id);
+      const upgradeDeadline = Date.now() + 60_000;
+      while (upgraded.pending_update || upgraded.items.data[0]?.price.id !== family.priceId) {
+        verify(Date.now() < upgradeDeadline, "paid_upgrade_not_effective");
+        await setTimeout(2000);
+        upgraded = await stripe.subscriptions.retrieve(sub.id);
+      }
+      verify(
+        !upgraded.livemode &&
+          id(upgraded.customer) === customer.id &&
+          upgraded.metadata.product_id === origin.productId &&
+          upgraded.items.data[0]?.current_period_end === item.current_period_end,
+        "upgrade_scope_or_period_differs",
+      );
+      const fundedUpgrade = await reader.read(sub.id, acceptedPrices);
+      verify(
+        fundedUpgrade?.periods.some(
+          (p) =>
+            p.invoiceId === paidUpgrade.id &&
+            p.priceId === family.priceId &&
+            !p.fullyRefunded &&
+            !p.disputed,
+        ),
+        "upgrade_paid_period_not_proven",
+      );
+      await stripe.subscriptions.update(
+        sub.id,
+        { default_payment_method: payment.id },
+        { idempotencyKey: `${prefix}:restore-method` },
+      );
+      Object.assign(proof, {
+        upgradeInvoiceId,
+        upgradeAmountPaid: paidUpgrade.amount_paid,
+        fixedProrationDate: prorationDate,
+        pendingUpgradeKeptOriginalPrice: true,
+        upgradePaymentApplied: true,
+      });
+      const adapter = createStripeRecreioPlanSchedules({
+        secretKey: "unused",
+        client: stripe,
+        mode: "dev",
+        now: () => {
+          verify(clock, "test_clock_missing");
+          return new Date(clock.frozen_time * 1000);
+        },
+      });
+      const input = {
+        intentId: randomUUID(),
+        customerId: customer.id,
+        subscriptionId: sub.id,
+        fromPriceId: family.priceId,
+        toPriceId: individual.priceId,
+        toProductId: individual.productId,
+        interval: "month" as const,
+        effectiveAt: new Date(item.current_period_end * 1000),
+        requestStartedAt: new Date(clock.frozen_time * 1000),
+        origin,
+      };
+      scheduleId = await adapter.create(input);
+      verify((await adapter.create(input)) === scheduleId, "schedule_replay_differs");
+      const request = { ...input, scheduleId, cancel: false };
+      verify((await adapter.reconcile(request)) === "scheduled", "schedule_not_confirmed");
+      verify((await adapter.reconcile(request)) === "scheduled", "schedule_replay_not_confirmed");
+      await advance(item.current_period_end + 7200);
+      verify((await adapter.reconcile(request)) === "applied", "future_phase_not_applied");
+      const changed = await stripe.subscriptions.retrieve(sub.id);
+      verify(
+        !changed.livemode &&
+          changed.id === sub.id &&
+          changed.metadata.product_id === origin.productId &&
+          changed.items.data[0]?.price.id === individual.priceId,
+        "changed_contract_or_origin_differs",
+      );
+      const after = await reader.read(sub.id, acceptedPrices);
+      verify(
+        after?.periods.some(
+          (p) => p.priceId === individual.priceId && !p.fullyRefunded && !p.disputed,
+        ),
+        "renewal_payment_not_proven",
+      );
+      const renewalId = id(changed.latest_invoice);
+      verify(renewalId && renewalId !== firstInvoiceId, "renewal_invoice_missing");
+      const renewal = await stripe.invoices.retrieve(renewalId);
+      verify(
+        !renewal.livemode &&
+          renewal.status === "paid" &&
+          renewal.amount_paid === individual.amountCents,
+        "renewal_invoice_differs",
+      );
+      const canceling = await stripe.subscriptions.update(
+        sub.id,
+        { cancel_at_period_end: true },
+        { idempotencyKey: `${prefix}:cancel-at-end` },
+      );
+      verify(
+        canceling.cancel_at_period_end && canceling.status === "active",
+        "cancellation_not_scheduled",
+      );
+      const nextEnd = canceling.items.data[0]?.current_period_end;
+      verify(nextEnd, "cancellation_period_missing");
+      await advance(nextEnd + 7200);
+      const terminal = await stripe.subscriptions.retrieve(sub.id);
+      verify(terminal.status === "canceled" && !terminal.livemode, "cancellation_not_effective");
+      let paymentIntentId: string | undefined;
+      for await (const allocation of stripe.invoicePayments.list({
+        invoice: firstInvoiceId,
+        status: "paid",
+        limit: 100,
+      })) {
+        verify(!paymentIntentId, "initial_invoice_payment_ambiguous");
+        verify(
+          allocation.amount_paid === individual.amountCents,
+          "initial_invoice_allocation_differs",
+        );
+        if (allocation.payment.type === "payment_intent")
+          paymentIntentId = id(allocation.payment.payment_intent);
+      }
+      verify(paymentIntentId, "initial_payment_missing");
+      const paid = await stripe.paymentIntents.retrieve(paymentIntentId);
+      verify(
+        !paid.livemode && id(paid.customer) === customer.id && paid.status === "succeeded",
+        "refund_scope_differs",
+      );
+      const refund = await stripe.refunds.create(
+        { payment_intent: paid.id },
+        { idempotencyKey: `${prefix}:refund` },
+      );
+      verify(
+        refund.status === "succeeded" &&
+          refund.amount === individual.amountCents &&
+          id(refund.payment_intent) === paid.id &&
+          refund.currency === "brl",
+        "refund_not_confirmed",
+      );
+      const refunded = await reader.read(sub.id, acceptedPrices);
+      verify(
+        refunded?.periods.some(
+          (p) =>
+            p.invoiceId === firstInvoiceId && p.priceId === individual.priceId && p.fullyRefunded,
+        ),
+        "refund_fact_not_detected",
+      );
+      Object.assign(proof, {
+        initialInvoiceId: firstInvoiceId,
+        initialAmountPaid: initialInvoice.amount_paid,
+        renewalInvoiceId: renewal.id,
+        renewalAmountPaid: renewal.amount_paid,
+        currency: "BRL",
+        sameSubscriptionPreserved: true,
+        initialProductPreserved: true,
+        scheduleApplied: true,
+        cancellationEffective: true,
+        refundId: refund.id,
+        refundDetectedByReader: true,
+      });
     }
-    verify(paymentIntentId, "initial_payment_missing");
-    const paid = await stripe.paymentIntents.retrieve(paymentIntentId);
-    verify(
-      !paid.livemode && id(paid.customer) === customer.id && paid.status === "succeeded",
-      "refund_scope_differs",
-    );
-    const refund = await stripe.refunds.create(
-      { payment_intent: paid.id },
-      { idempotencyKey: `${prefix}:refund` },
-    );
-    verify(
-      refund.status === "succeeded" &&
-        refund.amount === individual.amountCents &&
-        id(refund.payment_intent) === paid.id &&
-        refund.currency === "brl",
-      "refund_not_confirmed",
-    );
-    const refunded = await reader.read(sub.id, acceptedPrices);
-    verify(
-      refunded?.periods.some(
-        (p) =>
-          p.invoiceId === firstInvoiceId && p.priceId === individual.priceId && p.fullyRefunded,
-      ),
-      "refund_fact_not_detected",
-    );
-    Object.assign(proof, {
-      initialInvoiceId: firstInvoiceId,
-      initialAmountPaid: initialInvoice.amount_paid,
-      renewalInvoiceId: renewal.id,
-      renewalAmountPaid: renewal.amount_paid,
-      currency: "BRL",
-      sameSubscriptionPreserved: true,
-      initialProductPreserved: true,
-      scheduleApplied: true,
-      cancellationEffective: true,
-      refundId: refund.id,
-      refundDetectedByReader: true,
-    });
   } catch (error) {
     failure = error;
   }
@@ -509,7 +532,7 @@ async function main() {
   }
   await writeFile(
     resolve(temporary, "recreio-stripe-provider-plans.json"),
-    `${JSON.stringify({ source: process.env.GITHUB_SHA, workflowRunId: runId, accountId: account.id, mode: "dev", boundary: "provider_api_test_clock", nativeCheckoutCompleted: false, nativePlanChangeAccepted: false, nativeGameAccessProven: false, providerWebhookDeliveryProven: false, customerId, subscriptionId, scheduleId, clockId: clock?.id, cleanupConfirmed, ...proof, status: failure ? "failed" : "passed", failureType: failure instanceof Error ? failure.name : null, failureCode: failure instanceof BoundaryError ? failure.code : failure instanceof Stripe.errors.StripeError ? (failure.code ?? failure.type) : null }, null, 2)}\n`,
+    `${JSON.stringify({ source: process.env.GITHUB_SHA, workflowRunId: runId, scenario, accountId: account.id, mode: "dev", boundary: "provider_api_test_clock", nativeCheckoutCompleted: false, nativePlanChangeAccepted: false, nativeGameAccessProven: false, providerWebhookDeliveryProven: false, customerId, subscriptionId, scheduleId, clockId: clock?.id, cleanupConfirmed, ...proof, status: failure ? "failed" : "passed", failureType: failure instanceof Error ? failure.name : null, failureCode: failure instanceof BoundaryError ? failure.code : failure instanceof Stripe.errors.StripeError ? (failure.code ?? failure.type) : null }, null, 2)}\n`,
   );
   if (failure) {
     console.error(

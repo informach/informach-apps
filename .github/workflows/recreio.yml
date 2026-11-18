@@ -15,6 +15,11 @@ on:
         description: Homologar APIs de agenda, renovação, cancelamento e estorno com relógio de teste (sem Checkout nativo)
         type: boolean
         default: false
+      sandbox_plans_scenario:
+        description: Cenário de API (crédito anual observa origem/saldo, sem homologar acesso nativo)
+        type: choice
+        options: [monthly_upgrade, annual_credit]
+        default: monthly_upgrade
       sandbox_apply:
         description: Criar somente produtos/preços/portal Sandbox ausentes
         type: boolean
@@ -156,6 +161,7 @@ jobs:
       DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
       STRIPE_SECRET_KEY: ${{ secrets.RECREIO_STRIPE_SANDBOX_SECRET_KEY }}
       STRIPE_EXPECTED_ACCOUNT: ${{ inputs.sandbox_account }}
+      RECREIO_SANDBOX_PLANS_SCENARIO: ${{ inputs.sandbox_plans_scenario || 'monthly_upgrade' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -165,7 +171,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @informach/recreio-app typecheck
-      - run: pnpm --filter @informach/billing test -- src/__tests__/stripe-plans.test.ts src/__tests__/stripe-recreio-plans.test.ts src/__tests__/stripe-proration-contract.test.ts
+      - run: pnpm --filter @informach/billing test -- src/__tests__/stripe-plans.test.ts src/__tests__/stripe-recreio-plans.test.ts src/__tests__/stripe-proration-contract.test.ts src/__tests__/payment-facts-settlement.test.ts src/__tests__/stripe-legacy-deferral.test.ts
       - name: Provar APIs e limpar apenas os recursos do próprio relógio
         run: pnpm --filter @informach/recreio-app homologar:stripe-agendas
       - uses: actions/upload-artifact@v4

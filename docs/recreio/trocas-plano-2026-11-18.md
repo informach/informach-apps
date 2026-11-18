@@ -147,6 +147,12 @@ Regressões usam o SDK real em HTTP fechado. Isso ainda precisa dos gates dos
 consumidores; se já houver períodos antigos sem essa comprovação, divergência
 continua em revisão, sem apagar ou fabricar evidência financeira.
 
+`b5933b7d`/`44387188558`: PostgreSQL/Checkout da nova compra passaram, mas o
+gate de unidade comum encontrou cinco cenários da fixture legada sem
+`quantity`. O contrato fixo exige um item completo com quantidade um; a
+fixture passa a devolver os campos reais do SDK, conservando as asserções
+de recuperação, preço, cobrança e prazo. Nova verificação remota obrigatória.
+
 `0211_volatile_smasher.sql` foi gerada em `44350625433`/`b0db958f`, revisada e
 adotada sem editar os três arquivos. Os hashes, predecessor e prefixo do
 journal foram conferidos; [proveniência](evidencias/migracao-trocas-termos-0211.json).
