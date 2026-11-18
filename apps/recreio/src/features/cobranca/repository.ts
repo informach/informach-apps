@@ -533,11 +533,18 @@ export function capturarEstadoDaCompraLocked(
         "COBRANCA",
         "A assinatura informada exige conferência.",
       );
-    const assinaturaId = estado?.subscriptionId ?? linha.providerSubscriptionId;
+    const assinaturaId =
+      (estado?.status === "complete" ? estado.subscriptionId : null) ??
+      linha.providerSubscriptionId;
     const expirada =
       estado?.status === "expired" && estado.subscriptionId === null && assinaturaId === null;
     let linkValido = false;
-    if (estado?.status === "open" && estado.url && assinaturaId === null) {
+    if (
+      estado?.status === "open" &&
+      estado.url &&
+      estado.subscriptionId === null &&
+      assinaturaId === null
+    ) {
       try {
         stripeDestination(estado.url);
         linkValido = true;

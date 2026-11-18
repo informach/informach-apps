@@ -18,7 +18,7 @@ import { adultoDoTeste } from "./teste-apoio";
 /** Native admission and PostgreSQL are real. Stripe SDK uses only fixture HTTP;
  * this proves protocol recovery, not a sandbox payment or an invoice settlement.
  */
-export async function fixtureDeCheckout() {
+export async function fixtureDeCheckout(extensao?: (request: Request) => Promise<Response | null>) {
   const adulto = await adultoDoTeste();
   const pedido = pedidoDaCompra();
   const recibo = await prepararMinhaCompra(adulto.autor, pedido);
@@ -84,6 +84,8 @@ export async function fixtureDeCheckout() {
     const request = new Request(input, init),
       url = new URL(request.url);
     requests.push({ method: request.method, path: url.pathname });
+    const estendida = await extensao?.(request.clone());
+    if (estendida) return estendida;
     let resposta: unknown;
     if (request.method === "GET" && url.pathname.startsWith("/v1/prices/")) {
       resposta = prices.find((p) => p.id === url.pathname.split("/").pop());
@@ -219,6 +221,9 @@ export async function fixtureDeCheckout() {
   };
   return {
     adulto,
+    stripe,
+    provider,
+    providerCustomerId: remoteCustomerId,
     recibo,
     authorization,
     billing,

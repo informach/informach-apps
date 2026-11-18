@@ -155,6 +155,9 @@ jobs:
       - run: pnpm --filter @informach/recreio-app test:commercial-checkout
         env:
           DATABASE_URL: postgres://ci:ci@localhost:5433/ci
+      - run: pnpm --filter @informach/recreio-app test:commercial-reconciliation
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5433/ci
 
       - run: pnpm --filter @informach/cozya eval
         env:

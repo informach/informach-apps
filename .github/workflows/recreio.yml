@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, trial-setup, trial-experiment, trial-ui, trial-play, commercial-setup, commercial-checkout, commercial-ui, e2e, checkpoint, cliente, longa, versoes, equipe]
+        gate: [quality, integration, trial-setup, trial-experiment, trial-ui, trial-play, commercial-setup, commercial-checkout, commercial-ui, commercial-reconciliation, e2e, checkpoint, cliente, longa, versoes, equipe]
     services:
       postgres:
         image: postgres:18-alpine
@@ -90,6 +90,8 @@ jobs:
         run: pnpm --filter @informach/recreio-app test:commercial-setup
       - if: matrix.gate == 'commercial-checkout'
         run: pnpm --filter @informach/recreio-app test:commercial-checkout
+      - if: matrix.gate == 'commercial-reconciliation'
+        run: pnpm --filter @informach/recreio-app test:commercial-reconciliation
       - name: Verify administration safety projection on isolated PostgreSQL
         if: matrix.gate == 'integration'
         run: pnpm compasso:test:integration --admin-only

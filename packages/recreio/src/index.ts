@@ -4,6 +4,7 @@ export * from "./dominio/erros";
 export * from "./dominio/ids";
 export * from "./dominio/menores";
 export * from "./dominio/mundos";
+export * from "./dominio/pagamento";
 export * from "./dominio/politicas";
 export * from "./dominio/posse";
 export * from "./dominio/social";

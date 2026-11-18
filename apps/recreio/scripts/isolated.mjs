@@ -27,6 +27,7 @@ if (
     "trial-experiment",
     "commercial-setup",
     "commercial-checkout",
+    "commercial-reconciliation",
     "e2e-commercial-setup",
     "e2e-trial-setup",
     "e2e-trial-experiment",
@@ -36,12 +37,13 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, trial-setup, trial-experiment, commercial-setup, commercial-checkout, e2e-commercial-setup, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const trialExperiment = mode === "trial-experiment";
 const commercialSetup = mode === "commercial-setup";
-const commercialCheckout = mode === "commercial-checkout";
+const commercialReconciliation = mode === "commercial-reconciliation";
+const commercialCheckout = mode === "commercial-checkout" || commercialReconciliation;
 const jornadaDaCompra = mode === "e2e-commercial-setup";
 const jornadaDoTeste = mode === "e2e-trial-setup";
 const jornadaDoInicio = mode === "e2e-trial-experiment";
@@ -276,15 +278,17 @@ try {
         "vitest",
         "run",
         "--config",
-        commercialCheckout
-          ? "vitest.commercial-checkout.config.ts"
-          : commercialSetup
-            ? "vitest.commercial-setup.config.ts"
-            : trialExperiment
-              ? "vitest.trial-experiment.config.ts"
-              : trialSetup
-                ? "vitest.trial-setup.config.ts"
-                : "vitest.integration.config.ts",
+        commercialReconciliation
+          ? "vitest.commercial-reconciliation.config.ts"
+          : commercialCheckout
+            ? "vitest.commercial-checkout.config.ts"
+            : commercialSetup
+              ? "vitest.commercial-setup.config.ts"
+              : trialExperiment
+                ? "vitest.trial-experiment.config.ts"
+                : trialSetup
+                  ? "vitest.trial-setup.config.ts"
+                  : "vitest.integration.config.ts",
         ...process.argv.slice(3),
       ],
       app,

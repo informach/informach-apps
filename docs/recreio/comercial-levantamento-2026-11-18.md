@@ -129,6 +129,27 @@ o teste negativo de PG 16 permanece e nenhum timeout é removido. Contrato do
 limite em [PostgreSQL 17](https://www.postgresql.org/docs/17/runtime-config-client.html#GUC-TRANSACTION-TIMEOUT).
 O CI antigo não é aprovação integral; a configuração corrigida exige nova execução.
 
+`b470a71e`/`44308578255` concluiu os quinze gates, com 28 cenários comerciais.
+`6fcd1f71`/`44309656644` também concluiu os quinze, incluindo 0208 e as provas de
+origem/modo. CI compartilhado corrigido `44309938778` usa `93b70ec6` e segue em
+execução; não confundir a fonte/abrangência dos dois workflows.
+
+A candidata seguinte acrescenta processador somente de leitura do provedor:
+catálogo, customer, contratos, origem nativa e vínculo do Checkout são conferidos
+antes da persistência transacional. Aceite sem liquidação permanece pendente;
+fatos adversos e desaparecimento de evidência conservam o histórico. A admissão
+técnica usa relógio DB e tem prazo de dois minutos para confirmar a observação.
+O gate `commercial-reconciliation`, com PG/SDK e HTTP fechado, cobre o caminho
+completo da gravação; não é homologação real em Stripe sandbox.
+
+A regra pura `limiteDoPagamentoConciliado` limita por período, cancelamento,
+fatura vigente, origem e conferência de quinze minutos; estorno do período ou
+contestação impedem cobertura. Um período antigo estornado não é aplicado à
+fatura atual. A regra ainda precisa ser conectada à admissão e ao cron/webhook:
+o adapter em produção continua sem venda habilitada e não deve ser anunciado
+como acesso pago homologado. Composição real e jornadas financeiras seguem em
+implementação; os novos gates desta candidata estão pendentes.
+
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não
   atualiza confirmação. A fila precisa atender outros pagantes após uma falha.

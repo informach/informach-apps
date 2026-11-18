@@ -27,6 +27,7 @@ const TENTATIVA = Symbol("recreio.conciliacao.tentativa");
 export type TentativaDeConciliacao = TrabalhoDeConciliacao & {
   readonly [TENTATIVA]: true;
   readonly attemptCount: number;
+  readonly startedAt: Date;
   readonly customer: { readonly id: string; readonly providerCustomerId: string } | null;
 };
 
@@ -188,6 +189,7 @@ export function iniciarConciliacaoLocked(
       ...prova,
       [TENTATIVA]: true,
       attemptCount: iniciada.attemptCount,
+      startedAt: agora,
       customer: customer ?? null,
     };
   });
@@ -243,10 +245,15 @@ export function registrarFalhaDaConciliacaoLocked(
  */
 export function confirmarConciliacaoLocked(
   prova: TentativaDeConciliacao,
-  persistir: (tx: Transacao) => Promise<void>,
+  persistir: (tx: Transacao, agora: Date) => Promise<void>,
 ) {
-  return comTrabalho(prova, async (tx, linha, grupo) => {
+  return comTrabalho(prova, async (tx, linha, grupo, inicioDaCaptura) => {
     conferirTentativa(prova, linha);
+    assertAllowed(
+      inicioDaCaptura.getTime() - prova.startedAt.getTime() <= 120_000,
+      "CONFERENCIA_VENCIDA",
+      "A leitura financeira precisa ser repetida antes de liberar acesso.",
+    );
     assertAllowed(prova.customer, "COBRANCA", "Cliente financeiro ainda não confirmado.");
     const [atual] = await tx
       .select({ id: customers.id })
@@ -263,7 +270,7 @@ export function confirmarConciliacaoLocked(
       )
       .for("share");
     assertAllowed(atual, "COBRANCA", "O cliente financeiro mudou durante a conciliação.");
-    await persistir(tx);
+    await persistir(tx, inicioDaCaptura);
     const agora = await agoraDoBanco(tx, prova.payerUserId, prova.providerMode);
     await tx
       .update(jobs)
