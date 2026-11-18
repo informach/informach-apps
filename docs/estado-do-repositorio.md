@@ -1,6 +1,6 @@
 # Estado do trabalho no repositório
 
-**18/11, 04h UTC — candidata F5:** gestão, criação infantil e proteção de
+**18/11 — candidata F5:** gestão, criação infantil e proteção de
 participantes sem amizade passaram nos oito gates `44196661859`; a consulta
 parental gratuita em todos os mundos atuais do menor passou nos oito gates
 `44197543292`, fonte congelada `a59e1923`. Backend dos convites dirigidos
@@ -32,10 +32,12 @@ seguintes. Prazo monotônico `d3b07a4c` passou nos oito gates `44247255726`;
 consulta sem atestado `7cfcae2c`, nos oito `44248428950`. Captura HTTP real do
 controle `139aa64f` passou nos oito `44249166071`, com 1003 integrações,
 preservação dos upgrades 179→204/191→204 e E2E. O produtor por conexão
-`de8e1ea6` passou na qualidade e em 1005 integrações; demais gates ainda em
-curso na última consulta. Integração ao servidor de referência, renovação em
-lotes e jornada física de presença são a candidata atual. Runtime/UI de
-visitante e operação F5 permanecem pendentes. Migrations 0191–0203 geradas no
+`de8e1ea6` concluiu os oito gates `44250374730`, com 1005 integrações.
+Integração ao servidor de referência `18eb95bd` passou nos oito gates
+`44251506767`, com 39 E2E incluindo presença física/renovação/saída.
+Vínculo preparado e guarda local `238610bd` passou nos oito gates
+`44252742292`, com 1007 integrações. Runtime de visitante está na candidata
+atual; UI, jornada completa e operação F5 permanecem pendentes. Migrations 0191–0203 geradas no
 GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).

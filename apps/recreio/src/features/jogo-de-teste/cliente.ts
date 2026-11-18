@@ -90,8 +90,9 @@ export const jogoDeTeste: ModuloDoJogo = {
     let tentativas = 0;
     /** Já esteve dentro do mundo: daqui em diante, queda é assunto do jogo, não da página. */
     let jaEntrou = false;
-    let meuMembro: string | null = null;
+    let minhaParticipacao: string | null = null;
     let pausado = false;
+    let visitaPausada = false;
     let finalizando: {
       promessa: Promise<void>;
       resolver: () => void;
@@ -121,6 +122,15 @@ export const jogoDeTeste: ModuloDoJogo = {
 
     const cancelarRenovacao = contexto.sessao.aoRenovar((token) => enviar({ t: "renovar", token }));
 
+    function atualizarPausa(): void {
+      somar.disabled = pausado || visitaPausada;
+      aviso.textContent = pausado
+        ? "Partida pausada para conferir a troca de aparelho."
+        : visitaPausada
+          ? "Conferindo a permissão para continuar a visita."
+          : "";
+    }
+
     function mostrar(estado: Extract<DoServidor, { t: "estado" }>): void {
       valor.textContent = String(estado.contador);
       lista.replaceChildren(
@@ -128,12 +138,11 @@ export const jogoDeTeste: ModuloDoJogo = {
           criar(
             "li",
             "font-semibold [overflow-wrap:anywhere]",
-            presente.id === meuMembro ? `${presente.apelido} (você)` : presente.apelido,
+            presente.id === minhaParticipacao ? `${presente.apelido} (você)` : presente.apelido,
           ),
         ),
       );
-      somar.disabled = pausado;
-      aviso.textContent = pausado ? "Partida pausada para conferir a troca de aparelho." : "";
+      atualizarPausa();
     }
 
     function parar(): void {
@@ -175,12 +184,21 @@ export const jogoDeTeste: ModuloDoJogo = {
     async function conectar(): Promise<void> {
       if (encerrado) return;
       let endereco: string;
+      let visita: { id: string; sessaoId: string } | undefined;
       try {
         // A cada tentativa o Recreio diz de novo onde o mundo está: depois de
         // uma queda da instância, pode ser outra.
-        const aberto = await contexto.mundos.abrir(mundoId);
-        endereco = aberto.endereco;
-        meuMembro = aberto.membroId;
+        if (contexto.visita) {
+          const aberta = await contexto.visita.abrir();
+          if (aberta.mundoId !== mundoId) throw new ErroDoRecreio("SEM_PERMISSAO");
+          endereco = aberta.endereco;
+          minhaParticipacao = aberta.sessaoDeVisitaId;
+          visita = { id: aberta.visitaId, sessaoId: aberta.sessaoDeVisitaId };
+        } else {
+          const aberto = await contexto.mundos.abrir(mundoId);
+          endereco = aberto.endereco;
+          minhaParticipacao = aberto.membroId;
+        }
       } catch (erro) {
         if (encerrado) return;
         // Antes da primeira entrada, toda recusa é da página (o jogo ainda
@@ -204,6 +222,7 @@ export const jogoDeTeste: ModuloDoJogo = {
             mundoId,
             ...(contexto.sessao.salvamento ? { salvamento: true } : {}),
             ...(contexto.sessao.visitas ? { visitas: true } : {}),
+            ...(visita ? { visita } : {}),
           });
       });
       atual.addEventListener("message", (evento) => {
@@ -221,8 +240,7 @@ export const jogoDeTeste: ModuloDoJogo = {
         if (recebido.t === "retomado") {
           pausado = false;
           checkpointConfirmado = null;
-          somar.disabled = false;
-          aviso.textContent = "";
+          atualizarPausa();
           return;
         }
         if (recebido.t === "salvamento") {
@@ -233,6 +251,11 @@ export const jogoDeTeste: ModuloDoJogo = {
             if (recebido.confirmado) pendente.resolver();
             else pendente.recusar(new ErroDoRecreio("INDISPONIVEL"));
           }
+          return;
+        }
+        if (recebido.t === "visita") {
+          visitaPausada = recebido.estado === "pausada";
+          atualizarPausa();
           return;
         }
         jaEntrou = true;
@@ -250,7 +273,7 @@ export const jogoDeTeste: ModuloDoJogo = {
     }
 
     somar.addEventListener("click", () => {
-      if (!pausado) enviar({ t: "somar", id: crypto.randomUUID() });
+      if (!pausado && !visitaPausada) enviar({ t: "somar", id: crypto.randomUUID() });
     });
     sairPeloJogo.addEventListener("click", () => {
       if (encerrado) return;

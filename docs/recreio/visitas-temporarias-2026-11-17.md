@@ -901,3 +901,50 @@ Esses contratos ainda não foram implantados; não há migração adicional.
 Produtor `de8e1ea6` concluiu os oito gates `44250374730`; a ligação ao servidor
 `18eb95bd` segue em `44251506767`. Runtime e jornadas de visitante continuam
 em implementação.
+
+## Runtime do visitante no contador, candidato
+
+O cliente usa a abertura própria de visita e leva o vínculo preparado no
+primeiro quadro WebSocket. O servidor procura somente um mundo já carregado
+com posse atual: nunca chama a alocação/reivindicação por causa de visitante.
+Admissão privada relê toda a autoridade; o runtime exige a conexão local da
+presença original do anfitrião. Participação temporária tem tipo e ID próprios,
+sem `membroId`, papel ou restauração de membro. O diário usa namespace separado
+para os comandos dessa participação, sem IDs de conta/perfil na difusão.
+
+A guarda monotônica é conferida na chegada, na execução da fila e antes de
+cada tentativa de anexar o comando. Prefixo já admitido para gravação pode
+terminar antes da fotografia; não se omite um fato já confirmado no diário.
+Renovação em lotes ocorre depois das presenças, sem bloquear o batimento da
+posse. Resposta incerta suspende imediatamente e o cliente mostra a pausa.
+Resposta antiga, inclusive negativa posterior a uma retomada nova, suspende
+sem encerrar falsamente a concessão atual. Renovação iniciada antes de um
+checkpoint não é aplicada ao jogador que pausou durante a espera.
+
+Retomar exige nova admissão privada atual, nunca só mensagem do navegador.
+Checkpoint de visitante já admitido usa somente a fronteira histórica de
+persistência do servidor e não renova gameplay por esse caminho. O fim da
+presença original corta comandos imediatamente pela guarda; o ciclo do host
+congela o visitante e tenta a persistência final, preservando o ACK real.
+
+`e2e/servidor/visitas.ts` reserva até 512 vínculos técnicos entre admissões em
+voo, conexões e encerramentos. Não aceita segunda admissão simultânea do mesmo
+vínculo. Recupera fechamentos em lotes de 64, quatro por vez; erro conserva o
+pedido/cliente da instância original e permite atender o próximo lote. Ausência
+no escopo é distinta de recibo fechado e não declara SID encerrado ou salvo.
+Instância explicitamente rejeitada para todos os mundos aposenta a observação
+local antiga; backend, expiração e worker continuam necessários, sem ACK
+inventado. A drenagem pausa novos comandos antes de aguardar o prefixo/foto.
+
+Três integrações novas usam as rotas e PostgreSQL reais para provar rollback
+de auditoria com retomada, resposta negativa perdida após commit com replay
+único e encerramento após admissão cuja resposta foi descartada. O erro fica
+observável e a permissão de salvamento permanece `ready` sem ACK fictício.
+Ainda falta a jornada física completa do visitante e a UI/preflight do portal;
+não declarar essa implementação como homologação integral ou disponibilidade.
+Sem migração adicional ou implantação de produção.
+
+Evidências anteriores: `18eb95bd` passou nos oito gates `44251506767`, 1005
+integrações, upgrades preservados e 39 E2E; a nova jornada física do anfitrião
+durou 11,7 s. `238610bd` passou nos oito gates `44252742292`, com 1007
+integrações e upgrades 179→204/191→204. O runtime acima exige nova rodada.

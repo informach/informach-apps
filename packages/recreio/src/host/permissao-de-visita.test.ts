@@ -41,6 +41,21 @@ function preparar() {
 }
 
 describe("comandos sob concessão curta de visita", () => {
+  it("negativa antiga após retomada nova suspende sem encerrar a concessão atual", () => {
+    const c = preparar();
+    c.tempo(2000);
+    c.permissao.renovar(renovada, { enviadoEm: 2000, recebidoEm: 2000 });
+    expect(() =>
+      c.permissao.renovar(
+        { estado: "perdida", sessaoDeVisitaId: entrada.sessaoDeVisitaId },
+        { enviadoEm: 1000, recebidoEm: 1500 },
+      ),
+    ).toThrow("INDISPONIVEL");
+    expect(c.permissao.estado).toBe("suspensa");
+    c.tempo(3000);
+    c.permissao.renovar(renovada, { enviadoEm: 3000, recebidoEm: 3000 });
+    expect(c.permissao.estado).toBe("vigente");
+  });
   it("uma resposta já usada não reabre a permissão suspensa depois de outra falha", () => {
     const c = preparar(),
       medicao = { enviadoEm: 1000, recebidoEm: 1000 };

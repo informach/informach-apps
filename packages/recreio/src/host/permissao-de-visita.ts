@@ -5,9 +5,9 @@ import {
   VisitaRenovadaSchema,
 } from "../contrato/visitas";
 import { ErroDoRecreio } from "../dominio/erros";
-import { prazoLocalDaVisita } from "./tempo-visita";
+import { conferirMedicaoDoPedido, type MedicaoDoPedido, prazoLocalDaVisita } from "./tempo-visita";
 
-export type MedicaoDoPedido = { enviadoEm: number; recebidoEm: number };
+export type { MedicaoDoPedido } from "./tempo-visita";
 export interface PermissaoDeVisita {
   readonly estado: "vigente" | "suspensa" | "encerrada";
   podeJogar(): boolean;
@@ -73,14 +73,15 @@ export function criarPermissaoDeVisita(
       const renovada = VisitaRenovadaSchema.safeParse(valor);
       if (!renovada.success || renovada.data.sessaoDeVisitaId !== recibo.sessaoDeVisitaId)
         throw new ErroDoRecreio("INDISPONIVEL");
+      conferirMedicaoDoPedido(pedido);
+      if (pedido.recebidoEm < ultimaRespostaEm || pedido.enviadoEm <= ultimoEnvioEm)
+        throw new ErroDoRecreio("INDISPONIVEL");
       if (renovada.data.estado === "perdida") {
         encerrada = true;
         return;
       }
       const novoPrazo = prazoLocalDaVisita(renovada.data, pedido);
       // Renovação anterior não pode ser aplicada depois de uma resposta mais nova.
-      if (pedido.recebidoEm < ultimaRespostaEm || pedido.enviadoEm <= ultimoEnvioEm)
-        throw new ErroDoRecreio("INDISPONIVEL");
       ultimaRespostaEm = pedido.recebidoEm;
       ultimoEnvioEm = pedido.enviadoEm;
       observadoEm = Math.max(observadoEm, pedido.recebidoEm);

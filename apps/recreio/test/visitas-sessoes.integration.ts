@@ -37,6 +37,7 @@ import { limparSessoesVisitantesOrfas } from "@/features/visitas/orfas-repositor
 import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
 import { emitirConviteDeVisita, responderConviteDeVisita } from "@/features/visitas/service";
 import { env } from "@/lib/env";
+import { SessoesVisitantesDaInstancia } from "../e2e/servidor/visitas";
 import { revogar } from "../scripts/concessoes";
 import {
   aposentarInstancias,
@@ -742,6 +743,105 @@ it.each(["bloqueio", "gestao", "host", "revogacao", "modo"] as const)(
     ).toHaveLength(1);
   },
 );
+
+it("registro da instância conserva fechamento que falha e recupera só o SID real", async () => {
+  const c = await cenario(),
+    s = await abrir(c),
+    erros: unknown[] = [];
+  const registro = new SessoesVisitantesDaInstancia((_mundo, erro) => erros.push(erro));
+  registro.reservar(entrada(c, s), c.instancia.cliente);
+  await admitir(c, s);
+  registro.admitir(s.finalidade.id);
+  await db.execute(
+    sql`create function audit.visita_registro_falha() returns trigger language plpgsql as $$ begin if new.event_type='recreio.visit_session_closed' then raise exception 'audit unavailable'; end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger visita_registro_falha before insert on audit.events for each row execute function audit.visita_registro_falha()`,
+  );
+  try {
+    registro.encerrar(s.finalidade.id, "sair");
+    await registro.processar();
+    expect(erros).toHaveLength(1);
+    expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedAt).toBeNull();
+    expect(() => registro.reservar(entrada(c, s), c.instancia.cliente)).toThrow(
+      "CHECKPOINT_PENDENTE",
+    );
+  } finally {
+    await db.execute(sql`drop trigger visita_registro_falha on audit.events`);
+    await db.execute(sql`drop function audit.visita_registro_falha()`);
+  }
+  env.RECREIO_VISITS_MODE = "off";
+  await registro.processar();
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endReason).toBe("left");
+  expect((await db.select().from(games).where(eq(games.id, c.host.sid)))[0]?.endedAt).toBeNull();
+  expect((await db.select().from(permits).where(eq(permits.sessionId, s.sid)))[0]?.status).toBe(
+    "ready",
+  );
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+  await registro.processar();
+  expect(
+    (await eventosCom("visitSessionId", s.finalidade.id)).filter(
+      (e) => e.eventType === "recreio.visit_session_closed",
+    ),
+  ).toHaveLength(1);
+});
+
+it("registro recupera resposta de encerramento descartada após o commit sem duplicar auditoria", async () => {
+  const c = await cenario(),
+    s = await abrir(c),
+    erros: unknown[] = [];
+  let descartar = true;
+  const cliente: typeof c.instancia.cliente = {
+    ...c.instancia.cliente,
+    async encerrarSessaoDeVisita(pedido) {
+      const recibo = await c.instancia.cliente.encerrarSessaoDeVisita(pedido);
+      if (descartar) {
+        descartar = false;
+        throw new Error("Resposta perdida após commit");
+      }
+      return recibo;
+    },
+  };
+  const registro = new SessoesVisitantesDaInstancia((_mundo, erro) => erros.push(erro));
+  registro.reservar(entrada(c, s), cliente);
+  await admitir(c, s);
+  registro.admitir(s.finalidade.id);
+  registro.encerrar(s.finalidade.id, "sair");
+  await registro.processar();
+  expect(erros).toHaveLength(1);
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endReason).toBe("left");
+  expect(() => registro.reservar(entrada(c, s), cliente)).toThrow("CHECKPOINT_PENDENTE");
+  await registro.processar();
+  expect(
+    (await eventosCom("visitSessionId", s.finalidade.id)).filter(
+      (e) => e.eventType === "recreio.visit_session_closed",
+    ),
+  ).toHaveLength(1);
+  expect((await db.select().from(permits).where(eq(permits.sessionId, s.sid)))[0]?.status).toBe(
+    "ready",
+  );
+});
+
+it("registro fecha admissão incerta pelo vínculo preparado sem permitir segunda conexão em voo", async () => {
+  const c = await cenario(),
+    s = await abrir(c),
+    erros: unknown[] = [];
+  const registro = new SessoesVisitantesDaInstancia((_mundo, erro) => erros.push(erro));
+  registro.reservar(entrada(c, s), c.instancia.cliente);
+  expect(() => registro.reservar(entrada(c, s), c.instancia.cliente)).toThrow(
+    "CHECKPOINT_PENDENTE",
+  );
+  // Commit remoto cuja resposta não chega à etapa admitir do registro local.
+  await admitir(c, s);
+  registro.encerrar(s.finalidade.id, "autoridade_perdida");
+  await registro.processar();
+  expect(erros).toEqual([]);
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endReason).toBe(
+    "access_lost",
+  );
+  expect(() => registro.admitir(s.finalidade.id)).toThrow("SESSAO_ENCERRADA");
+  expect((await db.select().from(games).where(eq(games.id, c.host.sid)))[0]?.endedAt).toBeNull();
+});
 
 it("vínculo divergente não admite o SID nem altera a intenção preparada", async () => {
   const c = await cenario(),

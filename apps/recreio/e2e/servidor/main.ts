@@ -34,12 +34,14 @@ import {
   type PerfilId,
   type SessaoDeJogoId,
 } from "@informach/recreio";
-import { sessaoVencida } from "@informach/recreio/contrato";
+import { type RenovacaoDeVisita, sessaoVencida } from "@informach/recreio/contrato";
 import {
   type ClienteDoHost,
   type ClienteDoHostComVisitas,
   criarClienteDoHost,
+  criarPermissaoDeVisita,
   criarVerificadorDeSessao,
+  type PermissaoDeVisita,
   type PresencaDaConexao,
 } from "@informach/recreio/host";
 import { config as carregarEnv } from "dotenv";
@@ -56,6 +58,7 @@ import {
 } from "../../src/features/jogo-de-teste/protocolo";
 import { JOGO_DE_TESTE, JOGO_DE_TESTE_ID } from "../../src/features/jogos/catalogo";
 import { PresencasDaInstancia } from "./presencas";
+import { SessoesVisitantesDaInstancia } from "./visitas";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 carregarEnv({ path: resolve(app, ".env.local"), quiet: true });
@@ -116,13 +119,19 @@ function produtorDePresencas(cliente: ClienteDoHostComVisitas): PresencasDaInsta
 }
 let host = clienteDoPortal();
 let presencas = produtorDePresencas(host);
+const sessoesVisitantes = new SessoesVisitantesDaInstancia((mundo, erro) =>
+  registrarNoLog("encerramento de visita pendente", { mundo, codigo: codigoDe(erro) }),
+);
 const sincronizacoesDePresenca = new WeakSet<PresencasDaInstancia>();
 
 function sincronizarPresencas(apenasEncerramentos = false): void {
   const geracao = presencas;
+  const cliente = host;
   if (sincronizacoesDePresenca.has(geracao)) return;
   sincronizacoesDePresenca.add(geracao);
-  const operacao = apenasEncerramentos ? geracao.recuperarEncerramentos() : geracao.sincronizar();
+  const operacao = apenasEncerramentos
+    ? geracao.recuperarEncerramentos()
+    : geracao.sincronizar().then(() => renovarVisitas(cliente));
   void operacao
     .catch((erro: unknown) =>
       registrarNoLog("sincronização de presenças falhou", { codigo: codigoDe(erro) }),
@@ -144,11 +153,19 @@ const EstadoSchema = z.strictObject({
 });
 type Estado = z.infer<typeof EstadoSchema>;
 
+type ParticipacaoVisitante = {
+  tipo: "visita";
+  pedido: RenovacaoDeVisita;
+  presencaId: string;
+  cliente: ClienteDoHostComVisitas;
+  permissao: PermissaoDeVisita;
+  aviso: boolean | null;
+};
 type Jogador = {
   socket: WebSocket;
   sid: SessaoDeJogoId;
   perfilId: PerfilId;
-  membroId: string;
+  participacao: { tipo: "membro"; membroId: string } | ParticipacaoVisitante;
   visitas: boolean;
   presenca: PresencaDaConexao | null;
   apelido: string;
@@ -216,7 +233,10 @@ function difundir(mundo: Mundo): void {
     presentes: [...mundo.jogadores]
       .filter((jogador) => jogador.socket.readyState === jogador.socket.OPEN)
       .map((jogador) => ({
-        id: jogador.membroId,
+        id:
+          jogador.participacao.tipo === "membro"
+            ? jogador.participacao.membroId
+            : jogador.participacao.pedido.sessaoDeVisitaId,
         apelido: jogador.apelido,
       })),
   };
@@ -230,6 +250,7 @@ function pararMundo(mundo: Mundo, codigo: string): void {
   if (mundos.get(mundo.id) === mundo) mundos.delete(mundo.id);
   registrarNoLog("mundo parado", { mundo: mundo.id, codigo });
   for (const jogador of mundo.jogadores) {
+    fecharVisita(jogador, "autoridade_perdida");
     void presencas.fechar(jogador.presenca);
     if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
     fim(jogador.socket, codigo);
@@ -335,6 +356,12 @@ function codigoDe(erro: unknown): string {
 
 function removerJogador(mundo: Mundo, jogador: Jogador): void {
   if (!mundo.jogadores.delete(jogador)) return;
+  fecharVisita(
+    jogador,
+    jogador.participacao.tipo === "visita" && jogador.participacao.permissao.estado === "encerrada"
+      ? "autoridade_perdida"
+      : "sair",
+  );
   void presencas.fechar(jogador.presenca);
   if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
   difundir(mundo);
@@ -343,6 +370,8 @@ function removerJogador(mundo: Mundo, jogador: Jogador): void {
 
 function tirar(mundo: Mundo, jogador: Jogador, codigo?: string, motivo?: string): void {
   if (!mundo.jogadores.has(jogador)) return;
+  if (codigo !== undefined && jogador.participacao.tipo === "visita")
+    jogador.participacao.permissao.encerrar();
   // A visita termina quando o anfitrião sai, mesmo durante a margem de salvamento.
   void presencas.fechar(jogador.presenca);
   const fimElegivel =
@@ -441,28 +470,71 @@ async function entrar(
   // Assinatura, emissor, audiência (este jogo), tipo e prazo.
   const sessao = await verificador.verificar(quadro.token);
   const mundoId = MundoIdSchema.parse(quadro.mundoId);
-  const mundo = await abrirMundo(mundoId);
-  let entrada: Awaited<ReturnType<ClienteDoHost["verificarEntrada"]>>;
+  // Visitante só entra no mundo que já tem o anfitrião conectado nesta instância.
+  const mundo = quadro.visita ? mundos.get(mundoId) : await abrirMundo(mundoId);
+  if (!mundo || mundo.parado || deveSeCercar(mundo.prazo, Date.now()))
+    throw new ErroDoRecreio("POSSE_PERDIDA");
+  if (quadro.visita && (!visitasDaInstancia || quadro.visitas !== true))
+    throw new ErroDoRecreio("SEM_PERMISSAO");
+  for (const outro of mundo.jogadores)
+    if (outro.perfilId === sessao.perfilId && (outro.finalizacao || outro.fimDaMargem !== null))
+      throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+  let participacao: Jogador["participacao"];
+  let apelido: string;
+  let pedidoDeVisita: RenovacaoDeVisita | null = null;
   try {
-    // O Recreio confere de novo: sessão viva, daquele perfil, membro ativo do mundo.
-    entrada = await host.verificarEntrada({
-      mundoId,
-      cerca: mundo.cerca,
-      sid: sessao.sid,
-      perfilId: sessao.perfilId,
-    });
+    const base = { mundoId, cerca: mundo.cerca, sid: sessao.sid, perfilId: sessao.perfilId };
+    if (quadro.visita) {
+      const pedido = {
+        ...base,
+        visitaId: quadro.visita.id,
+        sessaoDeVisitaId: quadro.visita.sessaoId,
+      };
+      const cliente = host;
+      sessoesVisitantes.reservar(pedido, cliente);
+      pedidoDeVisita = pedido;
+      const enviadoEm = performance.now();
+      const entrada = await cliente.verificarEntradaDeVisita(pedido);
+      const permissao = criarPermissaoDeVisita(
+        entrada,
+        { enviadoEm, recebidoEm: performance.now() },
+        {
+          agora: () => performance.now(),
+          anfitriaoConectado: (id) => anfitriaoConectado(mundo, id),
+        },
+      );
+      if (!permissao.podeJogar() || socket.readyState !== socket.OPEN)
+        throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      participacao = {
+        tipo: "visita",
+        pedido,
+        presencaId: entrada.presencaDoAnfitriaoId,
+        cliente,
+        permissao,
+        aviso: null,
+      };
+      apelido = entrada.apelido;
+    } else {
+      const entrada = await host.verificarEntrada(base);
+      participacao = { tipo: "membro", membroId: entrada.membroId };
+      apelido = entrada.apelido;
+    }
+    if (mundo.parado || descendo) throw new ErroDoRecreio("POSSE_PERDIDA");
+    for (const outro of mundo.jogadores)
+      if (outro.perfilId === sessao.perfilId && (outro.finalizacao || outro.fimDaMargem !== null))
+        throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+    if (pedidoDeVisita) sessoesVisitantes.admitir(pedidoDeVisita.sessaoDeVisitaId);
   } catch (erro) {
+    if (pedidoDeVisita)
+      sessoesVisitantes.encerrar(pedidoDeVisita.sessaoDeVisitaId, "autoridade_perdida");
     if (ehErroDoRecreio(erro, "POSSE_PERDIDA")) pararMundo(mundo, "POSSE_PERDIDA");
     else hibernarSeVazio(mundo);
     throw erro;
   }
-  if (mundo.parado || descendo) throw new ErroDoRecreio("POSSE_PERDIDA");
-  // O mesmo membro entrando de novo (outra sessão, ou a conexão antiga que
-  // ainda não caiu) toma o lugar da entrada anterior.
+  // O mesmo perfil entrando de novo ocupa uma única conexão, conservando o
+  // tipo verdadeiro de participação e o contrato de checkpoint do SID.
   for (const outro of [...mundo.jogadores])
-    if (outro.membroId === entrada.membroId) {
-      if (outro.finalizacao || outro.fimDaMargem !== null)
-        throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+    if (outro.perfilId === sessao.perfilId) {
       if (outro.esperaDesconexao) clearTimeout(outro.esperaDesconexao);
       void presencas.fechar(outro.presenca);
       mundo.jogadores.delete(outro);
@@ -472,10 +544,10 @@ async function entrar(
     socket,
     sid: sessao.sid,
     perfilId: sessao.perfilId,
-    membroId: entrada.membroId,
-    visitas: visitasDaInstancia && quadro.visitas === true,
+    participacao,
+    visitas: participacao.tipo === "membro" && visitasDaInstancia && quadro.visitas === true,
     presenca: null,
-    apelido: entrada.apelido,
+    apelido,
     expiraEm: sessao.expiraEm,
     pausado: false,
     checkpoint: null,
@@ -488,7 +560,36 @@ async function entrar(
   mundo.jogadores.add(jogador);
   prepararPresenca(mundo, jogador);
   difundir(mundo);
+  informarVisita(jogador);
   return { mundo, jogador };
+}
+
+function anfitriaoConectado(mundo: Mundo, presencaId: string): boolean {
+  return (
+    !descendo &&
+    !mundo.parado &&
+    [...mundo.jogadores].some(
+      (jogador) =>
+        jogador.participacao.tipo === "membro" &&
+        jogador.presenca?.recibo?.presencaId === presencaId &&
+        jogador.presenca.renovacao() !== null,
+    )
+  );
+}
+
+function fecharVisita(jogador: Jogador, motivo: "sair" | "autoridade_perdida"): void {
+  if (jogador.participacao.tipo !== "visita") return;
+  jogador.participacao.permissao.encerrar();
+  sessoesVisitantes.encerrar(jogador.participacao.pedido.sessaoDeVisitaId, motivo);
+}
+
+function informarVisita(jogador: Jogador): void {
+  const p = jogador.participacao;
+  if (p.tipo !== "visita") return;
+  const vigente = p.permissao.podeJogar();
+  if (p.aviso === vigente) return;
+  p.aviso = vigente;
+  enviar(jogador.socket, { t: "visita", estado: vigente ? "ativa" : "pausada" });
 }
 
 function prepararPresenca(mundo: Mundo, jogador: Jogador): void {
@@ -524,16 +625,28 @@ function prepararPresenca(mundo: Mundo, jogador: Jogador): void {
 /** Soma 1: primeiro o diário, depois o estado e os clientes. */
 function somar(mundo: Mundo, jogador: Jogador, comandoId: string): void {
   // A pausa corta comandos novos; os já admitidos terminam antes da fotografia na fila.
-  if (jogador.pausado) return;
+  if (
+    jogador.pausado ||
+    (jogador.participacao.tipo === "visita" && !jogador.participacao.permissao.podeJogar())
+  )
+    return;
   mundo.fila = mundo.fila.then(async () => {
     if (mundo.parado || !mundo.jogadores.has(jogador)) return;
+    if (jogador.participacao.tipo === "visita" && !jogador.participacao.permissao.podeJogar())
+      return;
     // O mesmo comando dá o mesmo id de fato: repetir não soma duas vezes.
-    const fatoId = `soma:${jogador.membroId}:${comandoId}`;
+    const p = jogador.participacao;
+    const fatoId =
+      p.tipo === "membro"
+        ? `soma:${p.membroId}:${comandoId}`
+        : `soma-visita:${p.pedido.sessaoDeVisitaId}:${comandoId}`;
     if (mundo.estado.comandos.includes(fatoId)) return;
     // Perto do prazo a instância para sozinha: o Recreio pode já ter dado o mundo a outra.
     if (deveSeCercar(mundo.prazo, Date.now())) return pararMundo(mundo, "POSSE_PERDIDA");
-    const anexar = () =>
-      host.anexarAoDiario({
+    const anexar = () => {
+      if (p.tipo === "visita" && !p.permissao.podeJogar())
+        throw new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "access_lost" });
+      return host.anexarAoDiario({
         mundoId: mundo.id,
         cerca: mundo.cerca,
         entradas: [
@@ -545,6 +658,7 @@ function somar(mundo: Mundo, jogador: Jogador, comandoId: string): void {
           },
         ],
       });
+    };
     try {
       await conferirJogador(mundo, jogador);
       try {
@@ -572,8 +686,34 @@ function somar(mundo: Mundo, jogador: Jogador, comandoId: string): void {
   });
 }
 
-async function conferirJogador(mundo: Mundo, jogador: Jogador): Promise<void> {
+async function conferirJogador(
+  mundo: Mundo,
+  jogador: Jogador,
+  revalidarVisita = false,
+): Promise<void> {
   if (sessaoVencida(jogador.expiraEm, Date.now())) throw new ErroDoRecreio("SESSAO_INVALIDA");
+  const p = jogador.participacao;
+  if (p.tipo === "visita") {
+    if (revalidarVisita) {
+      const enviadoEm = performance.now();
+      const entrada = await p.cliente.verificarEntradaDeVisita(p.pedido);
+      if (entrada.presencaDoAnfitriaoId !== p.presencaId) {
+        p.permissao.encerrar();
+        throw new ErroDoRecreio("SEM_PERMISSAO");
+      }
+      p.permissao.renovar(
+        {
+          sessaoDeVisitaId: entrada.sessaoDeVisitaId,
+          estado: "ok",
+          permissaoAte: entrada.permissaoAte,
+          agora: entrada.agora,
+        },
+        { enviadoEm, recebidoEm: performance.now() },
+      );
+    }
+    if (!p.permissao.podeJogar()) throw new ErroDoRecreio("INDISPONIVEL");
+    return;
+  }
   await host.verificarEntrada({
     mundoId: mundo.id,
     cerca: mundo.cerca,
@@ -594,7 +734,9 @@ function checkpoint(mundo: Mundo, jogador: Jogador, id: string): void {
         return;
       }
       if (anterior?.id !== id) {
-        await conferirJogador(mundo, jogador);
+        // Visitante já admitido só recebe o caminho de persistência. A API do
+        // checkpoint relê a prova histórica e nunca concede gameplay por isso.
+        if (jogador.participacao.tipo !== "visita") await conferirJogador(mundo, jogador);
         await fotografar(mundo, "checkpoint");
         jogador.checkpoint = {
           id,
@@ -623,7 +765,7 @@ function checkpoint(mundo: Mundo, jogador: Jogador, id: string): void {
         if (!ehErroDoRecreio(erro, "CHECKPOINT_NECESSARIO")) throw erro;
         // Outros moradores podem ter avançado o diário desde uma tentativa perdida.
         // Uma recusa explícita permite atualizar a prova; uma resposta incerta, não.
-        await conferirJogador(mundo, jogador);
+        if (jogador.participacao.tipo !== "visita") await conferirJogador(mundo, jogador);
         await fotografar(mundo, "checkpoint");
         jogador.checkpoint = {
           id,
@@ -649,10 +791,11 @@ function retomar(mundo: Mundo, jogador: Jogador): void {
     if (mundo.parado || !mundo.jogadores.has(jogador)) return;
     try {
       // Uma mensagem do cliente nunca derruba a barreira persistida da sessão.
-      await conferirJogador(mundo, jogador);
+      await conferirJogador(mundo, jogador, true);
       jogador.pausado = false;
       jogador.checkpoint = null;
       enviar(jogador.socket, { t: "retomado" });
+      informarVisita(jogador);
       difundir(mundo);
     } catch (erro) {
       if (ehErroDoRecreio(erro) && !FINS_PASSAGEIROS.includes(erro.codigo))
@@ -674,6 +817,64 @@ async function renovar(mundo: Mundo, jogador: Jogador, token: string): Promise<v
 
 // --- Batimento e autocerca ---
 
+async function renovarVisitas(cliente: ClienteDoHostComVisitas): Promise<void> {
+  const atuais: { mundo: Mundo; jogador: Jogador; p: ParticipacaoVisitante }[] = [];
+  for (const mundo of mundos.values())
+    for (const jogador of mundo.jogadores) {
+      const p = jogador.participacao;
+      if (
+        mundo.parado ||
+        p.tipo !== "visita" ||
+        p.cliente !== cliente ||
+        jogador.pausado ||
+        jogador.finalizacao ||
+        jogador.fimDaMargem !== null ||
+        jogador.socket.readyState !== jogador.socket.OPEN
+      )
+        continue;
+      if (p.permissao.estado === "encerrada") {
+        tirar(mundo, jogador, "SESSAO_ENCERRADA", "access_lost");
+        continue;
+      }
+      atuais.push({ mundo, jogador, p });
+    }
+  for (let inicio = 0; inicio < atuais.length; inicio += 64) {
+    const lote = atuais.slice(inicio, inicio + 64),
+      enviadoEm = performance.now();
+    try {
+      const resultado = await cliente.renovarVisitas(lote.map(({ p }) => p.pedido));
+      const recebidoEm = performance.now();
+      for (const [indice, recibo] of resultado.visitas.entries()) {
+        const item = lote[indice];
+        if (
+          !item ||
+          item.mundo.parado ||
+          !item.mundo.jogadores.has(item.jogador) ||
+          item.jogador.pausado ||
+          item.jogador.finalizacao ||
+          item.jogador.fimDaMargem !== null
+        )
+          continue;
+        item.p.permissao.renovar(recibo, { enviadoEm, recebidoEm });
+        informarVisita(item.jogador);
+        if (item.p.permissao.estado === "encerrada")
+          tirar(item.mundo, item.jogador, "SESSAO_ENCERRADA", "access_lost");
+      }
+    } catch (erro) {
+      for (const item of lote) {
+        item.p.permissao.suspender();
+        informarVisita(item.jogador);
+      }
+      const primeiro = lote[0];
+      if (primeiro)
+        registrarNoLog("renovação de visita incerta", {
+          mundo: primeiro.mundo.id,
+          codigo: codigoDe(erro),
+        });
+    }
+  }
+}
+
 async function registrar(): Promise<void> {
   // Um cliente por registro: recibos antigos nunca passam a usar a identidade
   // de outra instância. Rejeição do registro conserva a geração anterior.
@@ -694,6 +895,7 @@ async function registrar(): Promise<void> {
 }
 
 async function bater(): Promise<void> {
+  void sessoesVisitantes.processar();
   const lista = [...mundos.values()].filter((mundo) => !mundo.parado);
   const enviadoEm = Date.now();
   let resposta: Awaited<ReturnType<ClienteDoHost["batimento"]>>;
@@ -714,6 +916,7 @@ async function bater(): Promise<void> {
     if (ehErroDoRecreio(erro, "NAO_AUTENTICADO")) {
       for (const mundo of lista) pararMundo(mundo, "POSSE_PERDIDA");
       void presencas.fecharTodas();
+      sessoesVisitantes.aposentarCliente(host);
       await registrar().catch(() => undefined);
     }
     // Sem resposta, o prazo local não anda, e a autocerca para os mundos a tempo.
@@ -744,8 +947,16 @@ async function bater(): Promise<void> {
 
 function cercar(): void {
   const agora = Date.now();
-  for (const mundo of [...mundos.values()])
+  for (const mundo of [...mundos.values()]) {
     if (deveSeCercar(mundo.prazo, agora)) pararMundo(mundo, "POSSE_PERDIDA");
+    else
+      for (const jogador of [...mundo.jogadores]) {
+        if (jogador.participacao.tipo !== "visita") continue;
+        informarVisita(jogador);
+        if (jogador.participacao.permissao.estado === "encerrada")
+          tirar(mundo, jogador, "SESSAO_ENCERRADA", "access_lost");
+      }
+  }
 }
 
 // --- Conexões ---
@@ -840,6 +1051,11 @@ async function subir(): Promise<void> {
 /** Descida ordenada: avisa o Recreio, guarda cada mundo e solta as posses. */
 async function descer(): Promise<void> {
   const fechandoPresencas = presencas.fecharTodas();
+  for (const mundo of mundos.values())
+    for (const jogador of mundo.jogadores) {
+      jogador.pausado = true;
+      if (jogador.participacao.tipo === "visita") jogador.participacao.permissao.encerrar();
+    }
   await host.drenar().catch(() => undefined);
   for (const mundo of [...mundos.values()]) {
     await mundo.fila.catch(() => undefined);
@@ -854,6 +1070,7 @@ async function descer(): Promise<void> {
     pararMundo(mundo, "INDISPONIVEL");
   }
   await fechandoPresencas;
+  sessoesVisitantes.encerrarTodas();
 }
 
 let descendo = false;

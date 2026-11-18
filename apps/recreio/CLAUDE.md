@@ -170,6 +170,14 @@ descartável para verificar entrada, renovação e saída reais. Runtime/UI de
 visitante e implantação F5 continuam pendentes no
 [registro de visitas](../../docs/recreio/visitas-temporarias-2026-11-17.md).
 
+O runtime candidato do contador também separa visitante de membro e só entra
+em mundo já carregado com o anfitrião original conectado. Guarda monotônica
+corta comandos na chegada/fila; renovação incerta pausa e retomada exige
+admissão privada nova. Recibos negativos continuam fora da vida do socket,
+com reserva limitada e recuperação por lote. Checkpoint/finalização não dão
+autoridade de gameplay. A UI/preflight e a jornada física completa do visitante
+ainda precisam ser integradas/qualificadas; o Morada não declara essa capacidade.
+
 ## Morada na página do jogo (lote X1)
 
 ### Troca de aparelho em homologação (17/11)
