@@ -53,6 +53,8 @@ export const TrocaDeIngressoSchema = z.strictObject({
   suportaSocial: z.literal(true).optional(),
   suportaConvitesDirigidos: z.literal(true).optional(),
   suportaVisitas: z.literal(true).optional(),
+  /** Finalidade fixada antes de emitir o token e sua margem de salvamento. */
+  visitaId: z.uuid().optional(),
   ingresso: z.string().min(1),
   /** Prova para recuperar a mesma abertura; nunca reabre ou renova outro SID. */
   chaveDeTroca: z
@@ -64,6 +66,7 @@ export const TrocaDeIngressoSchema = z.strictObject({
 });
 
 export const SessaoAbertaSchema = z.strictObject({
+  visitaId: z.uuid().optional(),
   visitas: z.literal(true).optional(),
   convitesDirigidos: z.literal(true).optional(),
   social: z.literal(true).optional(),

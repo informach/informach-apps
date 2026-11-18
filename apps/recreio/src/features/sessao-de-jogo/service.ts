@@ -108,6 +108,7 @@ export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
       suportaSocial: pedido.suportaSocial,
       suportaConvitesDirigidos: pedido.suportaConvitesDirigidos,
       suportaVisitas: pedido.suportaVisitas,
+      visitaId: pedido.visitaId,
       sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
       emissor,
     });

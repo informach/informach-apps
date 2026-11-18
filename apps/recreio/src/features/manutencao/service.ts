@@ -43,6 +43,7 @@ export async function executarManutencao(): Promise<{
   visitasVencidas: number;
   recibosDeVisitaApagados: number;
   concessoesDeVisitaApagadas: number;
+  sessoesDeVisitaApagadas: number;
   cadastrosPendentesApagados: number;
   recibosDeCadastroApagados: number;
   pareamentosApagados: number;

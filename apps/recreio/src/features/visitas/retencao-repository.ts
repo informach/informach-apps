@@ -3,6 +3,7 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, inArray, isNotNull, sql } from "@informach/db";
 import {
   recreioSpaceVisitInvites as invites,
+  recreioWorldVisitSessions as sessions,
   recreioWorldVisits as visits,
 } from "@informach/db/schema";
 import { limitarGestao } from "@/features/mundos/gestao-repository";
@@ -58,12 +59,28 @@ export function limparRecibosDeVisita() {
       select c.id from recreio.space_visit_invites c
       where c.state<>'pending' and c.retain_until<=statement_timestamp()
         and not exists (select 1 from recreio.world_visits v where v.invite_id=c.id and v.ended_at is null)
+        and not exists (
+          select 1 from recreio.world_visits v
+          join recreio.world_visit_sessions s on s.visit_id=v.id
+          join recreio.game_sessions g on g.id=s.session_id
+          where v.invite_id=c.id and g.ended_at is null
+        )
       order by c.retain_until,c.id limit ${LOTE_DE_VISITAS} for update of c skip locked
     `);
     const ids = lote.map((c) => c.id);
     let concessoesApagadas = 0,
+      sessoesApagadas = 0,
       recibosApagados = 0;
     if (ids.length) {
+      const sessoes = await tx
+        .delete(sessions)
+        .where(
+          inArray(
+            sessions.visitId,
+            tx.select({ id: visits.id }).from(visits).where(inArray(visits.inviteId, ids)),
+          ),
+        )
+        .returning({ id: sessions.id });
       const concessoes = await tx
         .delete(visits)
         .where(and(inArray(visits.inviteId, ids), isNotNull(visits.endedAt)))
@@ -73,11 +90,17 @@ export function limparRecibosDeVisita() {
         .where(inArray(invites.id, ids))
         .returning({ id: invites.id });
       concessoesApagadas = concessoes.length;
+      sessoesApagadas = sessoes.length;
       recibosApagados = recibos.length;
       await logAuditEventStrict(
         "recreio.visit_receipts_purged",
         null,
-        { app: "recreio", count: recibosApagados, visitCount: concessoesApagadas },
+        {
+          app: "recreio",
+          count: recibosApagados,
+          visitCount: concessoesApagadas,
+          sessionCount: sessoesApagadas,
+        },
         { writer: tx },
       );
     }
@@ -86,6 +109,7 @@ export function limparRecibosDeVisita() {
       visitasVencidas: expiradas.length,
       recibosDeVisitaApagados: recibosApagados,
       concessoesDeVisitaApagadas: concessoesApagadas,
+      sessoesDeVisitaApagadas: sessoesApagadas,
     };
   });
 }

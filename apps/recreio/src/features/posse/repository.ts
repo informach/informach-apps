@@ -37,6 +37,7 @@ import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repos
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { mundoCompativel } from "@/features/mundos/politica";
 import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
+import { exigirSessaoSemVisita } from "@/features/visitas/sessao-repository";
 import { AGORA, type Transacao } from "@/lib/repository";
 import type {
   ArmazenamentoDeMundos,
@@ -459,6 +460,7 @@ export async function abrirMundoParaMembro(
       await travarMundo(tx, entrada.mundoId, entrada.jogo);
     },
     async (tx, admissao) => {
+      if ("sid" in autor) await exigirSessaoSemVisita(tx, autor.sid);
       const mundo = await travarMundo(tx, entrada.mundoId, entrada.jogo);
       const [membro] = mundo
         ? await tx
@@ -720,6 +722,7 @@ export async function comEntradaAtualDeMembro<T>(
         );
       if (!sessao || (sessao.mundoId !== null && sessao.mundoId !== pedido.mundoId))
         throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      await exigirSessaoSemVisita(tx, pedido.sid);
       const [membro] = await tx
         .select({
           id: members.id,

@@ -514,3 +514,27 @@ Fundação aditiva, sem alteração de linhas antigas ou capacidade do Morada.
 Geração da migration, restrições em PostgreSQL e integração do protocolo
 continuam pendentes. A retenção deve remover os vínculos antes da concessão,
 sem apagar SID ou declarar um salvamento inexistente.
+
+Gerada no GitHub em `44239815576`, fonte `f4e875e3`, artefato `14398997670`:
+0202 `lively_nick_fury`, 4045 bytes,
+SHA-256 `bb21778799b1f7c49ac73c4e7d928d464261dc6277a6cf40fdf263312e21ed06`.
+ZIP `ff2906c86141bb031964c6f89c368eb3a7891405437d498de4f4058b03ebd86b`;
+proveniência, três caminhos, bytes/SHA, prefixo dos 202 recibos e predecessor
+do snapshot conferidos antes da cópia. DDL contém só a tabela, suas FKs,
+restrições e índices; nomes curtos, sem backfill ou aplicação em produção.
+
+A candidata fixa `visitaId` antes de emitir o primeiro token e a margem de
+salvamento: ambos respeitam a janela original da concessão. Recuperação não
+omite/troca finalidade, e renovação não amplia seu prazo. Preparação relê
+somente restrições da própria sessão; não toma travas da outra família ou
+admite entrada no mundo. Admissão completa pertence à API da instância.
+Um SID preparado/encerrado não passa pelo leitor de membro, mesmo após uma
+mudança de papel. Até 128 intenções históricas por visita limitam o abuso de
+aberturas, sem apagar recibos nem prometer capacidade simultânea.
+
+Retenção mantém raiz/concessão/vínculos enquanto algum SID vinculado está
+aberto; após encerramento real, remove vínculos antes da concessão e raiz,
+atomicamente com a auditoria. Não apaga SID ou prova de salvamento. Integrações
+candidatas cobrem o protocolo real de abertura/renovação e fixtures explícitas
+para restrições/retencão; gates pendentes. Entrada, troca entre SIDs com prova
+de checkpoint, runtime, interface e ativação continuam abertos.
