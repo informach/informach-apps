@@ -81,3 +81,10 @@ Todos ainda precisam dos gates remotos desta candidata.
 A consulta de um Checkout admitido também foi separada da abertura de novas
 vendas: desligar vendas não impede GETs de recuperação nem habilita novo POST.
 Mantém configuração de gestão, login recente, escopo e devolução autorizada.
+
+`ba8cc9e5`/`44385984593`: a jornada de navegador da compra/seleção passou. O
+gate geral parou na formatação de um recibo JSON não gerado. O teste de troca
+para PIN também criava o menor depois do aceite; a nova proteção recusou a
+seleção vencida antes do POST, como deve. A fixture passa a cadastrar/configurar
+o perfil antes do aceite, preservando a troca real para PIN durante a rede;
+nenhuma validação de produção foi afrouxada. Exige nova rodada remota.

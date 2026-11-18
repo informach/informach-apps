@@ -21,9 +21,11 @@ function fixture(aposLeitura?: (path: string) => void) {
     trial_end: null,
     canceled_at: null,
     items: {
+      has_more: false,
       data: [
         {
           id: "si_origin",
+          quantity: 1,
           price: { id: "price_origin" },
           current_period_start: 1794225600,
           current_period_end: 1796817600,

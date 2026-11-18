@@ -136,18 +136,25 @@ describe("executor financeiro nativo com PostgreSQL e SDK Stripe por transporte 
     },
   );
   it("troca real para PIN infantil durante o I/O captura a sessão e recusa sua devolução", async () => {
-    const f = await fixtureDeCheckout(),
-      p = f.adulto;
-    const intencao = await prepararPerfilMenor(p.autor);
-    const { perfil } = await cadastrarPerfilMenor(p.autor, {
-      intencaoId: intencao.id,
-      perfil: { apelido: "Protegido", avatar: "padrao" },
-      nascimento: { ano: new Date().getUTCFullYear() - 8, mes: 1 },
-      assumoResponsabilidade: true,
-      versaoDaDeclaracao: VERSAO_DA_RESPONSABILIDADE,
+    const configurados: Awaited<ReturnType<typeof cadastrarPerfilMenor>>[] = [];
+    const f = await fixtureDeCheckout(undefined, false, "recreio_individual_monthly", async (p) => {
+      const intencao = await prepararPerfilMenor(p.autor);
+      const preparado = await cadastrarPerfilMenor(p.autor, {
+        intencaoId: intencao.id,
+        perfil: { apelido: "Protegido", avatar: "padrao" },
+        nascimento: { ano: new Date().getUTCFullYear() - 8, mes: 1 },
+        assumoResponsabilidade: true,
+        versaoDaDeclaracao: VERSAO_DA_RESPONSABILIDADE,
+      });
+      await definirPinDaConta(p.autor, { pin: "593871" });
+      await definirPinDoMenor(p.autor, { perfilId: preparado.perfil.id, pin: "396175" });
+      configurados.push(preparado);
+      return undefined;
     });
-    await definirPinDaConta(p.autor, { pin: "593871" });
-    await definirPinDoMenor(p.autor, { perfilId: perfil.id, pin: "396175" });
+    const preparado = configurados[0];
+    if (!preparado) throw new Error("Native protected player absent");
+    const perfil = preparado.perfil,
+      p = f.adulto;
     f.aposPersistir(async () => {
       await trocarPerfilComPin(p.autor, {
         destino: { tipo: "perfil", perfilId: perfil.id },

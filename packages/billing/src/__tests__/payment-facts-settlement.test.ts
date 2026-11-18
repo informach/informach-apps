@@ -44,6 +44,28 @@ function fixture() {
     period: { start: 1794225600, end: 1825761600 },
   };
   const paths: string[] = [];
+  const subscription = {
+    id: "sub_paid",
+    object: "subscription",
+    customer: "cus_owner",
+    status: "active",
+    cancel_at_period_end: false,
+    cancel_at: null,
+    trial_end: null,
+    canceled_at: null,
+    items: {
+      has_more: false,
+      data: [
+        {
+          id: "si_paid",
+          quantity: 1,
+          price: { id: "price_paid" },
+          current_period_start: 1794225600,
+          current_period_end: 1825761600,
+        },
+      ],
+    },
+  };
   const list = (data: unknown[]) => ({ object: "list", data, has_more: false, url: "/v1/fixture" });
   const transport: typeof fetch = async (input) => {
     const url = new URL(
@@ -53,26 +75,7 @@ function fixture() {
     let body: unknown;
     switch (url.pathname) {
       case "/v1/subscriptions/sub_paid":
-        body = {
-          id: "sub_paid",
-          object: "subscription",
-          customer: "cus_owner",
-          status: "active",
-          cancel_at_period_end: false,
-          cancel_at: null,
-          trial_end: null,
-          canceled_at: null,
-          items: {
-            data: [
-              {
-                id: "si_paid",
-                price: { id: "price_paid" },
-                current_period_start: 1794225600,
-                current_period_end: 1825761600,
-              },
-            ],
-          },
-        };
+        body = subscription;
         break;
       case "/v1/invoices":
         body = list([invoice]);
@@ -111,6 +114,7 @@ function fixture() {
   const reader = createStripePaymentFactReader({ secretKey: "unused", client });
   return {
     charge,
+    subscription,
     invoice,
     allocation,
     line,
@@ -121,6 +125,34 @@ function fixture() {
 }
 
 describe("Authoritative subscription invoice settlement", () => {
+  it("rejects a foreign identity, truncated item list or non-unit quantity before invoice reads", async () => {
+    for (const alterar of [
+      (f: ReturnType<typeof fixture>) => {
+        f.subscription.id = "sub_foreign";
+      },
+      (f: ReturnType<typeof fixture>) => {
+        f.subscription.items.has_more = true;
+      },
+      (f: ReturnType<typeof fixture>) => {
+        const item = f.subscription.items.data[0];
+        if (!item) throw new Error("Closed recurring item absent");
+        item.quantity = 2;
+      },
+    ]) {
+      const f = fixture();
+      alterar(f);
+      await expect(f.read()).rejects.toThrow("item scope");
+      expect(f.paths).toEqual(["/v1/subscriptions/sub_paid"]);
+    }
+  });
+  it("does not interpret a positive recurring line on a zero-paid invoice as captured funding", async () => {
+    const f = fixture();
+    f.invoice.amount_paid = 0;
+    f.allocation.amount_paid = 0;
+    expect(f.line.amount).toBeGreaterThan(0);
+    expect((await f.read())?.periods).toEqual([]);
+    expect(f.paths).not.toContain("/v1/payment_intents/pi_paid");
+  });
   it("does not interpret a zero-value trial line as paid coverage", async () => {
     const f = fixture();
     f.invoice.amount_paid = 0;

@@ -138,6 +138,15 @@ Mensal/anual com saldo credor depende de rastrear a origem financeira: uma
 fatura de valor zero isolada não comprova liquidação. Os casos anuais ainda
 precisam de implementação e prova, sem alterar a regra de upgrade imediato.
 
+Na investigação seguinte foi encontrada uma lacuna adicional no leitor comum:
+uma linha recorrente positiva podia gerar período mesmo com `amount_paid=0`
+e nenhuma captura. A candidata passa a excluir esses períodos até existir
+rastreamento explícito da origem do crédito e dos eventos adversos. Também
+exige identidade exata, lista completa de um item recorrente e quantidade um.
+Regressões usam o SDK real em HTTP fechado. Isso ainda precisa dos gates dos
+consumidores; se já houver períodos antigos sem essa comprovação, divergência
+continua em revisão, sem apagar ou fabricar evidência financeira.
+
 `0211_volatile_smasher.sql` foi gerada em `44350625433`/`b0db958f`, revisada e
 adotada sem editar os três arquivos. Os hashes, predecessor e prefixo do
 journal foram conferidos; [proveniência](evidencias/migracao-trocas-termos-0211.json).

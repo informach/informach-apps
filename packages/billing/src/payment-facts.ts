@@ -352,8 +352,13 @@ export function createStripePaymentFactReader(config: {
       );
       requestOptions(budget);
       conferirModo(subscription);
-      if (subscription.items.data.length !== 1)
-        throw new Error("Suite subscriptions require exactly one recurring item");
+      if (
+        subscription.id !== subscriptionId ||
+        subscription.items.has_more ||
+        subscription.items.data.length !== 1 ||
+        subscription.items.data[0]?.quantity !== 1
+      )
+        throw new Error("Subscription identity or recurring item scope is inconsistent");
       const item = subscription.items.data[0];
       if (!item || !acceptedPriceIds.has(item.price.id)) return null;
       const customerId =
@@ -445,6 +450,10 @@ export function createStripePaymentFactReader(config: {
         }
         if (invoice.amount_paid !== allocated)
           throw new Error("Invoice has an unsupported or missing settlement");
+        // A positive recurring line can coexist with a zero invoice payment
+        // (discount/customer balance). It is not proof of captured funding.
+        // Credit-funded coverage needs explicit origin/adverse-event tracing.
+        if (invoice.amount_paid === 0) continue;
         const fullyRefunded = invoice.amount_paid > 0 && refunded >= invoice.amount_paid;
         let lines = 0;
         for await (const line of stripe.invoices.listLineItems(
