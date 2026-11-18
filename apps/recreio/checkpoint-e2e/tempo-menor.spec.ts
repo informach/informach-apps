@@ -89,10 +89,13 @@ test("minuto real do perfil infantil termina com recibo, recusa direta e relató
     headers: { authorization: autorizacao },
     data: { operacao: "gravar", chave: "apos-corte", revisao: 0, conteudo: "MQ==" },
   });
-  // Nos cinco segundos de tolerância da assinatura, a linha já encerrada
-  // responde 403. Depois desse prazo, a própria assinatura responde 401.
+  // O cliente pode parar uma fração antes do prazo assinado para salvar:
+  // nesse caso a preparação registra `left`; ao vencer registra `expired`.
+  // Nos cinco segundos de tolerância a linha encerrada responde 403;
+  // depois desse prazo, a própria assinatura responde 401.
   // Exige o par exato: um 403 por outra causa não prova o corte da sessão.
   expect([
+    { status: 403, corpo: { codigo: "SESSAO_ENCERRADA", motivo: "left" } },
     { status: 403, corpo: { codigo: "SESSAO_ENCERRADA", motivo: "expired" } },
     { status: 401, corpo: { codigo: "SESSAO_INVALIDA" } },
   ]).toContainEqual({ status: escritaAposCorte.status(), corpo: await escritaAposCorte.json() });

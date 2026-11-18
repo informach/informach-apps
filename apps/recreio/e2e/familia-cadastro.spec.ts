@@ -202,11 +202,9 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
   // O dia em Brasília pode terminar antes do limite diário configurado.
   const minutos = Math.ceil(faltam / 60_000);
   await expect(
-    page
-      .getByRole("status")
-      .filter({
-        hasText: `Faltam cerca de ${minutos} ${minutos === 1 ? "minuto" : "minutos"} para a pausa.`,
-      }),
+    page.getByRole("status").filter({
+      hasText: `Faltam cerca de ${minutos} ${minutos === 1 ? "minuto" : "minutos"} para a pausa.`,
+    }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Ganhar ponto", exact: true }).click();
   await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("1");

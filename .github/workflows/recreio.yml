@@ -76,7 +76,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - if: matrix.gate == 'quality'
         run: |
-          pnpm check
+          pnpm check --diagnostic-level=error
           pnpm compasso:test:infrastructure
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test

@@ -280,3 +280,40 @@ aditiva será feita no GitHub; nenhum SQL/snapshot/journal escrito à mão.
 A negociação `92c2010b` concluiu os oito gates `44227206576`, com 823
 integrações e 38 E2E. A prova não cobre o cliente HTTP de presença ou a
 renovação acrescentados nas fontes posteriores. Produção permanece na 0190.
+
+Geração `44229091554`, fonte `5a56935c7c96a9e4b8bde070442d358c20bf517b`,
+artefato `14394471748`, ZIP SHA-256
+`d4b94e0945053485aa0c199bdde581718cd82d365ee768dd7717fc537894f1c2`.
+SQL só cria as quatro tabelas/índices/FKs/CHECKs, sem mudar tabelas antigas.
+Origem, allowlist, três arquivos, prefixo de 200 entradas, predecessor e
+nomes de até 63 bytes conferidos; cópia intacta por bytes/SHA:
+
+- `0200_tranquil_azazel.sql`: 12101 bytes,
+  `531137e2af74b29272f240227cf673f37561878ec72d04b9ba02c4dfa5b48ea3`.
+- Snapshot: 919710 bytes,
+  `fcf631f6e0f2b7451e6525532c195dd7036c4a0c517c68e2abb00995eab7caee`.
+- Journal: 30379 bytes,
+  `a51bf4f46c3d2c01a1a9046c5a644f87b24f8bdb7c3ab3c9f90afb1e15e20667`.
+
+Vinte e duas integrações candidatas de integridade exercitam associação da
+presença, não duplicação, caixas/estados, prazo, campos NULL, vínculo parental,
+decisão do mundo, concessão correspondente e ordem de retenção. Origem entra
+pela API real de membro; presença, convite/aceite e concessão são fixtures SQL
+explícitas. Mesmo com a fixture de concessão, APIs antigas recusam abertura,
+entrada e aceite de membro e nenhuma participação é criada. Isso não comprova
+o serviço de visita, suas aprovações atuais ou runtime. Journal candidato: 201.
+
+Renovação `0a7c0af2` passou nas 836 integrações/86 arquivos, cinco do Bastidores
+e upgrades 179→200/191→200 no job `134548057382`/run `44228674580`. Qualidade
+reprovou formatação remanescente da cadeia do novo E2E (segunda passagem do
+formatter corrigida e conferida sem escrita). Os avisos alheios escondiam o
+erro no limite de diagnósticos; o workflow passa a mostrar erros, mantendo
+os mesmos checks e a mesma severidade, sem supressão de regra.
+
+Checkpoint teve uma falha no minuto real: a preparação de salvamento registra
+`left` se o cliente parar conservadoramente antes do prazo assinado, ou
+`expired` ao vencer. O teste aceitava só o segundo. A expectativa candidata
+exige o par exato de sessão encerrada por `left`/`expired`, ou assinatura
+inválida após a tolerância; continua exigindo orçamento real, progresso
+confirmado, escrita recusada e relatório privado. Não muda timer, prazo,
+auditoria ou autorização no produto. Evidência integral corretiva pendente.
