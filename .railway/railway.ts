@@ -56,8 +56,8 @@ const RECREIO_PROVISIONED = true;
 const RECREIO_DOMAINS_CONFIGURED = true;
 /** Alfa fechado autorizado em 15/11. Nunca desligar para rollback de código. */
 const RECREIO_LAUNCHED = true;
-/** F4 qualificada separadamente; D3 presente na main não autoriza trocar World2 em produção. */
-const RECREIO_PRODUCTION_COMMIT = "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a";
+/** F5 qualificada em fonte congelada; D3 presente na main não autoriza trocar World2. */
+const RECREIO_PRODUCTION_COMMIT = "d014bd90a895df452b83b9a2e6e683ac5749e0cb";
 const MORADA_PRODUCTION_COMMIT = "644b3841cb81b24d04159f75892a4c21d4d5f094";
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
@@ -792,6 +792,7 @@ export default defineRailway((ctx) => {
       RECREIO_FAMILY_MODE: "off",
       RECREIO_CHECKPOINT_MODE: "off",
       RECREIO_SOCIAL_MODE: "off",
+      RECREIO_VISITS_MODE: "off",
       RECREIO_JOGO_DE_TESTE: "0",
       RECREIO_GAME_ORIGINS: JSON.stringify({
         morada: {
