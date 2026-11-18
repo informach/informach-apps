@@ -1,4 +1,4 @@
-import { ControleDaSessaoSchema } from "@informach/recreio/contrato";
+import { ControleDaSessaoSchema, SessaoAbertaSchema } from "@informach/recreio/contrato";
 import { expect, test } from "@playwright/test";
 import {
   comecarVigia,
@@ -180,17 +180,30 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
   expect(ingressoMorada).toEqual({ status: 403, corpo: { codigo: "POLITICA_INCOMPATIVEL" } });
   await page.getByRole("heading", { name: "Sua estante", exact: true }).scrollIntoViewIfNeeded();
   await tela(page, "estante-protegida-mobile");
-  const respostaDoControle = page.waitForResponse(
-    (r) =>
-      new URL(r.url()).pathname === "/api/sdk/v1/sessao/controle" &&
-      r.request().method() === "GET" &&
-      r.status() === 200,
-  );
+  const abertura = page
+    .waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname === "/api/sdk/v1/sessao" &&
+        r.request().method() === "POST" &&
+        r.status() === 200,
+    )
+    .then(async (r) => SessaoAbertaSchema.parse(await r.json()));
+  // Lê o corpo assim que chega e só da sessão nova: navegação posterior pode
+  // liberar o corpo de uma resposta antiga no Chromium.
+  const respostaDoControle = page
+    .waitForResponse(
+      async (r) =>
+        new URL(r.url()).pathname === "/api/sdk/v1/sessao/controle" &&
+        r.request().method() === "GET" &&
+        r.status() === 200 &&
+        r.request().headers().authorization === `Bearer ${(await abertura).token}`,
+    )
+    .then(async (r) => ControleDaSessaoSchema.parse(await r.json()));
   await page
     .getByRole("link", { name: "Jogar Prova de progresso por perfil", exact: true })
     .click();
   await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("0");
-  const controle = ControleDaSessaoSchema.parse(await (await respostaDoControle).json()),
+  const controle = await respostaDoControle,
     tempo = controle.tempo;
   if (!tempo?.pausaEm)
     throw new Error("O servidor não informou a pausa do perfil com limite de dez minutos.");

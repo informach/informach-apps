@@ -578,3 +578,13 @@ perdida sem repetição automática. Gates pendentes desta candidata.
 Ainda faltam heartbeat em lote de visitantes, encerramento técnico com cursor,
 integração no SDK/runtime/interface, jornadas familiares e homologação remota.
 Nenhuma visita foi habilitada em produção e F5/F6–F11 continuam abertos.
+
+### Correção do coletor de controle E2E
+
+A rodada `44240677665` terminou com sete gates aprovados e falha no navegador:
+37 E2E passaram; `familia-cadastro` capturou uma resposta de controle e deixou
+para ler seu corpo depois da navegação (`Network.getResponseBody: No data found`).
+A candidata passa a identificar o controle pelo token da abertura nova e ler
+os dois corpos imediatamente nos respectivos eventos. Conserva a prova da
+pausa real informada pelo servidor, incluindo virada do dia; não muda relógio,
+limite, tentativas ou comportamento do produto. Nova qualificação necessária.
