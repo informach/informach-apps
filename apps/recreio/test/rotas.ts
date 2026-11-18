@@ -17,6 +17,10 @@ const ID = "([^/]+)";
 
 const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
   [
+    new RegExp(`^/api/interno/v1/mundos/${ID}/presencas$`),
+    () => import("@/app/api/interno/v1/mundos/[id]/presencas/route"),
+  ],
+  [
     /^\/api\/sdk\/v1\/convites-dirigidos$/,
     () => import("@/app/api/sdk/v1/convites-dirigidos/route"),
   ],

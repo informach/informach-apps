@@ -60,6 +60,8 @@ export type GameManifest = {
     conquistas: boolean;
     textoLivre: boolean;
     conteudoDeUsuario: boolean;
+    /** Capacidade opcional; presença/visita também exige negociação do cliente e da instância. */
+    visitas?: boolean;
   };
   classificacao: {
     faixa: Faixa;

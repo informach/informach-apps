@@ -6,6 +6,7 @@ import {
 } from "@/features/moderacao/retencao-repository";
 import { limparConvitesDirigidos } from "@/features/mundos/convites-dirigidos-retencao-repository";
 import { fecharPossesVencidas, marcarInstanciasSumidas } from "@/features/posse/repository";
+import { limparPresencasDeAnfitriao } from "@/features/presencas/retencao-repository";
 import {
   apagarIngressosAntigos,
   encerrarSessoesVencidas,
@@ -35,6 +36,8 @@ export async function executarManutencao(): Promise<{
   convitesApagados: number;
   convitesDirigidosVencidos: number;
   recibosDeConviteDirigidoApagados: number;
+  presencasDeAnfitriaoVencidas: number;
+  presencasDeAnfitriaoApagadas: number;
   cadastrosPendentesApagados: number;
   recibosDeCadastroApagados: number;
   pareamentosApagados: number;
@@ -67,6 +70,7 @@ export async function executarManutencao(): Promise<{
   const sessoesExpiradas = await encerrarSessoesVencidas();
   const convitesApagados = await apagarConvitesAntigos();
   const dirigidos = await limparConvitesDirigidos();
+  const presencas = await limparPresencasDeAnfitriao();
   const intencoes = await apagarIntencoesAntigas();
   const diasDeUsoApagados = await apagarUsoAntigo();
   const recibosDeSalvamentoApagados = await apagarSalvamentosAntigos();
@@ -82,6 +86,7 @@ export async function executarManutencao(): Promise<{
     sessoesExpiradas,
     convitesApagados,
     ...dirigidos,
+    ...presencas,
     ...intencoes,
     diasDeUsoApagados,
     recibosDeSalvamentoApagados,

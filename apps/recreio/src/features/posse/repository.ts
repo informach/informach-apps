@@ -662,6 +662,18 @@ export type EntradaNoBanco = {
 export async function verificarEntradaNoMundo(
   pedido: PedidoComPosse & { sid: SessaoDeJogoId; perfilId: PerfilId },
 ): Promise<EntradaNoBanco> {
+  return comEntradaAtualDeMembro(pedido, async (_tx, entrada) => entrada);
+}
+
+/** Extensões da instância usam a mesma admissão, transação e prazo da entrada real. */
+export async function comEntradaAtualDeMembro<T>(
+  pedido: PedidoComPosse & { sid: SessaoDeJogoId; perfilId: PerfilId },
+  executar: (
+    tx: Transacao,
+    entrada: EntradaNoBanco,
+    conferirPrazo: () => Promise<Date>,
+  ) => Promise<T>,
+): Promise<T> {
   // O segredo de um jogo não distingue sessões em mundos de outro jogo.
   // É só uma pista de escopo: a posse será relida sob trava na admissão.
   const [escopo] = await db
@@ -735,7 +747,7 @@ export async function verificarEntradaNoMundo(
         )
         .returning({ id: gameSessions.id });
       if (marcadas.length === 0) throw new ErroDoRecreio("SESSAO_ENCERRADA");
-      return {
+      const entrada: EntradaNoBanco = {
         membroId: MembroIdSchema.parse(membro.id),
         papel: membro.role,
         participacao: membro.participation,
@@ -745,6 +757,9 @@ export async function verificarEntradaNoMundo(
         versaoDaPolitica: membro.policyVersion,
         politica: politicaDaAdmissao(admissao, jogoDoCatalogo(pedido.jogo)),
       };
+      const resultado = await executar(tx, entrada, admissao.conferirPrazo);
+      await conferirPosse(tx, pedido);
+      return resultado;
     },
     {
       antesDoPerfil: async (tx) => {

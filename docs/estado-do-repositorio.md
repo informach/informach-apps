@@ -15,8 +15,9 @@ Convites fora da partida e decisão do mundo `36dc4846` passaram nos oito gates
 774 integrações. Backend da sucessão infantil `e19de9ef` passou na qualidade
 e em 782 integrações, incluindo upgrade 191→198. Jornada parental `3680d2f1`
 passou nos oito gates `44220010016`, com 785 integrações e 38 E2E; captura de
-390 px conferida. Presença privada do anfitrião/0198 é fundação candidata de
-visitas, sem serviço e ainda sem gates. Visitas e operação F5 permanecem
+390 px conferida. Fundação de presença/0198 `a1729003` passou nos oito gates
+`44222402220`, com 801 integrações. Atestado técnico/limpeza estão na candidata
+seguinte, ainda sem gates. Visitas e operação F5 permanecem
 pendentes. Migrations 0191–0198 geradas no GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).

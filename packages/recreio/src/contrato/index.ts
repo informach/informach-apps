@@ -12,6 +12,7 @@ export * from "./denuncias";
 export * from "./host";
 export * from "./moderacao";
 export * from "./participantes";
+export * from "./presencas";
 export * from "./salvamento";
 export * from "./sdk";
 export * from "./social";

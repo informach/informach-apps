@@ -91,3 +91,47 @@ A inserção de teste da presença é direta no PostgreSQL: ainda não comprova
 atestado por servidor, visita, renovação, revogação ou funcionamento de tela.
 Esses testes ainda precisam executar no GitHub. Journal candidato com 199
 entradas; nenhuma alteração operacional ou migration foi aplicada em produção.
+
+## Candidata de atestado e limpeza
+
+`POST /api/interno/v1/mundos/[id]/presencas` é restrito ao segredo e à instância
+registrada do jogo. Nova entrada exige modo de visitas ativo e capacidade
+explícita do manifesto; padrão `off`, e o Morada não declara a capacidade.
+O contrato ainda não está integrado ao SDK/handshake da instância ou do cliente.
+Atestar presença, isoladamente, não concede nenhuma visita.
+
+A criação usa a mesma transação autoritativa da entrada de membro permanente,
+com SID, perfil, cobertura, política, mundo e posse atuais. O prazo da posse
+é relido depois dos efeitos e auditoria. TTL operacional de até 30 segundos,
+limitado pelo SID e pela posse; janela fixa de até 24 horas. UUID/hash ligados
+ao corpo e à instância recuperam o mesmo recibo sem renovar nem reabrir uma
+prova encerrada. Chave com outro corpo conflita. Outra entrada do mesmo SID
+precisa encerrar a anterior; cerca/SID anteriores ou prazo vencido encerram
+a prova antiga sob a trava do mundo antes de inserir outra identidade.
+
+Recuperação técnica e encerramento da própria prova continuam disponíveis
+com modo desligado ou SID/posse encerrados. Não permitem escrita ou admissão
+pela cerca antiga. A resposta é recibo técnico, sem nomes ou autoridade global;
+qualquer admissão futura precisa reler anfitrião, visita, política e posse.
+
+Manutenção encerra provas vencidas e remove técnicas após retenção, até 500
+por lote com `SKIP LOCKED`, auditoria estrita e contagens. A rotina atual encerra
+sessões antigas, sem apagá-las; o novo FK não exige alterar esse comportamento.
+Encerramento de conta/F7 ainda precisa remover provas antes de desvincular
+identificadores. A limpeza futura dos convites/concessões de visita precisa
+preceder a remoção da presença referenciada.
+
+Treze integrações candidatas exercitam HTTP/autenticação, concorrência e replay,
+saída com modo desligado, conflito de chave, limite de corpo, instância/cerca,
+SID/perfil/membro, fim de SID, manifesto sem capacidade, falha de auditoria e
+prazo até o commit, expiração idempotente e expurgo 500+101. As fixtures do
+último teste inserem histórico técnico diretamente, sem alegar 601 jogadores.
+Gates desse incremento ainda pendentes. Renovação por batimento, negociação,
+convites/aprovações, concessão, runtime e telas de visita continuam por fazer.
+
+Fundação `a17290033a2f060ae166fe4690a4f7823f3eda59` aprovada nos oito gates
+`44222402220`: 801 integrações/85 arquivos, incluindo os dezesseis testes de
+schema, e upgrades 179→199/191→199. Isso não prova a API do atestado acrescentada
+depois desse source. Consumidores diretos de manifesto/contratos desta candidata
+são Recreio, servidor/cliente do Morada e Bastidores; seus tipos e gates fazem
+parte da matriz Recreio. Os objetos do catálogo público não ativam visitas.

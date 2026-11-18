@@ -185,6 +185,7 @@ a conta de quem aceitou. `targetId` conserva a conta afetada de cada partida.
 Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo é de várias contas, então o evento só se liga a uma pessoa pelo ator (a conta do perfil que agiu), e quem investiga um mundo filtra por `spaceId`.
 
 - `recreio.space_created`: `{ spaceId, gameId, profileId, memberId, contentPolicy }`. `contentPolicy` é o id da política de mundo do manifesto do jogo.
+- `recreio.host_presence_started`, `recreio.host_presence_closed`: `{ spaceId, instanceId, profileId, sid, presenceId, fence, reason? }`, ator nulo para o atestado técnico da instância ou expiração. `reason` é código fechado; sem apelido, token, chave de repetição, hash, endereço ou conteúdo. Efeito e evento estrito são atômicos; repetição do recibo não emite outro evento. `recreio.host_presences_purged`: `{ count }`, lote técnico limitado. Candidatos da fundação de visitas, ainda sem implantação ou concessão de participação.
 - `recreio.space_invite_created`: `{ spaceId, inviteId, memberId, form, directed? }`, com `memberId` o membro que convidou e `form` igual a `member`. `directed=true` distingue o recibo dirigido, sem expor destinatário ou corpo.
 - `recreio.space_invite_accepted`: `{ spaceId, inviteId, profileId, memberId, directed? }`.
 - `recreio.directed_invite_guardian_approved`: `{ spaceId, inviteId, profileId, policyVersion }`, com o adulto nativo atual como ator; o perfil é o menor sob seus cuidados.

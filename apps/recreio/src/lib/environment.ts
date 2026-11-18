@@ -57,6 +57,8 @@ export const schema = z.object({
   RECREIO_CHECKPOINT_MODE: z.enum(["off", "on"]).default("off"),
   /** Social exige homologação própria; proteção e limpeza existentes não dependem da ativação. */
   RECREIO_SOCIAL_MODE: z.enum(["off", "on"]).default("off"),
+  /** Somente após negociação e homologação; fechar provas antigas independe da ativação. */
+  RECREIO_VISITS_MODE: z.enum(["off", "on"]).default("off"),
   /** Chave exclusiva entre Bastidores e a API restrita. Ausente mantém comandos indisponíveis. */
   RECREIO_MODERATION_SECRET: z.string().min(43).max(256).optional(),
   /**
