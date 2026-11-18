@@ -21,9 +21,9 @@ on:
         type: boolean
         default: false
       sandbox_plans_scenario:
-        description: Cenário de API (crédito anual observa origem/saldo, sem homologar acesso nativo)
+        description: Cenário de API do provedor (sem homologar Checkout nativo)
         type: choice
-        options: [monthly_upgrade, annual_credit]
+        options: [monthly_upgrade, annual_credit, plan_matrix]
         default: monthly_upgrade
       sandbox_apply:
         description: Criar somente produtos/preços/portal Sandbox ausentes
@@ -160,7 +160,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.sandbox_plans
     name: Recreio / APIs Stripe com relógio de teste
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       CI: "true"
       DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only

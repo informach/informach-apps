@@ -15,6 +15,7 @@ import Stripe from "stripe";
 import { z } from "zod";
 import { isStripeTestSecret } from "../src/lib/environment";
 import { observarCreditoAnual } from "./sandbox-creditos-api";
+import { conferirMatrizNaApi } from "./sandbox-matriz-api";
 
 class BoundaryError extends Error {
   constructor(readonly code: string) {
@@ -56,7 +57,7 @@ async function main() {
   );
   const prefix = `recreio:provider-test:${runId}:${process.env.GITHUB_RUN_ATTEMPT}`;
   const scenario = z
-    .enum(["monthly_upgrade", "annual_credit"])
+    .enum(["monthly_upgrade", "annual_credit", "plan_matrix"])
     .parse(process.env.RECREIO_SANDBOX_PLANS_SCENARIO ?? "monthly_upgrade");
   const catalogPath = resolve(temporary, "recreio-stripe-plans-catalog.json");
   await new Promise<void>((resolve, reject) => {
@@ -108,6 +109,41 @@ async function main() {
   });
   const account = await stripe.accounts.retrieve(expectedAccount);
   verify(account.id === expectedAccount, "wrong_test_account");
+  if (scenario === "plan_matrix") {
+    const proof = await conferirMatrizNaApi({
+      stripe,
+      runId,
+      prefixo: prefix,
+      ofertas: [
+        offer("individual", "month"),
+        offer("individual", "year"),
+        offer("family", "month"),
+        offer("family", "year"),
+      ],
+    });
+    await writeFile(
+      resolve(temporary, "recreio-stripe-provider-plans.json"),
+      `${JSON.stringify(
+        {
+          source: process.env.GITHUB_SHA,
+          workflowRunId: runId,
+          scenario,
+          accountId: account.id,
+          mode: "dev",
+          boundary: "provider_api_test_clock",
+          nativeCheckoutCompleted: false,
+          nativePlanChangeAccepted: false,
+          nativeGameAccessProven: false,
+          providerWebhookDeliveryProven: false,
+          ...proof,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    if (proof.status !== "passed") process.exitCode = 1;
+    return;
+  }
   const reader = createStripePaymentFactReader({
     secretKey: "unused",
     client: stripe,
