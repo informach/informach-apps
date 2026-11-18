@@ -161,3 +161,12 @@ o nome automático da PK de fontes ultrapassou o limite de identificadores do
 PostgreSQL. O schema passa a nomear explicitamente as PKs, sem editar a SQL
 gerada. A geração substituta deve conservar predecessor/prefixo e passar nos
 gates SQL antes de qualquer implantação.
+
+A substituta `0215_thin_beyonder.sql` foi gerada em `44407101779`, fonte
+`b1e6b535`, e adotada sem edição: três hashes, predecessor e journal 215→216
+conferidos no [recibo](evidencias/migracao-financiamento-provas-0215.json). A SQL
+difere da candidata recusada somente pelos dois nomes explícitos de PK; todos
+os identificadores gerados têm até 58 bytes. Novos testes exercitam FKs de
+período/contrato/owner, ponteiro atual, fontes, duplicação, retenção e valores/
+datas inválidos. São fixtures de integridade SQL, sem alegar prova monetária
+ou autorização de acesso. Precisam da rodada remota desta fonte.

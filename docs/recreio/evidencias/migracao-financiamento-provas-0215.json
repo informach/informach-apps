@@ -1,0 +1,36 @@
+{
+  "source": "b1e6b535458d3df464011182b3ed9a18a86c1c86",
+  "runId": "44407101779",
+  "artifactId": "14474544867",
+  "zipBytes": 70774,
+  "zipSha256": "e4a125116dce49f73c238bbf8ee3bde91a08a4f4c9ff850e79529e7a4ddcc655",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0215_thin_beyonder.sql",
+      "bytes": 6387,
+      "sha256": "c8df3cf002bb9c26222622b4f6c72cfe65da306f9f615f3389d839c280fdde2a"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0215_snapshot.json",
+      "bytes": 1006169,
+      "sha256": "e0e6e6ba7d2519bebd2971760ada8f26614fbd370d4f29eaee35ff3c62064ddc"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 32575,
+      "sha256": "0f063665e7207eafdaec3202cafc92021ed730b49bfa65b0ad726181fec20c22"
+    }
+  ],
+  "entriesBefore": 215,
+  "entriesAfter": 216,
+  "snapshotId": "01a596f1-b108-4e08-a4be-faff002a3481",
+  "previousSnapshotId": "822bd440-5926-4c4d-97e2-74dae4fc2130",
+  "supersededNotAdoptedRun": "44406477539",
+  "productionApplied": false,
+  "requires": [
+    "0214_keys_before_foreign_keys",
+    "native_writers_readers_and_sql_gates",
+    "qualified_shared_consumers_before_deployment"
+  ],
+  "fabricatedFinancialBackfill": false
+}
