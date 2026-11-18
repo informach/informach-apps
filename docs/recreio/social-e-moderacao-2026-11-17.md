@@ -725,7 +725,8 @@ preservou as fontes concorrentes públicas e passou nos oito gates `44192438764`
 Os diretórios funcionais do portal, Bastidores, auth, db, config e SDK são
 idênticos à fonte isolada; o Morada concorrente permanece no histórico público,
 sem autorizar sua implantação. O CI compartilhado `44188583156`, da fonte
-isolada, ainda está em execução. Nenhuma migration F4 foi aplicada.
+isolada, passou integralmente; a configuração operacional `13076628` passou
+nos oito gates `44196366218`. A implantação limitada foi concluída abaixo.
 
 Capturas finais conferidas: artefato `14376556020`, ZIP
 `94eb588f79ad30cefa1c6de5f4ebed2f1672d8f1883e085ba440caecc1b3b24a`,
@@ -743,7 +744,41 @@ acompanhar a main ou retire a nova credencial. Exige qualificação do grafo e
 implantação ordenada; não aplicar o projeto inteiro durante o serviço temporário
 de restauração. Às 23:03 UTC, o portal real continuava em `204cf79c`, pronto,
 com 184 recibos, social ausente, dois mundos, dez fotos e zero partidas abertas;
-famílias/checkpoint `off`, jogo interno `0`. Nova restauração isolada foi iniciada.
+famílias/checkpoint `off`, jogo interno `0`. A restauração isolada foi concluída.
+
+### Implantação limitada e prova operacional
+
+A restauração de `23:05:42 UTC`, operação `e883109f-b960-4529-8303-73b091b1de81`,
+comparou conteúdo e estrutura de 244 tabelas, 284878 linhas e 19307370 bytes,
+em cluster isolado por socket Unix. O executor usou fonte `6b51dd13`; temporários
+e serviço de ensaio foram removidos, sem volume destacado. A
+[evidência do backup](evidencias/backup-logico-2026-11-17-pre-moderacao.json)
+preserva seus limites: não certifica objeto retido, backup agendado ou PITR.
+
+O migrator foi limitado a `pnpm db:migrate` antes de fixar a fonte `396fe932`.
+Deploy `7bf20817-5278-45c9-9463-b7913a546bc6` terminou com sucesso às 23:52 UTC,
+sem executar seeds. Às 23:53:52, foram conferidos 191 recibos, os sete hashes
+0184–0190 e as onze tabelas novas vazias. Dois mundos, dez fotografias e um
+perfil foram preservados, sem partidas abertas. Nenhuma tabela dirigida F5
+existe na base; 0191 e seguintes não foram aplicadas.
+
+Às 23:59 UTC, portal e Bastidores executavam realmente `396fe932`, nos deploys
+`974bcc7c-f715-44c0-8a99-9e2c4b27d831` e
+`e80c9990-fb82-41bc-905b-840cf0e7ad70`, com prontidão 200. A credencial exclusiva
+foi preparada sem deploy prévio e sua igualdade foi conferida sem publicar o
+valor ou sua prova técnica. A manutenção autenticada respondeu 200 e trinta
+contagens zeradas; a API de comandos sem credencial respondeu 403. Os domínios
+do Recreio e Morada responderam 200 na prontidão. A release `396fe932` foi
+encontrada no projeto Recreio do Sentry; isso não substitui prova de ingestão
+ou da tela operacional TOTP em produção.
+
+Morada permaneceu executando `644b3841`, World 2/protocolo 1/arte 3. Famílias,
+checkpoint e social continuam `off`, jogo interno `0`. Os pins são explícitos;
+o histórico público com D3 não é autorização para promovê-lo. Esta entrega
+implanta a infraestrutura de moderação/proteção qualificada; a ativação social,
+F5, comercial, privacidade e fechamento integral continuam pendentes. A
+[evidência operacional](evidencias/moderacao-producao-2026-11-17.json) separa
+essas verificações da integração pública e dos aceites restantes.
 
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra

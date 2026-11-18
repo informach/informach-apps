@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**17/11, 23:59 UTC — Recreio:** infraestrutura de moderação implantada no portal
+e Bastidores em `396fe932`, após oito gates e CI compartilhado. Restauração
+lógica atual comparada, migrations 0184–0190 aplicadas sem seed, 191 recibos e
+hashes conferidos. Prontidão e manutenção 200; comandos sem credencial 403.
+Social/famílias/checkpoint `off`, jogo interno `0`; Morada permanece em `644b3841`.
+F5 e F6–F11 continuam abertos. [Evidência e limites](recreio/social-e-moderacao-2026-11-17.md).
+
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de
 perfis sob responsabilidade declarada do adulto; conta pagante não precisa

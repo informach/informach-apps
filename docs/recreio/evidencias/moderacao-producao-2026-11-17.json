@@ -1,0 +1,123 @@
+{
+  "fonteQualificada": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+  "integracaoQualificada": "1307662806d6bdb25da76ce69282da08c65d4d78",
+  "gates": [
+    {
+      "run": 44188574280,
+      "resultado": "success",
+      "escopo": "oito gates da fonte isolada"
+    },
+    {
+      "run": 44192438764,
+      "resultado": "success",
+      "escopo": "oito gates da integração pública preservada"
+    },
+    {
+      "run": 44196366218,
+      "resultado": "success",
+      "escopo": "oito gates com configuração operacional"
+    },
+    {
+      "run": 44188583156,
+      "resultado": "success",
+      "escopo": "CI compartilhado integral da fonte funcional isolada"
+    }
+  ],
+  "restauracao": "backup-logico-2026-11-17-pre-moderacao.json",
+  "migrator": {
+    "deployment": "7bf20817-5278-45c9-9463-b7913a546bc6",
+    "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "comando": "pnpm db:migrate",
+    "seedsExecutados": false,
+    "verificacao": {
+      "em": "2026-11-17T23:53:52.067Z",
+      "fonte": "204cf79c9ab99fec0bd327c11a3fb8bea8d80adc",
+      "ready": 200,
+      "recibos": 191,
+      "hashesConferidos": true,
+      "tabelas": {
+        "friend_codes": 0,
+        "friend_consents": 0,
+        "friend_requests": 0,
+        "friendships": 0,
+        "moderation_commands": 0,
+        "profile_restrictions": 0,
+        "restriction_reviews": 0,
+        "safety_reports": 0,
+        "social_blocks": 0,
+        "social_notices": 0,
+        "social_preferences": 0
+      },
+      "direcionados": 0,
+      "perfis": 1,
+      "mundos": 2,
+      "fotos": 10,
+      "sessoesAbertas": 0
+    }
+  },
+  "portal": {
+    "deployment": "974bcc7c-f715-44c0-8a99-9e2c4b27d831",
+    "em": "2026-11-17T23:59:18.351Z",
+    "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "ready": 200,
+    "manutencao": 200,
+    "contagens": {
+      "possesVencidas": 0,
+      "instanciasSumidas": 0,
+      "ingressosApagados": 0,
+      "sessoesExpiradas": 0,
+      "convitesApagados": 0,
+      "cadastrosPendentesApagados": 0,
+      "recibosDeCadastroApagados": 0,
+      "pareamentosApagados": 0,
+      "aparelhosNaoConfirmadosEncerrados": 0,
+      "diasDeUsoApagados": 0,
+      "recibosDeSalvamentoApagados": 0,
+      "convitesDeGrupoVencidos": 0,
+      "recibosDeGrupoApagados": 0,
+      "pedidosSociaisVencidos": 0,
+      "codigosSociaisApagados": 0,
+      "recibosSociaisApagados": 0,
+      "avisosSociaisApagados": 0,
+      "relacoesSociaisApagadas": 0,
+      "vinculosDeCodigoSocialLimpos": 0,
+      "vinculosDePedidoSocialLimpos": 0,
+      "denunciasEncerradas": 0,
+      "denunciasApagadas": 0,
+      "denunciasVencidasSemSolucao": 0,
+      "denunciasPrioritariasAtrasadas": 0,
+      "denunciasAtrasadas": 0,
+      "recursosDeRestricaoApagados": 0,
+      "recursosDeRestricaoVencidosSemSolucao": 0,
+      "recursosDeRestricaoAtrasados": 0,
+      "comandosDeModeracaoApagados": 0,
+      "restricoesLiberadasApagadas": 0
+    },
+    "moderacaoSemCredencial": 403,
+    "familia": "off",
+    "checkpoint": "off",
+    "social": "off",
+    "interno": "0",
+    "credencial": true
+  },
+  "bastidores": {
+    "deployment": "e80c9990-fb82-41bc-905b-840cf0e7ad70",
+    "em": "2026-11-17T23:59:17.962Z",
+    "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "ready": 200,
+    "credencial": true
+  },
+  "morada": {
+    "em": "2026-11-17T23:59:18.097Z",
+    "fonte": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+    "ready": 200
+  },
+  "credencialExclusivaCompartilhada": true,
+  "releaseSentry": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+  "limites": [
+    "Social, famílias e checkpoint desligados; jogo interno ausente de produção.",
+    "Sem prova operacional TOTP de comando real no Bastidores em produção; jornada remota usa TOTP real com Bastidores em desenvolvimento.",
+    "Não representa fechamento de F4/F5 ou F6–F11, nem liberação de menores ou venda.",
+    "A integração Git pública e a reconexão dos demais consumidores ainda precisam ser registradas após sua execução."
+  ]
+}
