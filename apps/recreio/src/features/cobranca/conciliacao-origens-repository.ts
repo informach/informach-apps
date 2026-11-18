@@ -8,7 +8,7 @@ import { limiteDoPagamentoConciliado } from "@informach/recreio";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import type { TentativaDeConciliacao } from "./conciliacao-fila-repository";
-import { garantirContratoOriginalLocked } from "./contratos-repository";
+import { conferirOfertaAtualLocked } from "./contratos-repository";
 
 export type VinculoDoCheckout = {
   authorizationId: string;
@@ -83,7 +83,7 @@ export async function persistirFatosDaConciliacao(
       aceite?.requestStartedAt &&
         (aceite.resolution === null || aceite.resolution === "checkout_completed") &&
         aceite.productId === origem.productId &&
-        produto?.id === aceite.productId,
+        produto,
       "ORIGEM_FINANCEIRA",
       "A oferta da assinatura exige conferência.",
     );
@@ -157,14 +157,22 @@ export async function persistirFatosDaConciliacao(
     const subscriptionId = ids[index];
     const aceite = aceites.get(snapshot.subscriptionId);
     assertAllowed(subscriptionId && aceite, "ORIGEM_FINANCEIRA", "Contrato não confirmado.");
-    await garantirContratoOriginalLocked(tx, {
+    const produto = entrada.produtos.find(
+      (p) =>
+        p.app === "recreio" &&
+        p.kind === "subscription" &&
+        p.stripePriceId[prova.providerMode] === snapshot.priceId,
+    );
+    assertAllowed(produto, "ORIGEM_FINANCEIRA", "Oferta financeira não reconhecida.");
+    await conferirOfertaAtualLocked(tx, {
       subscriptionId,
       purchaseId: aceite.id,
       groupId: prova.groupId,
       payerUserId: prova.payerUserId,
       providerMode: prova.providerMode,
       originProductId: aceite.productId,
-      originPriceId: snapshot.priceId,
+      observedProductId: produto.id,
+      observedPriceId: snapshot.priceId,
     });
   }
 }

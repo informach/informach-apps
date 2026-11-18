@@ -13,6 +13,7 @@ import { GrupoIdSchema } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import { lerFatosDoGrupo } from "@/features/acesso/repository";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
+import { conferirOfertaAtualLocked } from "@/features/cobranca/contratos-repository";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
 import { codigoDoBanco } from "./apoio";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
@@ -115,6 +116,88 @@ async function fixture() {
 }
 
 describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
+  it("admite somente a oferta atual aplicada sem reinicializar origem ou revisão", async () => {
+    const f = await fixture();
+    await db.update(changes).set(f.applied).where(eq(changes.id, f.quote.id));
+    await db
+      .update(contracts)
+      .set(f.current)
+      .where(eq(contracts.subscriptionId, f.origin.subscriptionId));
+    const atual = await db.transaction((tx) =>
+      conferirOfertaAtualLocked(tx, {
+        subscriptionId: f.origin.subscriptionId,
+        purchaseId: f.origin.purchaseId,
+        groupId: f.origin.groupId,
+        payerUserId: f.origin.payerUserId,
+        providerMode: f.origin.providerMode,
+        originProductId: f.origin.originProductId,
+        observedProductId: f.quote.toProductId,
+        observedPriceId: f.quote.toPriceId,
+      }),
+    );
+    expect(atual).toMatchObject({
+      ...f.current,
+      originProductId: f.origin.originProductId,
+      originPriceId: f.origin.originPriceId,
+    });
+    await expect(
+      db.transaction((tx) =>
+        conferirOfertaAtualLocked(tx, {
+          subscriptionId: f.origin.subscriptionId,
+          purchaseId: f.origin.purchaseId,
+          groupId: f.origin.groupId,
+          payerUserId: f.origin.payerUserId,
+          providerMode: f.origin.providerMode,
+          originProductId: f.origin.originProductId,
+          observedProductId: f.origin.originProductId,
+          observedPriceId: f.origin.originPriceId,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "ORIGEM_FINANCEIRA" });
+  });
+
+  it("oferta diferente da compra não cria revisão inicial quando não há autoridade atual", async () => {
+    const f = await fixture();
+    await db.delete(contracts).where(eq(contracts.subscriptionId, f.origin.subscriptionId));
+    await expect(
+      db.transaction((tx) =>
+        conferirOfertaAtualLocked(tx, {
+          subscriptionId: f.origin.subscriptionId,
+          purchaseId: f.origin.purchaseId,
+          groupId: f.origin.groupId,
+          payerUserId: f.origin.payerUserId,
+          providerMode: f.origin.providerMode,
+          originProductId: f.origin.originProductId,
+          observedProductId: f.quote.toProductId,
+          observedPriceId: f.quote.toPriceId,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "ORIGEM_FINANCEIRA" });
+    expect(
+      await db
+        .select()
+        .from(contracts)
+        .where(eq(contracts.subscriptionId, f.origin.subscriptionId)),
+    ).toEqual([]);
+  });
+
+  it("oferta atual com escopo de outro pagante é recusada mesmo com destino igual", async () => {
+    const f = await fixture();
+    await expect(
+      db.transaction((tx) =>
+        conferirOfertaAtualLocked(tx, {
+          subscriptionId: f.origin.subscriptionId,
+          purchaseId: f.origin.purchaseId,
+          groupId: f.origin.groupId,
+          payerUserId: "foreign_payer",
+          providerMode: f.origin.providerMode,
+          originProductId: f.origin.originProductId,
+          observedProductId: f.origin.originProductId,
+          observedPriceId: f.origin.originPriceId,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "ORIGEM_FINANCEIRA" });
+  });
   it("preserva os valores aceitos e recusa oferta futura ou parcelas inválidas", async () => {
     const f = await fixture();
     for (const patch of [

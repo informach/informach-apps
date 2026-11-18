@@ -49,3 +49,49 @@ export async function garantirContratoOriginalLocked(tx: Transacao, entrada: Con
   );
   return atual;
 }
+
+/** Complete financial observations must match the single current authority.
+ * Only an initial offer can bootstrap revision one. A historical receipt or a
+ * provider price alone can never replace the current applied-change reference.
+ * Caller keeps this check in the same transaction as the financial snapshot. */
+export async function conferirOfertaAtualLocked(
+  tx: Transacao,
+  entrada: Omit<ContratoOriginal, "originPriceId"> & {
+    observedProductId: string;
+    observedPriceId: string;
+  },
+) {
+  const [atual] = await tx
+    .select()
+    .from(contracts)
+    .where(eq(contracts.subscriptionId, entrada.subscriptionId))
+    .for("update");
+  if (!atual) {
+    assertAllowed(
+      entrada.observedProductId === entrada.originProductId,
+      "ORIGEM_FINANCEIRA",
+      "A oferta diferente da compra exige um recibo atual aplicado.",
+    );
+    return garantirContratoOriginalLocked(tx, {
+      subscriptionId: entrada.subscriptionId,
+      purchaseId: entrada.purchaseId,
+      groupId: entrada.groupId,
+      payerUserId: entrada.payerUserId,
+      providerMode: entrada.providerMode,
+      originProductId: entrada.originProductId,
+      originPriceId: entrada.observedPriceId,
+    });
+  }
+  assertAllowed(
+    atual.purchaseId === entrada.purchaseId &&
+      atual.groupId === entrada.groupId &&
+      atual.payerUserId === entrada.payerUserId &&
+      atual.providerMode === entrada.providerMode &&
+      atual.originProductId === entrada.originProductId &&
+      atual.currentProductId === entrada.observedProductId &&
+      atual.currentPriceId === entrada.observedPriceId,
+    "ORIGEM_FINANCEIRA",
+    "A observação financeira não corresponde à oferta atual admitida.",
+  );
+  return atual;
+}

@@ -132,3 +132,12 @@ a captura financeira atômica do próximo incremento. Não há telas ou cron de
 recuperação ligados, nem execução em produção. Os novos casos PostgreSQL/SDK
 fechado precisam concluir os gates remotos desta candidata antes de qualquer
 declaração de aprovação.
+
+A candidata seguinte separa a inicialização da revisão um da conferência da
+oferta observada. A conciliação conserva os metadados da compra original e exige
+que preço/produto atuais correspondam à única autoridade comercial corrente,
+na mesma transação dos fatos financeiros. Oferta diferente sem autoridade
+atual aplicada recusa e reverte a captura; nunca reinicializa a origem. Isso
+prepara a integração da aplicação atômica, sem acrescentar por si só um writer
+de aplicação ou conceder acesso. Os novos cenários de PostgreSQL ainda precisam
+de verificação remota.
