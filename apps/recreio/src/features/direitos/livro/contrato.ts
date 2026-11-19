@@ -38,6 +38,13 @@ export const IntencaoDeDireitosSchema = z
       ctx.addIssue({ code: "custom", message: "invalid authority time" });
   });
 
+export const ReferenciaDaIntencaoSchema = z.strictObject({
+  operacaoId: IdDoLivroSchema,
+  revisao: Contador.min(1),
+  sha256: ShaDoLivroSchema,
+});
+export type ReferenciaDaIntencao = z.infer<typeof ReferenciaDaIntencaoSchema>;
+
 export const CabecalhoDeDireitosSchema = z
   .strictObject({
     formato: z.literal("recreio-livro-direitos-v1"),
@@ -47,13 +54,7 @@ export const CabecalhoDeDireitosSchema = z
     entradas: Contador,
     raizSha256: ShaDoLivroSchema,
     anteriorSha256: ShaDoLivroSchema.nullable(),
-    ultimaIntencao: z
-      .strictObject({
-        operacaoId: IdDoLivroSchema,
-        revisao: Contador.min(1),
-        sha256: ShaDoLivroSchema,
-      })
-      .nullable(),
+    ultimaIntencao: ReferenciaDaIntencaoSchema.nullable(),
     atualizadoEm: Instante,
   })
   .superRefine((v, ctx) => {
@@ -80,7 +81,8 @@ export class FalhaDoLivroDeDireitos extends Error {
       | "INCONCLUSIVO"
       | "AUSENTE"
       | "CONCORRENCIA"
-      | "CONGELADO",
+      | "CONGELADO"
+      | "LIMITE",
   ) {
     super(`recreio.rights_ledger.${codigo}`);
   }

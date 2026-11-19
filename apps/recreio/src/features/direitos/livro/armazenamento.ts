@@ -7,7 +7,13 @@ import {
   S3ServiceException,
 } from "@aws-sdk/client-s3";
 import { type criarAssinaturaDoLivro, MAX_REGISTRO, resumoDoRegistro } from "./assinatura";
-import { type CabecalhoDeDireitos, FalhaDoLivroDeDireitos, RAIZ_VAZIA } from "./contrato";
+import {
+  type CabecalhoDeDireitos,
+  FalhaDoLivroDeDireitos,
+  RAIZ_VAZIA,
+  ReferenciaDaIntencaoSchema,
+  ShaDoLivroSchema,
+} from "./contrato";
 
 export interface CabecalhoLido {
   readonly documento: Readonly<CabecalhoDeDireitos>;
@@ -45,15 +51,15 @@ export function criarArmazenamentoDoLivro(config: {
     throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
   const prefixo = `recreio/v1/direitos/${assinatura.livroId}/`,
     caminho = `${prefixo}cabecalho.json`,
-    capacidades = new WeakMap<CabecalhoLido, { bytes: Buffer; etag: string }>();
-  function emitir(bytes: Buffer, etag: string): CabecalhoLido {
+    capacidades = new WeakMap<CabecalhoLido, { bytes: Buffer; etag: string; escrita: boolean }>();
+  function emitir(bytes: Buffer, etag: string, escrita = true): CabecalhoLido {
     const documento = assinatura.lerCabecalho(bytes);
     if (documento.ultimaIntencao) Object.freeze(documento.ultimaIntencao);
     const leitura = Object.freeze({
       documento: Object.freeze(documento),
       sha256: resumoDoRegistro(bytes),
     });
-    capacidades.set(leitura, { bytes: Buffer.from(bytes), etag });
+    capacidades.set(leitura, { bytes: Buffer.from(bytes), etag, escrita });
     return leitura;
   }
   async function comPrazo<T>(fn: (signal: AbortSignal) => Promise<T>, externo?: AbortSignal) {
@@ -252,6 +258,37 @@ export function criarArmazenamentoDoLivro(config: {
         return emitir(lido.bytes, lido.etag);
       }, signal);
     },
+    lerHistorico(geracao: number, sha256: string, signal?: AbortSignal) {
+      if (
+        !Number.isSafeInteger(geracao) ||
+        geracao < 0 ||
+        !ShaDoLivroSchema.safeParse(sha256).success
+      )
+        throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      return comPrazo(async (s) => {
+        const r = await get(caminhoHistorico(geracao, sha256), s),
+          doc = assinatura.lerCabecalho(r.bytes);
+        if (resumoDoRegistro(r.bytes) !== sha256 || doc.geracao !== geracao)
+          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        return emitir(r.bytes, r.etag, false);
+      }, signal);
+    },
+    lerIntencaoReferencia(entrada: unknown, signal?: AbortSignal) {
+      const p = ReferenciaDaIntencaoSchema.safeParse(entrada);
+      if (!p.success) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      const ref = p.data;
+      return comPrazo(async (s) => {
+        const r = await get(`${prefixo}intencoes/${ref.operacaoId}-${ref.revisao}.json`, s),
+          doc = assinatura.lerIntencao(r.bytes);
+        if (
+          doc.operacaoId !== ref.operacaoId ||
+          doc.revisao !== ref.revisao ||
+          resumoDoRegistro(r.bytes) !== ref.sha256
+        )
+          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        return doc;
+      }, signal);
+    },
     publicarIntencao(entrada: Uint8Array, signal?: AbortSignal) {
       const bytes = Buffer.from(entrada);
       assinatura.lerIntencao(bytes);
@@ -261,7 +298,7 @@ export function criarArmazenamentoDoLivro(config: {
      * automático; retomar operação exigirá rotação/custódia e conciliação. */
     congelarCabecalho(anterior: CabecalhoLido, instante: string, signal?: AbortSignal) {
       const admitida = capacidades.get(anterior);
-      if (!admitida) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      if (!admitida?.escrita) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
       const antes = assinatura.lerCabecalho(admitida.bytes);
       if (antes.estado === "congelado")
         return comPrazo(async (s) => {
@@ -283,7 +320,7 @@ export function criarArmazenamentoDoLivro(config: {
     },
     trocarCabecalho(anterior: CabecalhoLido, entrada: Uint8Array, signal?: AbortSignal) {
       const admitida = capacidades.get(anterior);
-      if (!admitida) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      if (!admitida?.escrita) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
       const bytes = Buffer.from(entrada),
         proximo = assinatura.lerCabecalho(bytes),
         antes = assinatura.lerCabecalho(admitida.bytes);

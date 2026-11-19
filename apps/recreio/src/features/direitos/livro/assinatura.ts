@@ -95,7 +95,7 @@ export function criarAssinaturaDoLivro(config: {
     }
     return e.documento;
   }
-  return {
+  return Object.freeze({
     livroId: livroId,
     assinarIntencao(entrada: unknown) {
       const p = IntencaoDeDireitosSchema.safeParse(entrada);
@@ -122,5 +122,5 @@ export function criarAssinaturaDoLivro(config: {
       for (const key of chaves.values()) key.fill(0);
       chaves.clear();
     },
-  };
+  });
 }

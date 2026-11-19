@@ -165,12 +165,7 @@ describe("livro externo: HTTP fechado com SDK real", () => {
       await expect(f.storage.trocarCabecalho(base, proximo)).rejects.toMatchObject({
         codigo: "CONCORRENCIA",
       });
-      expect(() =>
-        f.storage.trocarCabecalho(
-          congelado,
-          f.assinatura.assinarCabecalho(f.proximo(congelado, bytes)),
-        ),
-      ).toThrow(/CONGELADO/);
+      expect(() => f.storage.trocarCabecalho(congelado, proximo)).toThrow(/CONGELADO/);
       expect(
         (await f.storage.congelarCabecalho(congelado, "2026-11-19T10:03:00.000Z")).sha256,
       ).toBe(congelado.sha256);

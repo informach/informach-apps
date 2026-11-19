@@ -54,3 +54,16 @@ Efeitos locais só podem ser concluídos após admissão no cabeçalho, portanto
 sua cadeia congelada contém todos os pedidos que podem ter sido concluídos.
 Leitura integral e retomada com nova autoridade/custódia continuam pendentes;
 não descongelar ou reinicializar automaticamente para contornar a cerca.
+
+A primeira rodada do congelamento `44516612201` executou tipos e 181 testes:
+180 passaram; um teste fabricava cabeçalho aberto incompatível com a geração
+congelada, antes de alcançar o bloqueio esperado. O cenário foi corrigido para
+usar um pedido assinado válido. A geração adicional da cerca não representa
+nova intenção e não pode ser confundida com a contagem de pedidos.
+
+O leitor seguinte verifica a cadeia inteira e as intenções autenticadas antes
+de chamar o consumidor; histórico ausente, MAC/raiz divergente, repetição de
+op/revisão ou limite excedido recusam a prova inteira. Replay exige cabeçalho
+congelado e a mesma cerca antes/depois dos efeitos. Cabeçalhos históricos não
+concedem capacidade de escrita; o erro do consumidor conserva sua causa.
+Ainda não existem efeitos destrutivos locais ou liberação de tráfego.
