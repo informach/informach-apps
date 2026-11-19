@@ -1604,6 +1604,13 @@
       "when": 1795101844630,
       "tag": "0228_recreio_rights_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 229,
+      "version": "7",
+      "when": 1795102984864,
+      "tag": "0229_recreio_rights_projection_types",
+      "breakpoints": true
     }
   ]
 }

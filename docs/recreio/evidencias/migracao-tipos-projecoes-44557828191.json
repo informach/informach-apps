@@ -1,0 +1,30 @@
+{
+  "source": "762718cd40c3b83a93e94b2982062b4fb2f1c3cf",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0229_recreio_rights_projection_types.sql",
+      "bytes": 2246,
+      "sha256": "4919109969cd34e4d0a29177f7d497017bece7c1ae8cb06db6b137b77efbf985"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0229_snapshot.json",
+      "bytes": 1090316,
+      "sha256": "c40beb259c0514dc1e896e3063a4af67df2bf9bec0c5e7bbb99063d93cc6c0ae"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 34756,
+      "sha256": "c0d35c7be1025237d8a8ffd56eb11ba24833bff0417e47f4b05864747b23f5d0"
+    }
+  ],
+  "runId": 44557828191,
+  "artifactId": 14544859192,
+  "artifactZipBytes": 77258,
+  "artifactZipSha256": "d63426cbc3e8b7af88cd9f82e711a398dc3b679991d3ccbff4c8f3e82bc12784",
+  "productionApplied": false,
+  "unchangedPreviousColumnsAndOtherConstraints": true,
+  "changedConstraints": [
+    ["recreio.profiles", "checkConstraints", "recreio_profiles_rights_freeze"],
+    ["recreio.spaces", "checkConstraints", "recreio_spaces_rights_freeze"]
+  ]
+}
