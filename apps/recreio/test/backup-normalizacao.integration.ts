@@ -80,7 +80,8 @@ describe("normalização: recusas/quarentena em PostgreSQL real; sem liberar tr�
   });
   it("constraints recusam metadados parciais e retirada/validação fabricadas", async () => {
     const f = await recibo();
-    type Delta = Partial<typeof deliveries.$inferInsert>;
+    const atualizacao = db.update(deliveries);
+    type Delta = Parameters<typeof atualizacao.set>[0];
     const invalidos: Delta[] = [
       { state: "quarantined" },
       { quarantinedAt: sql`clock_timestamp()` },
