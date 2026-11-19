@@ -28,6 +28,7 @@
     "jogo-de-teste": "node --import tsx e2e/servidor/main.ts",
     "conceder": "node --conditions=react-server --import tsx scripts/conceder.ts",
     "revogar": "node --conditions=react-server --import tsx scripts/revogar.ts",
+    "processar-direitos": "node --conditions=react-server --import tsx scripts/processar-direitos.ts",
     "restaurar-morada": "node --conditions=react-server --import tsx scripts/restaurar-morada.ts",
     "gerar-chave": "node scripts/gerar-chave.mjs"
   },

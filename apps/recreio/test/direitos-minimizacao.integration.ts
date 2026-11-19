@@ -38,6 +38,7 @@ import {
 } from "@/features/protecao/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { processarProximaFotografiaDeDireitos } from "../scripts/direitos/fotografias";
+import { processarRodadaDeDireitos } from "../scripts/direitos/rodada";
 import { loginReal, novaConta } from "./apoio";
 import { fixtureDoLivro } from "./livro-apoio";
 import { criarBucketDoLivro } from "./livro-s3-apoio";
@@ -96,6 +97,14 @@ function compor(r: Awaited<ReturnType<typeof runtime>>) {
         politica: { retirarTextosDaFundacao: true },
       });
       return op;
+    },
+    async rodada() {
+      return processarRodadaDeDireitos({
+        assinatura,
+        storage,
+        leitor: null,
+        politica: { retirarTextosDaFundacao: true },
+      });
     },
     async expurgar() {
       return expurgarProximaReferencia({
@@ -571,4 +580,33 @@ describe("minimização nativa sem reabrir autoridade", () => {
       }),
     20000,
   );
+  it("executor composto percorre a fila real sem publicar conteúdo ou dados pessoais", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        p = await jogador(a),
+        op = await f.admitir(a.autor, p.id);
+      const resultado = await f.rodada();
+      expect(resultado.etapas).toContainEqual({
+        etapa: "conclusao",
+        situacao: "retirada_concluida",
+      });
+      for (const privado of [p.id, a.conta.id, a.conta.email, "Pessoa privada", op.operacaoId])
+        expect(JSON.stringify(resultado)).not.toContain(privado);
+      expect(
+        (await db.select().from(operations).where(eq(operations.id, op.operacaoId)))[0]?.state,
+      ).toBe("completed");
+      expect(await db.select().from(profiles).where(eq(profiles.id, p.id))).toHaveLength(0);
+    }));
+  it("rodada falha mesmo ociosa se uma operação anterior exige revisão", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        p = await jogador(a),
+        op = await f.admitir(a.autor, p.id);
+      await db
+        .update(operations)
+        .set({ state: "review", reviewCode: "integrity" })
+        .where(eq(operations.id, op.operacaoId));
+      await expect(f.rodada()).rejects.toBeInstanceOf(AggregateError);
+      expect(await db.select().from(profiles).where(eq(profiles.id, p.id))).toHaveLength(1);
+    }));
 });

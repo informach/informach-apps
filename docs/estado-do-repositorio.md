@@ -1,13 +1,16 @@
 # Estado do trabalho no repositório
 
-**19/11 — Recreio, fonte 2a7acd8b qualificada:** dezesseis gates 44552782455,
-1354 integrações e upgrades 179/191→228 preservados. Consentimento/outbox,
-fotos, resumo e diário coberto; ainda sem encerramento/exportação integrais.
-Segue candidata de fila justa, conteúdo pessoal em lotes e referência mínima
-com retenção (0228, 229 recibos). Projeções SQL recebem tipos explícitos após
-42P18 identificado no teste; DDL seguinte deve ser gerado remotamente.
-Mundos ativos ainda precisam de drenagem pelo host, e minimizador, retenções,
-encerramento nativo, custódia/restauração e homologação final continuam abertos.
+**19/11 — Recreio, retirada nativa em qualificação:** fonte 2a7acd8b passou
+os dezesseis gates 44552782455 e o CI compartilhado 44552798763. A correção
+do contexto infantil 1aaa1618 passou qualidade 44570280421 e integração
+44570289673. Consentimento assinado, fotos/resumo, diário coberto, dados e
+minimização estão implementados; seguem expurgo físico em lotes, conclusão
+com retenções explícitas e executor operacional desligado por padrão.
+A candidata 2f318592 adotou 0231 com cinco índices intactos do gerador remoto
+44571719480: 232 recibos. Novos testes ainda em conferência; a união de
+três eventos de auditoria foi corrigida após recusa do typecheck.
+Mundos ativos ainda precisam de drenagem pelo host, e encerramento nativo,
+exportação integral, custódia/restauração e homologação final continuam abertos.
 Nenhuma dessas candidatas ativada em produção; testes manuais só no final.
 [Contrato e evidências](recreio/congelamento-direitos-2026-11-19.md).
 

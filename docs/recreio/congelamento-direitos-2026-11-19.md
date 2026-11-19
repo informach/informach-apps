@@ -332,3 +332,38 @@ Qualidade da correção de contexto infantil passou em 44570280421 (1aaa1618);
 a integração correspondente ainda está em conferência. Os novos lotes,
 conclusão, token com prazo real e índices precisam dos gates remotos da
 próxima fonte. Não há rota pública destrutiva, migração ou ativação em produção.
+
+
+## Executor operacional candidato
+
+`pnpm --filter @informach/recreio-app processar-direitos` executa uma passagem
+por publicação, fotos/diário, dados, cadastro, referências e conclusão. Não
+aceita argumentos ou IDs arbitrários. `RECREIO_RIGHTS_MODE=off` é o padrão;
+`process` exige escopo, livro, bucket privado, endpoint oficial permitido,
+região/path-style, credenciais exclusivas, chave ativa, keyring em array de
+pares `[id, base64]` e a política `retirar-textos-fundacao-v1`. Nunca imprimir
+as variáveis. O livro deve existir e ser conferido: ausência não inicia um novo.
+
+Os nomes são `RECREIO_RIGHTS_SCOPE`, `LEDGER_ID`, `BUCKET`, `ENDPOINT`,
+`REGION`, `PATH_STYLE`, `ACCESS_KEY`, `SECRET_KEY`, `ACTIVE_KEY`, `KEYRING`
+e `POLICY`, todos com prefixo `RECREIO_RIGHTS_`. Qualificação só usa bucket
+recreio-homologacao ou recreio-homologacao-*; produção recusa esses buckets.
+O parser recusa IDs/bits repetidos e base64 não canônico, sem expor valores
+em erros. Buffers próprios são apagados e o cliente S3 é encerrado, inclusive
+se a composição falhar. A credencial precisa de escopo comprovado no provedor;
+a validação das variáveis não comprova essa permissão nem custódia externa.
+
+A rodada tenta etapas independentes e retorna falha se qualquer etapa falhar,
+entrar em revisão ou se houver revisão anterior. A fila mede contagens sem
+conteúdo e recusa sucesso quando há processamento pendente há mais de trinta
+minutos ou expurgo vencido há mais de cinco. Referências ainda no prazo são
+contadas separadamente. O job `recreio/direitos` usa ops.job_runs, e a saída
+contém somente etapas/situações e contagens; erros públicos são constantes,
+sem SQL, parâmetros, bytes, chaves ou endpoints. Agendamento, alertas de cron
+parado e permissão real do bucket ainda exigem implantação/homologação.
+
+A geração 44571719480 (48b4fc0a) foi adotada intacta como 0231: cinco índices,
+232 recibos, hashes/proveniência conferidos e nenhuma coluna/constraint/índice
+anterior alterado. Qualidade apontou ausência dos três eventos novos na união
+canônica de auditoria; corrigida sem casts. Integração da correção infantil
+44570289673 passou. Expurgo/executor completos ainda estão em qualificação.
