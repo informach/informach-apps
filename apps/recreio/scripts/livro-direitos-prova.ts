@@ -29,6 +29,7 @@ interface ReciboDaProva {
   staleOverwriteRefused: boolean;
   anonymousReadDenied: boolean;
   cleanupConfirmed: boolean;
+  durableFreezeVerified: boolean;
   productionDataTouched: false;
   productionCredentialsPresent: false;
   failure: string | null;
@@ -109,6 +110,7 @@ async function main() {
     staleOverwriteRefused: false,
     anonymousReadDenied: false,
     cleanupConfirmed: false,
+    durableFreezeVerified: false,
     productionDataTouched: false,
     productionCredentialsPresent: false,
     failure: null,
@@ -205,6 +207,7 @@ async function main() {
   try {
     const inicial = assinatura.assinarCabecalho({
         formato: "recreio-livro-direitos-v1",
+        estado: "aberto",
         livroId,
         geracao: 0,
         entradas: 0,
@@ -230,18 +233,19 @@ async function main() {
     exigir(recusou, "INTENCAO_SOBRESCRITA");
     recibo.immutableIntentVerified = true;
     await storage.publicarIntencao(b);
-    const head = (bytes: Buffer) => {
+    const head = (bytes: Buffer, anterior = base) => {
         const i = assinatura.lerIntencao(bytes),
           sha256 = resumoDoRegistro(bytes);
         return assinatura.assinarCabecalho({
           formato: "recreio-livro-direitos-v1",
+          estado: "aberto",
           livroId,
-          geracao: 1,
-          entradas: 1,
+          geracao: anterior.documento.geracao + 1,
+          entradas: anterior.documento.entradas + 1,
           raizSha256: resumoDoRegistro(
-            Buffer.from(JSON.stringify([base.documento.raizSha256, sha256])),
+            Buffer.from(JSON.stringify([anterior.documento.raizSha256, sha256])),
           ),
-          anteriorSha256: base.sha256,
+          anteriorSha256: anterior.sha256,
           ultimaIntencao: { operacaoId: i.operacaoId, revisao: i.revisao, sha256 },
           atualizadoEm: "2026-11-19T10:01:00.000Z",
         });
@@ -277,6 +281,33 @@ async function main() {
     );
     recibo.staleOverwriteRefused = true;
     recibo.conditionalCasVerified = true;
+    const congelado = await storage.congelarCabecalho(atual, "2026-11-19T10:02:00.000Z");
+    exigir(
+      congelado.documento.estado === "congelado" &&
+        congelado.documento.geracao === 2 &&
+        congelado.documento.entradas === 1 &&
+        congelado.documento.raizSha256 === atual.documento.raizSha256,
+      "CONGELAMENTO_NAO_CONFIRMADO",
+    );
+    const seguinte = head(atual.sha256 === resumoDoRegistro(ha) ? b : a, atual);
+    recusou = false;
+    try {
+      await storage.trocarCabecalho(atual, seguinte);
+    } catch (e) {
+      recusou = e instanceof FalhaDoLivroDeDireitos && e.codigo === "CONCORRENCIA";
+    }
+    exigir(recusou, "CAS_ULTRAPASSOU_CONGELAMENTO");
+    recusou = false;
+    try {
+      await storage.trocarCabecalho(congelado, seguinte);
+    } catch (e) {
+      recusou = e instanceof FalhaDoLivroDeDireitos && e.codigo === "CONGELADO";
+    }
+    exigir(
+      recusou && (await storage.lerCabecalho()).sha256 === congelado.sha256,
+      "ADMISSAO_CONGELADA_NAO_RECUSADA",
+    );
+    recibo.durableFreezeVerified = true;
     const url = new URL(endpoint.origin);
     if (estilo === "true") url.pathname = `/${bucket}/${prefixo}cabecalho.json`;
     else {
@@ -290,7 +321,7 @@ async function main() {
       await anonima.body?.cancel();
     }
     recibo.anonymousReadDenied = true;
-    exigir(chavesProprias.size === 6, "ESCOPO_DA_PROVA_DIVERGENTE");
+    exigir(chavesProprias.size === 8, "ESCOPO_DA_PROVA_DIVERGENTE");
     recibo.status = "passed";
   } catch (e) {
     recibo.failure = codigo(e);

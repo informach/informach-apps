@@ -47,11 +47,12 @@ export function criarArmazenamentoDoLivro(config: {
     caminho = `${prefixo}cabecalho.json`,
     capacidades = new WeakMap<CabecalhoLido, { bytes: Buffer; etag: string }>();
   function emitir(bytes: Buffer, etag: string): CabecalhoLido {
-    const documento = assinatura.lerCabecalho(bytes),
-      leitura = Object.freeze({
-        documento: Object.freeze(documento),
-        sha256: resumoDoRegistro(bytes),
-      });
+    const documento = assinatura.lerCabecalho(bytes);
+    if (documento.ultimaIntencao) Object.freeze(documento.ultimaIntencao);
+    const leitura = Object.freeze({
+      documento: Object.freeze(documento),
+      sha256: resumoDoRegistro(bytes),
+    });
     capacidades.set(leitura, { bytes: Buffer.from(bytes), etag });
     return leitura;
   }
@@ -170,6 +171,43 @@ export function criarArmazenamentoDoLivro(config: {
     assinatura.lerCabecalho(lido.bytes);
     if (!lido.bytes.equals(bytes)) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
   }
+  async function compararETrocar(
+    bytes: Buffer,
+    etag: string,
+    signal: AbortSignal,
+    congelando = false,
+  ) {
+    await guardarHistorico(bytes, signal);
+    let falhou = false,
+      concorrencia = false;
+    try {
+      await cliente.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: caminho,
+          Body: bytes,
+          ContentLength: bytes.length,
+          ContentType: "application/json",
+          IfMatch: etag,
+        }),
+        { abortSignal: signal },
+      );
+    } catch (erro) {
+      if (
+        erro instanceof S3ServiceException &&
+        ([401, 403].includes(erro.$metadata.httpStatusCode ?? 0) || erro.name === "NoSuchBucket")
+      )
+        falha(erro);
+      falhou = true;
+      concorrencia = condicional(erro);
+    }
+    const lido = await get(caminho, signal);
+    const observado = assinatura.lerCabecalho(lido.bytes);
+    if (congelando && observado.estado === "congelado") return emitir(lido.bytes, lido.etag);
+    if (lido.bytes.equals(bytes)) return emitir(lido.bytes, lido.etag);
+    if (concorrencia || !falhou) throw new FalhaDoLivroDeDireitos("CONCORRENCIA");
+    throw new FalhaDoLivroDeDireitos("INCONCLUSIVO");
+  }
   return {
     prefixo,
     lerCabecalho(signal?: AbortSignal) {
@@ -182,7 +220,12 @@ export function criarArmazenamentoDoLivro(config: {
     iniciarCabecalho(entrada: Uint8Array, signal?: AbortSignal) {
       const bytes = Buffer.from(entrada),
         doc = assinatura.lerCabecalho(bytes);
-      if (doc.geracao !== 0 || doc.entradas !== 0 || doc.raizSha256 !== RAIZ_VAZIA)
+      if (
+        doc.estado !== "aberto" ||
+        doc.geracao !== 0 ||
+        doc.entradas !== 0 ||
+        doc.raizSha256 !== RAIZ_VAZIA
+      )
         throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
       return comPrazo(async (s) => {
         await guardarHistorico(bytes, s);
@@ -214,12 +257,38 @@ export function criarArmazenamentoDoLivro(config: {
       assinatura.lerIntencao(bytes);
       return comPrazo((s) => guardarIntencao(bytes, s), signal);
     },
+    /** Cerca externa terminal para esta encarnação do livro. Não existe thaw
+     * automático; retomar operação exigirá rotação/custódia e conciliação. */
+    congelarCabecalho(anterior: CabecalhoLido, instante: string, signal?: AbortSignal) {
+      const admitida = capacidades.get(anterior);
+      if (!admitida) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      const antes = assinatura.lerCabecalho(admitida.bytes);
+      if (antes.estado === "congelado")
+        return comPrazo(async (s) => {
+          const atual = await get(caminho, s);
+          if (assinatura.lerCabecalho(atual.bytes).estado !== "congelado")
+            throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+          return emitir(atual.bytes, atual.etag);
+        }, signal);
+      if (Date.parse(instante) < Date.parse(antes.atualizadoEm))
+        throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+      const bytes = assinatura.assinarCabecalho({
+        ...antes,
+        estado: "congelado",
+        geracao: antes.geracao + 1,
+        anteriorSha256: resumoDoRegistro(admitida.bytes),
+        atualizadoEm: instante,
+      });
+      return comPrazo((s) => compararETrocar(bytes, admitida.etag, s, true), signal);
+    },
     trocarCabecalho(anterior: CabecalhoLido, entrada: Uint8Array, signal?: AbortSignal) {
       const admitida = capacidades.get(anterior);
       if (!admitida) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
       const bytes = Buffer.from(entrada),
         proximo = assinatura.lerCabecalho(bytes),
         antes = assinatura.lerCabecalho(admitida.bytes);
+      if (antes.estado === "congelado") throw new FalhaDoLivroDeDireitos("CONGELADO");
+      if (proximo.estado !== "aberto") throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
       if (
         proximo.geracao !== antes.geracao + 1 ||
         proximo.entradas !== antes.entradas + 1 ||
@@ -243,36 +312,7 @@ export function criarArmazenamentoDoLivro(config: {
             resumoDoRegistro(Buffer.from(JSON.stringify([antes.raizSha256, ultima.sha256]), "utf8"))
         )
           throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
-        await guardarHistorico(bytes, s);
-        let falhou = false,
-          concorrencia = false;
-        try {
-          await cliente.send(
-            new PutObjectCommand({
-              Bucket: bucket,
-              Key: caminho,
-              Body: bytes,
-              ContentLength: bytes.length,
-              ContentType: "application/json",
-              IfMatch: admitida.etag,
-            }),
-            { abortSignal: s },
-          );
-        } catch (erro) {
-          if (
-            erro instanceof S3ServiceException &&
-            ([401, 403].includes(erro.$metadata.httpStatusCode ?? 0) ||
-              erro.name === "NoSuchBucket")
-          )
-            falha(erro);
-          falhou = true;
-          concorrencia = condicional(erro);
-        }
-        const lido = await get(caminho, s);
-        assinatura.lerCabecalho(lido.bytes);
-        if (lido.bytes.equals(bytes)) return emitir(lido.bytes, lido.etag);
-        if (concorrencia || !falhou) throw new FalhaDoLivroDeDireitos("CONCORRENCIA");
-        throw new FalhaDoLivroDeDireitos("INCONCLUSIVO");
+        return compararETrocar(bytes, admitida.etag, s);
       }, signal);
     },
   };

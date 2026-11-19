@@ -12,6 +12,7 @@ export function fixtureDoLivro() {
     assinatura = criarAssinaturaDoLivro({ livroId, chaveAtiva: "v1", chaves });
   const inicial: CabecalhoDeDireitos = {
     formato: "recreio-livro-direitos-v1",
+    estado: "aberto",
     livroId,
     geracao: 0,
     entradas: 0,
@@ -38,6 +39,7 @@ export function fixtureDoLivro() {
       sha256 = resumoDoRegistro(bytes);
     return {
       formato: "recreio-livro-direitos-v1",
+      estado: "aberto",
       livroId,
       geracao: anterior.documento.geracao + 1,
       entradas: anterior.documento.entradas + 1,

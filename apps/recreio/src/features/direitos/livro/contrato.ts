@@ -42,6 +42,7 @@ export const CabecalhoDeDireitosSchema = z
   .strictObject({
     formato: z.literal("recreio-livro-direitos-v1"),
     livroId: IdDoLivroSchema,
+    estado: z.enum(["aberto", "congelado"]),
     geracao: Contador,
     entradas: Contador,
     raizSha256: ShaDoLivroSchema,
@@ -57,10 +58,13 @@ export const CabecalhoDeDireitosSchema = z
   })
   .superRefine((v, ctx) => {
     if (
-      v.geracao !== v.entradas ||
+      (v.estado === "aberto" ? v.geracao !== v.entradas : v.geracao !== v.entradas + 1) ||
       (v.geracao === 0
         ? v.anteriorSha256 !== null || v.raizSha256 !== RAIZ_VAZIA || v.ultimaIntencao !== null
-        : v.anteriorSha256 === null || v.ultimaIntencao === null)
+        : v.anteriorSha256 === null ||
+          (v.entradas === 0
+            ? v.raizSha256 !== RAIZ_VAZIA || v.ultimaIntencao !== null
+            : v.ultimaIntencao === null))
     )
       ctx.addIssue({ code: "custom", message: "invalid ledger lineage" });
   });
@@ -75,7 +79,8 @@ export class FalhaDoLivroDeDireitos extends Error {
       | "ENCERRADO"
       | "INCONCLUSIVO"
       | "AUSENTE"
-      | "CONCORRENCIA",
+      | "CONCORRENCIA"
+      | "CONGELADO",
   ) {
     super(`recreio.rights_ledger.${codigo}`);
   }

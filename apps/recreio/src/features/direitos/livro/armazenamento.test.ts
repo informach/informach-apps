@@ -155,4 +155,43 @@ describe("livro externo: HTTP fechado com SDK real", () => {
       1,
       80,
     ));
+  it("congelamento externo impede admissão antiga e nova sem inventar entrada", async () =>
+    cenario(async (f) => {
+      const base = await f.iniciar(),
+        bytes = await f.intencaoGuardada(),
+        proximo = f.assinatura.assinarCabecalho(f.proximo(base, bytes)),
+        congelado = await f.storage.congelarCabecalho(base, "2026-11-19T10:02:00.000Z");
+      expect(congelado.documento).toMatchObject({ estado: "congelado", geracao: 1, entradas: 0 });
+      await expect(f.storage.trocarCabecalho(base, proximo)).rejects.toMatchObject({
+        codigo: "CONCORRENCIA",
+      });
+      expect(() =>
+        f.storage.trocarCabecalho(
+          congelado,
+          f.assinatura.assinarCabecalho(f.proximo(congelado, bytes)),
+        ),
+      ).toThrow(/CONGELADO/);
+      expect(
+        (await f.storage.congelarCabecalho(congelado, "2026-11-19T10:03:00.000Z")).sha256,
+      ).toBe(congelado.sha256);
+      expect((await f.storage.lerCabecalho()).sha256).toBe(congelado.sha256);
+    }));
+  it("congelamento com resposta perdida conserva a entrada admitida", async () =>
+    cenario(async (f) => {
+      const base = await f.iniciar(),
+        bytes = await f.intencaoGuardada(),
+        head = await f.storage.trocarCabecalho(
+          base,
+          f.assinatura.assinarCabecalho(f.proximo(base, bytes)),
+        );
+      f.http.estado.perderCas = true;
+      const congelado = await f.storage.congelarCabecalho(head, "2026-11-19T10:02:00.000Z");
+      expect(congelado.documento).toMatchObject({
+        estado: "congelado",
+        geracao: 2,
+        entradas: 1,
+        raizSha256: head.documento.raizSha256,
+        ultimaIntencao: head.documento.ultimaIntencao,
+      });
+    }));
 });
