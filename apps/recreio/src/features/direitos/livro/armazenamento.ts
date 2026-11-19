@@ -1,5 +1,6 @@
 import "server-only";
 import { Readable } from "node:stream";
+import { isDeepStrictEqual } from "node:util";
 import {
   GetObjectCommand,
   PutObjectCommand,
@@ -18,6 +19,7 @@ import {
 export interface CabecalhoLido {
   readonly documento: Readonly<CabecalhoDeDireitos>;
   readonly sha256: string;
+  readonly chaveId: string;
 }
 function falha(erro: unknown): never {
   if (erro instanceof FalhaDoLivroDeDireitos) throw erro;
@@ -53,11 +55,14 @@ export function criarArmazenamentoDoLivro(config: {
     caminho = `${prefixo}cabecalho.json`,
     capacidades = new WeakMap<CabecalhoLido, { bytes: Buffer; etag: string; escrita: boolean }>();
   function emitir(bytes: Buffer, etag: string, escrita = true): CabecalhoLido {
-    const documento = assinatura.lerCabecalho(bytes);
+    const { documento, chaveId } = assinatura.lerCabecalhoAssinado(bytes);
     if (documento.ultimaIntencao) Object.freeze(documento.ultimaIntencao);
+    if (documento.retomada) Object.freeze(documento.retomada);
+    Object.freeze(documento.chavesUtilizadas);
     const leitura = Object.freeze({
       documento: Object.freeze(documento),
       sha256: resumoDoRegistro(bytes),
+      chaveId,
     });
     capacidades.set(leitura, { bytes: Buffer.from(bytes), etag, escrita });
     return leitura;
@@ -289,6 +294,23 @@ export function criarArmazenamentoDoLivro(config: {
         return doc;
       }, signal);
     },
+    lerIntencaoAssinadaReferencia(entrada: unknown, signal?: AbortSignal) {
+      const p = ReferenciaDaIntencaoSchema.safeParse(entrada);
+      if (!p.success) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      const ref = p.data;
+      return comPrazo(async (s) => {
+        const r = await get(`${prefixo}intencoes/${ref.operacaoId}-${ref.revisao}.json`, s),
+          assinada = assinatura.lerIntencaoAssinada(r.bytes),
+          doc = assinada.documento;
+        if (
+          doc.operacaoId !== ref.operacaoId ||
+          doc.revisao !== ref.revisao ||
+          resumoDoRegistro(r.bytes) !== ref.sha256
+        )
+          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        return assinada;
+      }, signal);
+    },
     publicarIntencao(entrada: Uint8Array, signal?: AbortSignal) {
       const bytes = Buffer.from(entrada);
       assinatura.lerIntencao(bytes);
@@ -300,6 +322,8 @@ export function criarArmazenamentoDoLivro(config: {
       const admitida = capacidades.get(anterior);
       if (!admitida?.escrita) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
       const antes = assinatura.lerCabecalho(admitida.bytes);
+      if (antes.estado === "aberto" && anterior.chaveId !== assinatura.chaveAtiva)
+        throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
       if (antes.estado === "congelado")
         return comPrazo(async (s) => {
           const atual = await get(caminho, s);
@@ -318,6 +342,32 @@ export function criarArmazenamentoDoLivro(config: {
       });
       return comPrazo((s) => compararETrocar(bytes, admitida.etag, s, true), signal);
     },
+    retomarComNovaChave(
+      anterior: CabecalhoLido,
+      reciboSha256: string,
+      instante: string,
+      signal?: AbortSignal,
+    ) {
+      const admitida = capacidades.get(anterior);
+      if (!admitida?.escrita || !ShaDoLivroSchema.safeParse(reciboSha256).success)
+        throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      const antes = assinatura.lerCabecalho(admitida.bytes);
+      if (antes.estado !== "congelado" || antes.chavesUtilizadas.includes(assinatura.chaveAtiva))
+        throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      if (Date.parse(instante) < Date.parse(antes.atualizadoEm))
+        throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+      const bytes = assinatura.assinarCabecalho({
+        ...antes,
+        estado: "aberto",
+        epoca: antes.epoca + 1,
+        chavesUtilizadas: [...antes.chavesUtilizadas, assinatura.chaveAtiva],
+        geracao: antes.geracao + 1,
+        anteriorSha256: resumoDoRegistro(admitida.bytes),
+        retomada: { cercaSha256: resumoDoRegistro(admitida.bytes), reciboSha256 },
+        atualizadoEm: instante,
+      });
+      return comPrazo((s) => compararETrocar(bytes, admitida.etag, s), signal);
+    },
     trocarCabecalho(anterior: CabecalhoLido, entrada: Uint8Array, signal?: AbortSignal) {
       const admitida = capacidades.get(anterior);
       if (!admitida?.escrita) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
@@ -325,6 +375,14 @@ export function criarArmazenamentoDoLivro(config: {
         proximo = assinatura.lerCabecalho(bytes),
         antes = assinatura.lerCabecalho(admitida.bytes);
       if (antes.estado === "congelado") throw new FalhaDoLivroDeDireitos("CONGELADO");
+      if (anterior.chaveId !== assinatura.chaveAtiva)
+        throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      if (
+        proximo.epoca !== antes.epoca ||
+        !isDeepStrictEqual(proximo.chavesUtilizadas, antes.chavesUtilizadas) ||
+        !isDeepStrictEqual(proximo.retomada, antes.retomada)
+      )
+        throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
       if (proximo.estado !== "aberto") throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
       if (
         proximo.geracao !== antes.geracao + 1 ||
@@ -340,7 +398,10 @@ export function criarArmazenamentoDoLivro(config: {
           `${prefixo}intencoes/${ultima.operacaoId}-${ultima.revisao}.json`,
           s,
         );
-        const documento = assinatura.lerIntencao(intento.bytes);
+        const assinada = assinatura.lerIntencaoAssinada(intento.bytes),
+          documento = assinada.documento;
+        if (assinada.chaveId !== anterior.chaveId || documento.epoca !== antes.epoca)
+          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
         if (
           documento.operacaoId !== ultima.operacaoId ||
           documento.revisao !== ultima.revisao ||

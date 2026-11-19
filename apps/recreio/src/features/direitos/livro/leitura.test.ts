@@ -1,7 +1,9 @@
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { fixtureDoLivro } from "../../../../test/livro-apoio";
 import { criarBucketDoLivro } from "../../../../test/livro-s3-apoio";
 import { criarArmazenamentoDoLivro } from "./armazenamento";
+import { criarAssinaturaDoLivro, resumoDoRegistro } from "./assinatura";
 import { conferirPrefixoDoLivro, reaplicarLivroCongelado } from "./leitura";
 
 async function cenario(fn: (f: Awaited<ReturnType<typeof preparar>>) => Promise<void>) {
@@ -154,5 +156,74 @@ describe("continuidade do livro externo", () => {
         }),
       ).rejects.toMatchObject({ codigo: "AUSENTE" });
       expect(chamadas).toBe(0);
+    }));
+  it("retoma com chave inédita e verifica ambas as épocas sem reativar o writer antigo", async () =>
+    cenario(async (f) => {
+      const { head, doc } = await f.admitir(),
+        congelado = await f.storage.congelarCabecalho(head, "2026-11-19T10:02:00.000Z");
+      expect(() =>
+        f.storage.retomarComNovaChave(congelado, "c".repeat(64), "2026-11-19T10:03:00.000Z"),
+      ).toThrow(/CONFIGURACAO/);
+      const key = randomBytes(32),
+        nova = criarAssinaturaDoLivro({
+          livroId: f.livroId,
+          chaveAtiva: "v2",
+          chaves: new Map([...f.chaves, ["v2", key]]),
+        }),
+        storage = criarArmazenamentoDoLivro({
+          cliente: f.http.cliente,
+          bucket: "recreio-fixture",
+          assinatura: nova,
+          tempoLimiteMs: 2000,
+        });
+      try {
+        const fence = await storage.lerCabecalho(),
+          aberto = await storage.retomarComNovaChave(
+            fence,
+            "c".repeat(64),
+            "2026-11-19T10:03:00.000Z",
+          );
+        expect(aberto.documento).toMatchObject({
+          estado: "aberto",
+          epoca: 1,
+          geracao: 3,
+          entradas: 1,
+          chavesUtilizadas: ["v1", "v2"],
+          retomada: { cercaSha256: fence.sha256, reciboSha256: "c".repeat(64) },
+        });
+        await expect(f.storage.lerCabecalho()).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+        const intencao = { ...f.intencao(), epoca: 1 },
+          bytes = nova.assinarIntencao(intencao),
+          sha256 = resumoDoRegistro(bytes);
+        await storage.publicarIntencao(bytes);
+        const segundo = await storage.trocarCabecalho(
+          aberto,
+          nova.assinarCabecalho({
+            ...aberto.documento,
+            geracao: 4,
+            entradas: 2,
+            anteriorSha256: aberto.sha256,
+            raizSha256: resumoDoRegistro(
+              Buffer.from(JSON.stringify([aberto.documento.raizSha256, sha256])),
+            ),
+            ultimaIntencao: { operacaoId: intencao.operacaoId, revisao: 1, sha256 },
+            atualizadoEm: "2026-11-19T10:04:00.000Z",
+          }),
+        );
+        await storage.congelarCabecalho(segundo, "2026-11-19T10:05:00.000Z");
+        const ids: string[] = [];
+        const recibo = await reaplicarLivroCongelado({
+          ...limites,
+          storage,
+          aplicar: async (i) => {
+            ids.push(i.operacaoId);
+          },
+        });
+        expect(ids).toEqual([doc.operacaoId, intencao.operacaoId]);
+        expect(recibo.entradasReaplicadas).toBe(2);
+      } finally {
+        nova.encerrar();
+        key.fill(0);
+      }
     }));
 });

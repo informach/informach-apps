@@ -15,6 +15,7 @@ export const IntencaoDeDireitosSchema = z
     livroId: IdDoLivroSchema,
     operacaoId: IdDoLivroSchema,
     revisao: Contador.min(1),
+    epoca: Contador.max(15),
     tipo: z.enum(["retirar_perfil", "encerrar_conta"]),
     contaId: z.string().min(1).max(256),
     perfilIds: z.array(IdDoLivroSchema).max(256),
@@ -50,6 +51,11 @@ export const CabecalhoDeDireitosSchema = z
     formato: z.literal("recreio-livro-direitos-v1"),
     livroId: IdDoLivroSchema,
     estado: z.enum(["aberto", "congelado"]),
+    epoca: Contador.max(15),
+    chavesUtilizadas: z.array(ChaveDoLivroSchema).min(1).max(16),
+    retomada: z
+      .strictObject({ cercaSha256: ShaDoLivroSchema, reciboSha256: ShaDoLivroSchema })
+      .nullable(),
     geracao: Contador,
     entradas: Contador,
     raizSha256: ShaDoLivroSchema,
@@ -59,7 +65,10 @@ export const CabecalhoDeDireitosSchema = z
   })
   .superRefine((v, ctx) => {
     if (
-      (v.estado === "aberto" ? v.geracao !== v.entradas : v.geracao !== v.entradas + 1) ||
+      v.geracao !== v.entradas + 2 * v.epoca + (v.estado === "congelado" ? 1 : 0) ||
+      v.chavesUtilizadas.length !== v.epoca + 1 ||
+      new Set(v.chavesUtilizadas).size !== v.chavesUtilizadas.length ||
+      (v.epoca === 0 ? v.retomada !== null : v.retomada === null) ||
       (v.geracao === 0
         ? v.anteriorSha256 !== null || v.raizSha256 !== RAIZ_VAZIA || v.ultimaIntencao !== null
         : v.anteriorSha256 === null ||

@@ -46,7 +46,7 @@ async function conferir(storage: Armazenamento, max: number, signal: AbortSignal
   const inicial = await storage.lerCabecalho(signal),
     refs: ReferenciaDaIntencao[] = [],
     vistos = new Set<string>();
-  if (inicial.documento.entradas > max || inicial.documento.geracao > max + 1)
+  if (inicial.documento.entradas > max || inicial.documento.geracao > max + 31)
     throw new FalhaDoLivroDeDireitos("LIMITE");
   // O próprio ponteiro corrente também deve ter sua cópia imutável.
   await storage.lerHistorico(inicial.documento.geracao, inicial.sha256, signal);
@@ -57,29 +57,48 @@ async function conferir(storage: Armazenamento, max: number, signal: AbortSignal
     if (!doc.anteriorSha256) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
     const anterior = await storage.lerHistorico(doc.geracao - 1, doc.anteriorSha256, signal),
       antes = anterior.documento;
-    if (antes.estado !== "aberto" || Date.parse(antes.atualizadoEm) > Date.parse(doc.atualizadoEm))
+    if (Date.parse(antes.atualizadoEm) > Date.parse(doc.atualizadoEm))
       throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
-    if (doc.estado === "congelado") {
+    const mesmaRaiz =
+      doc.entradas === antes.entradas &&
+      doc.raizSha256 === antes.raizSha256 &&
+      isDeepStrictEqual(doc.ultimaIntencao, antes.ultimaIntencao);
+    if (doc.epoca === antes.epoca + 1 && doc.estado === "aberto" && antes.estado === "congelado") {
       if (
-        doc.entradas !== antes.entradas ||
-        doc.raizSha256 !== antes.raizSha256 ||
-        !isDeepStrictEqual(doc.ultimaIntencao, antes.ultimaIntencao)
+        !mesmaRaiz ||
+        atual.chaveId === anterior.chaveId ||
+        doc.retomada?.cercaSha256 !== doc.anteriorSha256 ||
+        !isDeepStrictEqual(doc.chavesUtilizadas, [...antes.chavesUtilizadas, atual.chaveId])
       )
         throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
     } else {
-      const ref = doc.ultimaIntencao;
       if (
-        !ref ||
-        doc.entradas !== antes.entradas + 1 ||
-        doc.raizSha256 !==
-          resumoDoRegistro(Buffer.from(JSON.stringify([antes.raizSha256, ref.sha256])))
+        doc.epoca !== antes.epoca ||
+        antes.estado !== "aberto" ||
+        atual.chaveId !== anterior.chaveId ||
+        !isDeepStrictEqual(doc.chavesUtilizadas, antes.chavesUtilizadas) ||
+        !isDeepStrictEqual(doc.retomada, antes.retomada)
       )
         throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
-      const chave = `${ref.operacaoId}:${ref.revisao}`;
-      if (vistos.has(chave)) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
-      vistos.add(chave);
-      await storage.lerIntencaoReferencia(ref, signal);
-      refs.push(Object.freeze({ ...ref }));
+      if (doc.estado === "congelado") {
+        if (!mesmaRaiz) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+      } else {
+        const ref = doc.ultimaIntencao;
+        if (
+          !ref ||
+          doc.entradas !== antes.entradas + 1 ||
+          doc.raizSha256 !==
+            resumoDoRegistro(Buffer.from(JSON.stringify([antes.raizSha256, ref.sha256])))
+        )
+          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        const chave = `${ref.operacaoId}:${ref.revisao}`;
+        if (vistos.has(chave)) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        vistos.add(chave);
+        const assinada = await storage.lerIntencaoAssinadaReferencia(ref, signal);
+        if (assinada.chaveId !== atual.chaveId || assinada.documento.epoca !== doc.epoca)
+          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        refs.push(Object.freeze({ ...ref }));
+      }
     }
     atual = anterior;
   }

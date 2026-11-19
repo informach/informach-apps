@@ -98,4 +98,18 @@ describe("livro de direitos: identidade, contexto e autenticidade", () => {
       f.encerrar();
     }
   });
+  it("rotação não aceita apenas renomear a mesma chave", () => {
+    const f = fixtureDoLivro();
+    try {
+      expect(() =>
+        criarAssinaturaDoLivro({
+          livroId: f.livroId,
+          chaveAtiva: "v2",
+          chaves: new Map([...f.chaves, ["v2", f.segredo]]),
+        }),
+      ).toThrow(/CONFIGURACAO/);
+    } finally {
+      f.encerrar();
+    }
+  });
 });

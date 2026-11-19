@@ -37,10 +37,14 @@ export function criarAssinaturaDoLivro(config: {
     for (const [kid, key] of config.chaves) {
       if (!ChaveDoLivroSchema.safeParse(kid).success || key.length !== 32)
         throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
-      chaves.set(
-        kid,
-        Buffer.from(hkdfSync("sha256", key, livroId, "recreio.rights-ledger.mac.v1", 32)),
+      const derivada = Buffer.from(
+        hkdfSync("sha256", key, livroId, "recreio.rights-ledger.mac.v1", 32),
       );
+      if ([...chaves.values()].some((anterior) => timingSafeEqual(anterior, derivada))) {
+        derivada.fill(0);
+        throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      }
+      chaves.set(kid, derivada);
     }
     if (!chaves.has(chaveAtiva)) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
   } catch (erro) {
@@ -93,10 +97,11 @@ export function criarAssinaturaDoLivro(config: {
       esperado.fill(0);
       recebido.fill(0);
     }
-    return e.documento;
+    return e;
   }
   return Object.freeze({
-    livroId: livroId,
+    livroId,
+    chaveAtiva,
     assinarIntencao(entrada: unknown) {
       const p = IntencaoDeDireitosSchema.safeParse(entrada);
       if (!p.success) return falhar();
@@ -104,18 +109,31 @@ export function criarAssinaturaDoLivro(config: {
     },
     assinarCabecalho(entrada: unknown) {
       const p = CabecalhoDeDireitosSchema.safeParse(entrada);
-      if (!p.success) return falhar();
+      if (!p.success || p.data.chavesUtilizadas[p.data.epoca] !== chaveAtiva) return falhar();
       return assinar(p.data);
     },
     lerIntencao(bytes: Uint8Array) {
-      const p = IntencaoDeDireitosSchema.safeParse(ler(bytes));
+      const p = IntencaoDeDireitosSchema.safeParse(ler(bytes).documento);
       if (!p.success) return falhar();
       return p.data;
     },
-    lerCabecalho(bytes: Uint8Array) {
-      const p = CabecalhoDeDireitosSchema.safeParse(ler(bytes));
+    lerIntencaoAssinada(bytes: Uint8Array) {
+      const e = ler(bytes),
+        p = IntencaoDeDireitosSchema.safeParse(e.documento);
       if (!p.success) return falhar();
+      return { documento: p.data, chaveId: e.chaveId };
+    },
+    lerCabecalho(bytes: Uint8Array) {
+      const e = ler(bytes),
+        p = CabecalhoDeDireitosSchema.safeParse(e.documento);
+      if (!p.success || p.data.chavesUtilizadas[p.data.epoca] !== e.chaveId) return falhar();
       return p.data;
+    },
+    lerCabecalhoAssinado(bytes: Uint8Array) {
+      const e = ler(bytes),
+        p = CabecalhoDeDireitosSchema.safeParse(e.documento);
+      if (!p.success || p.data.chavesUtilizadas[p.data.epoca] !== e.chaveId) return falhar();
+      return { documento: p.data, chaveId: e.chaveId };
     },
     encerrar() {
       encerrado = true;

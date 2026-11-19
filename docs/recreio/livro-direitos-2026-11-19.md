@@ -67,3 +67,16 @@ op/revisão ou limite excedido recusam a prova inteira. Replay exige cabeçalho
 congelado e a mesma cerca antes/depois dos efeitos. Cabeçalhos históricos não
 concedem capacidade de escrita; o erro do consumidor conserva sua causa.
 Ainda não existem efeitos destrutivos locais ou liberação de tráfego.
+
+`44517386865`/`139e96f5` passou: 188 testes em quatorze arquivos e a prova
+externa de congelamento com oito objetos removidos, ZIP/SHA conferidos. O
+incremento posterior de retomada mantém o mesmo livro e todo seu histórico,
+mas exige chave inédita, nova época e SHA do recibo da cerca reaplicada.
+As chaves usadas ficam autenticadas no cabeçalho; renomear material de chave
+ou reutilizar uma chave antiga não constitui rotação. Intenção e cabeçalho
+precisam pertencer à mesma chave/época antes da admissão. O worker antigo não
+recebe a chave nova. A transição não apaga a cerca anterior nem suas entradas.
+
+Essa porta de transporte não autoriza o corte: o coordenador operacional ainda
+precisa comprovar os efeitos nativos, identidade e autoridades atuais antes de
+usar a retomada. Nenhuma retomada automática foi adicionada ao portal.

@@ -152,6 +152,7 @@ async function main() {
       livroId,
       operacaoId: randomUUID(),
       revisao: 1,
+      epoca: 0,
       tipo: "retirar_perfil",
       contaId: `fixture-${randomUUID()}`,
       perfilIds: [randomUUID()],
@@ -208,6 +209,9 @@ async function main() {
     const inicial = assinatura.assinarCabecalho({
         formato: "recreio-livro-direitos-v1",
         estado: "aberto",
+        epoca: 0,
+        chavesUtilizadas: ["prova-v1"],
+        retomada: null,
         livroId,
         geracao: 0,
         entradas: 0,
@@ -239,6 +243,9 @@ async function main() {
         return assinatura.assinarCabecalho({
           formato: "recreio-livro-direitos-v1",
           estado: "aberto",
+          epoca: anterior.documento.epoca,
+          chavesUtilizadas: anterior.documento.chavesUtilizadas,
+          retomada: anterior.documento.retomada,
           livroId,
           geracao: anterior.documento.geracao + 1,
           entradas: anterior.documento.entradas + 1,

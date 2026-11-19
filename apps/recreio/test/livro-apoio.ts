@@ -13,6 +13,9 @@ export function fixtureDoLivro() {
   const inicial: CabecalhoDeDireitos = {
     formato: "recreio-livro-direitos-v1",
     estado: "aberto",
+    epoca: 0,
+    chavesUtilizadas: ["v1"],
+    retomada: null,
     livroId,
     geracao: 0,
     entradas: 0,
@@ -26,6 +29,7 @@ export function fixtureDoLivro() {
     livroId,
     operacaoId: randomUUID(),
     revisao: 1,
+    epoca: 0,
     tipo: "retirar_perfil" as const,
     contaId: "fixture-account",
     perfilIds: [randomUUID()],
@@ -40,6 +44,9 @@ export function fixtureDoLivro() {
     return {
       formato: "recreio-livro-direitos-v1",
       estado: "aberto",
+      epoca: anterior.documento.epoca,
+      chavesUtilizadas: anterior.documento.chavesUtilizadas,
+      retomada: anterior.documento.retomada,
       livroId,
       geracao: anterior.documento.geracao + 1,
       entradas: anterior.documento.entradas + 1,
