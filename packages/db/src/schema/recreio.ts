@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -8,7 +8,6 @@ import {
   index,
   integer,
   jsonb,
-  pgSchema,
   primaryKey,
   text,
   timestamp,
@@ -17,6 +16,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
+import { recreioRightsOperations } from "./recreio-direitos-operacoes";
+import { recreio } from "./recreio-namespace";
 
 /**
  * Recreio, a plataforma de jogos. Só `apps/recreio` grava aqui; o servidor de
@@ -33,7 +34,8 @@ import { users } from "./core";
  *   outros membros. Por isso `spaces` não tem FK para `core.users`, e tudo o
  *   que pertence a um mundo aponta para ele com `restrict`.
  */
-export const recreio = pgSchema("recreio");
+export { recreio } from "./recreio-namespace";
+
 const time = (name: string) => timestamp(name, { withTimezone: true }).defaultNow().notNull();
 const moment = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -72,24 +74,40 @@ export const recreioGroups = recreio.table(
  * Quem joga. O jogo só conhece o `id` daqui, nunca o `user_id`. Um perfil
  * adulto é o da própria conta (um por conta); um perfil `minor` não tem login.
  */
+const profileColumns = {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").references(() => users.id, { onDelete: "restrict" }),
+  groupId: uuid("group_id").references(() => recreioGroups.id, { onDelete: "set null" }),
+  /** O titular pode tirar um perfil da cobertura sem apagá-lo. */
+  coverageEnabled: boolean("coverage_enabled").notNull().default(true),
+  kind: text("kind").$type<"adult" | "minor">().notNull(),
+  nickname: text("nickname").notNull(),
+  avatar: text("avatar").notNull().default("padrao"),
+  status: text("status").$type<"active" | "suspended">().notNull().default("active"),
+  /** Sobe quando as permissões do perfil mudam; vai no token como `pv`. */
+  policyVersion: integer("policy_version").notNull().default(1),
+  createdAt: time("created_at"),
+  updatedAt: time("updated_at"),
+};
+
 export const recreioProfiles = recreio.table(
   "profiles",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id").references(() => users.id, { onDelete: "restrict" }),
-    groupId: uuid("group_id").references(() => recreioGroups.id, { onDelete: "set null" }),
-    /** O titular pode tirar um perfil da cobertura sem apagá-lo. */
-    coverageEnabled: boolean("coverage_enabled").notNull().default(true),
-    kind: text("kind").$type<"adult" | "minor">().notNull(),
-    nickname: text("nickname").notNull(),
-    avatar: text("avatar").notNull().default("padrao"),
-    status: text("status").$type<"active" | "suspended">().notNull().default("active"),
-    /** Sobe quando as permissões do perfil mudam; vai no token como `pv`. */
-    policyVersion: integer("policy_version").notNull().default(1),
-    createdAt: time("created_at"),
-    updatedAt: time("updated_at"),
+    ...profileColumns,
+    /** Barreira durável. Só a operação coordenada pode atualizar a projeção. */
+    rightsOperationId: uuid("rights_operation_id").references(() => recreioRightsOperations.id, {
+      onDelete: "restrict",
+    }),
+    rightsFrozenState: jsonb("rights_frozen_state").$type<unknown[]>(),
   },
   (t) => [
+    check(
+      "recreio_profiles_rights_freeze",
+      sql`
+      (${t.rightsOperationId} is null and ${t.rightsFrozenState} is null) or
+      (${t.rightsOperationId} is not null and ${t.rightsFrozenState} is not null and
+       ${t.status}='suspended' and ${t.rightsFrozenState}=${recreioRightsProfileProjection(t)})`,
+    ),
     uniqueIndex("recreio_profiles_own_login").on(t.userId).where(sql`${t.userId} is not null`),
     unique("recreio_profile_identity_kind").on(t.id, t.kind),
     unique("recreio_profile_login_identity").on(t.id, t.userId),
@@ -192,44 +210,60 @@ export const recreioEntitlements = recreio.table(
  * excluída, o mundo fica para os outros membros e o responsável vira NULL até
  * a sucessão escolher outro.
  */
+const spaceColumns = {
+  id: uuid("id").primaryKey().defaultRandom(),
+  gameId: text("game_id").notNull(),
+  stewardProfileId: uuid("steward_profile_id").references(() => recreioProfiles.id, {
+    onDelete: "set null",
+  }),
+  createdByProfileId: uuid("created_by_profile_id").references(() => recreioProfiles.id, {
+    onDelete: "set null",
+  }),
+  name: text("name").notNull(),
+  contentPolicy: text("content_policy").notNull(),
+  membersInvite: text("members_invite")
+    .$type<"no" | "with_approval" | "yes">()
+    .notNull()
+    .default("with_approval"),
+  status: text("status")
+    .$type<"active" | "hibernating" | "archived" | "deleted">()
+    .notNull()
+    .default("hibernating"),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  /** Conta as fotografias gravadas. */
+  revision: integer("revision").notNull().default(0),
+  /** Última entrada do diário, sem buracos. */
+  journalSeq: bigint("journal_seq", { mode: "number" }).notNull().default(0),
+  /** Última cerca emitida para este mundo; só cresce. */
+  leaseEpoch: integer("lease_epoch").notNull().default(0),
+  /** Revisão da gestão, independente das fotografias e da posse do servidor. */
+  managementRevision: integer("management_revision").notNull().default(1),
+  /** Só o arquivamento explícito preenche; registros legados podem não ter data. */
+  archivedAt: moment("archived_at"),
+  /** Resumo que o jogo publica para a tela de mundos; nunca o estado em si. */
+  summary: jsonb("summary").$type<Record<string, unknown>>(),
+  createdAt: time("created_at"),
+  updatedAt: time("updated_at"),
+};
+
 export const recreioSpaces = recreio.table(
   "spaces",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    gameId: text("game_id").notNull(),
-    stewardProfileId: uuid("steward_profile_id").references(() => recreioProfiles.id, {
-      onDelete: "set null",
+    ...spaceColumns,
+    /** Barreira durável. Só a operação coordenada pode atualizar a projeção. */
+    rightsOperationId: uuid("rights_operation_id").references(() => recreioRightsOperations.id, {
+      onDelete: "restrict",
     }),
-    createdByProfileId: uuid("created_by_profile_id").references(() => recreioProfiles.id, {
-      onDelete: "set null",
-    }),
-    name: text("name").notNull(),
-    contentPolicy: text("content_policy").notNull(),
-    membersInvite: text("members_invite")
-      .$type<"no" | "with_approval" | "yes">()
-      .notNull()
-      .default("with_approval"),
-    status: text("status")
-      .$type<"active" | "hibernating" | "archived" | "deleted">()
-      .notNull()
-      .default("hibernating"),
-    schemaVersion: integer("schema_version").notNull().default(1),
-    /** Conta as fotografias gravadas. */
-    revision: integer("revision").notNull().default(0),
-    /** Última entrada do diário, sem buracos. */
-    journalSeq: bigint("journal_seq", { mode: "number" }).notNull().default(0),
-    /** Última cerca emitida para este mundo; só cresce. */
-    leaseEpoch: integer("lease_epoch").notNull().default(0),
-    /** Revisão da gestão, independente das fotografias e da posse do servidor. */
-    managementRevision: integer("management_revision").notNull().default(1),
-    /** Só o arquivamento explícito preenche; registros legados podem não ter data. */
-    archivedAt: moment("archived_at"),
-    /** Resumo que o jogo publica para a tela de mundos; nunca o estado em si. */
-    summary: jsonb("summary").$type<Record<string, unknown>>(),
-    createdAt: time("created_at"),
-    updatedAt: time("updated_at"),
+    rightsFrozenState: jsonb("rights_frozen_state").$type<unknown[]>(),
   },
   (t) => [
+    check(
+      "recreio_spaces_rights_freeze",
+      sql`
+      (${t.rightsOperationId} is null and ${t.rightsFrozenState} is null) or
+      (${t.rightsOperationId} is not null and ${t.rightsFrozenState} is not null and
+       ${t.status}='archived' and ${t.rightsFrozenState}=${recreioRightsWorldProjection(t)})`,
+    ),
     index("recreio_spaces_steward").on(t.stewardProfileId),
     index("recreio_spaces_creator").on(t.createdByProfileId),
     check("recreio_spaces_name", sql`char_length(${t.name}) between 2 and 40`),
@@ -644,3 +678,48 @@ export const recreioSpaceJournal = recreio.table(
 export type RecreioProfile = typeof recreioProfiles.$inferSelect;
 export type RecreioDeviceSession = typeof recreioDeviceSessions.$inferSelect;
 export type RecreioEntitlement = typeof recreioEntitlements.$inferSelect;
+
+/** Projeções privadas do congelamento. Epoch numérico evita depender do timezone
+ * da conexão. updatedAt é só manutenção técnica; createdAt e archivedAt também
+ * governam retenção e, portanto, fazem parte da proteção. */
+export function recreioRightsProfileProjection(
+  v: Record<Exclude<keyof typeof profileColumns, "updatedAt">, SQLWrapper>,
+) {
+  const fields = {
+    id: sql`${v.id}`,
+    userId: sql`${v.userId}`,
+    groupId: sql`${v.groupId}`,
+    coverageEnabled: sql`${v.coverageEnabled}`,
+    kind: sql`${v.kind}`,
+    nickname: sql`${v.nickname}`,
+    avatar: sql`${v.avatar}`,
+    status: sql`${v.status}`,
+    policyVersion: sql`${v.policyVersion}`,
+    createdAt: sql`extract(epoch from ${v.createdAt})`,
+  } satisfies Record<Exclude<keyof typeof profileColumns, "updatedAt">, SQLWrapper>;
+  return sql`jsonb_build_array(${sql.join(Object.values(fields), sql`, `)})`;
+}
+
+export function recreioRightsWorldProjection(
+  v: Record<Exclude<keyof typeof spaceColumns, "updatedAt">, SQLWrapper>,
+) {
+  const fields = {
+    id: sql`${v.id}`,
+    gameId: sql`${v.gameId}`,
+    stewardProfileId: sql`${v.stewardProfileId}`,
+    createdByProfileId: sql`${v.createdByProfileId}`,
+    name: sql`${v.name}`,
+    contentPolicy: sql`${v.contentPolicy}`,
+    membersInvite: sql`${v.membersInvite}`,
+    status: sql`${v.status}`,
+    schemaVersion: sql`${v.schemaVersion}`,
+    revision: sql`${v.revision}`,
+    journalSeq: sql`${v.journalSeq}`,
+    leaseEpoch: sql`${v.leaseEpoch}`,
+    managementRevision: sql`${v.managementRevision}`,
+    archivedAt: sql`extract(epoch from ${v.archivedAt})`,
+    summary: sql`${v.summary}`,
+    createdAt: sql`extract(epoch from ${v.createdAt})`,
+  } satisfies Record<Exclude<keyof typeof spaceColumns, "updatedAt">, SQLWrapper>;
+  return sql`jsonb_build_array(${sql.join(Object.values(fields), sql`, `)})`;
+}

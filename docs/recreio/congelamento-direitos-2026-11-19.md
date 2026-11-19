@@ -112,3 +112,19 @@ Qualificar a fonte de retorno compatível antes de ativar o executor. O servidor
 do jogo pode exigir backport mínimo sobre a fonte publicada, com formato V2
 preservado e negociação desligada até o portal estar pronto; não trocar seu
 runtime implicitamente pela candidata D3 da main.
+
+## Candidata de barreiras persistidas
+
+Schema acrescenta outbox de operações com intenção assinada exata, vínculo composto
+à prévia/conta/tipo/SHA, estados distintos de publicação e execução, lease e prazos.
+Recibos por perfil e mundo conservam referências históricas sem cascata destrutiva.
+As projeções privadas dos perfis e mundos têm CHECK e FK RESTRICT; só aceitam
+suspenso/arquivado, recusam par parcial com NULL e abrangem conteúdo/autoridade.
+createdAt e archivedAt entram por epoch numérico, independente do timezone;
+somente updatedAt fica fora. A cobertura tipada obriga revisão ao adicionar campos.
+
+Esta etapa ainda não é executor nem ativação: CHECK não substitui autorização
+nativa, coordenação dos mundos, revalidação de dependências ou admissão no livro.
+As seis provas PostgreSQL novas verificam writers antigos, NULL, referências,
+retomada de passos e conservação histórica. A geração do DDL e os gates serão
+remotos antes de qualquer adoção/implantação.
