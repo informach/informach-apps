@@ -73,3 +73,7 @@ export const ReferenciaDaPreparacaoSchema = z.strictObject({
   planoSha256: z.string().regex(/^[0-9a-f]{64}$/),
 });
 export type ReferenciaDaPreparacao = z.infer<typeof ReferenciaDaPreparacaoSchema>;
+
+export const ConsentimentoDeRetiradaSchema = ReferenciaDaPreparacaoSchema.extend({
+  confirmoRetirada: z.literal(true),
+});

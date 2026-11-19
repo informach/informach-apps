@@ -532,3 +532,23 @@ os CHECKs não ampliam o escopo consentido. A leitura é limitada ao máximo do
 contrato mais um item, para detectar excesso sem carregar um conjunto ilimitado.
 Publicação, fotos, efeitos, expurgo, conclusão e recuperação usam o mesmo
 contrato; um conjunto divergente exige revisão antes de tratar dados.
+
+
+## Confirmação nativa pela conta — candidata seguinte
+
+A área de direitos recebe confirmação separada da prévia, exclusiva de
+`retirar_perfil`, com seleção identificada, aviso de irreversibilidade,
+indisponibilidade temporária dos mundos e retenções restritas. A action obtém
+identidade/login no servidor e aceita só referência da prévia e confirmação
+literal; o serviço revalida contexto nativo recente antes de ler o livro e o
+repository reconstrói autoridade/escopo após o I/O. Livro ausente, congelado,
+chave incorreta ou leitura inconclusiva não produzem novo consentimento.
+
+`RECREIO_RIGHTS_CONSENT_MODE=native` é uma capacidade servidora separada,
+desligada por padrão. Exige configuração integral do executor e fonte de
+build válida; não inicializa livro, agenda job nem ativa qualquer recurso em
+produção. Encerramento da conta continua somente em prévia. O painel mostra
+estado do pedido, preserva o acompanhamento sem jogador e retira o botão de
+cancelar prévia quando já há consentimento. Confirmadas não consomem o limite
+de três prévias ainda não consentidas. Segredos/bytes de intenção nunca entram
+no DTO. Validação remota desta composição e da interface ainda pendente.

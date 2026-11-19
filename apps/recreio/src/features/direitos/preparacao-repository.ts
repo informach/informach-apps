@@ -218,6 +218,7 @@ export function prepararDireitosNoBanco(
           eq(preparations.requesterUserId, autor.contaId),
           isNull(preparations.cancelledAt),
           sql`${preparations.expiresAt}>${AGORA}`,
+          sql`not exists(select 1 from ${operations} where ${operations.preparationId}=${preparations.id})`,
         ),
       );
     assertAllowed(quantidade < 3, "LIMITE", "Cancele uma prévia anterior antes de preparar outra.");

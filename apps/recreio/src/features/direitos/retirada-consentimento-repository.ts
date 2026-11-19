@@ -29,10 +29,9 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA, travar } from "@/lib/repository";
 import { mesmoEscopoDeDireitos } from "./escopo";
 import { type criarAssinaturaDoLivro, resumoDoRegistro } from "./livro/assinatura";
-import { ReferenciaDaPreparacaoSchema } from "./preparacao-contrato";
+import { ConsentimentoDeRetiradaSchema } from "./preparacao-contrato";
 import { lerPlanoDeDireitos, montarPlanoDeDireitos } from "./preparacao-repository";
 
-const Consentimento = ReferenciaDaPreparacaoSchema.extend({ confirmoRetirada: z.literal(true) });
 const Configuracao = z.strictObject({
   fonte: z.string().regex(/^[a-f0-9]{40}$/),
   epoca: z.number().int().min(0).max(15),
@@ -47,16 +46,15 @@ function recibo(linha: typeof operations.$inferSelect) {
   };
 }
 
-/** Núcleo servidor, ainda sem rota/action de ativação. Apenas retirada de um
- * perfil e mundos já fechados com foto consistente; nunca toma uma posse ativa
- * nem perde o progresso de outro participante para conseguir congelar.
+/** Núcleo servidor da retirada de um perfil. Mundos ativos entram em drenagem;
+ * nunca toma uma posse ativa nem perde progresso de outro participante.
  * A conta global, cobrança e conteúdo do jogo não são excluídos neste passo. */
 export function consentirRetiradaNoBanco(
   autor: AutorNativoRecente,
   entrada: unknown,
   config: { assinatura: Assinatura; fonte: string; epoca: number },
 ) {
-  const pedido = Consentimento.parse(entrada),
+  const pedido = ConsentimentoDeRetiradaSchema.parse(entrada),
     { fonte, epoca } = Configuracao.parse({ fonte: config.fonte, epoca: config.epoca });
   const { assinatura } = config;
   return db.transaction(async (tx) => {

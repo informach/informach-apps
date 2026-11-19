@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { cancelarPreviaAction, prepararDireitosAction } from "../actions";
 import type { consultarMeusDireitos, prepararPedidoDeDireitos } from "../service";
+import { ConfirmacaoDeRetirada } from "./confirmacao-de-retirada";
 
 type Estado = Awaited<ReturnType<typeof consultarMeusDireitos>>;
 type Previa = Awaited<ReturnType<typeof prepararPedidoDeDireitos>>;
@@ -19,7 +20,13 @@ const data = (valor: string) =>
   });
 const situacoes = { preparada: "Preparada", expirada: "Vencida", cancelada: "Cancelada" };
 
-export function PainelDeDireitos({ estado }: { estado: Estado }) {
+export function PainelDeDireitos({
+  estado,
+  podeRetirar,
+}: {
+  estado: Estado;
+  podeRetirar: boolean;
+}) {
   const router = useRouter();
   const hidratado = useHydrated();
   const [pendente, iniciar] = useTransition();
@@ -31,6 +38,9 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
   const [erro, definirErro] = useState("");
   const [recente, definirRecente] = useState(false);
   const [incerta, definirIncerta] = useState(false);
+  const operacaoDaPrevia = estado.preparacoes.find(
+    (p) => p.preparacaoId === previa?.preparacaoId,
+  )?.operacao;
   const bloqueado = !hidratado || pendente;
 
   function tratar(resposta: { code: string; error: string }) {
@@ -104,9 +114,11 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
           Prepare uma prévia dos perfis e mundos envolvidos. Preparar não exclui dados, não cancela
           assinatura e não encerra sua conta Informach.
         </p>
-        <p className="mt-3 text-sm text-tinta-suave">
-          A confirmação da exclusão ainda não está disponível nesta área.
-        </p>
+        {!podeRetirar && (
+          <p className="mt-3 text-sm text-tinta-suave">
+            A confirmação da exclusão ainda não está disponível nesta área.
+          </p>
+        )}
         <form
           className="mt-5 space-y-5"
           onSubmit={(evento) => {
@@ -255,12 +267,14 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
               O escopo mudou. Esta prévia não pode confirmar uma exclusão; prepare outra.
             </p>
           )}
-          <p className="mt-4 text-tinta-suave">
-            Nenhum dado foi excluído. Sua conta Informach e seus contratos financeiros continuam
-            separados deste pedido.
-          </p>
+          {!operacaoDaPrevia && (
+            <p className="mt-4 text-tinta-suave">
+              Nenhum dado foi excluído. Sua conta Informach e seus contratos financeiros continuam
+              separados deste pedido.
+            </p>
+          )}
           <div className="mt-5 flex flex-wrap gap-3">
-            {previa.situacao === "preparada" && (
+            {previa.situacao === "preparada" && !operacaoDaPrevia && (
               <button
                 type="button"
                 className="rb rb-vazado"
@@ -281,11 +295,25 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
               </button>
             )}
           </div>
+          {podeRetirar &&
+            previa.plano.tipo === "retirar_perfil" &&
+            previa.situacao === "preparada" &&
+            !previa.desatualizada && (
+              <ConfirmacaoDeRetirada
+                key={previa.preparacaoId}
+                previa={previa}
+                apelido={
+                  estado.perfis.find((p) => p.id === previa.plano.perfis[0]?.id)?.apelido ??
+                  "Perfil selecionado"
+                }
+                operacao={operacaoDaPrevia ?? null}
+              />
+            )}
         </section>
       )}
       <section aria-labelledby="historico-previas" className="painel p-5 sm:p-6">
         <h2 id="historico-previas" className="font-display text-2xl font-bold">
-          Prévias recentes
+          Prévias e pedidos recentes
         </h2>
         {estado.preparacoes.length ? (
           <ul className="mt-4 divide-y divide-tinta/10">
@@ -293,12 +321,13 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
               <li key={p.preparacaoId} className="py-4">
                 <p className="font-semibold">
                   {p.tipo === "retirar_perfil" ? "Retirada de perfil" : "Participação no Recreio"} ·{" "}
-                  {situacoes[p.situacao]}
+                  {p.operacao ? "Pedido confirmado" : situacoes[p.situacao]}
                 </p>
                 <p className="mt-1 text-sm text-tinta-suave">
                   Preparada em <time dateTime={p.criadaEm}>{data(p.criadaEm)}</time>
                 </p>
-                {p.situacao === "preparada" && (
+                {p.operacao && <SituacaoDaRetirada operacao={p.operacao} />}
+                {!p.operacao && p.situacao === "preparada" && (
                   <button
                     type="button"
                     className="rb rb-vazado mt-3"
@@ -331,5 +360,23 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
         .
       </p>
     </div>
+  );
+}
+
+export function SituacaoDaRetirada({
+  operacao,
+}: {
+  operacao: NonNullable<Estado["preparacoes"][number]["operacao"]>;
+}) {
+  const texto =
+    operacao.estado === "completed"
+      ? "Retirada concluída. Registros sujeitos aos prazos originais e obrigações de guarda podem permanecer com acesso restrito."
+      : operacao.estado === "review"
+        ? "O pedido precisa de uma conferência da equipe. O perfil continua bloqueado para jogar. Fale com a Informach para acompanhar."
+        : "Retirada em processamento. O perfil está bloqueado para jogar e os mundos envolvidos podem ficar temporariamente indisponíveis para preservar o progresso dos participantes.";
+  return (
+    <p className="mt-3 text-sm text-tinta-suave" role="status">
+      {texto}
+    </p>
   );
 }

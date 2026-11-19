@@ -3,6 +3,7 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, desc, eq, inArray, or, sql } from "@informach/db";
 import {
   recreioGuardianLinks as guardians,
+  recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
 } from "@informach/db/schema";
@@ -74,8 +75,12 @@ export function consultarPainelDeDireitosNoBanco(autor: IdentidadeNativa) {
         criadaEm: preparations.createdAt,
         expiraEm: preparations.expiresAt,
         canceladaEm: preparations.cancelledAt,
+        operacaoEstado: operations.state,
+        consentidaEm: operations.consentedAt,
+        concluidaEm: operations.completedAt,
       })
       .from(preparations)
+      .leftJoin(operations, eq(operations.preparationId, preparations.id))
       .where(eq(preparations.requesterUserId, autor.contaId))
       .orderBy(desc(preparations.createdAt), desc(preparations.id))
       .limit(21);
@@ -95,6 +100,13 @@ export function consultarPainelDeDireitosNoBanco(autor: IdentidadeNativa) {
         planoSha256: r.planoSha256,
         criadaEm: r.criadaEm.toISOString(),
         expiraEm: r.expiraEm.toISOString(),
+        operacao: r.operacaoEstado
+          ? {
+              estado: r.operacaoEstado,
+              consentidaEm: r.consentidaEm?.toISOString() ?? null,
+              concluidaEm: r.concluidaEm?.toISOString() ?? null,
+            }
+          : null,
         situacao: r.canceladaEm
           ? ("cancelada" as const)
           : r.expiraEm <= agora

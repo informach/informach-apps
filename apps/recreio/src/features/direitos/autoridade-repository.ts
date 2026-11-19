@@ -13,6 +13,17 @@ import {
 import { assertAllowed } from "@/lib/errors";
 import { type Transacao, travar } from "@/lib/repository";
 
+/** Conferência anterior ao I/O; não substitui a revalidação no consentimento. */
+export function conferirAutorDeDireitosNoBanco(autor: AutorNativoRecente) {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local statement_timeout='5s'`);
+    await tx.execute(sql`set local lock_timeout='2s'`);
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    const nativa = await autorizarContaNativa(tx, autor);
+    await nativa.conferirPrazo(autor.login);
+  });
+}
+
 /** Leitura pessoal própria/parental, não autoridade para conteúdo compartilhado
  * ou exclusão. Sem I/O externo no callback. O jogo opcional toma o mutex comum
  * de progresso/conquistas antes do aparelho; inventário de IDs não captura bytes. */

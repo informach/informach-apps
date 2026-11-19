@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PainelDeDireitos } from "@/features/direitos/components/painel-de-direitos";
+import { retiradaDisponivel } from "@/features/direitos/consentimento-runtime";
 import { consultarMeusDireitos } from "@/features/direitos/service";
 import { paginaDaGestao } from "@/features/sessao/ator";
 import { AppError } from "@/lib/errors";
@@ -19,7 +20,7 @@ export default async function MeusDados() {
         Confira seus direitos sobre o próprio perfil e os perfis sob sua responsabilidade, mesmo sem
         assinatura.
       </p>
-      <PainelDeDireitos estado={estado} />
+      <PainelDeDireitos estado={estado} podeRetirar={retiradaDisponivel()} />
       <Link
         href="/conta"
         className="mt-8 inline-flex min-h-11 items-center font-bold text-ceu underline"

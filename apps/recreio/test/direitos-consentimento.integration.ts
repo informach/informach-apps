@@ -13,12 +13,17 @@ import {
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { confirmarRetiradaDePerfil } from "@/features/direitos/consentimento-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { admitirIntencaoNoLivro } from "@/features/direitos/livro/publicacao";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { consentirRetiradaNoBanco } from "@/features/direitos/retirada-consentimento-repository";
-import { cancelarPreviaDeDireitos, prepararPedidoDeDireitos } from "@/features/direitos/service";
+import {
+  cancelarPreviaDeDireitos,
+  consultarMeusDireitos,
+  prepararPedidoDeDireitos,
+} from "@/features/direitos/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { eventosCom, loginReal, novaConta } from "./apoio";
@@ -247,6 +252,101 @@ describe("consentimento nativo e outbox de retirada", () => {
 });
 
 describe("outbox nativa com SDK S3 HTTP e PostgreSQL reais", () => {
+  it("confirma pela composição servidora e acompanha o mesmo pedido sem mostrar cancelamento", async () => {
+    const livro = fixtureDoLivro(),
+      http = await criarBucketDoLivro();
+    try {
+      const storage = criarArmazenamentoDoLivro({
+        cliente: http.cliente,
+        bucket: "recreio-fixture",
+        assinatura: livro.assinatura,
+        tempoLimiteMs: 2000,
+      });
+      await storage.iniciarCabecalho(livro.assinatura.assinarCabecalho(livro.inicial));
+      const a = await adulto(),
+        outra = await adulto();
+      const previa = await prepararPedidoDeDireitos(a.autor, {
+        pedidoId: randomUUID(),
+        tipo: "retirar_perfil",
+        perfis: [a.perfil.id],
+      });
+      const pedido = {
+        preparacaoId: previa.preparacaoId,
+        planoSha256: previa.planoSha256,
+        confirmoRetirada: true,
+      };
+      const config = { assinatura: livro.assinatura, storage, fonte: "a".repeat(40) };
+      await expect(confirmarRetiradaDePerfil(outra.autor, pedido, config)).rejects.toMatchObject({
+        code: "DIREITOS",
+      });
+      const recibo = await confirmarRetiradaDePerfil(a.autor, pedido, config);
+      expect(await confirmarRetiradaDePerfil(a.autor, pedido, config)).toEqual(recibo);
+      const painel = await consultarMeusDireitos(a.autor);
+      expect(
+        painel.preparacoes.find((p) => p.preparacaoId === previa.preparacaoId)?.operacao,
+      ).toMatchObject({
+        estado: "publishing",
+        consentidaEm: recibo.consentidaEm,
+        concluidaEm: null,
+      });
+      expect(JSON.stringify((await consultarMeusDireitos(outra.autor)).preparacoes)).not.toContain(
+        recibo.operacaoId,
+      );
+      await expect(cancelarPreviaDeDireitos(a.autor, pedido)).rejects.toMatchObject({
+        name: "ZodError",
+      });
+      await expect(
+        cancelarPreviaDeDireitos(a.autor, {
+          preparacaoId: previa.preparacaoId,
+          planoSha256: previa.planoSha256,
+        }),
+      ).rejects.toMatchObject({ code: "CONSENTIMENTO" });
+    } finally {
+      livro.encerrar();
+      await http.fechar();
+    }
+  });
+  it("livro ausente ou congelado impede consentimento sem bloquear o perfil", async () => {
+    const livro = fixtureDoLivro(),
+      http = await criarBucketDoLivro();
+    try {
+      const storage = criarArmazenamentoDoLivro({
+        cliente: http.cliente,
+        bucket: "recreio-fixture",
+        assinatura: livro.assinatura,
+        tempoLimiteMs: 2000,
+      });
+      const a = await adulto(),
+        previa = await prepararPedidoDeDireitos(a.autor, {
+          pedidoId: randomUUID(),
+          tipo: "retirar_perfil",
+          perfis: [a.perfil.id],
+        });
+      const pedido = {
+          preparacaoId: previa.preparacaoId,
+          planoSha256: previa.planoSha256,
+          confirmoRetirada: true,
+        },
+        config = { assinatura: livro.assinatura, storage, fonte: "a".repeat(40) };
+      await expect(confirmarRetiradaDePerfil(a.autor, pedido, config)).rejects.toMatchObject({
+        code: "DIREITOS_INDISPONIVEIS",
+      });
+      await storage.iniciarCabecalho(livro.assinatura.assinarCabecalho(livro.inicial));
+      await storage.congelarCabecalho(await storage.lerCabecalho(), "2026-11-19T11:00:00.000Z");
+      await expect(confirmarRetiradaDePerfil(a.autor, pedido, config)).rejects.toMatchObject({
+        code: "DIREITOS_INDISPONIVEIS",
+      });
+      expect(
+        (await db.select().from(profiles).where(eq(profiles.id, a.perfil.id)))[0],
+      ).toMatchObject({ status: "active", rightsOperationId: null });
+      expect(
+        await db.select().from(operations).where(eq(operations.preparationId, previa.preparacaoId)),
+      ).toHaveLength(0);
+    } finally {
+      livro.encerrar();
+      await http.fechar();
+    }
+  });
   it("recupera admissão externa anterior ao commit nativo e não duplica a cadeia", async () => {
     const livro = fixtureDoLivro(),
       http = await criarBucketDoLivro();
