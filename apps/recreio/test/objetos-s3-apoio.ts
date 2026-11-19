@@ -13,6 +13,9 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
     timers = new Set<ReturnType<typeof setTimeout>>();
   const estado = {
     perderPut: false,
+    perderDelete: false,
+    preservarDelete: false,
+    silenciar: false,
     corromper: false,
     parcial: false,
     semTamanho: false,
@@ -36,6 +39,7 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
       condicao: req.headers["if-none-match"],
       assinado: req.headers.authorization?.includes("Credential=fixture-key/") ?? false,
     });
+    if (estado.silenciar) return;
     if (estado.negar) {
       xml(res, 403, "AccessDenied");
       return;
@@ -62,8 +66,14 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
       return;
     }
     if (req.method === "DELETE") {
-      objetos.delete(path);
-      tipos.delete(path);
+      if (!estado.preservarDelete) {
+        objetos.delete(path);
+        tipos.delete(path);
+      }
+      if (estado.perderDelete) {
+        req.socket.destroy();
+        return;
+      }
       res.writeHead(204);
       res.end();
       return;

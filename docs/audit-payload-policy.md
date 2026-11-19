@@ -323,3 +323,7 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.backup_publication_claimed`: `{ app, captureId }`, ator técnico nulo; nova tentativa após prazo; não declara I/O anterior encerrado. Token não entra na auditoria.
 - `recreio.backup_published`: `{ app, captureId, objectCount }`, ator técnico nulo; confirmação de arquivo/índice guardados e estados atômicos. Não libera reservas por si só.
 - `recreio.backup_holds_released`: `{ app, captureId, objectCount }`, ator técnico nulo; lote de até cem reservas após publicação confirmada; repetição sem alteração não gera evento. Todos os quatro eventos são estritos na transação do controle.
+
+- `recreio.snapshot_collection_admitted`: `{ app, deliveryId, spaceId, storageScope }`, ator técnico nulo; token antes de I/O, sem referência/hash/chave/bucket/conteúdo.
+- `recreio.snapshot_object_retired`: `{ app, deliveryId, spaceId, storageScope, lateObject }`, ator técnico nulo; GET confirmou ausência e autoridade foi relida. `lateObject` marca objeto encontrado em reconferência de tombstone; não altera a primeira data de retirada.
+- `recreio.snapshot_collection_deferred`: `{ app, deliveryId, spaceId, storageScope }`, ator técnico nulo; falha inconclusiva conserva recibo para nova tentativa. Sem mensagem externa. Eventos de coleta são estritos e atômicos com seus estados.

@@ -67,6 +67,9 @@ export const recreioSnapshotObjectDeliveries = recreio.table(
       .where(sql`${t.snapshotId} is not null`),
     unique("recreio_snapshot_object_bucket_key").on(t.bucketId, t.objectKey),
     index("recreio_snapshot_object_due").on(t.state, t.nextAttemptAt, t.id),
+    index("recreio_snapshot_object_collection")
+      .on(t.bucketId, t.storageScope, t.state, t.nextAttemptAt, t.id)
+      .where(sql`${t.state} in ('retiring','retired')`),
     index("recreio_snapshot_object_history").on(t.snapshotReference, t.createdAt),
     index("recreio_snapshot_object_space").on(t.spaceId, t.state),
     check(
