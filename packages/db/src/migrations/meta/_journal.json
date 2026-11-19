@@ -1583,6 +1583,13 @@
       "when": 1795096971659,
       "tag": "0225_recreio_rastros_mundos",
       "breakpoints": true
+    },
+    {
+      "idx": 226,
+      "version": "7",
+      "when": 1795099221664,
+      "tag": "0226_recreio_rights_operations",
+      "breakpoints": true
     }
   ]
 }

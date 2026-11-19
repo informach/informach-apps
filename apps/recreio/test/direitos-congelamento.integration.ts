@@ -221,14 +221,12 @@ describe("barreiras persistidas de direitos (PostgreSQL real)", () => {
 
   it("conserva a referência histórica depois da remoção coordenada do perfil vivo", async () => {
     const c = await cenario();
-    await db
-      .insert(subjects)
-      .values({
-        operationId: c.id,
-        profileReference: c.perfilId,
-        liveProfileId: c.perfilId,
-        policyVersion: 1,
-      });
+    await db.insert(subjects).values({
+      operationId: c.id,
+      profileReference: c.perfilId,
+      liveProfileId: c.perfilId,
+      policyVersion: 1,
+    });
     // A etapa coordenada desvincula as referências do mundo e a sua projeção
     // na mesma transação; a cascata da FK não pode contornar o CHECK congelado.
     await db.transaction(async (tx) => {
