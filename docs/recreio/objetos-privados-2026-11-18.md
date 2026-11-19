@@ -75,3 +75,11 @@ conferir proveniência e diff: nenhum pacote é instalado nesta máquina.
 
 Todos os testes, builds, ensaios de bucket e restauração rodam no GitHub ou no
 executor operacional remoto. O ensaio lógico já realizado não fecha F8.
+
+
+Lockfile gerado em `44430415152`/`8b1ff3f2`, pnpm 9.15.0 e Node 24.15.0,
+e adotado intacto após conferir arquivo, integridade do SDK, manifesto e
+proveniência. Os 1413 packages e 1421 snapshots existentes permaneceram iguais,
+assim como todos os outros importers; só foram acrescentadas as 25 entradas
+necessárias e a dependência do Recreio. [Recibo e hashes](evidencias/objetos-s3-lock-44430415152.json).
+A instalação e qualificação desta composição ainda exigem seus gates remotos.
