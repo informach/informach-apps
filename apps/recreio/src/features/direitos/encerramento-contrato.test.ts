@@ -134,4 +134,27 @@ describe("encerramento: plano financeiro versionado, ainda sem execução", () =
     ])
       expect(AceiteDoEncerramentoSchema.safeParse({ ...aceite, ...extra }).success).toBe(false);
   });
+
+  it("aceita IDs opacos com underscore sem aceitar URLs, caminhos ou caracteres de controle", () => {
+    const f = financeiro();
+    expect(
+      FinanceiroDoEncerramentoSchema.safeParse({
+        ...f,
+        clientes: [{ id: primeiro, referenciaStripe: "cus_fixture_123" }],
+      }).success,
+    ).toBe(true);
+    for (const referenciaStripe of [
+      "https://example.test/cus_123",
+      "cus_x/../../",
+      "cus_x\nprivado",
+      "cus_x?token=123",
+    ]) {
+      expect(
+        FinanceiroDoEncerramentoSchema.safeParse({
+          ...f,
+          clientes: [{ id: primeiro, referenciaStripe }],
+        }).success,
+      ).toBe(false);
+    }
+  });
 });

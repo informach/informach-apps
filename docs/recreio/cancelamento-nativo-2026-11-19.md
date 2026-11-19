@@ -1,5 +1,13 @@
 # Recreio: cancelamento de renovação no servidor
 
+A primeira geração 44612780165/809f40b5 foi preservada como evidência, mas
+não integrada: a validação de IDs opacos precisava conservar underscores,
+também presentes nas fixtures dos adapters existentes. Os três arquivos
+gerados foram descartados sem edição e o journal candidato anterior foi
+restaurado antes da nova geração. O recibo original marca `adopted=false`.
+A validação continua limitada e recusa URLs, caminhos e controle; identidade,
+origem e namespace ainda serão conferidos antes de qualquer I/O financeiro.
+
 Schema inicial candidato em `packages/db/src/schema/recreio-renovacao.ts`:
 uma operação por assinatura, FK da origem comercial já existente e vínculo
 opcional ao encerramento do mesmo solicitante. Aceite, tentativa, observação

@@ -1,0 +1,31 @@
+{
+  "source": "809f40b593a6e0a106daa85ac2d99293e49fe1d1",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0237_easy_hydra.sql",
+      "bytes": 8546,
+      "sha256": "0a54ae9ef91a098cfaf43c3cc94ac597f886062da00b515d273bba53edd7b6f1"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0237_snapshot.json",
+      "bytes": 1126018,
+      "sha256": "f626f7833bd5688e3ece8f03ff0a94c565a37becf2003f25ae6dd32d369b5867"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 35976,
+      "sha256": "106fb701afc7da5a1be17bc305462ad7123accb17296b2ab1902e71753e6f3dd"
+    }
+  ],
+  "runId": 44612780165,
+  "artifactId": 14573970952,
+  "artifactZipBytes": 81293,
+  "artifactZipSha256": "05d2e83359a912607fcf2279316ddf47a57d490a3ecb146b71fb1d05e793ebdf",
+  "productionApplied": false,
+  "unchangedPreviousTables": true,
+  "addedTable": "recreio.renewal_cancellations",
+  "referencedUniquesAlreadyPresent": true,
+  "journalPrefixPreserved": true,
+  "adopted": false,
+  "rejectedReason": "opaque_stripe_ids_must_allow_underscores"
+}

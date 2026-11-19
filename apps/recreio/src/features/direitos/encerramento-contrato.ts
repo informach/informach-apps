@@ -20,7 +20,7 @@ export const FinanceiroDoEncerramentoSchema = z.strictObject({
     .array(
       z.strictObject({
         id,
-        referenciaStripe: z.string().regex(/^cus_[A-Za-z0-9]{3,124}$/),
+        referenciaStripe: z.string().regex(/^cus_[A-Za-z0-9_]{3,124}$/),
       }),
     )
     .max(1),

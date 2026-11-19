@@ -114,7 +114,7 @@ export const recreioRenewalCancellations = recreio.table(
       ${t.policyVersion}='renovacao-2026-11-19-v1' and ${t.source} ~ '^[a-f0-9]{40}$' and
       ${t.providerMode} in ('dev','prod') and ${t.expectedContractRevision}>=1 and
       length(${t.expectedProductId}) between 2 and 80 and length(${t.expectedPriceId}) between 8 and 256 and
-      ${t.providerCustomerId} ~ '^cus_[A-Za-z0-9]{3,124}$' and ${t.providerSubscriptionId} ~ '^sub_[A-Za-z0-9]{3,124}$'`,
+      ${t.providerCustomerId} ~ '^cus_[A-Za-z0-9_]{3,124}$' and ${t.providerSubscriptionId} ~ '^sub_[A-Za-z0-9_]{3,124}$'`,
     ),
     check(
       "recreio_renewal_cancellation_state",
