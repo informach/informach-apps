@@ -3,13 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { S3Client } from "@aws-sdk/client-s3";
 import { z } from "zod";
-import { criarCifradorDeObjetos } from "../../src/features/objetos/criptografia";
+
 import { criarCifradorDeArquivos } from "./arquivo-cifrado";
 import { criarArquivoComposto } from "./arquivo-composto";
 import { criarTransporteDeArquivosS3 } from "./arquivo-s3";
 import { comBancoRestaurado } from "./cluster-isolado";
 import { criarIndiceDeRecuperacao } from "./indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "./indice-s3";
+import { normalizarFotografiasRestauradas } from "./normalizar-fotografias";
 import { exigir, limparDiretorioDeProva } from "./provas-arquivos";
 
 const variavel = (nome: string) => {
@@ -124,6 +125,7 @@ async function main() {
     removidos = false,
     clusterLimpo = false,
     resultado: unknown,
+    normalizacao: Awaited<ReturnType<typeof normalizarFotografiasRestauradas>> | undefined,
     falha = false;
   try {
     const arquivo = async (nome: string) => {
@@ -162,75 +164,26 @@ async function main() {
       await acesso.copiarDump(dump);
       const inventario = await acesso.lerInventarioBanco();
       const prova = await comBancoRestaurado({ dump, inventario }, async (copia) => {
-        await copia.begin("isolation level repeatable read read only", async (sql) => {
-          await sql.unsafe("set local statement_timeout='5000ms'");
-          await sql.unsafe("set local transaction_timeout='120000ms'");
-          await acesso.comChaves(async (recuperadas, signal) => {
-            const ativa = recuperadas.keys().next().value,
-              abridor = ativa
-                ? criarCifradorDeObjetos({
-                    chaveAtiva: ativa,
-                    chaves: recuperadas,
-                    limiteBytes: 4 * 1024 * 1024,
-                  })
-                : undefined;
-            for await (const item of acesso.objetos(signal)) {
-              const o = item.objeto,
-                r = o.referencia;
-              const [vinculo] = await sql.unsafe<{ valido: boolean }[]>(
-                `select exists(select 1 from recreio.space_snapshots s join recreio.snapshot_object_deliveries d on d.snapshot_id=s.id
-                where s.id=$1 and s.space_id=$2 and s.storage='bucket' and s.data is null and s.sha256=$3 and s.byte_size=$4
-                and d.id=$5 and d.snapshot_reference=s.id and d.space_id=s.space_id and d.plaintext_sha256=s.sha256 and d.plaintext_bytes=s.byte_size
-                and d.state='verified' and d.verified_at is not null and d.bucket_id=$6 and d.bucket_name=$7 and d.storage_scope=$8
-                and d.object_key=$9 and s.object_key=d.object_key and d.cipher_sha256=$10 and d.cipher_bytes=$11 and d.encryption_key_id=$12) as valido`,
-                [
-                  o.fotografiaId,
-                  o.mundoId,
-                  r.sha256,
-                  r.bytes,
-                  o.entregaId,
-                  o.bucketId,
-                  o.bucketName,
-                  o.escopo,
-                  o.objectKey,
-                  r.sha256Cifrado,
-                  r.bytesCifrados,
-                  r.chaveId,
-                ],
-              );
-              exigir(vinculo?.valido, "VINCULO_RESTAURADO_DIVERGENTE");
-              ligadas++;
-              await item.copiarPara(fotografia);
-              exigir(abridor, "CHAVE_DA_FOTOGRAFIA_AUSENTE");
-              const envelope = Buffer.alloc(r.bytesCifrados);
-              try {
-                let pos = 0;
-                while (pos < envelope.length) {
-                  const b = await fotografia.read(envelope, pos, envelope.length - pos, pos);
-                  exigir(b.bytesRead > 0, "FOTOGRAFIA_TRUNCADA");
-                  pos += b.bytesRead;
-                }
-                const plain = abridor.abrir(r, envelope);
-                plain.fill(0);
-                fotos++;
-              } finally {
-                envelope.fill(0);
-                await fotografia.truncate(0);
-                await fotografia.sync();
-              }
-            }
-          });
-          const [contagem] = await sql.unsafe<{ quantidade: number }[]>(
-            "select count(*)::int as quantidade from recreio.space_snapshots where storage='bucket'",
-          );
-          exigir(
-            contagem?.quantidade === fotos &&
-              fotos === fria.publicacao.inventario.quantidade &&
-              ligadas === fotos,
-            "FOTOGRAFIAS_RESTAURADAS_DIVERGENTES",
-          );
+        normalizacao = await normalizarFotografiasRestauradas({
+          copia,
+          acesso,
+          fotografia,
+          inventario: fria.publicacao.inventario,
         });
+        const repetida = await normalizarFotografiasRestauradas({
+          copia,
+          acesso,
+          fotografia,
+          inventario: fria.publicacao.inventario,
+        });
+        exigir(
+          JSON.stringify(normalizacao) === JSON.stringify(repetida),
+          "NORMALIZACAO_NAO_REPETIVEL",
+        );
+        fotos = normalizacao.fotosAutenticadas;
+        ligadas = normalizacao.vinculosConferidos;
       });
+      exigir(normalizacao, "NORMALIZACAO_AUSENTE");
       clusterLimpo = prova.temporariosRemovidos;
       exigir(leituras >= 3, "LEITURAS_DO_BACKUP_INCOMPLETAS");
       resultado = {
@@ -248,7 +201,14 @@ async function main() {
         sourceDatabaseCredentialsPresent: false,
         onlyBackupPrefixRead: true,
         backupReadRequests: leituras,
-        objectDestinationsNormalized: false,
+        objectDestinationsNormalized: true,
+        inventoryComparedBeforeNormalization: true,
+        fotosEmPg: normalizacao.fotosEmPg,
+        sourceObjectReceiptsQuarantined: normalizacao.recibosQuarentenados,
+        backupControlsQuarantined: normalizacao.controlesQuarentenados,
+        sourceOperationsRemaining: normalizacao.operacoesDeOrigemRestantes,
+        sourceBucketReferencesRemaining: normalizacao.referenciasBucketRestantes,
+        normalizationIdempotent: true,
         authoritiesNormalizedForTraffic: false,
         productionDataTouched: false,
       };

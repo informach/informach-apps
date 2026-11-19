@@ -100,6 +100,7 @@ export async function criarBucketDaMontagem() {
     failure: null as string | null,
     cleanupFailure: null as string | null,
     freshCluster: false,
+    objectDestinationsNormalized: false,
     authoritiesNormalizedForTraffic: false,
     durableCaptureFinalized: false,
     nativeCollectionVerified: false,
@@ -287,6 +288,7 @@ export async function criarBucketDaMontagem() {
     );
     frio = r;
     recibo.freshCluster = true;
+    recibo.objectDestinationsNormalized = r.objectDestinationsNormalized;
     await guardar();
   }
   async function fechar() {
