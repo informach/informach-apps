@@ -17,6 +17,7 @@ import {
   recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
+  users,
   recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { z } from "zod";
@@ -25,6 +26,7 @@ import {
   autorizarContaNativaParaDireitos,
 } from "@/features/account/autoridade-repository";
 import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
+import { serializarConvitesPorEmail } from "@/features/grupo/convites-email-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import {
   travarComposicaoDeDireitos,
@@ -90,6 +92,16 @@ function consentirPlanoNoBanco(
     await tx.execute(sql`set local statement_timeout='5s'`);
     await tx.execute(sql`set local lock_timeout='2s'`);
     await tx.execute(sql`set local transaction_timeout='15s'`);
+    let emailDoEncerramento: string | undefined;
+    if (financeiro !== undefined) {
+      const [pistaDaConta] = await tx
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, autor.contaId));
+      assertAllowed(pistaDaConta, "AUTH", "Entre novamente para continuar.");
+      emailDoEncerramento = pistaDaConta.email.trim().toLowerCase();
+      await serializarConvitesPorEmail(tx, emailDoEncerramento);
+    }
     await travar(tx, `recreio:direitos:preparacao:${pedido.preparacaoId}`);
     const [anterior] = await tx
       .select()
@@ -145,6 +157,17 @@ function consentirPlanoNoBanco(
         "Os mundos mudaram. Prepare uma nova prévia.",
       );
     });
+    if (emailDoEncerramento !== undefined) {
+      const [contaAtual] = await tx
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, autor.contaId));
+      assertAllowed(
+        contaAtual?.email.trim().toLowerCase() === emailDoEncerramento,
+        "CONFLITO",
+        "A conta mudou. Abra novamente a prévia antes de continuar.",
+      );
+    }
     // Reconstituir depois das contas/mundos/perfis sob trava, sem adquirir um
     // mundo descoberto tardiamente depois de segurar um perfil.
     const atual = await montarPlanoDeDireitos(

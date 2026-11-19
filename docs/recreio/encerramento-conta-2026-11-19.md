@@ -368,3 +368,18 @@ recibos preservados, predecessor conferido. São agora 240 recibos candidatos;
 nenhuma migration aplicada em produção. O upgrade conserva os corpos opacos e
 as referências anteriores, verifica revisão legada zero e recusa revisão 4.
 A aplicação da barreira de cópias e os dois casos novos aguardam gates remotos.
+
+
+A barreira de cópias e o caso de vários perfis passaram direitos 44639030361/c4dc3978;
+finanças 44639039101 também concluiu. Qualidade a3a0000b/44637862935 aprovada.
+Integração completa e qualidade da fonte c4dc3978 ainda estão em execução.
+
+O inventário encontrou emissão de convite para destinatário já em encerramento.
+A candidata move o mutex existente por endereço para antes das identidades/grupos.
+Consentimento de encerramento usa o mesmo mutex antes de suas identidades UPDATE
+(revalidando o endereço após a espera). Emissão relê a participação depois da
+barreira, inclusive em replay de convite existente; não toma uma trava tardia
+na identidade do destinatário. Isso cobre também o endereço que não tinha conta
+na emissão. Novos dois casos PG/S3 usam consentimento real, inclusive concorrência.
+Convites anteriores permanecem dependência explícita da limpeza; não são apagados
+por esse guard nem declarados removidos. Sem novas variáveis ou ativação.

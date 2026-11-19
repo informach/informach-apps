@@ -1,12 +1,16 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, gt, lte, sql } from "@informach/db";
-import { recreioGroupInvites as invites, users } from "@informach/db/schema";
+import {
+  recreioGroupInvites as invites,
+  recreioAccountParticipations as participations,
+  users,
+} from "@informach/db/schema";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
-import { type Transacao, travar } from "@/lib/repository";
+import type { Transacao } from "@/lib/repository";
+import { serializarConvitesPorEmail } from "./convites-email-repository";
 import {
   LIMITE_DE_CONVITES_PENDENTES,
   LIMITE_DE_CONVITES_RECEBIDOS,
@@ -57,6 +61,9 @@ async function tentarCriarConvite(autor: AutorNativoRecente, pedido: NovoConvite
       "FAMILIA_INDISPONIVEL",
       "Novos convites ainda não estão disponíveis neste acesso.",
     );
+    // The recipient fence precedes every native/group lock. Closing uses the
+    // same order; absence of an account is never treated as a durable opt-in.
+    await serializarConvitesPorEmail(tx, pedido.email);
     const atual = await prepararGrupoDoTitular(tx, autor);
     const [emissor] = await tx
       .select({ email: users.email })
@@ -67,10 +74,24 @@ async function tentarCriarConvite(autor: AutorNativoRecente, pedido: NovoConvite
       "CONVITE",
       "Use o e-mail de outro adulto.",
     );
-    // Limite por destinatário entre grupos, sem consultar se essa conta existe.
-    await travar(
-      tx,
-      `recreio:convite-grupo:email:${createHash("sha256").update(pedido.email).digest("hex")}`,
+    const [destinatario] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, pedido.email));
+    // Only the original closing-consent writer can leave active. Its address
+    // fence is held here, so even a previously absent participation cannot
+    // become closing before this transaction commits. No target user lock is
+    // acquired late after the sender's group/profile locks.
+    const [participacao] = destinatario
+      ? await tx
+          .select({ state: participations.state })
+          .from(participations)
+          .where(eq(participations.userId, destinatario.id))
+      : [];
+    assertAllowed(
+      !participacao || participacao.state === "active",
+      "CONVITE",
+      "Não foi possível preparar esse convite. Confira o endereço ou tente depois.",
     );
     let agora = await atual.nativa.conferirPrazo(autor.login);
     await expirarPendentes(tx, atual.grupoId, autor.contaId, agora);
@@ -126,10 +147,6 @@ async function tentarCriarConvite(autor: AutorNativoRecente, pedido: NovoConvite
       "LIMITE_DE_CONVITES",
       "Não foi possível preparar outro convite agora. Aguarde ou encerre um convite pendente.",
     );
-    const [destinatario] = await tx
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, pedido.email));
     agora = await atual.nativa.conferirPrazo(autor.login);
     const [criado] = await tx
       .insert(invites)
