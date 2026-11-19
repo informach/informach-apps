@@ -200,7 +200,7 @@ async function main() {
               );
               exigir(vinculo?.valido, "VINCULO_RESTAURADO_DIVERGENTE");
               ligadas++;
-              await item.copiarPara(fotografia, signal);
+              await item.copiarPara(fotografia);
               exigir(abridor, "CHAVE_DA_FOTOGRAFIA_AUSENTE");
               const envelope = Buffer.alloc(r.bytesCifrados);
               try {

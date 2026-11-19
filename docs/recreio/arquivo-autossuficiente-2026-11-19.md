@@ -380,3 +380,10 @@ confundir patches/libc/locale. Nenhuma versão/serviço de produção foi altera
 Primeiro qualificar tipos, HTTP fechado e imagem; depois executar o modo
 externo. Ainda não há normalização de destinos/autoridades para tráfego,
 replay F7, custódia recuperável, controle durável, cron ou RPO/RTO de produção.
+
+A primeira candidata fria `f4c820b0` construiu a imagem e passou os dois
+ensaios lógicos em `44482970162`, mas os tipos recusaram um segundo argumento
+em `copiarPara` (`44482965319`/`44482960834`). O sinal já pertence ao iterator
+`objetos(signal)`, cujas capacidades o conservam; a chamada passa a usar o
+contrato de um argumento. Tipos e captura precisam passar novamente antes da
+prova externa fria. Não houve I/O externo desse novo modo nessa rodada.
