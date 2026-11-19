@@ -105,3 +105,26 @@ Essas capacidades não representam restauração SQL.
 
 O [índice de recuperação](indice-recuperacao-2026-11-19.md) deverá permitir
 localizar e autenticar o arquivo sem depender do banco original.
+
+## Captura SQL nativa em qualificação
+
+`dump-snapshot.ts` conecta `pg_dump --snapshot` à visão ainda aberta de
+`comCapturaConsistente`. Lê a saída em fluxo, limita os bytes antes de gravar,
+confere o cabeçalho custom/PGDMP, sincroniza e resume o arquivo. O ambiente do
+processo contém somente a conexão admitida, opções READ ONLY e opções fixas;
+credenciais não entram nos argumentos e stderr nunca é publicado. Falha,
+limite e cancelamento encerram o processo, aguardam `close` e eliminam apenas
+o parcial admitido. Handles ocupados permanecem preservados.
+
+`dump.backup-capture.ts` usa cliente PostgreSQL 18 real, somente no GitHub,
+e banco descartável. A prova preparada grava uma linha depois de exportar a
+visão, monta composto com dump/inventário da visão anterior, cifra, elimina
+fontes locais, extrai o dump recuperado e restaura em outro banco aleatório.
+Compara todo o inventário definido, incluindo estrutura/permissões, e exige
+que a linha posterior exista apenas na origem. Também cobre visão vencida,
+limite, cancelamento após o primeiro bloco e destino ocupado.
+
+Esta prova ainda aguarda o gate remoto `backup-capture`. Não contém fotos em
+bucket, upload real, controle durável de publicação, custódia recuperável de
+chaves nem normalização de autoridades depois da restauração. Não habilita
+tráfego, cron ou backup em produção.

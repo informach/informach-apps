@@ -81,6 +81,6 @@ apaga o arquivo e deve ser preservada contra PUTs tardios.
 
 Testes pelo SDK e servidor HTTP fechado cobrem resposta perdida, concorrência,
 412 contraditório, permissão, ausência, adulteração, conteúdo/tamanho/status,
-prazo e cancelamento. Este adapter ainda aguarda evidência remota. Não há job
+prazo e cancelamento. O [run 44467157298](https://github.com/informach/informach-apps/actions/runs/44467157298), fonte `df48e5ea`, passou tipos e 144 testes em oito arquivos, incluindo 16 do adapter; [recibo](evidencias/indice-s3-44467157298.json). Não há job
 agendado, controle de tentativas durável, listagem/seleção operacional, prova de
 restauração SQL ou publicação real do índice no provedor nesta etapa.

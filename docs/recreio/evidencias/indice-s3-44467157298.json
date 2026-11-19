@@ -1,0 +1,13 @@
+{
+  "runId": 44467157298,
+  "jobId": 135367609649,
+  "source": "df48e5ea",
+  "conclusion": "success",
+  "objectTests": 144,
+  "indexS3Tests": 16,
+  "objectFiles": 8,
+  "frozenInstallVerified": true,
+  "appTypesVerified": true,
+  "productionApplied": false,
+  "scopeLimit": "Actual AWS SDK and closed HTTP endpoint; signed publication, retirement, 412, lost response and cancellation. Not external provider, SQL restore, durable native control or production qualification."
+}

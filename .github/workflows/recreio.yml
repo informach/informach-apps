@@ -241,6 +241,17 @@ jobs:
           pnpm --workspace-concurrency=1 --filter @informach/config --filter @informach/billing --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'
         run: pnpm --filter @informach/recreio-app test:integration
+      - name: Preparar cliente nativo PostgreSQL 18 para a captura
+        if: matrix.gate == 'integration' || matrix.gate == 'backup-capture'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! test -x /usr/lib/postgresql/18/bin/pg_dump; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-18
+          fi
+          /usr/lib/postgresql/18/bin/pg_dump --version | grep -E '^pg_dump \(PostgreSQL\) 18\.'
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
       - name: Conferir captura global e reservas em outro banco descartavel
         if: matrix.gate == 'integration' || matrix.gate == 'backup-capture'
         run: |
