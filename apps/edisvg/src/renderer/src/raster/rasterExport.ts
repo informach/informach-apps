@@ -128,7 +128,8 @@ async function encodeVideo(
         const data = new Uint8Array(chunk.byteLength);
         chunk.copyTo(data);
         bytes += data.length;
-        if (bytes > RASTER_LIMITS.maxBytes) throw new Error("Vídeo excede o limite de tamanho.");
+        if (bytes > RASTER_LIMITS.maxBytes[options.format])
+          throw new Error("Vídeo excede o limite de tamanho.");
         const config = metadata?.decoderConfig?.description;
         if (config && !description)
           description = (
@@ -184,7 +185,7 @@ async function encodeVideo(
         height: options.height,
         fps: options.fps,
         avcConfiguration: description,
-        limit: RASTER_LIMITS.maxBytes,
+        limit: RASTER_LIMITS.maxBytes[options.format],
       },
       samples,
     );
@@ -195,7 +196,7 @@ async function encodeVideo(
       height: options.height,
       timestamps: plan.timestamps,
       durationMicroseconds: (plan.timestamps.at(-1) ?? 0) + (plan.durations.at(-1) ?? 0),
-      limit: RASTER_LIMITS.maxBytes,
+      limit: RASTER_LIMITS.maxBytes[options.format],
     },
     samples,
   );
@@ -212,7 +213,7 @@ export async function buildRasterExport(
   const options = rasterOptionsSchema.parse(input),
     clip = project.motion.animations.find((value) => value.id === options.animationId);
   if (!clip) throw new Error("Animação por objeto indisponível.");
-  const plan = planRasterFrames(clip, options.fps),
+  const plan = planRasterFrames(clip, options.fps, options.format),
     compiled = compileInteractiveArtboard(
       timelineProject(project, options.artboardId),
       options.artboardId,
@@ -235,7 +236,7 @@ export async function buildRasterExport(
           blob = await context.canvas.convertToBlob({ type: "image/png" }),
           bytes = new Uint8Array(await blob.arrayBuffer());
         total += bytes.length;
-        if (total > RASTER_LIMITS.maxBytes)
+        if (total > RASTER_LIMITS.maxBytes[options.format])
           throw new Error("Sequência PNG excede o limite de tamanho.");
         frames.push(bytes);
         task.onProgress?.(index + 1, plan.times.length);
@@ -246,14 +247,14 @@ export async function buildRasterExport(
         height: options.height,
         fps: options.fps,
         background: options.background,
-        limit: RASTER_LIMITS.maxBytes,
+        limit: RASTER_LIMITS.maxBytes[options.format],
       });
     } else if (options.format === "gif") {
       const encoder = createGifEncoder({
         width: options.width,
         height: options.height,
         loop: plan.loop,
-        limit: RASTER_LIMITS.maxBytes,
+        limit: RASTER_LIMITS.maxBytes[options.format],
       });
       for (const [index, time] of plan.times.entries()) {
         const context = await source.render(time);

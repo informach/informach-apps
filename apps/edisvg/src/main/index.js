@@ -43,6 +43,7 @@ import {
 } from "./linkRender.ts";
 import { createLinkInbox } from "./linkRequests.ts";
 import { startMcpServer } from "./mcpServer.js";
+import { createMediaUploads } from "./mediaUpload";
 import {
   cancelPipelineJob,
   exportAlphaWebm,
@@ -126,6 +127,7 @@ let allowClose = false,
   initialized = false,
   initializing = false;
 const bridge = createBridge(() => win);
+const mediaUploads = createMediaUploads();
 const rendererFile = join(here, "../renderer/index.html");
 const rendererUrl =
   (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) || pathToFileURL(rendererFile).href;
@@ -703,9 +705,19 @@ else {
         await files.changed(project);
         return files.save(as === true);
       });
+      handle("export:media-begin", (header) => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        return mediaUploads.begin(header);
+      });
+      handle("export:media-append", (id, slice) => mediaUploads.append(id, slice));
+      handle("export:media-discard", (id) => mediaUploads.discard(id));
       handle("export:save", async (payload) => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        const exported = parseExportPayload(payload);
+        // Raster and video arrive beforehand in slices; the save names the finished upload.
+        const exported =
+          typeof payload === "object" && payload !== null && "upload" in payload
+            ? mediaUploads.finish(payload.upload)
+            : parseExportPayload(payload);
         const { canceled, filePath } = await dialog.showSaveDialog(win, {
           defaultPath: join(
             folderFor("documents") ?? "",
