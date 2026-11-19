@@ -46,7 +46,7 @@ prova não conclui Checkout ou aceite nativo. Compra com seleção inicial e tro
 nativas avançaram: `03fa9ee6` concluiu os dezesseis gates `44396550083`, incluindo
 94 testes financeiros. APIs reais mensal/anual do adapter próprio passaram em
 `44394357376` e `44391555451`, com limpeza confirmada; não são Checkout nativo.
-0211–0215 permanecem candidatas, geradas e adotadas intactas. O CI compartilhado
+0211–0217 permanecem candidatas, geradas e adotadas intactas. O CI compartilhado
 `44401856120`/`afcdbd0d` aprovou a correção da fixture Cozya sem quantidade,
 sem afrouxar o leitor; a composição posterior exige sua rodada própria.
 A origem dos créditos avançou para composição por cliente,
@@ -61,7 +61,9 @@ jornadas de compra e duas de troca, capturas mobile inspecionadas); quality
 `44424195557` aprovado. Matriz de APIs reais de teste `44424201569`: doze
 direções aprovadas, incluindo crédito/estorno, limpeza de todos os recursos
 confirmada. Não é Checkout ou webhook nativos. Rodada integral `44426286901`: dezesseis gates aprovados.
-CI compartilhado `44424819941` em curso. Preparação de F7 no
+CI compartilhado `44424819941` aprovado. A fonte `38b544fe` também
+concluiu os dezesseis gates `44433292118`; seu CI compartilhado
+`44433295619` continua em curso. Preparação de F7 no
 [levantamento de direitos](recreio/direitos-implementacao-2026-11-18.md); recorte pessoal de progresso com quinze integrações PostgreSQL aprovadas
 em `44427172908`/`8647b310`. Inventário/cadastro e kernel de direitos passaram em quality
 `44428544763` e integração `44428548764`/`0e735ff4` (vinte cenários de direitos,
@@ -70,7 +72,9 @@ foi implantado em produção. Base de cifragem autenticada para objetos em
 candidata, com SDK S3 e 26 testes fechados aprovados. Bucket isolado de
 homologação provisionado; após autorização explícita da credencial restrita,
 prova externa `44433527147` aprovada com recusa de sobrescrita/acesso anônimo
-e limpeza confirmada. Migração, downloads e backup continuam pendentes: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
+e limpeza confirmada. 0216/0217 de conteúdo/entregas foram geradas e
+adotadas intactas, ainda sem aplicação ou escritores de objetos em produção;
+dezoito cenários SQL em preparação. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,

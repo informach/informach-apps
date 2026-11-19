@@ -119,3 +119,19 @@ jogadora. F7 não pode ser encerrado por este inventário.
 Antes de qualquer escritor destrutivo, conferir os repositories consumidores
 de cada export do schema e suas entradas por servidor/host/job. Uma lista de
 imports ou FKs não substitui a revisão dos escritores e do I/O externo.
+
+
+## Incremento candidato 0217
+
+Após a base 0215 inventariada acima, 0216 acrescenta apenas a chave de conteúdo
+na fotografia, e 0217 acrescenta `snapshot_object_deliveries`: agora são 64
+tabelas Recreio e 142 FKs. [Schema do registro](../../packages/db/src/schema/recreio-objetos.ts).
+Seu domínio é armazenamento/recuperação do mundo: envelope cifrado temporário,
+referência à fotografia e destino técnico, lease, confirmação e recibo de
+expurgo. Não é dado financeiro nem autorização para ler conteúdo.
+
+O vínculo à fotografia usa FK restritiva por ID/mundo/SHA/tamanho. A retenção
+precisa destacar o registro antes de excluir a fotografia e conservar o recibo
+até confirmar o expurgo; encerramento não pode simplesmente apagar essa fila.
+Corpos cifrados e objetos também precisam entrar na coordenação de privacidade.
+Nenhum writer/worker novo foi habilitado por este incremento de schema.

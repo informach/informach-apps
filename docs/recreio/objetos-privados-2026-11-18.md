@@ -199,3 +199,13 @@ para 218 migrations conferidos; nomes dentro do limite PostgreSQL. A chave da
 0216 já precede a FK. [Proveniência](evidencias/migracao-objetos-entregas-0217.json).
 Faltam aplicação em banco descartável, cenários de integridade/retenção e os
 writers nativos. Nenhum desses DDLs foi aplicado em produção.
+
+
+A candidata seguinte acrescenta dezoito cenários SQL de conteúdo, mundo, estados,
+envelope, relógio finito, unicidade de vínculo e destaque/retirada. São fixtures
+nativas de PostgreSQL sem publicar ponteiro ou afirmar confirmação de bucket.
+O gate remoto precisa aplicar 0216/0217 e conferir esses cenários antes de
+avançar os writers. Os dezesseis gates da fonte anterior `38b544fe` passaram em
+`44433292118`; ela ainda não continha essas migrations. O CI compartilhado de
+`7eb50298` passou em `44424819941`, e o de `8647b310` passou em `44427177027`.
+A fonte final posterior exige os próprios checks aplicáveis.
