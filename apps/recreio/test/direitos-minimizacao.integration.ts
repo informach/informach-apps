@@ -13,6 +13,7 @@ import {
   recreioSpaceMembers as members,
   recreioMinorProfiles as minors,
   recreioRightsOperations as operations,
+  recreioSocialPreferences as preferences,
   recreioProfiles as profiles,
   recreioRightsWorldProjection,
   sessions,
@@ -143,6 +144,62 @@ async function cenario(fn: (f: ReturnType<typeof compor>) => Promise<void>) {
 }
 
 describe("minimização nativa sem reabrir autoridade", () => {
+  it("remove preferências e código agora, preservando apenas a referência do token até o prazo original", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        b = await adulto(),
+        p = await jogador(a),
+        outro = await jogador(b);
+      await db.insert(preferences).values([
+        { profileId: p.id, presenceMode: "invisible" },
+        { profileId: outro.id, presenceMode: "online" },
+      ]);
+      await db.insert(codes).values({
+        profileId: p.id,
+        codeHash: "c".repeat(64),
+        expiresAt: sql`clock_timestamp()+interval '10 minutes'`,
+      });
+      const [sessao] = await db
+        .insert(gameSessions)
+        .values({
+          profileId: p.id,
+          deviceSessionId: a.autor.sessaoDeAparelhoId,
+          gameId: "morada",
+          expiresAt: sql`clock_timestamp()+interval '1 hour'`,
+        })
+        .returning();
+      if (!sessao) throw new Error("Synthetic retained session absent");
+      const op = await f.admitir(a.autor, p.id);
+      expect(await f.executar()).toMatchObject({
+        situacao: "referencias_sociais_retiradas",
+        dominio: "codigos_amizade",
+        quantidade: 1,
+      });
+      expect(await f.executar()).toMatchObject({
+        situacao: "referencias_sociais_retiradas",
+        dominio: "preferencias_sociais",
+        quantidade: 1,
+      });
+      expect(await f.executar()).toMatchObject({ situacao: "perfil_minimizado", retido: true });
+      expect(await db.select().from(codes).where(eq(codes.profileId, p.id))).toEqual([]);
+      expect(await db.select().from(preferences).where(eq(preferences.profileId, p.id))).toEqual(
+        [],
+      );
+      expect(
+        (await db.select().from(preferences).where(eq(preferences.profileId, outro.id)))[0],
+      ).toMatchObject({ presenceMode: "online" });
+      expect(
+        (await db.select().from(subjects).where(eq(subjects.operationId, op.operacaoId)))[0],
+      ).toMatchObject({ phase: "minimized", retainedUntil: sessao.expiresAt });
+      expect(
+        (await db.select().from(gameSessions).where(eq(gameSessions.id, sessao.id)))[0],
+      ).toMatchObject({ expiresAt: sessao.expiresAt, endedAt: expect.any(Date) });
+      expect(await f.expurgar()).toMatchObject({ situacao: "ociosa" });
+      expect(await f.concluir()).toMatchObject({
+        situacao: "retirada_concluida",
+        referenciasRetidas: 1,
+      });
+    }));
   it("retira cadastro e seleção adulta, preservando o login da conta sem jogador", async () =>
     cenario(async (f) => {
       const a = await adulto(),
@@ -449,7 +506,7 @@ describe("minimização nativa sem reabrir autoridade", () => {
       expect(await consultarMeusDireitos(a.autor)).toMatchObject({ perfis: [] });
     }));
 
-  it("expurga códigos em lotes de cem e preserva os códigos de outro perfil", async () =>
+  it("retira códigos antes de minimizar em lotes de cem, preservando outro perfil", async () =>
     cenario(async (f) => {
       const a = await adulto(),
         b = await adulto(),
@@ -474,14 +531,17 @@ describe("minimização nativa sem reabrir autoridade", () => {
         expiresAt: vence,
       });
       await f.admitir(a.autor, p.id);
-      await f.executar();
-      expect(await f.expurgar()).toMatchObject({
-        situacao: "referencias_expurgadas",
+      expect(await f.executar()).toMatchObject({
+        situacao: "referencias_sociais_retiradas",
         dominio: "codigos_amizade",
         quantidade: 100,
       });
       expect(await db.select().from(codes).where(eq(codes.profileId, p.id))).toHaveLength(3);
-      expect(await f.expurgar()).toMatchObject({ quantidade: 3 });
+      expect(await f.executar()).toMatchObject({
+        situacao: "referencias_sociais_retiradas",
+        quantidade: 3,
+      });
+      expect(await f.executar()).toMatchObject({ situacao: "perfil_minimizado" });
       expect(await f.expurgar()).toMatchObject({ situacao: "perfil_removido" });
       expect(await db.select().from(codes).where(eq(codes.profileId, outro.id))).toHaveLength(1);
     }));

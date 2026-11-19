@@ -383,3 +383,15 @@ na identidade do destinatário. Isso cobre também o endereço que não tinha co
 na emissão. Novos dois casos PG/S3 usam consentimento real, inclusive concorrência.
 Convites anteriores permanecem dependência explícita da limpeza; não são apagados
 por esse guard nem declarados removidos. Sem novas variáveis ou ativação.
+
+
+O inventário da referência mínima encontrou dados sociais que não dependem do
+prazo de um token: amizades/pedidos/códigos/bloqueios e preferência de presença.
+A candidata trata esses domínios antes de minimizar o perfil, em lotes de cem,
+com a mesma autorização assinada, trava do perfil e auditoria estrita. O mesmo
+SQL continua disponível ao expurgo para tratar sobras, sem carregar nomes ou
+conteúdo. Não se espera a expiração de uma sessão para retirar esses dados.
+Novo caso mantém token por uma hora e comprova retirada social imediata, prazo
+original preservado e preferência de terceiro intacta. O caso de 103 códigos
+agora qualifica duas passagens anteriores à minimização e a remoção física
+posterior. Gates remotos ainda necessários.

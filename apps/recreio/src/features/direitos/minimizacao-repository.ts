@@ -23,6 +23,7 @@ import { serializarContaNativa } from "@/features/account/autoridade-repository"
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import { type CoordenacaoDeEfeitos, comEfeitoNativoDeDireitos } from "./efeitos-repository";
+import { expurgarLoteDeReferenciasSociais } from "./referencias-lotes-repository";
 
 /** Cadastro e metadados nativos, depois de fotos/diário/dados pessoais.
  * Não remove conteúdo dos demais nem encerra contrato/identidade global.
@@ -98,6 +99,21 @@ export function minimizarProximoPerfil(config: CoordenacaoDeEfeitos) {
       "DIREITOS_INTEGRIDADE",
       "A responsabilidade pessoal congelada mudou.",
     );
+    const sociais = await expurgarLoteDeReferenciasSociais(tx, perfil.id);
+    if (sociais.count > 0) {
+      await logAuditEventStrict(
+        "recreio.rights_references_purged",
+        op.requesterUserId,
+        { app: "recreio", operationId: op.id, domain: sociais.domain, count: sociais.count },
+        { writer: tx },
+      );
+      return {
+        situacao: "referencias_sociais_retiradas" as const,
+        operacaoId: op.id,
+        dominio: sociais.domain,
+        quantidade: sociais.count,
+      };
+    }
     const proprios = await tx
       .select({ id: members.id })
       .from(members)

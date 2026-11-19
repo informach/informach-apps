@@ -59,6 +59,35 @@ export async function expurgarLoteDeReferencias(tx: Transacao, id: string) {
       order by p.id limit 100 for update
     ) delete from recreio.world_host_presences p using lote l where p.id=l.id returning 1 as removido`,
     },
+    ...etapasSociais(id),
+    {
+      domain: "ingressos",
+      consulta: sql`with lote as (
+      select jti from recreio.game_tickets where profile_id=${id}::uuid order by jti limit 100 for update
+    ) delete from recreio.game_tickets t using lote l where t.jti=l.jti returning 1 as removido`,
+    },
+    {
+      domain: "sessoes_jogo",
+      consulta: sql`with lote as (
+      select g.id from recreio.game_sessions g where g.profile_id=${id}::uuid and g.ended_at is not null and g.expires_at<=clock_timestamp()
+        and not exists(select 1 from recreio.world_host_presences p where p.host_session_id=g.id)
+        and not exists(select 1 from recreio.world_visit_sessions v where v.session_id=g.id)
+      order by g.id limit 100 for update
+    ) delete from recreio.game_sessions g using lote l where g.id=l.id returning 1 as removido`,
+    },
+  ];
+  for (const etapa of etapas) {
+    const removidos = await tx.execute(etapa.consulta);
+    if (removidos.length > 0)
+      return { pendente: false as const, domain: etapa.domain, count: removidos.length };
+  }
+  return { pendente: false as const, domain: "nenhum", count: 0 };
+}
+
+/** References with no live-save/visit retention dependency. The caller holds
+ * the frozen profile and parent operation locks, after signed scope checks. */
+function etapasSociais(id: string) {
+  return [
     // Relação antes do pedido, e pedido antes do código, por suas FKs RESTRICT.
     {
       domain: "amizades",
@@ -87,25 +116,16 @@ export async function expurgarLoteDeReferencias(tx: Transacao, id: string) {
     ) delete from recreio.social_blocks b using lote l where b.actor_profile_id=l.actor_profile_id and b.target_profile_id=l.target_profile_id returning 1 as removido`,
     },
     {
-      domain: "ingressos",
-      consulta: sql`with lote as (
-      select jti from recreio.game_tickets where profile_id=${id}::uuid order by jti limit 100 for update
-    ) delete from recreio.game_tickets t using lote l where t.jti=l.jti returning 1 as removido`,
-    },
-    {
-      domain: "sessoes_jogo",
-      consulta: sql`with lote as (
-      select g.id from recreio.game_sessions g where g.profile_id=${id}::uuid and g.ended_at is not null and g.expires_at<=clock_timestamp()
-        and not exists(select 1 from recreio.world_host_presences p where p.host_session_id=g.id)
-        and not exists(select 1 from recreio.world_visit_sessions v where v.session_id=g.id)
-      order by g.id limit 100 for update
-    ) delete from recreio.game_sessions g using lote l where g.id=l.id returning 1 as removido`,
+      domain: "preferencias_sociais",
+      consulta: sql`delete from recreio.social_preferences where profile_id=${id}::uuid returning 1 as removido`,
     },
   ];
-  for (const etapa of etapas) {
+}
+
+export async function expurgarLoteDeReferenciasSociais(tx: Transacao, id: string) {
+  for (const etapa of etapasSociais(id)) {
     const removidos = await tx.execute(etapa.consulta);
-    if (removidos.length > 0)
-      return { pendente: false as const, domain: etapa.domain, count: removidos.length };
+    if (removidos.length > 0) return { domain: etapa.domain, count: removidos.length };
   }
-  return { pendente: false as const, domain: "nenhum", count: 0 };
+  return { domain: "nenhum", count: 0 };
 }
