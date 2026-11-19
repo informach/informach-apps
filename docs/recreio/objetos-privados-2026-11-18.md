@@ -1,8 +1,9 @@
 # Recreio — objetos privados e recuperação, F8
 
-Em implementação. A leitura do ambiente Railway nesta execução confirmou 34
-serviços, três volumes e zero buckets. Não foi criado bucket, configurada chave,
-movido byte, habilitada agenda ou alterada produção nesta etapa.
+Em implementação. A primeira leitura do ambiente confirmou 34 serviços, três
+volumes e zero buckets. Depois dos gates fechados, foi criado somente o bucket
+isolado de homologação abaixo. Nenhum serviço do portal/jogo foi alterado,
+nenhuma agenda foi habilitada e nenhum dado de produção foi movido.
 
 ## Contrato do provedor e composição necessária
 
@@ -116,5 +117,28 @@ de leitura anônima. Limpeza remove somente a chave criada pela operação, exig
 inventário completo vazio e GET ausente; limpeza e sucesso são fatos separados.
 O workflow não cancela uma execução em andamento para preservar essa limpeza.
 
-Prova preparada não é prova executada: ainda não foi provisionado seu bucket,
-configurada sua credencial ou obtida evidência do provedor nesta etapa.
+Prova preparada não é prova executada. O bucket dedicado foi provisionado;
+a credencial do runner e a evidência do provedor continuam pendentes, conforme
+o registro operacional abaixo.
+
+
+## Gates e estado operacional
+
+`86eac206` concluiu quality em `44431685752`: dezesseis testes do envelope e dez
+do adapter S3, além dos tipos e demais verificações do gate. A fonte seguinte
+`df2845fc` passou no job `qualify` de `44432492043`, incluindo o script de prova,
+tipos e os mesmos 26 testes. O job `provider` não executou nessa rodada.
+Esses resultados não certificam armazenamento ou backup implantados.
+
+Em 19/11 às 00:57 UTC, o bucket exclusivo `recreio-homologacao`
+(`14cbada1-04eb-45cd-be30-94e10e4ba333`), região `sjc`, já estava provisionado.
+Nome S3 `recreio-homologacao-c0xyqx`, endpoint oficial `t3.storageapi.dev`, região
+de assinatura `auto` e estilo virtual-host conferidos pela CLI autenticada.
+É somente homologação; nenhuma credencial do Postgres foi lida por essa etapa.
+
+A revisão automática bloqueou a configuração das seis credenciais/valores
+restritos no GitHub Actions, com a única razão `blocked by policy`; a chamada
+não executou. A lista de segredos foi relida e conserva somente os três
+anteriores. A prova real não foi iniciada nem houve upload por este ensaio.
+O titular recebeu uma pergunta sobre autorizar essa configuração restrita;
+não foi solicitado que envie segredos no chat. Trabalho independente continua.

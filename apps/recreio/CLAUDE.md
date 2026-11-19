@@ -25,10 +25,13 @@ ou download publicado. Usa autoridade nativa recente própria ou responsabilidad
 explícita, independente de assinatura e gameplay; mutex dos dados antes do
 aparelho, integridade e auditoria estritas. [Escopo e pendências](../../docs/recreio/direitos-implementacao-2026-11-18.md).
 
-Na candidata F8, `features/objetos/criptografia.ts` oferece somente o envelope
+Na candidata F8, `features/objetos/criptografia.ts` oferece o envelope
 AES-256-GCM limitado em memória, com contexto autenticado, rotação de chaves e
-referência de integridade. Não é adapter S3 ou armazenamento implantado e não
-concede autorização para ler conteúdo. [Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
+referência de integridade. `features/objetos/s3.ts` transporta e relê o envelope
+com prazo/corpo limitados e recuperação separada. Os 26 testes fechados passaram;
+não é armazenamento integrado/implantado nem concede autorização de conteúdo.
+Bucket isolado de homologação provisionado, prova externa ainda pendente.
+[Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
 
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
 o layout não exige jogador. Estante e mundos adultos conferem `paginaDoPortal`
