@@ -141,3 +141,18 @@ dos originais e alteração/cancelamento durante a escrita. Só o GitHub executa
 esses testes, inclusive o caso sintético de 32 MiB. Faltam seus gates, perfil de
 memória/desempenho, transporte de arquivo, reservas de captura e o restante do
 fluxo. Nenhum backup ou objeto de produção usa esse formato nesta etapa.
+
+
+A primeira rodada `44447113693`/`7cfd9169` encontrou fechamento indevido dos
+handles emprestados ao descartar um ReadStream. A correção `dca0714f` usa leitura
+posicional por blocos, sem transferir o descritor. Os 25 testes de arquivos
+passaram em `44447636058` (52 testes de objetos no total), inclusive cancelamento
+e alteração real da origem; gate quality da candidata `44447983566`
+aprovado. Nenhuma asserção foi removida para passar.
+
+O perfil separado prepara arquivo sintético de 384 MiB em contêiner com limite
+de 256 MiB e sem rede/banco. Exige RSS do processo até 192 MiB, integridade de
+origem/abertura e limpeza, com tempos e recibo técnico. Usa os digests do executor
+Node 24.15.0/PostgreSQL 18.6, sem instalar versão nova. A construção e o teste
+só rodam no GitHub; não constituem restauração de um backup guardado ou medição
+do RTO completo. Este perfil ainda precisa executar.
