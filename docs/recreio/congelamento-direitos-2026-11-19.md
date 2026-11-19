@@ -128,3 +128,31 @@ nativa, coordenação dos mundos, revalidação de dependências ou admissão no
 As seis provas PostgreSQL novas verificam writers antigos, NULL, referências,
 retomada de passos e conservação histórica. A geração do DDL e os gates serão
 remotos antes de qualquer adoção/implantação.
+
+## Consentimento e publicação nativos em candidata
+
+Núcleo de retirada individual reusa a composição nativa: contas ordenadas antes
+dos mundos, depois perfis, vínculos e aparelho; isto corrige a proposta inicial
+de mundo antes da conta, incompatível com os gestores atuais. Reconstitui a
+prévia sob trava, confere responsabilidade/login recente depois das esperas,
+recusa novo mundo e exige transferência aceita quando há outros participantes
+sob gestão do perfil retirado. Repetição do mesmo consentimento devolve a mesma
+operação/bytes, sem incrementar versões nem emitir auditoria duplicada.
+
+O passo recusa posse/sessão de mundo aberta, mundo ativo ou diário além da
+última foto. Suspensão, cerca, projeções, recibos e intenção assinada são
+atômicos com a auditoria; não apaga foto, perfil, identidade ou cobrança.
+Ainda sem action/rota pública de exclusão, até concluir executor/dependências.
+
+A outbox reserva um item com lease, verifica intenção/plano/sujeitos, sai da
+transação e concilia o prefixo inteiro antes de publicar por CAS. Intenção já
+admitida, mesmo anterior à última cabeça, não duplica a cadeia após crash.
+Token/prazo cercam o commit nativo; erro/resposta perdida desse commit não
+vira falso erro de provedor. Integridade fica em revisão, falha transitória
+adiada não impede os demais. Admissão não é conclusão nem autorização de
+restauração/tráfego. Worker não executa efeitos de exclusão neste estágio.
+
+O primeiro DDL gerado 0226 foi rejeitado no PostgreSQL: FK emitida antes da
+nova UNIQUE. Artefato preservado como rejeitado; nada foi aplicado em produção.
+Regenerado sem edição manual: 0226 cria a UNIQUE, 0227 acrescenta operações,
+recibos e barreiras. Snapshots/journal e hashes adotados intactos dos Actions.

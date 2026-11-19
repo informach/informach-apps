@@ -71,9 +71,10 @@ async function comporPerfisSociais(
   ids: readonly PerfilId[],
   antesDosPerfis?: (tx: Transacao) => Promise<void>,
   limite = 2,
+  permitirSemAlvos = false,
 ) {
   assertAllowed(
-    (ids.length > 0 || autor.tipo === "equipe") && ids.length <= limite,
+    (ids.length > 0 || autor.tipo === "equipe" || permitirSemAlvos) && ids.length <= limite,
     "CONTATO",
     "Contato não disponível.",
   );
@@ -145,3 +146,15 @@ export function travarComposicaoDeConvite(
   return comporPerfisSociais(tx, autor, ids, antesDosPerfis, 4);
 }
 export type ComposicaoSocial = Awaited<ReturnType<typeof travarComposicaoSocial>>;
+
+/** Direitos nativos podem abranger todos os perfis da própria responsabilidade.
+ * Conserva a mesma ordem contas → mundos → perfis → vínculos dos gestores;
+ * não concede a autoridade pessoal, que deve ser revalidada pelo chamador. */
+export function travarComposicaoDeDireitos(
+  tx: Transacao,
+  contaId: string,
+  ids: readonly PerfilId[],
+  antesDosPerfis: (tx: Transacao) => Promise<void>,
+) {
+  return comporPerfisSociais(tx, { tipo: "responsavel", contaId }, ids, antesDosPerfis, 256, true);
+}

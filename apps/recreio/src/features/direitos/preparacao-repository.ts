@@ -5,6 +5,7 @@ import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioGuardianLinks as guardians,
   recreioSpaceMembers as members,
+  recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
   recreioSpaces as spaces,
@@ -32,7 +33,7 @@ function ausente(valor: unknown): asserts valor {
   assertAllowed(valor, "DIREITOS", "Preparação não disponível. Faça uma nova prévia.");
 }
 
-function lerPlano(linha: typeof preparations.$inferSelect, contaId: string) {
+export function lerPlanoDeDireitos(linha: typeof preparations.$inferSelect, contaId: string) {
   const plano = PlanoDeDireitosSchema.parse(linha.plan);
   ausente(
     linha.requesterUserId === contaId &&
@@ -66,7 +67,7 @@ function recibo(
 /** Só uma prévia. Não toma posse de mundos, não congela writers, não publica
  * intenção e não consome consentimento. A confirmação terá de reconstruir e
  * comparar este plano sob as travas de execução antes de produzir efeitos. */
-async function montarPlano(
+export async function montarPlanoDeDireitos(
   tx: Transacao,
   autor: AutorNativoRecente,
   pedido: PedidoDePreparacaoDeDireitos,
@@ -190,7 +191,7 @@ export function prepararDireitosNoBanco(
 ) {
   return db.transaction(async (tx) => {
     await limitarTransacao(tx);
-    const plano = await montarPlano(tx, autor, pedido);
+    const plano = await montarPlanoDeDireitos(tx, autor, pedido);
     const planoSha256 = SHA(plano);
     const [existente] = await tx
       .select()
@@ -198,7 +199,7 @@ export function prepararDireitosNoBanco(
       .where(eq(preparations.id, pedido.pedidoId))
       .for("update");
     if (existente) {
-      const anterior = lerPlano(existente, autor.contaId);
+      const anterior = lerPlanoDeDireitos(existente, autor.contaId);
       assertAllowed(
         anterior.tipo === pedido.tipo &&
           JSON.stringify(anterior.perfis.map((p) => p.id)) === JSON.stringify(pedido.perfis),
@@ -283,7 +284,16 @@ export function cancelarPreparacaoNoBanco(
       )
       .for("update");
     ausente(linha);
-    lerPlano(linha, autor.contaId);
+    lerPlanoDeDireitos(linha, autor.contaId);
+    const [operacao] = await tx
+      .select({ id: operations.id })
+      .from(operations)
+      .where(eq(operations.preparationId, linha.id));
+    assertAllowed(
+      !operacao,
+      "CONSENTIMENTO",
+      "Esta prévia já originou uma operação. Acompanhe o pedido de direitos.",
+    );
     const nativa = await autorizarContaNativa(tx, autor);
     const agora = await nativa.conferirPrazo(autor.login);
     if (linha.cancelledAt !== null) return { cancelada: true as const };

@@ -339,3 +339,6 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.backup_retired`: `{ app, captureId, reasonCode, lateObject }`, ator técnico nulo; ausência do payload confirmada, mantendo primeira data e tombstone. `lateObject` indica arquivo reencontrado na reconferência. Todos os eventos são estritos na mesma transação dos seus fatos.
 
 - `recreio.backup_retirement_deferred`: `{ app, captureId }`, ator técnico nulo; tentativa inconclusiva encerrada para repetição limitada; não muda motivo, bytes ou fatos históricos. Estrito na mesma transação, sem erro externo/token.
+
+- `recreio.rights_consented`: `{ app, operationId, kind, profileCount, worldCount }`. Consentimento nativo e barreiras na mesma transação; não afirma publicação/admissão/exclusão. Nunca registrar nomes, IDs de perfis/mundos, plano, bytes, hashes ou chaves.
+- `recreio.rights_admitted`: `{ app, operationId, kind }`. Intenção confirmada no prefixo verificado do livro externo. Não representa execução ou conclusão. Nenhum conteúdo, referência pessoal adicional ou dado criptográfico no evento.

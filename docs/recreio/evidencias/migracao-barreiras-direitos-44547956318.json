@@ -1,0 +1,28 @@
+{
+  "source": "987692ddcbcad1400cf2e0c8e8b14f1f13774b44",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0227_recreio_rights_operations.sql",
+      "bytes": 11148,
+      "sha256": "9d193197e345db1400566ab34b8bf766ca2479f111022f1b247e413ce1f7e2f0"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0227_snapshot.json",
+      "bytes": 1087326,
+      "sha256": "e099a0c6294abd64b2aef74e3a2c47eb4064fe14d388be1e97be5edae31ccfff"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 34441,
+      "sha256": "495b445184b7befb67048507357eb0956c711953314bd88e27e64b8f1db4eee2"
+    }
+  ],
+  "runId": 44547956318,
+  "artifactId": 14542155204,
+  "artifactZipBytes": 78264,
+  "artifactZipSha256": "37f448264a14b76429eaff78f78ff63e04bc7f3a6ea0f39cb430f9af81ee152c",
+  "productionApplied": false,
+  "unchangedPreviousColumnsAndConstraints": true,
+  "predecessorUniqueConstraint": "0226_recreio_rights_preparation_kind",
+  "newTables": ["recreio.rights_operations", "recreio.rights_subjects", "recreio.rights_worlds"]
+}
