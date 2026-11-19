@@ -1,0 +1,29 @@
+{
+  "source": "9c9ecf724decc451f8513b45a1b1555e5852ce7c",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0218_recreio_backup_reservas.sql",
+      "bytes": 9000,
+      "sha256": "8f05fc7de3a14c5a30b0294d29ca04104876bc2a35e980a05f6e995104134329"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0218_snapshot.json",
+      "bytes": 1038493,
+      "sha256": "7bb70eaa4ed5bea709b9e8bbe07cfdf888bb2bf77462e545ec7ad978f3ced31b"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 33034,
+      "sha256": "5bb967c1862ee5615e42ede803aaa7cabe6e3144aa64b884120c65b04de4529e"
+    }
+  ],
+  "runId": "44453708963",
+  "artifactId": "14495988519",
+  "zipBytes": 73918,
+  "zipSha256": "18c084d3e59c0b0dc46346cf4c5432606e55a67a731129767b37350a5bf59e75",
+  "snapshotId": "fb161f07-2b67-4ce4-b10d-bb489fc6b9e3",
+  "previousSnapshotId": "7435a538-2030-4ab4-819c-01f81e6f0e01",
+  "previousMigrationCount": 218,
+  "migrationCount": 219,
+  "productionApplied": false
+}

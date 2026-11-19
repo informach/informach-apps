@@ -93,6 +93,16 @@ objetos/backup agendado com restauração do objeto, catálogo/acessibilidade,
 custo/carga remota e homologação final permanecem abertos no
 [fechamento da plataforma](recreio/fechamento-plataforma-2026-11-16.md).
 
+**19/11 — F8 candidato:** transporte de arquivos passou em `44450866756`
+(66 testes e tipos), quality `44450870353` aprovado. Prova no bucket restrito
+`44453304274` validou arquivo sintético de 64 MiB, escrita condicional, replay,
+recuperação sem cópia local, acesso privado e limpeza; perfil offline de 384 MiB
+`44453287884` também aprovado. Reservas de captura 0218 foram geradas/adotadas
+intactas (219 recibos candidatos), ainda sem escritor ou implantação.
+[Recibos, plano de captura e limites](recreio/backup-e-retirada-2026-11-19.md).
+Captura consistente, coleta, custódia e restauração do arquivo completo seguem
+abertas; esses ensaios sintéticos não concluem F8.
+
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de
 perfis sob responsabilidade declarada do adulto; conta pagante não precisa

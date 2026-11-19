@@ -135,3 +135,16 @@ precisa destacar o registro antes de excluir a fotografia e conservar o recibo
 até confirmar o expurgo; encerramento não pode simplesmente apagar essa fila.
 Corpos cifrados e objetos também precisam entrar na coordenação de privacidade.
 Nenhum writer/worker novo foi habilitado por este incremento de schema.
+
+
+## Incremento candidato 0218
+
+O snapshot 0218, id `fb161f07-2b67-4ce4-b10d-bb489fc6b9e3`, acrescenta somente
+`backup_captures` e `backup_object_holds`: 66 tabelas Recreio e 144 FKs.
+[Schema](../../packages/db/src/schema/recreio-backup.ts) e
+[proveniência intacta](evidencias/migracao-backup-reservas-0218.json).
+Reservas possuem FKs RESTRICT para captura e entrega; nenhuma expiração ou
+exclusão de fotografia apaga esses recibos. Conservar UUIDs/hashes técnicos
+não é anonimização. Encerramento e replay de restauração precisam compor a
+retirada com capturas e objetos retidos; não executar cascata a partir daqui.
+Sem implantação ou escritor de captura nesta etapa.

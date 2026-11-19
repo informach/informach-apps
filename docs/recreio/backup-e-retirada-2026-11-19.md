@@ -226,10 +226,14 @@ não há dump, credenciais ou material de chave nessas tabelas. Campos de arquiv
 precisam estar completos antes de admitir a escrita externa. Um abandono após
 preparar arquivo exige prova de ausência, não apenas expiração.
 
-Este é schema candidato aditivo, ainda sem migração gerada ou escritor
-operacional. A consistência entre liberação e estado da captura exige o writer
+Este é schema candidato aditivo, sem escritor operacional.
+A 0218 foi gerada em `44453708963`/`9c9ecf72`, adotada intacta e conferida:
+predecessor 0217, 219 recibos candidatos, somente duas tabelas novas e nenhum
+schema anterior alterado. [Proveniência e hashes](evidencias/migracao-backup-reservas-0218.json).
+A consistência entre liberação e estado da captura exige o writer
 transacional e seus testes; FK/CHECK isolados não demonstram captura segura.
-Geração deve ocorrer em `db-generate.yml`, sem banco/segredos/seeds, e os três
-arquivos gerados devem ser adotados intactos, com predecessor e hashes conferidos.
-Qualificar upgrade e concorrência em PostgreSQL descartável antes de qualquer
+Geração ocorreu em `db-generate.yml`, sem banco/segredos/seeds.
+Testes de integridade PostgreSQL cobrem campos NULL incompletos, limites,
+contexto de chave, datas, estados de evidência e FKs que sobrevivem à retenção.
+Ainda precisam executar. Qualificar upgrade e concorrência em PostgreSQL descartável antes de qualquer
 implantação. Não alterar as 0216/0217 para incluir essas tabelas.
