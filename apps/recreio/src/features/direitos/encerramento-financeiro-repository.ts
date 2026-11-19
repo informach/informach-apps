@@ -95,7 +95,7 @@ export async function lerFinanceiroDoEncerramentoLocked(
   }
   if (!origem.customer) {
     const [contrato] = await tx
-      .select({ id: contracts.id })
+      .select({ assinaturaId: contracts.subscriptionId })
       .from(contracts)
       .where(eq(contracts.payerUserId, autor.contaId))
       .limit(1)

@@ -58,6 +58,13 @@ para apagar perfis não selecionados.
 
 ### Plano financeiro v2 em composição
 
+67d541a5 concluiu quality 44609205600 e direitos 44609210682 para o codec v2.
+O leitor/preparador seguinte e69bee7c falhou no typecheck em 44610776863 e
+44610785415: a chave de `billing_contracts` é `subscriptionId`, e o helper de
+compra de teste precisava do tipo `AceiteDaCompra` para conservar os literais
+de versão. Correção nas referências e na anotação do retorno, sem casts ou
+mudança de regras; os oito novos casos não haviam sido executados nessa rodada.
+
 O codec distingue `recreio-previa-encerramento-v2` da prévia legada v1.
 Somente encerramento admite esse formato, com revisão ativa da participação,
 cliente próprio exclusivo do Recreio e referências ordenadas de compras/trocas

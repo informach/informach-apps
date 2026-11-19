@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { VERSAO_DA_COMPRA } from "@/features/cobranca/constantes";
 import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
+import type { AceiteDaCompra } from "@/features/cobranca/regras";
 import {
   iniciarTentativaDeCompraLocked,
   prepararCompraNoBanco,
@@ -57,15 +58,15 @@ async function cliente(f: Awaited<ReturnType<typeof adulto>>, app = "recreio") {
   if (!c) throw new Error("Customer fixture absent");
   return c;
 }
-function compra() {
+function compra(): AceiteDaCompra {
   return {
     pedidoId: randomUUID(),
     produtoId: "recreio_individual_monthly",
     valorCentavos: 5990,
-    moeda: "BRL" as const,
-    intervalo: "month" as const,
-    souAdulto: true as const,
-    aceitoCobrancaRecorrente: true as const,
+    moeda: "BRL",
+    intervalo: "month",
+    souAdulto: true,
+    aceitoCobrancaRecorrente: true,
     versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
     versaoDasCondicoes: VERSAO_DA_COMPRA,
     perfis: [],
