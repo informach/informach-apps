@@ -137,8 +137,8 @@ async function lerExatos(
   }
   return bytes;
 }
-async function escrever(
-  destino: FileHandle,
+async function consumirPartes(
+  destino: FileHandle | null,
   origem: AsyncIterable<Uint8Array>,
   teto: number,
   signal: AbortSignal,
@@ -148,19 +148,22 @@ async function escrever(
   for await (const parte of origem) {
     conferirPrazo(signal);
     if (escritos + parte.length > teto) falhar("LIMITE");
-    let n = 0;
-    while (n < parte.length) {
-      conferirPrazo(signal);
-      const passo = await destino.write(parte, n, parte.length - n, escritos + n);
-      if (passo.bytesWritten === 0) falhar("IO");
-      n += passo.bytesWritten;
+    if (destino) {
+      let n = 0;
+      while (n < parte.length) {
+        conferirPrazo(signal);
+        const passo = await destino.write(parte, n, parte.length - n, escritos + n);
+        if (passo.bytesWritten === 0) falhar("IO");
+        n += passo.bytesWritten;
+      }
     }
     hash.update(parte);
     escritos += parte.length;
   }
-  await destino.sync();
+  if (destino) await destino.sync();
   conferirPrazo(signal);
-  if ((await destino.stat({ bigint: true })).size !== BigInt(escritos)) falhar("ARQUIVO_ALTERADO");
+  if (destino && (await destino.stat({ bigint: true })).size !== BigInt(escritos))
+    falhar("ARQUIVO_ALTERADO");
   return { bytes: escritos, sha256: hash.digest("hex") };
 }
 
@@ -195,9 +198,17 @@ export function criarCifradorDeArquivos(config: {
     tempoLimiteMs = config.tempoLimiteMs;
   if (!chaves.has(chaveAtiva)) falhar("CONFIGURACAO");
 
+  /** Valida referência/limite/chave antes de admitir download de arquivo grande. */
+  function conferirReferencia(bruto: unknown): ReferenciaDoArquivoCifrado {
+    const r = conferirReferenciaDoArquivoCifrado(bruto);
+    if (r.bytes > limiteBytes || r.bytesCifrados > limiteBytes + 1024) falhar("LIMITE");
+    if (!chaves.has(r.chaveId)) falhar("CHAVE_INDISPONIVEL");
+    return r;
+  }
+
   async function operacao<T>(
     origem: FileHandle,
-    destino: FileHandle,
+    destino: FileHandle | null,
     teto: number,
     executar: (info: BigIntStats, signal: AbortSignal) => Promise<T>,
     externo?: AbortSignal,
@@ -211,13 +222,15 @@ export function criarCifradorDeArquivos(config: {
     let admitida = false;
     try {
       conferirPrazo(controle.signal);
-      const info = await metadados(origem, teto),
-        saida = await metadados(destino, 0);
-      if (mesmoArquivo(info, saida) || saida.size !== 0n) falhar("CONFIGURACAO");
-      admitida = true;
+      const info = await metadados(origem, teto);
+      if (destino) {
+        const saida = await metadados(destino, 0);
+        if (mesmoArquivo(info, saida) || saida.size !== 0n) falhar("CONFIGURACAO");
+        admitida = true;
+      }
       return await executar(info, controle.signal);
     } catch (erro) {
-      if (admitida) {
+      if (admitida && destino) {
         try {
           await destino.truncate(0);
           await destino.sync();
@@ -278,7 +291,7 @@ export function criarCifradorDeArquivos(config: {
             cipher.destroy();
           }
         }
-        const guardado = await escrever(destino, envelope(), bytes + 1024, prazo);
+        const guardado = await consumirPartes(destino, envelope(), bytes + 1024, prazo);
         if (
           guardado.bytes !== prefixo.length + bytes + TAG_BYTES ||
           !mesmoSha(sha.digest("hex"), shaEsperado) ||
@@ -299,17 +312,18 @@ export function criarCifradorDeArquivos(config: {
       signal,
     );
   }
-  function abrir(
+  function decifrar(
     origem: FileHandle,
-    destino: FileHandle,
+    destino: FileHandle | null,
     bruto: unknown,
     signal?: AbortSignal,
   ): Promise<void> {
-    const lido = Referencia.safeParse(bruto);
-    if (!lido.success) return Promise.reject(new FalhaDoArquivoCifrado("INTEGRIDADE"));
-    const r = lido.data;
-    if (r.bytes > limiteBytes || r.bytesCifrados > limiteBytes + 1024)
-      return Promise.reject(new FalhaDoArquivoCifrado("LIMITE"));
+    let r: ReferenciaDoArquivoCifrado;
+    try {
+      r = conferirReferencia(bruto);
+    } catch (e) {
+      return Promise.reject(e);
+    }
     const chave = chaves.get(r.chaveId);
     if (!chave) return Promise.reject(new FalhaDoArquivoCifrado("CHAVE_INDISPONIVEL"));
     return operacao(
@@ -378,7 +392,7 @@ export function criarCifradorDeArquivos(config: {
             decipher.destroy();
           }
         }
-        const aberto = await escrever(destino, conteudo(), r.bytes, prazo);
+        const aberto = await consumirPartes(destino, conteudo(), r.bytes, prazo);
         cifrado.update(tag);
         if (
           aberto.bytes !== r.bytes ||
@@ -392,5 +406,17 @@ export function criarCifradorDeArquivos(config: {
       signal,
     );
   }
-  return Object.freeze({ cifrar, abrir, limiteBytes });
+  /** Conferência integral autentica/conta os bytes sem persistir texto aberto. */
+  function conferir(origem: FileHandle, referencia: unknown, signal?: AbortSignal) {
+    return decifrar(origem, null, referencia, signal);
+  }
+  function abrir(
+    origem: FileHandle,
+    destino: FileHandle,
+    referencia: unknown,
+    signal?: AbortSignal,
+  ) {
+    return decifrar(origem, destino, referencia, signal);
+  }
+  return Object.freeze({ cifrar, abrir, conferir, conferirReferencia, limiteBytes });
 }

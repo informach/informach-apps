@@ -156,3 +156,18 @@ origem/abertura e limpeza, com tempos e recibo técnico. Usa os digests do execu
 Node 24.15.0/PostgreSQL 18.6, sem instalar versão nova. A construção e o teste
 só rodam no GitHub; não constituem restauração de um backup guardado ou medição
 do RTO completo. Este perfil ainda precisa executar.
+
+
+O perfil `44448553986`/`52e45d8f` passou. Arquivo de 402.653.184 bytes (384 MiB),
+pico RSS de 74.784.768 bytes (71,32 MiB), cifragem em 2.945 ms e abertura em
+4.607 ms, com origem, conteúdo aberto e limpeza conferidos. O contêiner ficou
+sem rede, limitado a 256 MiB/duas CPUs, e o processo ficou abaixo do teto de
+192 MiB. Artefato baixado/conferido por SHA e campos estritos.
+[Recibo e limite de escopo](evidencias/arquivo-memoria-44448553986.json).
+Não é RTO do backup completo, transferência S3 ou carga de gameplay.
+
+A candidata seguinte acrescenta conferência integral de ciphertext/tag/conteúdo
+sem persistir uma segunda cópia aberta. Isso permite validar o arquivo após
+readback do bucket sem gravar novo dump em claro. Referência, tamanho e presença
+da chave são admitidos antes de um download grande. Mantém a mesma decifragem
+verificada, os handles emprestados e os limites; ainda precisa de gates próprios.

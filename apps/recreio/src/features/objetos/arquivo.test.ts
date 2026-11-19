@@ -57,6 +57,24 @@ async function preparar(bytes: Buffer) {
 const conteudo = Buffer.from("BACKUP_SINTETICO_NUNCA_PUBLICAR_CONTEUDO".repeat(2048));
 
 describe("arquivo cifrado em handles reais: integridade e memória por blocos", () => {
+  it("confere tag, referência e conteúdo sem persistir texto aberto", async () =>
+    arquivos(conteudo, async (f) => {
+      const ref = await f.codec.cifrar(f.origem, f.cifrado, f.contexto);
+      await f.codec.conferir(f.cifrado, ref);
+      expect((await f.aberto.stat()).size).toBe(0);
+      expect((await f.cifrado.stat()).size).toBe(ref.bytesCifrados);
+      const bytes = await readFile(join(f.root, "cifrado.bin"));
+      bytes[bytes.length - 1] = (bytes.at(-1) ?? 0) ^ 1;
+      await f.cifrado.write(bytes, 0, bytes.length, 0);
+      const adulterada = {
+        ...ref,
+        sha256Cifrado: createHash("sha256").update(bytes).digest("hex"),
+      };
+      await expect(f.codec.conferir(f.cifrado, adulterada)).rejects.toMatchObject({
+        codigo: "INTEGRIDADE",
+      });
+      expect((await f.aberto.stat()).size).toBe(0);
+    }));
   it.each(["chave", "ausente", "limite", "prazo"] as const)(
     "recusa configuração inválida de %s",
     (caso) => {
