@@ -156,3 +156,26 @@ O primeiro DDL gerado 0226 foi rejeitado no PostgreSQL: FK emitida antes da
 nova UNIQUE. Artefato preservado como rejeitado; nada foi aplicado em produção.
 Regenerado sem edição manual: 0226 cria a UNIQUE, 0227 acrescenta operações,
 recibos e barreiras. Snapshots/journal e hashes adotados intactos dos Actions.
+
+## Processamento de fotografias em candidata
+
+Worker operacional fora do Next confere o prefixo do livro e os bytes assinados
+contra plano/seleção nativos. Reserva uma foto retida por passagem, inclusive
+as fixadas, com lease por operação e cerca do mundo. Lê/materializa e transforma
+fora da transação. O commit entra primeiro pela barreira comum de captura/GC,
+revalida token/prazo/mundo/foto/cursor, desvincula a entrega antiga preservando
+lease/holds de PUT em voo e grava bytes PG novos com cursor/auditoria atômicos.
+Não muda ID, formato, revisão, tick, diário ou espécie fixada da foto.
+
+Resposta perdida do commit é resolvida pelo cursor persistido na passagem
+seguinte. Foto inválida fica em revisão, sem avançar nem reabrir o mundo.
+Concluir as fotos leva só à etapa de dependências: diário, resumo/nome do mundo,
+referências/capacidades nativas, objetos retidos, perfil e retenções continuam
+pendentes. Não há operação completa nem liberação pública da retirada.
+
+A fonte b9f73f68 passou qualidade em 44548601200. A integração 44548609154
+aplicou 0226/0227 e passou 1347 casos; um teste esperava 23503 na exclusão
+RESTRICT, mas PostgreSQL 18 devolveu 23001, conservando os registros. Corrigida
+a expectativa estrita para o código observado, sem alterar a proteção. A nova
+rodada inclui processamento real de fotos, preservação de outro perfil/formato,
+rollback de auditoria, token vencido e recusa de livro congelado.

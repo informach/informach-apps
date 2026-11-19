@@ -203,8 +203,8 @@ describe("barreiras persistidas de direitos (PostgreSQL real)", () => {
       await codigoDoBanco(
         db.delete(preparations).where(eq(preparations.id, c.previa.preparacaoId)),
       ),
-    ).toBe("23503");
-    expect(await codigoDoBanco(db.delete(operations).where(eq(operations.id, c.id)))).toBe("23503");
+    ).toBe("23001");
+    expect(await codigoDoBanco(db.delete(operations).where(eq(operations.id, c.id)))).toBe("23001");
     for (const alteracao of [
       { state: "completed" as const },
       { state: "admitted" as const },

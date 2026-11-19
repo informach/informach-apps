@@ -153,6 +153,7 @@ export type AuditEventType =
   | "recreio.rights_dashboard_viewed"
   | "recreio.rights_consented"
   | "recreio.rights_admitted"
+  | "recreio.rights_photo_processed"
   | "recreio.achievement_unlocked"
   | "recreio.device_session_revoked"
   | "recreio.device_paired"

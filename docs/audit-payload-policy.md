@@ -342,3 +342,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 
 - `recreio.rights_consented`: `{ app, operationId, kind, profileCount, worldCount }`. Consentimento nativo e barreiras na mesma transação; não afirma publicação/admissão/exclusão. Nunca registrar nomes, IDs de perfis/mundos, plano, bytes, hashes ou chaves.
 - `recreio.rights_admitted`: `{ app, operationId, kind }`. Intenção confirmada no prefixo verificado do livro externo. Não representa execução ou conclusão. Nenhum conteúdo, referência pessoal adicional ou dado criptográfico no evento.
+
+- `recreio.rights_photo_processed`: `{ app, operationId, gameId, photoCount }`. Passo atômico de uma fotografia e cursor; não afirma limpeza integral do mundo ou perfil. Não registrar IDs do mundo/foto/perfil, conteúdo, referências de objeto ou hashes.

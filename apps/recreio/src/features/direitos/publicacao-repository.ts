@@ -1,6 +1,5 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { isDeepStrictEqual } from "node:util";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, isNull, or, sql } from "@informach/db";
 import {
@@ -11,11 +10,11 @@ import {
 import { ZodError } from "zod";
 import { AppError } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { conferirIntencaoNativa } from "./intencao-nativa";
 import type { criarArmazenamentoDoLivro } from "./livro/armazenamento";
-import { type criarAssinaturaDoLivro, resumoDoRegistro } from "./livro/assinatura";
+import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
 import { admitirIntencaoNoLivro } from "./livro/publicacao";
-import { lerPlanoDeDireitos } from "./preparacao-repository";
 
 /** Uma operação por passagem. Lease só limita o worker; CAS e conciliação do
  * livro impedem duplicação se o worker antigo terminar depois de perder lease.
@@ -76,34 +75,7 @@ export async function publicarProximoConsentimento(config: {
   );
   let prova: Awaited<ReturnType<typeof admitirIntencaoNoLivro>>;
   try {
-    if (!preparacao || resumoDoRegistro(atual.signedIntent) !== atual.intentSha256)
-      throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
-    const plano = lerPlanoDeDireitos(preparacao, atual.requesterUserId);
-    const { documento: doc, chaveId } = config.assinatura.lerIntencaoAssinada(atual.signedIntent);
-    if (
-      chaveId !== atual.signingKeyId ||
-      !isDeepStrictEqual(doc, {
-        formato: "recreio-intencao-direitos-v1",
-        livroId: atual.ledgerId,
-        operacaoId: atual.id,
-        revisao: atual.revision,
-        epoca: atual.ledgerEpoch,
-        tipo: atual.kind,
-        contaId: atual.requesterUserId,
-        perfilIds: plano.perfis.map((p) => p.id),
-        planoSha256: atual.planSha256,
-        consentidaEm: atual.consentedAt.toISOString(),
-        autenticadaEm: atual.authenticatedAt.toISOString(),
-        fonte: atual.source,
-      }) ||
-      plano.tipo !== atual.kind ||
-      plano.contaId !== atual.requesterUserId ||
-      !isDeepStrictEqual(
-        selecionados.map((p) => p.id),
-        doc.perfilIds,
-      )
-    )
-      throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+    conferirIntencaoNativa(atual, preparacao, selecionados, config.assinatura);
     prova = await admitirIntencaoNoLivro({
       ...config,
       bytes: atual.signedIntent,
