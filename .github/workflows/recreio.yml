@@ -305,7 +305,7 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'rights-ui' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
