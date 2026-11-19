@@ -148,3 +148,17 @@ exclusão de fotografia apaga esses recibos. Conservar UUIDs/hashes técnicos
 não é anonimização. Encerramento e replay de restauração precisam compor a
 retirada com capturas e objetos retidos; não executar cascata a partir daqui.
 Sem implantação ou escritor de captura nesta etapa.
+
+## Incrementos candidatos 0219–0220
+
+A 0219 acrescenta `backup_publications`: 67 tabelas Recreio e 145 FKs no
+snapshot 0220. O registro técnico conserva destino independente, referência
+à captura por FK RESTRICT, fonte, tentativa/prazo e bytes exatos do índice
+assinado. Não contém chave/credencial e não torna hashes/UUIDs anônimos.
+Capturas antigas não recebem prova de publicação por backfill.
+
+A 0220 amplia somente o CHECK de lease para reconferir `retired` e cria índice
+parcial da coleta por destino/estado/prazo. Não acrescenta tabela nem apaga
+recibos. Encerramento/ledger F7 precisam coordenar retirada de arquivos,
+índices/tombstones e bytes privados sem apagar esses fatos técnicos por cascata.
+A geração das duas migrations ocorreu no GitHub; nenhuma foi implantada.

@@ -101,6 +101,7 @@ export async function criarBucketDaMontagem() {
     freshCluster: false,
     authoritiesNormalizedForTraffic: false,
     durableCaptureFinalized: false,
+    nativeCollectionVerified: false,
   };
   let frio: ReciboDoClusterFrio | undefined;
   const guardar = async () => {
@@ -189,15 +190,14 @@ export async function criarBucketDaMontagem() {
         throw e;
     }
   }
-  async function removerFoto(key: string) {
+  async function confirmarAusenciaDaFoto(key: string) {
     exigir(
       chaves.has(key) && key.startsWith("recreio/v1/fotografia/"),
       "FOTOGRAFIA_FORA_DO_ESCOPO",
     );
-    await cliente.send(new DeleteObjectCommand({ Bucket: destino.bucketName, Key: key }), {
-      abortSignal: AbortSignal.timeout(15_000),
-    });
     await ausencia(key);
+    recibo.nativeCollectionVerified = true;
+    await guardar();
   }
   async function confirmarPublicacaoDuravel(id: string) {
     exigir(prefixos.has(`recreio/v1/backup/${id}/`), "PUBLICACAO_FORA_DO_ESCOPO");
@@ -206,6 +206,7 @@ export async function criarBucketDaMontagem() {
   }
   async function concluir() {
     exigir(recibo.durableCaptureFinalized, "PUBLICACAO_DURAVEL_AUSENTE");
+    exigir(recibo.nativeCollectionVerified, "COLETA_NATIVA_AUSENTE");
     exigir(process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE !== "1" || frio, "CLUSTER_FRIO_AUSENTE");
     exigir(chaves.size === 4 && prefixos.size === 2, "INVENTARIO_DA_PROVA_DIVERGENTE");
     if (externa && endpoint) {
@@ -285,7 +286,7 @@ export async function criarBucketDaMontagem() {
     destino,
     pedidos,
     admitirPrefixo,
-    removerFoto,
+    confirmarAusenciaDaFoto,
     confirmarClusterFrio,
     confirmarPublicacaoDuravel,
     concluir,

@@ -2,6 +2,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { expect, it } from "vitest";
 import { comCapturaConsistente } from "@/features/backup/captura-repository";
+import { criarColetorDeObjetosS3 } from "@/features/objetos/coleta-s3";
+import { executarColeta } from "@/features/objetos/coleta-service";
 import { criarCifradorDeObjetos } from "@/features/objetos/criptografia";
 import { criarArmazenamentoPrivadoS3 } from "@/features/objetos/s3";
 import { criarCifradorDeArquivos } from "../scripts/backup/arquivo-cifrado";
@@ -215,8 +217,25 @@ it(
           await h.truncate(0);
           await h.sync();
         }
-        // Perda da fonte sintética após guardar o arquivo, não coletor de produção.
-        await s3.removerFoto(objectKey);
+        // A fonte sintética volta a PG antes de retirar seu objeto redundante.
+        // Só este fixture antecipa datas para homologar a carência sem esperar 24h.
+        await fonte.begin(async (tx) => {
+          await tx`select id from recreio.spaces where id=${mundoId} for update`;
+          await tx`update recreio.snapshot_object_deliveries set snapshot_id=null,state='retiring',
+            created_at=created_at-interval '2 days',detached_at=clock_timestamp()-interval '25 hours',
+            next_attempt_at=clock_timestamp()-interval '1 hour',envelope=null,lease_token=null,lease_until=null where id=${entregaId}`;
+          await tx`update recreio.space_snapshots set storage='pg',data=${original},object_key=null where id=${fotoId}`;
+        });
+        const coletor = criarColetorDeObjetosS3({
+          cliente: s3.cliente,
+          destino,
+          tempoLimiteMs: 10000,
+        });
+        expect(await executarColeta(entregaId, destino, coletor)).toBe("retirada");
+        const [retiradaNativa] =
+          await fonte`select state,retired_at is not null as confirmada from recreio.snapshot_object_deliveries where id=${entregaId}`;
+        expect(retiradaNativa).toEqual({ state: "retired", confirmada: true });
+        await s3.confirmarAusenciaDaFoto(objectKey);
         const inicioDaRecuperacao = s3.pedidos.length;
         const fria = await indices.recuperar(ref.contexto.id);
         await transporte.recuperar(fria.publicacao.arquivo, recuperado);
@@ -284,7 +303,7 @@ it(
           await copia?.end({ timeout: 5 });
           if (criada) await fonte.unsafe(`drop database "${nome}" with (force)`);
           if (fotoGravada) {
-            await fonte`update recreio.snapshot_object_deliveries set snapshot_id=null,state='retiring',detached_at=clock_timestamp(),envelope=null,lease_token=null,lease_until=null where id=${entregaId}`;
+            await fonte`update recreio.snapshot_object_deliveries set snapshot_id=null,state=case when retired_at is null then 'retiring' else 'retired' end,detached_at=coalesce(detached_at,clock_timestamp()),envelope=null,lease_token=null,lease_until=null where id=${entregaId}`;
             await fonte`update recreio.space_snapshots set storage='pg',data=${original},object_key=null where id=${fotoId}`;
           }
         } finally {

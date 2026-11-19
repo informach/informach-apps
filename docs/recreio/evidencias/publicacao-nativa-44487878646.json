@@ -1,0 +1,10 @@
+{
+  "source": "5f6f80b8078007a22488269d5dc5767252af6a74",
+  "runId": 44487878646,
+  "jobId": 135435805332,
+  "status": "passed",
+  "scope": "native SQL, encrypted capture and closed HTTP S3; includes stored-index audit failure, local file removal, new token and exact-byte replay; not external provider",
+  "nativeCaptureTests": 16,
+  "productionApplied": false,
+  "externalProvider": false
+}

@@ -42,3 +42,12 @@ sem arquivos locais. Não há endpoint público para aceitar provas do navegador
 
 Retirada de arquivo, expurgo de objetos, agendamento, custódia e replay F7
 continuam pendentes. O controle durável em candidata não é rotina de produção.
+
+Evidências parciais: quality `44487584581`/`eb6f3146` aprovado, com 489 unitários
+do app; composição nativa `44487878646`/`5f6f80b8` aprovada, dezesseis casos,
+incluindo falha de auditoria após índice guardado, perda dos arquivos locais,
+nova tentativa e replay dos mesmos bytes. A integração `44488238322`/`02ea9242`
+teve 1.275 casos aprovados e uma expectativa incorreta de SQLSTATE no teste de
+FK RESTRICT: PostgreSQL devolveu `23001`, conservando a proteção; teste corrigido
+para esse código específico. Não contar a rodada como aprovada. Nova integração
+qualifica conjuntamente publicação e coleta na candidata seguinte.
