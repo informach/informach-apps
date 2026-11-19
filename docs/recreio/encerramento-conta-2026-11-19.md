@@ -18,6 +18,12 @@ da confirmação. Agendas ou origens desconhecidas permanecem em conferência.
 Schema candidato; geração pelo GitHub e testes de integridade ainda pendentes.
 Não há escritor desse recibo, aceite público ou conclusão de encerramento.
 
+A revisão do schema 5667c421 encontrou a semântica SQL de NULL no contador
+de tentativas: o segundo ramo precisa exigir `request_started_at is not null`.
+Também foi acrescentada finitude às datas da participação. A geração inicial
+44623327745 não autoriza adoção; regenerar a partir da correção, sem editar SQL
+ou snapshot gerados. Provar os dois casos no PostgreSQL descartável.
+
 ## Exportação
 
 A cópia de perfil já tem captura consistente, artefato cifrado de dez minutos,

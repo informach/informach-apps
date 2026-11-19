@@ -77,7 +77,7 @@ export const recreioAccountClosureFinances = recreio.table(
     ),
     check(
       "recreio_account_closure_finance_times",
-      sql`${t.updatedAt}>=${t.createdAt} and ${t.nextAttemptAt}>=${t.createdAt} and ((${t.requestStartedAt} is null and ${t.attempts}=0) or (${t.requestStartedAt}>=${t.createdAt} and ${t.requestStartedAt}<=${t.updatedAt} and ${t.attempts}>=1)) and isfinite(${t.createdAt}) and isfinite(${t.updatedAt}) and isfinite(${t.nextAttemptAt}) and (${t.requestStartedAt} is null or isfinite(${t.requestStartedAt})) and (${t.leaseUntil} is null or isfinite(${t.leaseUntil})) and (${t.observedAt} is null or isfinite(${t.observedAt})) and (${t.confirmedAt} is null or isfinite(${t.confirmedAt}))`,
+      sql`${t.updatedAt}>=${t.createdAt} and ${t.nextAttemptAt}>=${t.createdAt} and ((${t.requestStartedAt} is null and ${t.attempts}=0) or (${t.requestStartedAt} is not null and ${t.requestStartedAt}>=${t.createdAt} and ${t.requestStartedAt}<=${t.updatedAt} and ${t.attempts}>=1)) and isfinite(${t.createdAt}) and isfinite(${t.updatedAt}) and isfinite(${t.nextAttemptAt}) and (${t.requestStartedAt} is null or isfinite(${t.requestStartedAt})) and (${t.leaseUntil} is null or isfinite(${t.leaseUntil})) and (${t.observedAt} is null or isfinite(${t.observedAt})) and (${t.confirmedAt} is null or isfinite(${t.confirmedAt}))`,
     ),
   ],
 );

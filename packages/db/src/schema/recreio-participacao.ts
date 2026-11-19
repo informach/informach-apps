@@ -33,6 +33,10 @@ export const recreioAccountParticipations = recreio.table(
     unique("recreio_account_participation_operation").on(t.operationId),
     check("recreio_account_participation_kind", sql`${t.operationKind}='encerrar_conta'`),
     check(
+      "recreio_account_participation_finite",
+      sql`isfinite(${t.updatedAt}) and (${t.closingAt} is null or isfinite(${t.closingAt})) and (${t.closedAt} is null or isfinite(${t.closedAt}))`,
+    ),
+    check(
       "recreio_account_participation_state",
       sql`((
         ${t.state}='active' and ${t.revision}=1 and ${t.operationId} is null and
