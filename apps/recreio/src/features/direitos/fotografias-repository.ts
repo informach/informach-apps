@@ -76,6 +76,7 @@ export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
       .where(
         and(
           eq(operations.ledgerId, livroId),
+          eq(operations.kind, "retirar_perfil"),
           inArray(operations.state, ["admitted", "running"]),
           sql`${operations.nextAttemptAt}<=${AGORA}`,
           or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
@@ -302,6 +303,7 @@ export async function revisarFotografiaDeDireitos(
       and(
         eq(operations.id, reserva.operacao.id),
         eq(operations.state, "running"),
+        eq(operations.kind, "retirar_perfil"),
         eq(operations.leaseToken, reserva.token),
         sql`${operations.leaseUntil}>${AGORA}`,
       ),
@@ -325,7 +327,8 @@ export function confirmarFotografiaDeDireitos(
 ) {
   const teto = limitesDoJogo(reserva.mundo.gameId).fotografiaMaxBytes;
   assertAllowed(
-    resultado.bytes instanceof Uint8Array &&
+    reserva.operacao.kind === "retirar_perfil" &&
+      resultado.bytes instanceof Uint8Array &&
       resultado.bytes.length > 0 &&
       resultado.bytes.length <= teto &&
       resultado.schemaVersion === reserva.fonte.meta.schemaVersion &&
@@ -346,6 +349,7 @@ export function confirmarFotografiaDeDireitos(
         and(
           eq(operations.id, reserva.operacao.id),
           eq(operations.state, "running"),
+          eq(operations.kind, "retirar_perfil"),
           eq(operations.leaseToken, reserva.token),
           sql`${operations.leaseUntil}>${AGORA}`,
         ),

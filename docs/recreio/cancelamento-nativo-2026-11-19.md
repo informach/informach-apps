@@ -84,6 +84,12 @@ confirmação programada, repetição preservada e estado terminal após avanço
 relógio. Ainda não executada. Continua restrita a recursos de teste e limpeza
 do próprio relógio, sem Checkout nativo, acesso ou cobrança de produção.
 
+44626969668/25f86c30 passou nas APIs reais de teste: provider confirmou a parada
+programada, conservou a observação na repetição e reconheceu o terminal após o
+relógio avançar. A limpeza do próprio relógio foi comprovada. [Recibo](evidencias/renovacao-api-44626969668.json).
+A interface sem seção vazia passou novamente 44626975101; as três capturas
+anteriores já foram inspecionadas, e as novas aguardam conferência visual.
+
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
 todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já

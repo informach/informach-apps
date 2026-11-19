@@ -30,7 +30,9 @@ async function limites(tx: Transacao) {
   await tx.execute(sql`set local transaction_timeout='15s'`);
 }
 
-/** Contrato comum dos passos SQL de diário/cadastro. Callback sem rede,
+/** Contrato dos passos SQL da retirada de perfil. Encerramento de conta
+ * depende do coordenador financeiro e não é admitido por esta capacidade.
+ * Callback sem rede,
  * simulação ou gzip. Reserva durável antes do passo; falha individual não
  * monopoliza a fila. Erro inesperado continua sendo erro do job. */
 export async function comEfeitoNativoDeDireitos<T>(
@@ -73,6 +75,7 @@ export async function comEfeitoNativoDeDireitos<T>(
       .where(
         and(
           eq(operations.ledgerId, livroId),
+          eq(operations.kind, "retirar_perfil"),
           inArray(operations.state, ["admitted", "running"]),
           sql`${operations.nextAttemptAt}<=${AGORA}`,
           or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
@@ -120,7 +123,8 @@ export async function comEfeitoNativoDeDireitos<T>(
       const [op] = await tx.select().from(operations).where(posse).for("update");
       assertAllowed(op, "DIREITOS_POSSE", "A reserva do processamento terminou.");
       assertAllowed(
-        op.intentSha256 === reservada.intentSha256 &&
+        op.kind === "retirar_perfil" &&
+          op.intentSha256 === reservada.intentSha256 &&
           op.signedIntent.equals(reservada.signedIntent),
         "DIREITOS_INTEGRIDADE",
         "A intenção nativa mudou.",

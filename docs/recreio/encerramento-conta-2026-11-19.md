@@ -67,6 +67,35 @@ SDK/API continuam fixados; consultas às referências primárias por Context7:
 Testes HTTP novos aguardam gate; composição do coordenador financeiro ainda
 pendente. Observação do inventário não é, isoladamente, conclusão de exclusão.
 
+Revisão do encadeamento encontrou que a seleção genérica de efeitos/fotografias
+não filtrava o tipo, apesar das recusas posteriores em cadastro/transformação.
+Isso podia encaminhar uma operação de encerramento publicada a uma etapa de
+perfil antes da prova financeira, ou marcá-la incorretamente em revisão. As
+capacidades existentes agora selecionam/revalidam somente `retirar_perfil`.
+O coordenador financeiro é quem deverá admitir a capacidade de encerramento
+com sua prova completa, ainda em implementação. Nova prova PG/S3 publica uma
+V2 e verifica que ela continua admitida/financeiramente pendente sem efeitos
+genéricos. As versões anteriores nunca foram ativadas em produção.
+
+Sequência do coordenador financeiro: reservar um recibo devido; sob o ciclo do
+pagante e fora do I/O, conferir prefixo/intenção/plano V2, participação `closing`
+e a origem de cliente/compras/contratos. Inventariar Stripe fora das TX. Ausência
+de cliente só confirma com prova local de que nunca houve tentativa admitida;
+cliente existente exige o inventário completo, mesmo sem contrato local.
+Contrato conhecido sem origem nativa, namespace misturado, página incompleta ou
+Checkout inesperado permanece em conferência, sem encerrar dados.
+
+Para cada contrato próprio, preservar cancelamento existente ou enfileirar um
+novo vinculado à operação. Neste último, `authenticatedAt` e `acceptedAt` são
+as datas originais do consentimento de encerramento (que já era recente),
+nunca o login/data de um operador. O worker de renovação faz o I/O. A coordenação
+aguarda recibos confirmados e novo inventário sem Checkout pendente e com todos
+os contratos terminais ou com parada confirmada, preservando períodos pagos.
+Revalidar o escopo local após a rede; confirmar recibo/auditoria na mesma TX,
+com relógio PG, lease e backoff. Só essa prova permitirá ampliar os executores
+e concluir os próprios domínios/participação; o ledger/publicador continua
+conservando o pedido original, sem reinterpretar prévias V1.
+
 ## Exportação
 
 A cópia de perfil já tem captura consistente, artefato cifrado de dez minutos,

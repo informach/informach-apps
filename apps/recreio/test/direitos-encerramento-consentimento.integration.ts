@@ -18,11 +18,17 @@ import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/particip
 import { VERSAO_DA_COMPRA } from "@/features/cobranca/constantes";
 import { AceiteDaCompraSchema } from "@/features/cobranca/regras";
 import { prepararCompraNoBanco } from "@/features/cobranca/repository";
+import { reservarFotografiaDeDireitos } from "@/features/direitos/fotografias-repository";
+import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
+import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
+import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
+import { minimizarProximoPerfil } from "@/features/direitos/minimizacao-repository";
 import {
   prepararDireitosNoBanco,
   prepararEncerramentoNoBanco,
 } from "@/features/direitos/preparacao-repository";
+import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import {
   consentirEncerramentoNoBanco,
   consentirRetiradaNoBanco,
@@ -31,6 +37,7 @@ import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constante
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { codigoDoBanco, eventosCom, loginReal, novaConta } from "./apoio";
+import { criarBucketDoLivro } from "./livro-s3-apoio";
 
 async function fixture(comPerfil = false) {
   const conta = await novaConta(),
@@ -109,6 +116,52 @@ async function compraNaoEnviada(f: Fixture) {
 }
 
 describe("encerramento: consentimento v2 e congelamento atômico, ainda sem conclusão", () => {
+  it("publicação no livro não admite retirada genérica nem coloca encerramento financeiro pendente em revisão", () =>
+    cenario(true, async (f) => {
+      const http = await criarBucketDoLivro();
+      try {
+        const storage = criarArmazenamentoDoLivro({
+          cliente: http.cliente,
+          bucket: "recreio-fixture",
+          assinatura: f.config.assinatura,
+          tempoLimiteMs: 2000,
+        });
+        await storage.iniciarCabecalho(
+          f.config.assinatura.assinarCabecalho({
+            formato: "recreio-livro-direitos-v1",
+            estado: "aberto",
+            epoca: 0,
+            chavesUtilizadas: [f.config.assinatura.chaveAtiva],
+            retomada: null,
+            livroId: f.config.assinatura.livroId,
+            geracao: 0,
+            entradas: 0,
+            raizSha256: RAIZ_VAZIA,
+            anteriorSha256: null,
+            ultimaIntencao: null,
+            atualizadoEm: new Date().toISOString(),
+          }),
+        );
+        const recibo = await f.confirmar(await f.preparar());
+        expect(
+          await publicarProximoConsentimento({ assinatura: f.config.assinatura, storage }),
+        ).toMatchObject({ situacao: "admitida", operacaoId: recibo.operacaoId });
+        const config = {
+          assinatura: f.config.assinatura,
+          prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 100, tempoLimiteMs: 5000 }),
+        };
+        expect(await minimizarProximoPerfil(config)).toMatchObject({ situacao: "ociosa" });
+        expect(await reservarFotografiaDeDireitos(config)).toBeNull();
+        expect(
+          (await db.select().from(operations).where(eq(operations.id, recibo.operacaoId)))[0],
+        ).toMatchObject({ state: "admitted", reviewCode: null });
+        expect(
+          (await db.select().from(finances).where(eq(finances.operationId, recibo.operacaoId)))[0],
+        ).toMatchObject({ state: "pending", confirmedAt: null });
+      } finally {
+        await http.fechar();
+      }
+    }));
   it("conta sem jogador registra outbox, barreira e recibo financeiro sem criar perfil", () =>
     cenario(false, async (f) => {
       const previa = await f.preparar(),
