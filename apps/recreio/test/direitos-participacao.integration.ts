@@ -297,7 +297,7 @@ describe("direitos: barreira da participação nativa", () => {
     });
     await db
       .update(devices)
-      .set({ minorContextGeneration: 1 })
+      .set({ minorContextGeneration: randomUUID() })
       .where(eq(devices.id, f.autor.sessaoDeAparelhoId));
     await expect(consultarMinhaParticipacaoNoRecreio(f.autor)).rejects.toMatchObject({
       code: "AUTH",

@@ -105,6 +105,11 @@ real por trava PostgreSQL. As operações usadas para testar a barreira são
 fixtures estruturais assinadas; não demonstram consentimento de encerramento
 v2, processamento ou liquidação financeira.
 
+44605848173/33a7b721 preservou as duas cópias no upgrade 234→237, mas o
+typecheck recusou a fixture infantil, que usava número numa coluna UUID.
+Corrigido para UUID real, sem cast ou mudança no schema. Os casos nativos não
+haviam sido executados nessa rodada; a candidata precisa de nova qualificação.
+
 Intenções externas conservam os IDs e o consentimento original. Reaplicação
 offline não pode criar usuários fictícios, atribuir ao operador o aceite do
 solicitante ausente no backup ou exigir um novo consentimento para retirar
