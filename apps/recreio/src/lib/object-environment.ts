@@ -17,7 +17,9 @@ export const objectEnvironmentSchema = z.object({
 type Variables = z.infer<typeof objectEnvironmentSchema>;
 
 /** Composição operacional usa só suas variáveis, sem exigir login/e-mail do Next. */
-export function configuracaoDosObjetosDoProcesso(input: NodeJS.ProcessEnv) {
+export function configuracaoDosObjetosDoProcesso(
+  input: Readonly<Record<string, string | undefined>>,
+) {
   const lida = objectEnvironmentSchema.safeParse(input);
   if (!lida.success) throw new Error("Invalid RECREIO_OBJECTS configuration");
   return configuracaoDosObjetos(lida.data);
