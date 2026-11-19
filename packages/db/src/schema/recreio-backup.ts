@@ -22,6 +22,7 @@ export const recreioBackupCaptures = recreio.table(
   "backup_captures",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    protocolVersion: integer("protocol_version").notNull().default(0),
     storageScope: text("storage_scope").$type<"qualification" | "production">().notNull(),
     bucketId: uuid("bucket_id").notNull(),
     bucketName: text("bucket_name").notNull(),
@@ -54,6 +55,7 @@ export const recreioBackupCaptures = recreio.table(
     >(),
   },
   (t) => [
+    check("recreio_backup_capture_protocol", sql`${t.protocolVersion} in (0,1)`),
     index("recreio_backup_capture_state").on(t.state, t.createdAt, t.id),
     index("recreio_backup_capture_destination").on(t.bucketId, t.state),
     check(
@@ -207,6 +209,53 @@ export const recreioBackupPublications = recreio.table(
       (${t.fileVerifiedAt} is null or (isfinite(${t.fileVerifiedAt}) and ${t.fileVerifiedAt}>=${t.createdAt})) and
       (${t.indexPreparedAt} is null or (isfinite(${t.indexPreparedAt}) and ${t.indexPreparedAt}>=${t.fileVerifiedAt})) and
       (${t.publishedAt} is null or (isfinite(${t.publishedAt}) and ${t.publishedAt}>=${t.indexPreparedAt}))`,
+    ),
+  ],
+);
+
+/** Tombstone assinado fixado antes do I/O e preservado após ausência. A primeira
+ * data não é substituída na reconferência de payloads tardios. Não contém chave. */
+export const recreioBackupRetirements = recreio.table(
+  "backup_retirements",
+  {
+    captureId: uuid("capture_id")
+      .primaryKey()
+      .references(() => recreioBackupCaptures.id, { onDelete: "restrict" }),
+    source: text("source").notNull(),
+    reason: text("reason").$type<"abandonado" | "retencao" | "privacidade">().notNull(),
+    state: text("state").$type<"prepared" | "marked" | "absent">().notNull(),
+    markerBody: text("marker_body").notNull(),
+    markerSha256: text("marker_sha256").notNull(),
+    attempt: uuid("attempt").notNull(),
+    leaseUntil: momento("lease_until").notNull(),
+    createdAt: momento("created_at").notNull().defaultNow(),
+    markerStoredAt: momento("marker_stored_at"),
+    firstAbsenceAt: momento("first_absence_at"),
+    lastCheckedAt: momento("last_checked_at"),
+    nextAttemptAt: momento("next_attempt_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("recreio_backup_retirement_due").on(t.nextAttemptAt, t.captureId),
+    check(
+      "recreio_backup_retirement_metadata",
+      sql`${t.source} ~ '^[a-f0-9]{40}$' and
+    ${t.reason} in ('abandonado','retencao','privacidade') and octet_length(${t.markerBody}) between 1 and 32768
+    and ${t.markerSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "recreio_backup_retirement_lifecycle",
+      sql`
+    (${t.state}='prepared' and ${t.markerStoredAt} is null and ${t.firstAbsenceAt} is null and ${t.lastCheckedAt} is null) or
+    (${t.state}='marked' and ${t.markerStoredAt} is not null and ${t.firstAbsenceAt} is null and ${t.lastCheckedAt} is null) or
+    (${t.state}='absent' and ${t.markerStoredAt} is not null and ${t.firstAbsenceAt} is not null and ${t.lastCheckedAt} is not null)`,
+    ),
+    check(
+      "recreio_backup_retirement_times",
+      sql`isfinite(${t.createdAt}) and isfinite(${t.leaseUntil}) and
+    ${t.leaseUntil}>${t.createdAt} and isfinite(${t.nextAttemptAt}) and
+    (${t.markerStoredAt} is null or (isfinite(${t.markerStoredAt}) and ${t.markerStoredAt}>=${t.createdAt})) and
+    (${t.firstAbsenceAt} is null or (isfinite(${t.firstAbsenceAt}) and ${t.firstAbsenceAt}>=${t.markerStoredAt})) and
+    (${t.lastCheckedAt} is null or (isfinite(${t.lastCheckedAt}) and ${t.lastCheckedAt}>=${t.firstAbsenceAt}))`,
     ),
   ],
 );
