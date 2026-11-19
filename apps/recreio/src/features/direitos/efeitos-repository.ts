@@ -14,6 +14,10 @@ import {
 import { ZodError } from "zod";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import {
+  conferirFinanceiroDosEfeitos,
+  escopoFinanceiroDosEfeitos,
+} from "./encerramento-efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
@@ -30,8 +34,7 @@ async function limites(tx: Transacao) {
   await tx.execute(sql`set local transaction_timeout='15s'`);
 }
 
-/** Contrato dos passos SQL da retirada de perfil. Encerramento de conta
- * depende do coordenador financeiro e não é admitido por esta capacidade.
+/** Passos SQL da retirada; encerramento exige prova financeira do mesmo plano.
  * Callback sem rede,
  * simulação ou gzip. Reserva durável antes do passo; falha individual não
  * monopoliza a fila. Erro inesperado continua sendo erro do job. */
@@ -75,7 +78,7 @@ export async function comEfeitoNativoDeDireitos<T>(
       .where(
         and(
           eq(operations.ledgerId, livroId),
-          eq(operations.kind, "retirar_perfil"),
+          escopoFinanceiroDosEfeitos(),
           inArray(operations.state, ["admitted", "running"]),
           sql`${operations.nextAttemptAt}<=${AGORA}`,
           or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
@@ -123,7 +126,7 @@ export async function comEfeitoNativoDeDireitos<T>(
       const [op] = await tx.select().from(operations).where(posse).for("update");
       assertAllowed(op, "DIREITOS_POSSE", "A reserva do processamento terminou.");
       assertAllowed(
-        op.kind === "retirar_perfil" &&
+        op.kind === reservada.kind &&
           op.intentSha256 === reservada.intentSha256 &&
           op.signedIntent.equals(reservada.signedIntent),
         "DIREITOS_INTEGRIDADE",
@@ -138,13 +141,14 @@ export async function comEfeitoNativoDeDireitos<T>(
         .from(subjects)
         .where(eq(subjects.operationId, op.id))
         .orderBy(subjects.profileReference);
-      conferirIntencaoNativa(
+      const { plano } = conferirIntencaoNativa(
         op,
         preparacao,
         selecionados,
         config.assinatura,
         await referenciasDeMundosDaOperacao(tx, op.id),
       );
+      await conferirFinanceiroDosEfeitos(tx, op, plano);
       const resultado = await executar(tx, op);
       const liberadas = await tx
         .update(operations)

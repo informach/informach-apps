@@ -242,7 +242,12 @@ describe("retirada nas fotografias com simulação, PostgreSQL e SDK HTTP reais"
         .update(operations)
         .set({ leaseToken: randomUUID() })
         .where(eq(operations.id, f.op.operacaoId));
-      await expect(confirmarFotografiaDeDireitos(reserva, resultado)).rejects.toMatchObject({
+      await expect(
+        confirmarFotografiaDeDireitos(reserva, resultado, {
+          prova,
+          assinatura: f.config.assinatura,
+        }),
+      ).rejects.toMatchObject({
         code: "DIREITOS_POSSE",
       });
       const [foto] = await db

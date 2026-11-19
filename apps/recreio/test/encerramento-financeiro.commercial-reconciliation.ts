@@ -10,6 +10,7 @@ import {
   recreioRightsOperations as operations,
   recreioAccountParticipations as participations,
   subscriptionPaymentPeriods as periods,
+  subscriptions,
 } from "@informach/db/schema";
 import Stripe from "stripe";
 import { describe, expect, it } from "vitest";
@@ -270,9 +271,9 @@ describe("encerramento: coordenação financeira com PostgreSQL/S3/Stripe SDK re
         if (!alterada) {
           alterada = true;
           await db
-            .update(contracts)
-            .set({ revision: sql`${contracts.revision}+1` })
-            .where(eq(contracts.purchaseId, f.recibo.id));
+            .update(subscriptions)
+            .set({ currentPeriodEnd: sql`${subscriptions.currentPeriodEnd}+interval '1 day'` })
+            .where(eq(subscriptions.providerSubscriptionId, f.financeiro.assinatura.id));
         }
       });
       expect(await livro.processar()).toMatchObject({ situacao: "revisao" });

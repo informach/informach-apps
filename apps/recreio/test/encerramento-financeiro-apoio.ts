@@ -13,6 +13,7 @@ import {
 } from "@/features/direitos/encerramento-financeiro-execucao-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
+import { PedidoDePreparacaoDeDireitosSchema } from "@/features/direitos/preparacao-contrato";
 import { prepararEncerramentoNoBanco } from "@/features/direitos/preparacao-repository";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { consentirEncerramentoNoBanco } from "@/features/direitos/retirada-consentimento-repository";
@@ -25,6 +26,7 @@ import { fixtureDePagamento } from "./pagamento-stripe-apoio";
 export async function livroDoEncerramento(
   autor: AutorNativoRecente,
   obterRuntime: () => RuntimeFinanceiroDoEncerramento,
+  perfis: readonly string[] = [],
 ) {
   const livro = fixtureDoLivro(),
     http = await criarBucketDoLivro();
@@ -38,7 +40,11 @@ export async function livroDoEncerramento(
     await storage.iniciarCabecalho(livro.assinatura.assinarCabecalho(livro.inicial));
     const previa = await prepararEncerramentoNoBanco(
       autor,
-      { pedidoId: randomUUID(), tipo: "encerrar_conta", perfis: [] },
+      PedidoDePreparacaoDeDireitosSchema.parse({
+        pedidoId: randomUUID(),
+        tipo: "encerrar_conta",
+        perfis: [...perfis].sort(),
+      }),
       "dev",
     );
     const recibo = await consentirEncerramentoNoBanco(

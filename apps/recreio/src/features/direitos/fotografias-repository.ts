@@ -22,6 +22,10 @@ import { armazenamentoPg } from "@/features/posse/armazenamento-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { comEfeitoNativoDeDireitos } from "./efeitos-repository";
+import {
+  conferirFinanceiroDosEfeitos,
+  escopoFinanceiroDosEfeitos,
+} from "./encerramento-efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
@@ -76,7 +80,7 @@ export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
       .where(
         and(
           eq(operations.ledgerId, livroId),
-          eq(operations.kind, "retirar_perfil"),
+          escopoFinanceiroDosEfeitos(),
           inArray(operations.state, ["admitted", "running"]),
           sql`${operations.nextAttemptAt}<=${AGORA}`,
           or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
@@ -106,13 +110,14 @@ export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
       .from(subjects)
       .where(eq(subjects.operationId, operacao.id))
       .orderBy(subjects.profileReference);
-    conferirIntencaoNativa(
+    const { plano } = conferirIntencaoNativa(
       operacao,
       preparacao,
       selecionados,
       config.assinatura,
       await referenciasDeMundosDaOperacao(tx, operacao.id),
     );
+    await conferirFinanceiroDosEfeitos(tx, operacao, plano);
     const [pista] = await tx
       .select()
       .from(worlds)
@@ -303,7 +308,7 @@ export async function revisarFotografiaDeDireitos(
       and(
         eq(operations.id, reserva.operacao.id),
         eq(operations.state, "running"),
-        eq(operations.kind, "retirar_perfil"),
+        eq(operations.kind, reserva.operacao.kind),
         eq(operations.leaseToken, reserva.token),
         sql`${operations.leaseUntil}>${AGORA}`,
       ),
@@ -324,11 +329,11 @@ export function confirmarFotografiaDeDireitos(
     tick: number;
     resumo: ResumoDoMundo;
   },
+  config: CoordenacaoDuravel,
 ) {
   const teto = limitesDoJogo(reserva.mundo.gameId).fotografiaMaxBytes;
   assertAllowed(
-    reserva.operacao.kind === "retirar_perfil" &&
-      resultado.bytes instanceof Uint8Array &&
+    resultado.bytes instanceof Uint8Array &&
       resultado.bytes.length > 0 &&
       resultado.bytes.length <= teto &&
       resultado.schemaVersion === reserva.fonte.meta.schemaVersion &&
@@ -349,13 +354,52 @@ export function confirmarFotografiaDeDireitos(
         and(
           eq(operations.id, reserva.operacao.id),
           eq(operations.state, "running"),
-          eq(operations.kind, "retirar_perfil"),
+          eq(operations.kind, reserva.operacao.kind),
           eq(operations.leaseToken, reserva.token),
           sql`${operations.leaseUntil}>${AGORA}`,
         ),
       )
       .for("update");
     assertAllowed(operacao, "DIREITOS_POSSE", "A reserva de processamento terminou.");
+    assertAllowed(
+      config.prova.cabecalho.documento.estado === "aberto" &&
+        config.prova.cabecalho.documento.livroId === operacao.ledgerId &&
+        config.assinatura.livroId === operacao.ledgerId &&
+        config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva &&
+        operacao.intentSha256 === reserva.operacao.intentSha256 &&
+        operacao.signedIntent.equals(reserva.operacao.signedIntent) &&
+        config.prova.referencias.some(
+          (r) =>
+            r.operacaoId === operacao.id &&
+            r.revisao === operacao.revision &&
+            r.sha256 === operacao.intentSha256,
+        ),
+      "DIREITOS_INTEGRIDADE",
+      "A intenção original precisa de revisão.",
+    );
+    const [preparacao] = await tx
+      .select()
+      .from(preparations)
+      .where(eq(preparations.id, operacao.preparationId));
+    const selecionados = await tx
+      .select({ id: subjects.profileReference })
+      .from(subjects)
+      .where(eq(subjects.operationId, operacao.id))
+      .orderBy(subjects.profileReference);
+    const { plano } = conferirIntencaoNativa(
+      operacao,
+      preparacao,
+      selecionados,
+      config.assinatura,
+      await referenciasDeMundosDaOperacao(tx, operacao.id),
+    );
+    assertAllowed(
+      selecionados.length === reserva.selecionados.length &&
+        selecionados.every((p, i) => p.id === reserva.selecionados[i]?.id),
+      "DIREITOS_INTEGRIDADE",
+      "A seleção pessoal mudou.",
+    );
+    await conferirFinanceiroDosEfeitos(tx, operacao, plano);
     const [mundo] = await tx
       .select()
       .from(spaces)

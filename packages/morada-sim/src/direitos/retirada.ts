@@ -25,7 +25,7 @@ function conferir(estado: EstadoDoMundo) {
   if (estado.versao !== 3 || verificarInvariantes(estado).length)
     throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
 }
-function conferirAusencia(estado: EstadoDoMundo, perfilId: string) {
+function conferirAusencia(estado: EstadoDoMundo, perfis: readonly string[]) {
   // Detecção conservadora, nunca substituição genérica de UUID/texto. Campos
   // desconhecidos ou texto com referência não tratada impedem concluir.
   let texto: string;
@@ -35,11 +35,13 @@ function conferirAusencia(estado: EstadoDoMundo, perfilId: string) {
     throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
   }
   if (texto.length > FOTOGRAFIA_ABERTA_MAX_BYTES) throw new FalhaDaRetiradaDoMorada("LIMITE");
-  if (texto.includes(perfilId)) throw new FalhaDaRetiradaDoMorada("REFERENCIA_REMANESCENTE");
+  if (new RegExp(perfis.join("|")).test(texto))
+    throw new FalhaDaRetiradaDoMorada("REFERENCIA_REMANESCENTE");
 }
-function edicaoDoPerfil(comandoId: string, perfilId: string): boolean {
+function edicaoDosPerfis(comandoId: string, perfis: ReadonlySet<string>): boolean {
   const partes = /^obra:([0-9a-z]+):([A-Za-z0-9_-]{1,44})$/.exec(comandoId);
-  if (partes?.[2] !== perfilId || !partes[1]) return false;
+  const perfilId = partes?.[2];
+  if (!perfilId || !perfis.has(perfilId) || !partes?.[1]) return false;
   const sequencia = Number.parseInt(partes[1], 36);
   return (
     Number.isSafeInteger(sequencia) &&
@@ -62,28 +64,42 @@ export function prepararRetiradaPessoalDoMorada(
   perfilBruto: string,
   politica: { retirarTextosDaFundacao: boolean },
 ) {
-  const perfilId = PerfilSchema.parse(perfilBruto);
+  return prepararRetiradaDePerfisDoMorada(estado, [perfilBruto], politica);
+}
+
+/** One bounded pass for the complete original selection. The set prevents
+ * releasing a shared photo between successive profiles of the same closure. */
+export function prepararRetiradaDePerfisDoMorada(
+  estado: EstadoDoMundo,
+  perfisBrutos: readonly string[],
+  politica: { retirarTextosDaFundacao: boolean },
+) {
+  const ids = z.array(PerfilSchema).min(1).max(256).parse(perfisBrutos);
+  const perfis = new Set(ids);
+  if (perfis.size !== ids.length) throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
   conferir(estado);
   const novo = copiar(estado);
   const alterados = new Set<string>();
-  const comandoDaFundacao = novo.fundacao?.autor === perfilId ? novo.fundacao.comandoId : null;
+  const comandoDaFundacao =
+    novo.fundacao && perfis.has(novo.fundacao.autor) ? novo.fundacao.comandoId : null;
   if (comandoDaFundacao !== null && !politica.retirarTextosDaFundacao)
     throw new FalhaDaRetiradaDoMorada("TEXTOS_DA_FUNDACAO");
-  novo.acessos = novo.acessos.filter((a) => a.perfilId !== perfilId);
+  novo.acessos = novo.acessos.filter((a) => !perfis.has(a.perfilId));
   for (const morador of listar(novo.moradores)) {
-    if (morador.preferidoDe === perfilId) {
+    if (morador.preferidoDe !== undefined && perfis.has(morador.preferidoDe)) {
       delete morador.preferidoDe;
       alterados.add(morador.id);
     }
   }
-  for (const pedido of listar(novo.pedidos)) if (pedido.autor === perfilId) pedido.autor = null;
-  novo.edicoes = novo.edicoes.filter((e) => e.autor !== perfilId);
-  novo.historicoDaCasa = novo.historicoDaCasa.filter((p) => p.autor !== perfilId);
+  for (const pedido of listar(novo.pedidos))
+    if (pedido.autor !== null && perfis.has(pedido.autor)) pedido.autor = null;
+  novo.edicoes = novo.edicoes.filter((e) => !perfis.has(e.autor));
+  novo.historicoDaCasa = novo.historicoDaCasa.filter((p) => !perfis.has(p.autor));
   novo.comandos = novo.comandos.filter(
-    (c) => c.comandoId !== comandoDaFundacao && !edicaoDoPerfil(c.comandoId, perfilId),
+    (c) => c.comandoId !== comandoDaFundacao && !edicaoDosPerfis(c.comandoId, perfis),
   );
   const fundacao = novo.fundacao;
-  if (fundacao?.autor === perfilId) {
+  if (fundacao && perfis.has(fundacao.autor)) {
     const familia = obter(novo.familias, fundacao.familiaId);
     if (!familia) throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
     if (familia.nome !== "Família") {
@@ -107,6 +123,6 @@ export function prepararRetiradaPessoalDoMorada(
   for (const morador of listar(novo.moradores))
     if (alterados.has(morador.id)) morador.versao = incrementar(morador.versao);
   conferir(novo);
-  conferirAusencia(novo, perfilId);
+  conferirAusencia(novo, ids);
   return novo;
 }

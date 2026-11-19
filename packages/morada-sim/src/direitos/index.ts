@@ -1,6 +1,11 @@
 export {
+  prepararFotografiaEResumoDePerfisDoMorada,
   prepararFotografiaEResumoPessoaisDoMorada,
   prepararRecuperacaoNaFotografiaDoMorada,
   prepararRetiradaNaFotografiaDoMorada,
 } from "./fotografia";
-export { FalhaDaRetiradaDoMorada, prepararRetiradaPessoalDoMorada } from "./retirada";
+export {
+  FalhaDaRetiradaDoMorada,
+  prepararRetiradaDePerfisDoMorada,
+  prepararRetiradaPessoalDoMorada,
+} from "./retirada";

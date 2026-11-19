@@ -6,7 +6,7 @@ import { restaurar } from "../execucao";
 import { abrirFotografia } from "../formatos/fotografia";
 import { resumoDoEstadoDoMorada } from "../formatos/resumo";
 import { canonico } from "../nucleo/canonico";
-import { FalhaDaRetiradaDoMorada, prepararRetiradaPessoalDoMorada } from "./retirada";
+import { FalhaDaRetiradaDoMorada, prepararRetiradaDePerfisDoMorada } from "./retirada";
 
 const ChavesDoEstado: Readonly<Record<keyof EstadoDoMundo, true>> = {
   formato: true,
@@ -96,8 +96,16 @@ export function prepararFotografiaEResumoPessoaisDoMorada(
   perfilId: string,
   politica: { retirarTextosDaFundacao: boolean },
 ) {
+  return prepararFotografiaEResumoDePerfisDoMorada(bruto, [perfilId], politica);
+}
+
+export function prepararFotografiaEResumoDePerfisDoMorada(
+  bruto: unknown,
+  perfis: readonly string[],
+  politica: { retirarTextosDaFundacao: boolean },
+) {
   const { origem, aberta, versao } = conferirOrigem(bruto);
-  const retirada = prepararRetiradaPessoalDoMorada(aberta.estado, perfilId, politica);
+  const retirada = prepararRetiradaDePerfisDoMorada(aberta.estado, perfis, politica);
   const foto = { ...origem, estado: formatoDaOrigem(retirada, versao) };
   const reaberta = abrirFotografia(foto);
   if (canonico(reaberta.estado) !== canonico(retirada))

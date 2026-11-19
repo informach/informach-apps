@@ -5,7 +5,7 @@ import { jogoPorId } from "@informach/config/jogos";
 import type { Fato } from "@informach/morada-sim";
 import { lerFatoDoDiario } from "@informach/morada-sim/diario";
 import {
-  prepararFotografiaEResumoPessoaisDoMorada,
+  prepararFotografiaEResumoDePerfisDoMorada,
   prepararRecuperacaoNaFotografiaDoMorada,
 } from "@informach/morada-sim/direitos";
 import {
@@ -52,9 +52,23 @@ export function prepararFotoPessoalDoMorada(
   perfilBruto: unknown,
   politica: { retirarTextosDaFundacao: boolean },
 ) {
-  const perfilId = PerfilIdSchema.parse(perfilBruto);
+  return prepararFotoDePerfisDoMorada(
+    bytes,
+    metadados,
+    [PerfilIdSchema.parse(perfilBruto)],
+    politica,
+  );
+}
+
+export function prepararFotoDePerfisDoMorada(
+  bytes: Uint8Array,
+  metadados: unknown,
+  perfisBrutos: unknown,
+  politica: { retirarTextosDaFundacao: boolean },
+) {
+  const perfis = z.array(PerfilIdSchema).min(1).max(256).parse(perfisBrutos);
   return prepararFotografia(bytes, metadados, (foto) =>
-    prepararFotografiaEResumoPessoaisDoMorada(foto, perfilId, politica),
+    prepararFotografiaEResumoDePerfisDoMorada(foto, perfis, politica),
   );
 }
 

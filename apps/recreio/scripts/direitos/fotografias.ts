@@ -13,7 +13,7 @@ import { conferirPrefixoDoLivro } from "../../src/features/direitos/livro/leitur
 import { materializarFotografia } from "../../src/features/objetos/fotografia";
 import type { LeitorDeFotografiasPrivadas } from "../../src/features/posse/armazenamento";
 import { AppError } from "../../src/lib/errors";
-import { FalhaDaPreparacaoDeFotoPessoal, prepararFotoPessoalDoMorada } from "./morada";
+import { FalhaDaPreparacaoDeFotoPessoal, prepararFotoDePerfisDoMorada } from "./morada";
 
 /** Composição operacional fora do grafo Next. Uma foto por passagem; o
  * chamador cuida do agendamento, custódia, alertas e credenciais restritas.
@@ -34,18 +34,16 @@ export async function processarProximaFotografiaDeDireitos(config: {
   if (reserva.tipo === "fotos_prontas")
     return { situacao: "dependencias" as const, operacaoId: reserva.operacaoId };
   let bytes: Uint8Array | undefined,
-    resultado: ReturnType<typeof prepararFotoPessoalDoMorada> | undefined;
+    resultado: ReturnType<typeof prepararFotoDePerfisDoMorada> | undefined;
   try {
-    const perfil = reserva.selecionados[0];
     if (
       reserva.mundo.gameId !== "morada" ||
-      reserva.operacao.kind !== "retirar_perfil" ||
-      reserva.selecionados.length !== 1 ||
-      !perfil
+      reserva.selecionados.length === 0 ||
+      reserva.selecionados.length > 256
     )
       throw new AppError("DIREITOS_ADAPTER", "Adapter da retirada não disponível.");
     bytes = await materializarFotografia(reserva.fonte, config.leitor);
-    resultado = prepararFotoPessoalDoMorada(
+    resultado = prepararFotoDePerfisDoMorada(
       bytes,
       {
         mundoId: reserva.mundo.id,
@@ -54,10 +52,18 @@ export async function processarProximaFotografiaDeDireitos(config: {
         sha256: reserva.fonte.meta.sha256,
         bytes: reserva.fonte.meta.bytes,
       },
-      perfil.id,
+      reserva.selecionados.map((p) => p.id),
       config.politica,
     );
-    await confirmarFotografiaDeDireitos(reserva, resultado);
+    const provaAtual = await conferirPrefixoDoLivro({
+      storage: config.storage,
+      maxEntradas: 100_000,
+      tempoLimiteMs: 30_000,
+    });
+    await confirmarFotografiaDeDireitos(reserva, resultado, {
+      assinatura: config.assinatura,
+      prova: provaAtual,
+    });
     return { situacao: "fotografia_processada" as const, operacaoId: reserva.operacao.id };
   } catch (erro) {
     if (erro instanceof AppError && erro.code === "DIREITOS_POSSE")

@@ -12,6 +12,10 @@ import { serializarContaNativa } from "@/features/account/autoridade-repository"
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
+import {
+  conferirFinanceiroDosEfeitos,
+  escopoFinanceiroDosEfeitos,
+} from "./encerramento-efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import { expurgarLoteDeReferencias } from "./referencias-lotes-repository";
@@ -40,6 +44,8 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
         .where(
           and(
             eq(operations.ledgerId, livroId),
+            escopoFinanceiroDosEfeitos(true),
+            sql`not exists(select 1 from recreio.rights_worlds w where w.operation_id=${operations.id} and w.phase<>'completed')`,
             inArray(operations.state, ["admitted", "running", "completed"]),
             sql`${operations.nextAttemptAt}<=${AGORA}`,
             or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
@@ -69,13 +75,14 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
         .from(subjects)
         .where(eq(subjects.operationId, op.id))
         .orderBy(subjects.profileReference);
-      conferirIntencaoNativa(
+      const { plano } = conferirIntencaoNativa(
         op,
         preparacao,
         selecionados,
         config.assinatura,
         await referenciasDeMundosDaOperacao(tx, op.id),
       );
+      await conferirFinanceiroDosEfeitos(tx, op, plano, true);
       await serializarContaNativa(tx, ContaIdSchema.parse(op.requesterUserId));
       const [alvo] = await tx
         .select()

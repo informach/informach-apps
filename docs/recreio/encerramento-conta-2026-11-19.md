@@ -312,3 +312,31 @@ provedor. A confirmação e sua auditoria são atômicas. O caso de auditoria
 recusada verifica rollback e retomada; a renovação recebe a mesma correção.
 Nenhum desses casos autoriza limpeza da conta antes da prova financeira,
 conclui a conta ou demonstra implantação em produção.
+
+O próximo incremento vincula cada executor ao mesmo recibo financeiro e plano
+v2. A extensão precisa tratar todos os perfis selecionados: transformar uma
+fotografia uma única vez para o conjunto e liberar cada mundo somente depois
+da minimização do último perfil. O executor anterior era próprio de um perfil;
+remover apenas o filtro de tipo liberaria mundos cedo demais. As provas devem
+incluir dois perfis no mesmo mundo, progresso de terceiro preservado e bloqueio
+antes da confirmação. Conclusão da conta continua separada da retirada dos perfis.
+
+
+A primeira prova financeira 44636598646/02f2b7aa passou 151/152 casos. O caso
+novo de alteração durante I/O tentou incrementar a revisão inicial sem uma
+troca de plano, corretamente recusada pelo CHECK do banco. A fixture passa a
+alterar um período compartilhado válido, que integra o SHA da origem; não foi
+relaxado o contrato de revisão. Direitos 44636608366 passaram na mesma fonte.
+O CI compartilhado 44617539778/96a9b76a também concluiu; não cobre os incrementos
+posteriores automaticamente.
+
+A candidata seguinte admite efeitos de encerramento apenas com recibo financeiro
+confirmado de mesmo solicitante, operação, namespace, cliente, data de aceite e
+política, e participação closing/2. Expurgo após conclusão admite closed/3.
+Reservas não escolhem pendências financeiras; a conferência final sob trava
+recusa divergências. Fotografias revalidam intenção, seleção, prefixo atual e
+finanças após I/O. O adapter puro aceita conjunto limitado, abre/comprime uma
+vez e preserva a versão; o contrato singular continua disponível.
+Minimização conserva mundos congelados até o último perfil e adia expurgo até
+os mundos estarem concluídos. Dois novos casos PG/S3 e três casos puros foram
+preparados. Conta ainda não recebe recibo final nem ação pública neste incremento.

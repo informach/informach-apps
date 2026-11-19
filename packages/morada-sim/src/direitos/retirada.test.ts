@@ -11,10 +11,14 @@ import { abrirFotografia, type Fotografia } from "../formatos/fotografia";
 import { copiar } from "../nucleo/canonico";
 import { BRUNO, criarMundoDaProva, LIA } from "../testes";
 import {
+  prepararFotografiaEResumoDePerfisDoMorada,
   prepararFotografiaEResumoPessoaisDoMorada,
   prepararRetiradaNaFotografiaDoMorada as retirarFoto,
 } from "./fotografia";
-import { prepararRetiradaPessoalDoMorada as retirar } from "./retirada";
+import {
+  prepararRetiradaDePerfisDoMorada,
+  prepararRetiradaPessoalDoMorada as retirar,
+} from "./retirada";
 
 function fundacao() {
   const mundo = criarMundo({
@@ -79,6 +83,53 @@ function moradorDoFundador(estado: EstadoDoMundo) {
 }
 
 describe("Morada: retirada pessoal pura sem perder progresso compartilhado", () => {
+  it("retira o conjunto completo sem alterar acesso e progresso do terceiro", () => {
+    const terceiro = "perfil-terceiro";
+    const antes = criarMundoDaProva({ fundadores: [LIA, BRUNO, terceiro] }).estado;
+    const moradores = listar(antes.moradores);
+    const primeiro = moradores[0],
+      segundo = moradores[1];
+    if (!primeiro || !segundo) throw new Error("Residents absent");
+    primeiro.preferidoDe = LIA;
+    segundo.preferidoDe = BRUNO;
+    const original = copiar(antes);
+    const depois = prepararRetiradaDePerfisDoMorada(antes, [LIA, BRUNO], politica);
+    expect(antes).toEqual(original);
+    expect(depois.acessos).toEqual(antes.acessos.filter((p) => p.perfilId === terceiro));
+    expect(JSON.stringify(depois)).not.toContain(LIA);
+    expect(JSON.stringify(depois)).not.toContain(BRUNO);
+    expect(depois.objetos).toEqual(antes.objetos);
+    expect(depois.familias).toEqual(antes.familias);
+    expect(depois.relacoes).toEqual(antes.relacoes);
+    expect(depois.relogio).toEqual(antes.relogio);
+    expect(prepararRetiradaDePerfisDoMorada(depois, [LIA, BRUNO], politica)).toEqual(depois);
+    expect(verificarInvariantes(depois)).toEqual([]);
+  });
+
+  it("recusa seleção vazia, duplicada ou acima do limite sem alterar a origem", () => {
+    const antes = base(),
+      original = copiar(antes);
+    for (const ids of [
+      [],
+      [LIA, LIA],
+      Array.from({ length: 257 }, (_, i) => `perfil-${String(i).padStart(4, "0")}`),
+    ])
+      expect(() => prepararRetiradaDePerfisDoMorada(antes, ids, politica)).toThrow();
+    expect(antes).toEqual(original);
+  });
+
+  it("fotografia do conjunto conserva envelope e versão enquanto retira ambas as referências", () => {
+    const mundo = criarMundoDaProva({ fundadores: [LIA, BRUNO] });
+    const antes = mundo.fotografar();
+    const resultado = prepararFotografiaEResumoDePerfisDoMorada(antes, [LIA, BRUNO], politica);
+    expect(resultado.fotografia.tick).toBe(antes.tick);
+    expect(resultado.fotografia.mundoId).toBe(antes.mundoId);
+    expect(resultado.fotografia.estado.versao).toBe(antes.estado.versao);
+    expect(abrirFotografia(resultado.fotografia).estado.acessos).toEqual([]);
+    expect(JSON.stringify(resultado)).not.toContain(LIA);
+    expect(JSON.stringify(resultado)).not.toContain(BRUNO);
+    expect(mundo.fotografar()).toEqual(antes);
+  });
   it("retira acesso, preferência e autoria de pedido, preservando o outro perfil e a história", () => {
     const antes = base();
     const morador = primeiroMorador(antes),
