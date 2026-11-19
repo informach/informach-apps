@@ -1,0 +1,28 @@
+{
+  "source": "5213cced186a18259626cc6b4a92af8e9cdbcb07",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0228_recreio_rights_retention.sql",
+      "bytes": 2622,
+      "sha256": "b4b1467b5d01b8b9dd37ab8fa0b576a28316e3c9bfc502181b4cfa194ee1c3b6"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0228_snapshot.json",
+      "bytes": 1090118,
+      "sha256": "b47bddd96a9e3d5418d7c9b23f523d02baad7ee5e5059a793c3a16e111c6dea1"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 34595,
+      "sha256": "a08935fe8c901bd50341a828482b17e417cbd3d1d082b4468162ce0c9471f651"
+    }
+  ],
+  "runId": 44554233226,
+  "artifactId": 14544258541,
+  "artifactZipBytes": 77173,
+  "artifactZipSha256": "8ab7d57fcf0c3e86c4398bb46c3866ca54e2997f6dbab192c6949f9e66fb2f87",
+  "productionApplied": false,
+  "unchangedPreviousColumnsAndOtherConstraints": true,
+  "changedExistingConstraint": "recreio_profiles_adult_login",
+  "newSubjectFields": ["phase", "minimized_at", "retained_until", "retention_policy_version"]
+}

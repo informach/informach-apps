@@ -1,0 +1,13 @@
+ALTER TABLE "recreio"."profiles" DROP CONSTRAINT "recreio_profiles_adult_login";--> statement-breakpoint
+ALTER TABLE "recreio"."rights_subjects" ADD COLUMN "phase" text DEFAULT 'selected' NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."rights_subjects" ADD COLUMN "minimized_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "recreio"."rights_subjects" ADD COLUMN "retained_until" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "recreio"."rights_subjects" ADD COLUMN "retention_policy_version" text;--> statement-breakpoint
+ALTER TABLE "recreio"."profiles" ADD CONSTRAINT "recreio_profiles_adult_login" CHECK (
+      "recreio"."profiles"."kind"='minor' or "recreio"."profiles"."user_id" is not null or
+      ("recreio"."profiles"."rights_operation_id" is not null and "recreio"."profiles"."status"='suspended' and "recreio"."profiles"."group_id" is null and
+       "recreio"."profiles"."coverage_enabled"=false and "recreio"."profiles"."nickname"='Perfil retirado' and "recreio"."profiles"."avatar"='padrao'));--> statement-breakpoint
+ALTER TABLE "recreio"."rights_subjects" ADD CONSTRAINT "recreio_rights_subject_phase" CHECK (
+      ("recreio"."rights_subjects"."phase"='selected' and "recreio"."rights_subjects"."minimized_at" is null and "recreio"."rights_subjects"."retained_until" is null and "recreio"."rights_subjects"."completed_at" is null and "recreio"."rights_subjects"."retention_policy_version" is null) or
+      ("recreio"."rights_subjects"."phase"='minimized' and "recreio"."rights_subjects"."minimized_at" is not null and "recreio"."rights_subjects"."retained_until" is not null and "recreio"."rights_subjects"."retained_until">"recreio"."rights_subjects"."minimized_at" and "recreio"."rights_subjects"."live_profile_id" is not null and "recreio"."rights_subjects"."completed_at" is null and "recreio"."rights_subjects"."retention_policy_version" is not null and "recreio"."rights_subjects"."retention_policy_version"='perfil-2026-11-19') or
+      ("recreio"."rights_subjects"."phase"='removed' and "recreio"."rights_subjects"."minimized_at" is not null and "recreio"."rights_subjects"."completed_at" is not null and "recreio"."rights_subjects"."completed_at">="recreio"."rights_subjects"."minimized_at" and "recreio"."rights_subjects"."live_profile_id" is null and ("recreio"."rights_subjects"."retained_until" is null or "recreio"."rights_subjects"."completed_at">="recreio"."rights_subjects"."retained_until") and "recreio"."rights_subjects"."retention_policy_version" is not null and "recreio"."rights_subjects"."retention_policy_version"='perfil-2026-11-19'));

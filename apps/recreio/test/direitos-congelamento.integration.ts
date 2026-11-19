@@ -249,4 +249,110 @@ describe("barreiras persistidas de direitos (PostgreSQL real)", () => {
     expect(recibo?.liveProfileId).toBeNull();
     expect((await db.select().from(operations).where(eq(operations.id, c.id))).length).toBe(1);
   });
+  it("adulto sem login só é admitido como referência técnica integralmente minimizada", async () => {
+    const c = await cenario();
+    const minimo = {
+      userId: null,
+      groupId: null,
+      coverageEnabled: false,
+      nickname: "Perfil retirado",
+      avatar: "padrao",
+    };
+    for (const alteracao of [
+      { coverageEnabled: true },
+      { nickname: "Nome ainda pessoal" },
+      { avatar: "avatar-pessoal" },
+    ]) {
+      const dados = { ...minimo, ...alteracao };
+      expect(
+        await codigoDoBanco(
+          db
+            .update(profiles)
+            .set({
+              ...dados,
+              rightsFrozenState: recreioRightsProfileProjection({
+                ...profiles,
+                userId: sql`null`,
+                groupId: sql`null`,
+                coverageEnabled: sql`${dados.coverageEnabled}`,
+                nickname: sql`${dados.nickname}`,
+                avatar: sql`${dados.avatar}`,
+              }),
+            })
+            .where(eq(profiles.id, c.perfilId)),
+        ),
+      ).toBe("23514");
+    }
+    await db
+      .update(profiles)
+      .set({
+        ...minimo,
+        rightsFrozenState: recreioRightsProfileProjection({
+          ...profiles,
+          userId: sql`null`,
+          groupId: sql`null`,
+          coverageEnabled: sql`false`,
+          nickname: sql`'Perfil retirado'`,
+          avatar: sql`'padrao'`,
+        }),
+      })
+      .where(eq(profiles.id, c.perfilId));
+    const [perfil] = await db.select().from(profiles).where(eq(profiles.id, c.perfilId));
+    expect(perfil?.userId).toBeNull();
+    expect(perfil?.groupId).toBeNull();
+    expect(perfil?.coverageEnabled).toBe(false);
+    expect(perfil?.status).toBe("suspended");
+    expect(
+      await codigoDoBanco(
+        db
+          .update(profiles)
+          .set({ rightsOperationId: null, rightsFrozenState: null })
+          .where(eq(profiles.id, c.perfilId)),
+      ),
+    ).toBe("23514");
+  });
+
+  it("minimização exige prazo e política explícitos, e não admite remoção antes do prazo", async () => {
+    const c = await cenario();
+    await db
+      .insert(subjects)
+      .values({
+        operationId: c.id,
+        profileReference: c.perfilId,
+        liveProfileId: c.perfilId,
+        policyVersion: 1,
+      });
+    const agora = new Date(),
+      prazo = new Date(agora.getTime() + 30_000);
+    expect(
+      await codigoDoBanco(
+        db
+          .update(subjects)
+          .set({ phase: "minimized", minimizedAt: agora, retainedUntil: prazo })
+          .where(eq(subjects.operationId, c.id)),
+      ),
+    ).toBe("23514");
+    await db
+      .update(subjects)
+      .set({
+        phase: "minimized",
+        minimizedAt: agora,
+        retainedUntil: prazo,
+        retentionPolicyVersion: "perfil-2026-11-19",
+      })
+      .where(eq(subjects.operationId, c.id));
+    expect(
+      await codigoDoBanco(
+        db
+          .update(subjects)
+          .set({ phase: "removed", liveProfileId: null, completedAt: agora })
+          .where(eq(subjects.operationId, c.id)),
+      ),
+    ).toBe("23514");
+    expect(
+      await codigoDoBanco(
+        db.update(subjects).set({ retainedUntil: null }).where(eq(subjects.operationId, c.id)),
+      ),
+    ).toBe("23514");
+  });
 });
