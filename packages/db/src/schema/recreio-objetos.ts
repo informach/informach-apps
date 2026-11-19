@@ -107,7 +107,7 @@ export const recreioSnapshotObjectDeliveries = recreio.table(
       "recreio_snapshot_object_lease",
       sql`(${t.leaseToken} is null and ${t.leaseUntil} is null) or
       (${t.leaseToken} is not null and ${t.leaseUntil} is not null and ${t.lastAttemptAt} is not null and
-      ${t.leaseUntil}>${t.lastAttemptAt} and ${t.state} in ('prepared','retiring'))`,
+      ${t.leaseUntil}>${t.lastAttemptAt} and ${t.state} in ('prepared','retiring','retired'))`,
     ),
     check(
       "recreio_snapshot_object_attempts",

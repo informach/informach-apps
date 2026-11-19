@@ -8,9 +8,14 @@ Objetivo: armazenar e restaurar um arquivo cifrado autossuficiente do banco e
 dos objetos referenciados, protegendo a captura contra a coleta normal. Depois,
 admitir migração aditiva e retirada verificável sem reativar dados removidos.
 
-O próximo [formato composto e sua composição](arquivo-autossuficiente-2026-11-19.md)
+O [formato composto e sua composição](arquivo-autossuficiente-2026-11-19.md)
 fixam dump, inventário, envelopes e versões de chave no mesmo arquivo, sem
-extração genérica de caminhos. O desenho não equivale a implementação.
+extração genérica de caminhos. A recuperação externa em cluster novo passou
+em `44484289365`/`1893b6f4`, com recibo conferido e recursos sintéticos removidos.
+Isso não habilita tráfego restaurado nem backup operacional. O
+[controle durável da publicação](publicacao-duravel-2026-11-19.md) está em
+qualificação na candidata 0219; os passos de coleta, custódia, replay F7,
+normalização, agenda e RPO/RTO abaixo permanecem obrigatórios.
 
 Reutilizar Node 24.15.0/PostgreSQL 18.6 e os digests do executor operacional,
 SDK S3 3.1172.0 e Drizzle 0.45.4/kit 0.31.11 já fixados. Sem novas dependências

@@ -113,11 +113,17 @@ composto/capacidades/índice avançaram até `4e6d9b2b`: quality e integração 
 bucket real em `44470950325`: SQL e fotografia recuperados pelo arquivo/índice,
 replay, retirada, anonimato negado e quatro objetos sintéticos removidos com
 NoSuchKey/LIST vazio confirmados. [Recibo externo](recreio/evidencias/captura-provider-44470950325.json).
-Restauração ainda em outro banco do mesmo cluster; não qualifica cluster novo,
-normalização de autoridades/destinos, controle durável ou produção.
-[Recibos, plano de captura e limites](recreio/backup-e-retirada-2026-11-19.md).
-Fechamento durável da captura, coleta, custódia, catálogo SQL completo, replay F7
-e ensaio de cluster novo seguem abertos; esses ensaios sintéticos não concluem F8.
+A prova posterior `44484289365`/`1893b6f4` recuperou a captura no bucket real
+em cluster PostgreSQL novo e privado, sem credenciais do banco de origem:
+conteúdo, estrutura, metadados globais, fotografia e vínculo SQL conferidos;
+limpeza de cluster/arquivos/quatro objetos e negativa anônima confirmadas.
+[Recibo de cluster novo](recreio/evidencias/captura-provider-44484289365.json).
+Não normaliza autoridades/destinos para tráfego nem qualifica produção.
+A 0219 acrescenta controle de publicação, destino independente, tentativa e bytes
+assinados duráveis; geração `44486780124` adotada intacta, ainda em candidata.
+Fechamento durável está em qualificação; coleta, custódia, replay F7, agenda e
+RPO/RTO continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
+e [publicação durável](recreio/publicacao-duravel-2026-11-19.md).
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de
