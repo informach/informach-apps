@@ -254,6 +254,12 @@ export async function criarBucketDaMontagem() {
     recibo.durableArchiveRetirementVerified = true;
     await guardar();
   }
+  async function registrarFalhaControlada(codigo: string) {
+    exigir(/^[A-Z0-9_]{1,100}$/.test(codigo), "CLASSIFICADOR_INVALIDO");
+    recibo.failure = codigo;
+    recibo.status = "failed";
+    await guardar();
+  }
   async function concluir() {
     exigir(recibo.durableCaptureFinalized, "PUBLICACAO_DURAVEL_AUSENTE");
     exigir(recibo.nativeCollectionVerified, "COLETA_NATIVA_AUSENTE");
@@ -331,6 +337,7 @@ export async function criarBucketDaMontagem() {
     confirmarPublicacaoDuravel,
     confirmarArquivoPrivado,
     confirmarRetiradaDuravel,
+    registrarFalhaControlada,
     concluir,
     fechar,
   };

@@ -7,10 +7,12 @@ import { z } from "zod";
 import { criarCifradorDeArquivos } from "./arquivo-cifrado";
 import { criarArquivoComposto } from "./arquivo-composto";
 import { criarTransporteDeArquivosS3 } from "./arquivo-s3";
-import { comBancoRestaurado } from "./cluster-isolado";
+import { comBancoRestaurado, FalhaDoClusterIsolado } from "./cluster-isolado";
+import { type CodigoDaRecuperacao, FalhaDaRecuperacaoSchema } from "./diagnostico-recuperacao";
 import { criarIndiceDeRecuperacao } from "./indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "./indice-s3";
-import { normalizarFotografiasRestauradas } from "./normalizar-fotografias";
+import { conferirInventarios, inventariarBackup } from "./inventario";
+import { FalhaDaNormalizacao, normalizarFotografiasRestauradas } from "./normalizar-fotografias";
 import { exigir, limparDiretorioDeProva } from "./provas-arquivos";
 
 const variavel = (nome: string) => {
@@ -18,6 +20,38 @@ const variavel = (nome: string) => {
   exigir(v, "CONFIGURACAO_AUSENTE");
   return v;
 };
+function codigoSeguro(erro: unknown): CodigoDaRecuperacao {
+  const fila: unknown[] = [erro];
+  for (let i = 0; i < 8 && fila.length; i++) {
+    const e = fila.shift();
+    if (e instanceof FalhaDaNormalizacao) return `NORMAL_${e.codigo}`;
+    if (e instanceof AggregateError) fila.push(...e.errors.slice(0, 4));
+    if (e instanceof Error && e.cause) fila.push(e.cause);
+    if (e && typeof e === "object" && "code" in e && typeof e.code === "string") {
+      const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(`SQL_${e.code}`);
+      if (r.success) return r.data;
+    }
+  }
+  return "EXECUTOR";
+}
+function perdeuConexao(erro: unknown): boolean {
+  const fila: unknown[] = [erro];
+  for (let i = 0; i < 8 && fila.length; i++) {
+    const e = fila.shift();
+    if (e instanceof AggregateError) fila.push(...e.errors.slice(0, 4));
+    if (e instanceof Error && e.cause) fila.push(e.cause);
+    if (
+      e &&
+      typeof e === "object" &&
+      "code" in e &&
+      ["57P01", "CONNECTION_ENDED", "CONNECTION_CLOSED", "CONNECTION_DESTROYED"].includes(
+        String(e.code),
+      )
+    )
+      return true;
+  }
+  return false;
+}
 function chaveiro() {
   const texto = variavel("RECREIO_BACKUP_PROBE_MASTER_KEYS");
   delete process.env.RECREIO_BACKUP_PROBE_MASTER_KEYS;
@@ -126,7 +160,8 @@ async function main() {
     clusterLimpo = false,
     resultado: unknown,
     normalizacao: Awaited<ReturnType<typeof normalizarFotografiasRestauradas>> | undefined,
-    falha = false;
+    falha = false,
+    codigoDaFalha: CodigoDaRecuperacao = "EXECUTOR";
   try {
     const arquivo = async (nome: string) => {
       exigir(/^[a-z-]+\.bin$/.test(nome), "ARQUIVO_FORA_DO_ESCOPO");
@@ -164,12 +199,108 @@ async function main() {
       await acesso.copiarDump(dump);
       const inventario = await acesso.lerInventarioBanco();
       const prova = await comBancoRestaurado({ dump, inventario }, async (copia) => {
+        let divergencia = false;
+        try {
+          await normalizarFotografiasRestauradas({
+            copia,
+            acesso,
+            fotografia,
+            inventario: { ...fria.publicacao.inventario, sha256: "f".repeat(64) },
+          });
+        } catch (e) {
+          divergencia = e instanceof FalhaDaNormalizacao && e.codigo === "INVENTARIO";
+        }
+        exigir(divergencia, "MANIFESTO_DIVERGENTE_ADMITIDO");
+        // Exclusivo desta CLI sintética: matar o backend depois das alterações
+        // de foto/recibo, antes do controle, deve reverter a transação inteira.
+        await copia.unsafe(`create function recreio.normalization_loss_probe() returns trigger language plpgsql as $$
+          begin if new.protocol_version=0 and old.protocol_version<>0 then perform pg_catalog.pg_terminate_backend(pg_catalog.pg_backend_pid()); end if; return new; end $$`);
+        let perdeu = false;
+        try {
+          await copia.unsafe(
+            `create trigger normalization_loss_probe before update on recreio.backup_captures for each row execute function recreio.normalization_loss_probe()`,
+          );
+          try {
+            await normalizarFotografiasRestauradas({
+              copia,
+              acesso,
+              fotografia,
+              inventario: fria.publicacao.inventario,
+            });
+          } catch (e) {
+            perdeu = perdeuConexao(e);
+          }
+        } finally {
+          await copia.unsafe(
+            "drop trigger if exists normalization_loss_probe on recreio.backup_captures",
+          );
+          await copia.unsafe("drop function recreio.normalization_loss_probe()");
+        }
+        exigir(perdeu, "QUEDA_DE_CONEXAO_NAO_EXERCITADA");
+        conferirInventarios(
+          inventario,
+          await copia.begin("isolation level repeatable read read only", inventariarBackup),
+        );
         normalizacao = await normalizarFotografiasRestauradas({
           copia,
           acesso,
           fotografia,
           inventario: fria.publicacao.inventario,
         });
+        let fotografiaId: string | undefined;
+        for await (const item of acesso.objetos()) {
+          fotografiaId = item.objeto.fotografiaId;
+          break;
+        }
+        exigir(fotografiaId, "PROVA_SEM_FOTOGRAFIA");
+        const [foto] = await copia.unsafe<{ data: Buffer }[]>(
+          "select data from recreio.space_snapshots where id=$1 and storage='pg'",
+          [fotografiaId],
+        );
+        exigir(
+          foto && Buffer.isBuffer(foto.data) && foto.data.length > 0,
+          "FOTOGRAFIA_NORMALIZADA_AUSENTE",
+        );
+        const original = Buffer.from(foto.data),
+          ruim = Buffer.from(foto.data);
+        foto.data.fill(0);
+        ruim.writeUInt8(ruim.readUInt8(0) ^ 1, 0);
+        let recusou = false;
+        try {
+          await copia.unsafe("update recreio.space_snapshots set data=$1 where id=$2", [
+            ruim,
+            fotografiaId,
+          ]);
+          try {
+            await normalizarFotografiasRestauradas({
+              copia,
+              acesso,
+              fotografia,
+              inventario: fria.publicacao.inventario,
+            });
+          } catch (e) {
+            recusou = e instanceof FalhaDaNormalizacao && e.codigo === "INTEGRIDADE";
+          }
+          const [mantida] = await copia.unsafe<{ data: Buffer }[]>(
+            "select data from recreio.space_snapshots where id=$1",
+            [fotografiaId],
+          );
+          try {
+            exigir(recusou && mantida?.data.equals(ruim), "CORRUPCAO_SOBRESCRITA");
+          } finally {
+            mantida?.data.fill(0);
+          }
+        } finally {
+          try {
+            await copia.unsafe("update recreio.space_snapshots set data=$1 where id=$2", [
+              original,
+              fotografiaId,
+            ]);
+          } finally {
+            original.fill(0);
+            ruim.fill(0);
+          }
+        }
         const repetida = await normalizarFotografiasRestauradas({
           copia,
           acesso,
@@ -209,24 +340,42 @@ async function main() {
         sourceOperationsRemaining: normalizacao.operacoesDeOrigemRestantes,
         sourceBucketReferencesRemaining: normalizacao.referenciasBucketRestantes,
         normalizationIdempotent: true,
+        normalizationRollbackVerified: true,
+        normalizationConnectionLossVerified: true,
+        normalizedCorruptionRefused: true,
+        manifestMismatchRefused: true,
         authoritiesNormalizedForTraffic: false,
         productionDataTouched: false,
       };
     } finally {
       acesso.encerrar();
     }
-  } catch {
+  } catch (e) {
     falha = true;
+    codigoDaFalha = codigoSeguro(e);
+    if (e instanceof FalhaDoClusterIsolado) clusterLimpo = e.temporariosRemovidos;
   } finally {
     try {
       await limparDiretorioDeProva(root, handles, "recreio-backup-provider-");
       removidos = true;
     } catch {
       falha = true;
+      codigoDaFalha = "LIMPEZA";
     }
     indice.encerrar();
     cliente.destroy();
   }
+  if (falha || !resultado || !removidos || !clusterLimpo)
+    console.log(
+      JSON.stringify(
+        FalhaDaRecuperacaoSchema.parse({
+          ok: false,
+          codigo: codigoDaFalha,
+          localCleanupConfirmed: removidos,
+          clusterCleanupConfirmed: clusterLimpo,
+        }),
+      ),
+    );
   exigir(!falha && resultado && removidos && clusterLimpo, "RECUPERACAO_FRIA_NAO_CONFIRMADA");
   console.log(
     JSON.stringify({

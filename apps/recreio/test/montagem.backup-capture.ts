@@ -13,6 +13,7 @@ import { criarIndiceDeRecuperacao } from "../scripts/backup/indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "../scripts/backup/indice-s3";
 import { conferirInventarios, inventariarBackup } from "../scripts/backup/inventario";
 import { criarMontadorDaCaptura } from "../scripts/backup/montar-captura";
+import { FalhaDaProva } from "../scripts/backup/provas-arquivos";
 import {
   assumirPublicacao,
   liberarReservasPublicadas,
@@ -316,6 +317,11 @@ it(
         } finally {
           acesso.encerrar();
         }
+      } catch (erro) {
+        await s3.registrarFalhaControlada(
+          erro instanceof FalhaDaProva ? erro.codigo : "CAPTURA_INCONCLUSIVA",
+        );
+        throw erro;
       } finally {
         try {
           await copia?.end({ timeout: 5 });

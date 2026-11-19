@@ -61,7 +61,7 @@ export async function normalizarFotografiasRestauradas(config: {
     exists(select 1 from information_schema.columns where table_schema='recreio' and table_name='snapshot_object_deliveries' and column_name='quarantined_state')
     and exists(select 1 from information_schema.columns where table_schema='recreio' and table_name='backup_captures' and column_name='protocol_version') as valido`);
   exigir(perfil?.valido, "PERFIL_NAO_SUPORTADO");
-  return copia.begin("isolation level repeatable read read write", async (sql) => {
+  const executar = async (sql: postgres.TransactionSql) => {
     await sql.unsafe("set local search_path=pg_catalog");
     await sql.unsafe("set local statement_timeout='5000ms'");
     await sql.unsafe("set local lock_timeout='5000ms'");
@@ -200,5 +200,21 @@ export async function normalizarFotografiasRestauradas(config: {
       referenciasBucketRestantes: fim.bucket,
       operacoesDeOrigemRestantes: fim.pendentes,
     };
-  });
+  };
+  let tarefa: ReturnType<typeof executar> | undefined;
+  try {
+    return await copia.begin("isolation level repeatable read read write", (sql) => {
+      tarefa = executar(sql);
+      return tarefa;
+    });
+  } catch (erro) {
+    // begin pode rejeitar na queda da conexão antes de encerrar seu callback.
+    // Esperar os arquivos/chaves antes de devolver a capacidade emprestada.
+    if (tarefa) {
+      const [fim] = await Promise.allSettled([tarefa]);
+      if (fim?.status === "rejected" && fim.reason !== erro)
+        throw new AggregateError([erro, fim.reason], "NORMALIZACAO_E_LIMPEZA_INCONCLUSIVAS");
+    }
+    throw erro;
+  }
 }

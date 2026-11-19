@@ -32,3 +32,18 @@ reaplicar ledger F7, conferir identidade atual, destinos/chaves, processos e
 retenção continuam etapas obrigatórias. A recuperação compartilhada segue
 isolada; não restaurar todos os apps sobre o PostgreSQL original para liberar
 só o Recreio. Provas no GitHub usam dados sintéticos e apagam seus clusters.
+
+A primeira prova externa passou em `44501616990`/`f9b6727b`: uma foto recuperada
+em PG, uma referência de origem quarentenada, um controle antigo desabilitado,
+zero operações/referências bucket restantes; segunda execução idêntica. O ZIP
+foi conferido por SHA/tamanho e a limpeza confirmada. Não normaliza autoridades.
+A primeira checagem de tipos `44501131053` encontrou só o tipo dos parâmetros
+SQL de um teste; a correção usa o tipo do builder de UPDATE, sem casts.
+
+A revisão de conexão acrescenta espera explícita pelo callback transacional
+antes de devolver arquivos/chaves emprestados: `begin` pode rejeitar antes do
+callback na perda do backend. A CLI exclusiva de homologação passa a injetar
+queda depois das escritas, comparar todo o inventário após rollback, recusar
+manifesto divergente e recusar foto PG corrompida sem sobrescrita silenciosa.
+Estes casos posteriores exigem nova prova; não pertencem ao recibo anterior.
+Diagnósticos usam somente enum fixa, nunca mensagens/cause/SQL/conteúdo/chaves.

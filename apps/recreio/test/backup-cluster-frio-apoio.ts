@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { FalhaDaRecuperacaoSchema } from "../scripts/backup/diagnostico-recuperacao";
 import { exigir, FalhaDaProva } from "../scripts/backup/provas-arquivos";
 
 const Recibo = z.strictObject({
@@ -27,6 +28,10 @@ const Recibo = z.strictObject({
   sourceOperationsRemaining: z.literal(0),
   sourceBucketReferencesRemaining: z.literal(0),
   normalizationIdempotent: z.literal(true),
+  normalizationRollbackVerified: z.literal(true),
+  normalizationConnectionLossVerified: z.literal(true),
+  normalizedCorruptionRefused: z.literal(true),
+  manifestMismatchRefused: z.literal(true),
   authoritiesNormalizedForTraffic: z.literal(false),
   productionDataTouched: z.literal(false),
 });
@@ -227,7 +232,16 @@ export async function provarClusterFrio(
         "LIMPEZA_DO_WORKER_FRIO_NAO_CONFIRMADA",
       );
     }
-    throw new FalhaDaProva("CLUSTER_FRIO_NAO_CONFIRMADO");
+    let diagnostico: unknown;
+    try {
+      diagnostico = JSON.parse(saida.trim());
+    } catch {
+      diagnostico = undefined;
+    }
+    const falha = FalhaDaRecuperacaoSchema.safeParse(diagnostico);
+    throw new FalhaDaProva(
+      falha.success ? `CLUSTER_FRIO_${falha.data.codigo}` : "CLUSTER_FRIO_NAO_CONFIRMADO",
+    );
   }
   const recibo = Recibo.parse(JSON.parse(saida.trim()));
   exigir(
