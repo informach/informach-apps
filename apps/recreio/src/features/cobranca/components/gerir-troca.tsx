@@ -123,6 +123,7 @@ export function GerirTroca({ estado, pedidoId }: { estado: Estado; pedidoId: str
     });
   }
   if (!trocas || (!contrato && !pedido)) return null;
+  if (trocas.cancelamentoDaRenovacao && !pedido) return null;
   const vencida =
     pedido && !pedido.aceitoEm && new Date(pedido.aceitarAte) <= new Date(trocas.conferidoEm);
   const novaOferta = pedido && estado.ofertas.find((o) => o.productId === pedido.produtoDestino);

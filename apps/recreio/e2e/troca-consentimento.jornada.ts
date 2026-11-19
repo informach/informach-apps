@@ -43,6 +43,7 @@ test("cancelamento nativo sem jogador exige aceite e distingue recebimento de co
     }),
   ).toBeVisible();
   await expect(confirmar).toHaveCount(0);
+  await expect(a.page.getByRole("heading", { name: "Troca de plano", exact: true })).toHaveCount(0);
   const [recibo] =
     await banco`select id,state,attempts,request_started_at,confirmed_at,accepted_at from recreio.renewal_cancellations where payer_user_id=${origem.payer_user_id}`;
   if (!recibo) throw new Error("Native UI renewal receipt absent");

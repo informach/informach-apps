@@ -72,6 +72,18 @@ mas a nova jornada falhou num seletor textual ambíguo (estado e data começavam
 por “Pedido recebido”). Corrigida para conferir o papel acessível `status` e
 seu texto completo, sem retirar a asserção. Nova repetição obrigatória.
 
+44624092000/bfde69b6 passou: quatro jornadas de compra e três de plano/renovação,
+sem CSP/erros de página. Três capturas de 390 px foram inspecionadas, com aceite,
+conferência e confirmação legíveis e sem transbordamento. [Recibo](evidencias/renovacao-ui-44624092000.json).
+A inspeção encontrou o título vazio de troca depois do cancelamento; removido
+quando não há pedido histórico, com asserção de navegador nova, ainda pendente.
+
+A prova Sandbox mensal foi preparada para passar pelo provider de renovação,
+em vez de chamar `subscriptions.update` diretamente: cliente com origem própria,
+confirmação programada, repetição preservada e estado terminal após avanço do
+relógio. Ainda não executada. Continua restrita a recursos de teste e limpeza
+do próprio relógio, sem Checkout nativo, acesso ou cobrança de produção.
+
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
 todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já

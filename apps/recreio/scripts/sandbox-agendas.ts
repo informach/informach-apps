@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
+import { createStripeRecreioRenewals } from "@informach/billing/providers/stripe-recreio-renewals";
 import {
   createStripeRecreioUpgrades,
   type RecreioUpgradeAttempt,
@@ -178,10 +179,20 @@ async function main() {
       { name: `recreio-provider-${runId}`, frozen_time: Math.floor(Date.now() / 1000) },
       { idempotencyKey: `${prefix}:clock` },
     );
+    const origin = {
+      authorizationId: `provider_fixture_${randomUUID()}`,
+      productId: individual.productId,
+      payerId: `provider_fixture_${runId}`,
+    };
     const customer = await stripe.customers.create(
       {
         test_clock: clock.id,
-        metadata: { recreio_homologacao_run: runId, boundary: "provider_api_only" },
+        metadata: {
+          recreio_homologacao_run: runId,
+          boundary: "provider_api_only",
+          subject_type: "user",
+          subject_id: origin.payerId,
+        },
       },
       { idempotencyKey: `${prefix}:customer` },
     );
@@ -205,11 +216,6 @@ async function main() {
       { invoice_settings: { default_payment_method: payment.id } },
       { idempotencyKey: `${prefix}:default` },
     );
-    const origin = {
-      authorizationId: `provider_fixture_${randomUUID()}`,
-      productId: individual.productId,
-      payerId: `provider_fixture_${runId}`,
-    };
     const sub = await stripe.subscriptions.create(
       {
         customer: customer.id,
@@ -443,11 +449,31 @@ async function main() {
           renewal.amount_paid === individual.amountCents,
         "renewal_invoice_differs",
       );
-      const canceling = await stripe.subscriptions.update(
-        sub.id,
-        { cancel_at_period_end: true },
-        { idempotencyKey: `${prefix}:cancel-at-end` },
+      const renovacoes = createStripeRecreioRenewals({
+        secretKey: key,
+        mode: "dev",
+        client: stripe,
+        now: () => {
+          verify(clock, "test_clock_missing");
+          return new Date(clock.frozen_time * 1000);
+        },
+      });
+      const cancelamento = {
+        intentId: randomUUID(),
+        customerId: customer.id,
+        subscriptionId: sub.id,
+        origin,
+      };
+      const observacao = await renovacoes.stop(cancelamento);
+      const repeticao = await renovacoes.stop(cancelamento);
+      verify(
+        observacao.outcome === "scheduled" &&
+          observacao.stopsAt &&
+          /^[a-f0-9]{64}$/.test(observacao.sha256) &&
+          repeticao.sha256 === observacao.sha256,
+        "native_renewal_stop_not_confirmed",
       );
+      const canceling = await stripe.subscriptions.retrieve(sub.id);
       verify(
         canceling.cancel_at_period_end && canceling.status === "active",
         "cancellation_not_scheduled",
@@ -457,6 +483,13 @@ async function main() {
       await advance(nextEnd + 7200);
       const terminal = await stripe.subscriptions.retrieve(sub.id);
       verify(terminal.status === "canceled" && !terminal.livemode, "cancellation_not_effective");
+      const encerrado = await renovacoes.stop(cancelamento);
+      verify(
+        encerrado.outcome === "terminal" &&
+          encerrado.stopsAt === null &&
+          /^[a-f0-9]{64}$/.test(encerrado.sha256),
+        "native_renewal_terminal_not_confirmed",
+      );
       let paymentIntentId: string | undefined;
       for await (const allocation of stripe.invoicePayments.list({
         invoice: firstInvoiceId,
@@ -506,6 +539,9 @@ async function main() {
         initialProductPreserved: true,
         scheduleApplied: true,
         cancellationEffective: true,
+        nativeRenewalProviderScheduled: true,
+        nativeRenewalProviderTerminal: true,
+        nativeRenewalReplayPreserved: true,
         refundId: refund.id,
         refundDetectedByReader: true,
       });

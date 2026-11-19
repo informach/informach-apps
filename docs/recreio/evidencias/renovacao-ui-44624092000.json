@@ -1,0 +1,34 @@
+{
+  "runId": 44624092000,
+  "artifactId": 14577794159,
+  "source": "bfde69b64ceb16f0551420b7aaa360ad7dca30bc",
+  "artifactZipBytes": 1803578,
+  "artifactZipSha256": "716844f8bfacb8028507b2a3b9ec750b135335c9725782c6e1a2391e71496b59",
+  "screens": [
+    {
+      "name": "renovacao-aceite-mobile.png",
+      "bytes": 229161,
+      "sha256": "287204847aff5f6d1fdd66a20f86a8d1d98cb4bac04e758a7fe02abfa0ad64fd"
+    },
+    {
+      "name": "renovacao-conferencia-mobile.png",
+      "bytes": 178335,
+      "sha256": "f3a9c69f084b7dd7290b3bce2907c2a19ed8d5e9da011f5c49d4fb37cec627d3"
+    },
+    {
+      "name": "renovacao-confirmada-mobile.png",
+      "bytes": 180064,
+      "sha256": "1ee74e69d50958a154dfce16344c04752d34c5e24f03e5c2c76c6c0f3c478b33"
+    }
+  ],
+  "nativeBrowserConsent": true,
+  "providerConfirmationInThisJourney": false,
+  "renderedLaterStatesUseDeclaredSqlFixtures": true,
+  "visualInspectionCompleted": true,
+  "productionApplied": false,
+  "browserJourneys": {
+    "purchaseSetup": 4,
+    "planAndRenewal": 3
+  },
+  "inspectionNotes": "Three 390px captures inspected; readable status/consent, no horizontal overflow. Empty plan section found and removed in a subsequent candidate, requiring renewed UI evidence."
+}

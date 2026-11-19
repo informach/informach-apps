@@ -40,6 +40,12 @@ e não atravessa os tipos de operação. Sete testes novos aguardam qualificaç�
 Isso não confirma parada de renovação, exclusão, publicação no livro ou estado
 `closed`; os executores destrutivos continuam exclusivos de `retirar_perfil`.
 
+44624775249/e50defd3 passou upgrade e 123 de 126 casos. Três falhas estavam
+nas fixtures novas: a compra precisava declarar o inventário do perfil existente
+(mesmo sem cobertura) e a recusa síncrona do schema precisava ser verificada
+como exceção síncrona. Corrigidos os testes sem relaxar as regras de seleção ou
+os três aceites; repetir o gate antes de qualificar este consentimento.
+
 ## Exportação
 
 A cópia de perfil já tem captura consistente, artefato cifrado de dez minutos,

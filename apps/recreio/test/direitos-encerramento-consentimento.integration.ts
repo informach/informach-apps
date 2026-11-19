@@ -84,6 +84,11 @@ async function cenario(comPerfil: boolean, executar: (f: Fixture) => Promise<voi
   }
 }
 async function compraNaoEnviada(f: Fixture) {
+  const inventario = await db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.userId, f.conta.id))
+    .orderBy(profiles.id);
   return prepararCompraNoBanco(
     f.autor,
     {
@@ -96,7 +101,7 @@ async function compraNaoEnviada(f: Fixture) {
       aceitoCobrancaRecorrente: true,
       versaoDasCondicoes: VERSAO_DA_COMPRA,
       versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
-      perfis: [],
+      perfis: inventario.map((p) => ({ perfilId: p.id, versao: p.policyVersion, cobrir: false })),
     },
     "dev",
   );
@@ -208,9 +213,9 @@ describe("encerramento: consentimento v2 e congelamento atômico, ainda sem conc
         "confirmoRetiradaDosPerfis",
         "confirmoCancelamentoDaRenovacao",
       ])
-        await expect(
+        expect(() =>
           consentirEncerramentoNoBanco(f.autor, { ...f.pedido(previa), [campo]: false }, f.config),
-        ).rejects.toThrow();
+        ).toThrow();
       expect(await consultarMinhaParticipacaoNoRecreio(f.autor)).toMatchObject({
         estado: "active",
         revisao: 0,
