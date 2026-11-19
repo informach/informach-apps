@@ -16,6 +16,13 @@
 
 Preferir sempre identificadores e estado transacional:
 
+`recreio.renewal_cancellation_accepted` registra somente `app`, `groupId`,
+`cancellationId`, `subscriptionId` interno, `revision` e `state`, com ator no
+campo próprio e escrita estrita na mesma transação. Não registrar referências
+do provedor, preço/valor, datas de login, termos, resposta externa ou URL de
+pagamento. Esse evento confirma o aceite; não confirma envio ou interrupção
+da renovação no provedor.
+
 `recreio.plan_change_quoted`, `recreio.plan_change_accepted`,
 `recreio.plan_change_closed`, `recreio.plan_change_attempt_started` e
 `recreio.plan_change_provider_observed`, `recreio.plan_change_applied` e

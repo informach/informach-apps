@@ -2,6 +2,7 @@ import "server-only";
 import type { StripeMode } from "@informach/config";
 import { and, db, desc, eq, isNull, sql } from "@informach/db";
 import {
+  recreioRenewalCancellations as cancellations,
   recreioPlanChanges as changes,
   recreioBillingContracts as contracts,
   recreioGroups as groups,
@@ -17,6 +18,7 @@ import { lerFatosDoGrupo } from "@/features/acesso/repository";
 import { admitirGrupoDoTitular } from "@/features/grupo/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { comCicloDeCobranca } from "./lifecycle";
+import { reciboDoCancelamentoDaRenovacao } from "./renovacao-repository";
 import { reciboDaTroca } from "./troca-cotacao-repository";
 
 /** Own payer's presentation DTO, never provider IDs or another adult's bill.
@@ -59,6 +61,18 @@ export function consultarMinhasTrocasNoBanco(autor: IdentidadeNativa, modo: Stri
         eq(changes.payerUserId, autor.contaId),
         eq(changes.providerMode, modo),
       );
+      const [cancelamento] = contrato
+        ? await tx
+            .select()
+            .from(cancellations)
+            .where(
+              and(
+                eq(cancellations.subscriptionId, contrato.subscriptionId),
+                eq(cancellations.payerUserId, autor.contaId),
+                eq(cancellations.providerMode, modo),
+              ),
+            )
+        : [];
       const pendentes = await tx
         .select()
         .from(changes)
@@ -93,10 +107,12 @@ export function consultarMinhasTrocasNoBanco(autor: IdentidadeNativa, modo: Stri
         grupoId,
         contrato: contrato
           ? {
+              assinaturaId: contrato.subscriptionId,
               produtoId: contrato.currentProductId,
               revisao: contrato.revision,
               podePreparar: Boolean(
                 assinatura &&
+                  !cancelamento &&
                   assinatura.cancelaEm === null &&
                   !contrato.coverageReviewRequired &&
                   contrato.currentProductId === assinatura.productId &&
@@ -106,6 +122,9 @@ export function consultarMinhasTrocasNoBanco(autor: IdentidadeNativa, modo: Stri
             }
           : null,
         pedido: ultima ? { ...reciboDaTroca(ultima), perfis } : null,
+        cancelamentoDaRenovacao: cancelamento
+          ? reciboDoCancelamentoDaRenovacao(cancelamento)
+          : null,
         conferidoEm: agora.toISOString(),
       };
     }),

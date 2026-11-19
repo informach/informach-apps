@@ -1,7 +1,10 @@
 import "server-only";
 import type { StripeMode } from "@informach/config";
 import { eq } from "@informach/db";
-import { recreioBillingContracts as contracts } from "@informach/db/schema";
+import {
+  recreioRenewalCancellations as cancellations,
+  recreioBillingContracts as contracts,
+} from "@informach/db/schema";
 import type { GrupoId } from "@informach/recreio";
 import { limiteFinanceiroDaAssinatura } from "@/features/acesso/decisao";
 import { lerFatosDoGrupo } from "@/features/acesso/repository";
@@ -34,6 +37,16 @@ export async function lerContratoParaTrocaLocked(
     .from(contracts)
     .where(eq(contracts.subscriptionId, assinatura.id))
     .for("update");
+  const [cancelamento] = await tx
+    .select({ id: cancellations.id })
+    .from(cancellations)
+    .where(eq(cancellations.subscriptionId, assinatura.id))
+    .for("share");
+  assertAllowed(
+    !cancelamento,
+    "RENOVACAO_CANCELADA",
+    "A renovação desta assinatura já teve cancelamento solicitado. Acompanhe esse pedido antes de contratar outro período.",
+  );
   assertAllowed(
     contrato &&
       contrato.groupId === entrada.grupoId &&

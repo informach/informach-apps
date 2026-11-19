@@ -25,6 +25,14 @@ Checkout humano e catálogo/portal/webhook Live reais continuam pendentes.
 
 ## Camadas
 
+Em candidata, o cancelamento nativo da renovação tem recibo durável próprio
+(0237/238 recibos), aceite recente do pagante sem jogador, idempotência,
+auditoria estrita e consulta pessoal. Propostas não enviadas são encerradas
+atomicamente; novas trocas desse contrato ficam bloqueadas. Ainda não há
+provider/worker/action/tela compostos: `accepted` não significa renovação
+interrompida. Portal restrito, capacidade antiga, resposta perdida e APIs reais
+seguem no [plano de cancelamento](../../docs/recreio/cancelamento-nativo-2026-11-19.md).
+
 Na candidata F7, `features/direitos` mantém a prévia e a confirmação de
 retirada separadas em `/conta/dados`. Consentimento/outbox, fotos/resumo/diário,
 minimização, expurgo e conclusão preservam as retenções originais. Drenagem

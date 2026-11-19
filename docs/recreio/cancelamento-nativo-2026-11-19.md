@@ -1,5 +1,16 @@
 # Recreio: cancelamento de renovação no servidor
 
+Aceite/consulta nativos em candidata: login recente irrestrito, próprio contrato
+e namespace, ciclo antes da TX, repetição devolvendo o recibo original. Propostas
+não enviadas são encerradas junto do aceite; propostas já enviadas exigem seu
+conciliador original. A presença do pedido bloqueia novas trocas desse contrato
+no servidor e na leitura da tela. Aceitar não chama Stripe nem confirma parada.
+O evento estrito `renewal_cancellation_accepted` e a inclusão na cópia pessoal
+usam somente os campos declarados; referências do provedor não saem no DTO.
+Sete casos nativos e quatro de entrada preparados, ainda sem qualificação
+deste incremento. Não há action, tela, provider ou worker de cancelamento
+compostos; o restante do checklist continua obrigatório.
+
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
 todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já

@@ -202,6 +202,7 @@ export type AuditEventType =
   | "recreio.plan_change_applied"
   | "recreio.plan_change_selection_confirmed"
   | "recreio.plan_change_cancel_requested"
+  | "recreio.renewal_cancellation_accepted"
   | "recreio.game_session_started"
   | "recreio.game_session_ended"
   | "recreio.session_handoff_requested"

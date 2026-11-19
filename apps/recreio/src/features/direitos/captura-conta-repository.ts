@@ -6,6 +6,7 @@ import {
 } from "@informach/billing/recreio-personal-records";
 import { and, eq, gt, or, sql } from "@informach/db";
 import {
+  recreioRenewalCancellations as cancellations,
   recreioPlanChanges as changes,
   recreioTrialClaims as claims,
   recreioAdultDeclarations as declarations,
@@ -47,6 +48,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "teste_utilizado",
             "aceite_compra",
             "troca_plano",
+            "cancelamento_renovacao",
             "assinatura",
             "periodo_financeiro",
             "previa_direitos",
@@ -109,6 +111,31 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
               ),
             )
             .orderBy(declarations.id)
+            .limit(limites.pagina),
+        );
+        await paginas("cancelamento_renovacao", (apos) =>
+          tx
+            .select({
+              cursor: cancellations.id,
+              produtoApresentado: cancellations.expectedProductId,
+              condicoes: cancellations.policyVersion,
+              origem: cancellations.initiator,
+              estado: cancellations.state,
+              aceitoEm: cancellations.acceptedAt,
+              tentativaEm: cancellations.requestStartedAt,
+              confirmadoEm: cancellations.confirmedAt,
+              periodoApresentadoAte: cancellations.expectedPeriodEnd,
+              resultado: cancellations.providerResult,
+              renovacaoInterrompidaEm: cancellations.providerStopAt,
+            })
+            .from(cancellations)
+            .where(
+              and(
+                eq(cancellations.payerUserId, autor.contaId),
+                apos ? gt(cancellations.id, apos) : undefined,
+              ),
+            )
+            .orderBy(cancellations.id)
             .limit(limites.pagina),
         );
         // O cursor UUID não entra no arquivo: aparelho/login continuam privados.

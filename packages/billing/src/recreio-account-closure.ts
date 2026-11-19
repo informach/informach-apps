@@ -1,5 +1,6 @@
 import { and, type Database, eq } from "@informach/db";
-import { checkoutIntents, customers } from "@informach/db/schema";
+import { checkoutIntents, customers, subscriptions } from "@informach/db/schema";
+import { z } from "zod";
 import { BillingError } from "./errors";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -40,4 +41,40 @@ export async function readRecreioAccountClosureSource(tx: Tx, payerId: string) {
     customer,
     checkout: checkout ? { id: checkout.id, requestStarted: checkout.requestStarted } : null,
   };
+}
+
+/** Identidade e período locais para o cancelamento, sem avaliação de acesso
+ * ou declaração de que o provedor está conciliado. Apenas o pagante próprio;
+ * o domínio nativo ainda precisa comprovar seu contrato antes de aceitar. */
+export async function readRecreioOwnedSubscription(
+  tx: Tx,
+  payerId: string,
+  subscriptionId: string,
+) {
+  if (!payerId || payerId.length > 256 || !z.uuid().safeParse(subscriptionId).success)
+    throw new BillingError("Invalid Recreio subscription reference");
+  const [row] = await tx
+    .select({
+      id: subscriptions.id,
+      customerId: customers.id,
+      providerCustomerId: customers.providerCustomerId,
+      providerSubscriptionId: subscriptions.providerSubscriptionId,
+      productId: subscriptions.productId,
+      priceId: subscriptions.providerPriceId,
+      periodEnd: subscriptions.currentPeriodEnd,
+    })
+    .from(subscriptions)
+    .innerJoin(customers, eq(customers.id, subscriptions.customerId))
+    .where(
+      and(
+        eq(subscriptions.id, subscriptionId),
+        eq(subscriptions.provider, "stripe"),
+        eq(customers.app, "recreio"),
+        eq(customers.provider, "stripe"),
+        eq(customers.subjectType, "user"),
+        eq(customers.subjectId, payerId),
+      ),
+    )
+    .for("share");
+  return row ?? null;
 }

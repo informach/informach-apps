@@ -4,6 +4,12 @@
 
 ## Recreio: dados pessoais financeiros em candidata (19/11/2026)
 
+O subpath de encerramento também fornece `readRecreioOwnedSubscription`: somente
+identidade financeira e período locais do próprio cliente Recreio, para admitir
+o pedido nativo de cancelamento. A consulta não decide acesso nem comprova estado
+atual do Stripe. O consumidor valida seu contrato e conserva a mesma ordem de
+travas/ciclo; nenhum dado de outro aplicativo é incluído.
+
 `recreio-account-closure` fornece somente a origem comercial privada do próprio
 pagante `user` do app `recreio`: cliente Stripe e referência mínima de Checkout.
 Não retorna email, payload, URLs ou metadados; exige que o chamador conserve o
