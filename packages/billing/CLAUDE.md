@@ -2,6 +2,16 @@
 
 > Documentação primária do package para humanos e agentes. Para checklist de produção (Stripe Dashboard, webhooks, cron jobs no Railway, NF-e/PCI), ver [`PRODUCTION.md`](./PRODUCTION.md). Para integração com email transacional, ver [`@informach/emails/CLAUDE.md`](../emails/CLAUDE.md). Para audit/permission integration, ver [`@informach/auth/CLAUDE.md`](../auth/CLAUDE.md).
 
+## Recreio: dados pessoais financeiros em candidata (19/11/2026)
+
+`recreio-personal-records` projeta páginas de assinaturas/períodos do próprio
+cliente `user` do app `recreio`, em transação fornecida pelo coordenador nativo.
+Não é decisão de acesso, não consulta por grupo familiar e não inclui metadados
+livres/URLs/segredos. O app mantém autorização recente antes da captura e da
+entrega. Único consumidor atual: captura pessoal de conta do Recreio; nenhuma
+composição Compasso foi alterada. Testes de isolamento entre pagantes/apps no
+Recreio e qualidade compartilhada ainda precisam qualificar este incremento.
+
 ## Recreio: adapter de agenda em candidata (18/11/2026)
 
 `providers/stripe-plans` expõe `createStripeRecreioPlanSchedules`, separado da

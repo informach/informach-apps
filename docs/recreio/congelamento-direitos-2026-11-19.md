@@ -687,3 +687,16 @@ as migrations sem efeito. A fixture opaca não afirma validade criptográfica;
 cifragem e download reais têm provas separadas. O workflow busca a fonte
 histórica fixa antes dos gates rights/integration. Nada roda localmente ou em
 banco Railway por esse ensaio; a prova remota deste incremento está pendente.
+
+
+Quality 44595917025/dab8a881 encontrou leitura direta de `subscriptions` fora
+da porta prevista no app. Corrigida a composição: projeções financeiras agora
+pertencem a `@informach/billing/recreio-personal-records`, em vez de criar uma
+segunda leitura no Recreio. O teste de fronteira permanece intacto; o reader
+recebe a transação consistente e limita pagante/app/página, sem decidir acesso.
+
+O primeiro upgrade 44597065604/8e22690c falhou com TypeError e diagnóstico
+insuficiente, antes da suíte nativa. A candidata seguinte registra só etapa e
+frames de localização sem mensagem SQL/parâmetros/valores. A causa ainda deve
+ser confirmada remotamente; não é um upgrade qualificado nem motivo para
+relaxar constraints ou reescrever o DDL.

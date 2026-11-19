@@ -1,19 +1,20 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
+import {
+  readPersonalRecreioPaymentPeriods,
+  readPersonalRecreioSubscriptions,
+} from "@informach/billing/recreio-personal-records";
 import { and, eq, gt, or, sql } from "@informach/db";
 import {
   recreioPlanChanges as changes,
   recreioTrialClaims as claims,
-  customers,
   recreioAdultDeclarations as declarations,
   recreioDeviceSessions as devices,
   recreioGroupInvites as invites,
   recreioRightsOperations as operations,
-  subscriptionPaymentPeriods as periods,
   recreioNativePins as pins,
   recreioRightsPreparations as preparations,
   recreioPurchaseAuthorizations as purchases,
-  subscriptions,
   recreioTrialEnrollments as trials,
 } from "@informach/db/schema";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
@@ -225,49 +226,11 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             .orderBy(changes.id)
             .limit(limites.pagina),
         );
-        const clienteProprio = and(
-          eq(customers.app, "recreio"),
-          eq(customers.subjectType, "user"),
-          eq(customers.subjectId, autor.contaId),
-        );
         await paginas("assinatura", (apos) =>
-          tx
-            .select({
-              cursor: subscriptions.id,
-              produto: subscriptions.productId,
-              estado: subscriptions.status,
-              inicioPeriodo: subscriptions.currentPeriodStart,
-              fimPeriodo: subscriptions.currentPeriodEnd,
-              cancelamentoProgramadoEm: subscriptions.cancelAtPeriodEnd,
-              canceladaEm: subscriptions.canceledAt,
-              confirmadaEm: subscriptions.confirmedAt,
-              criadaEm: subscriptions.createdAt,
-              emailDeCobranca: customers.email,
-            })
-            .from(subscriptions)
-            .innerJoin(customers, eq(customers.id, subscriptions.customerId))
-            .where(and(clienteProprio, apos ? gt(subscriptions.id, apos) : undefined))
-            .orderBy(subscriptions.id)
-            .limit(limites.pagina),
+          readPersonalRecreioSubscriptions(tx, autor.contaId, apos, limites.pagina),
         );
         await paginas("periodo_financeiro", (apos) =>
-          tx
-            .select({
-              cursor: periods.id,
-              produto: subscriptions.productId,
-              inicioPeriodo: periods.periodStart,
-              fimPeriodo: periods.periodEnd,
-              pagoEm: periods.paidAt,
-              estornadoIntegralmente: periods.fullyRefunded,
-              contestado: periods.disputed,
-              conciliadoEm: periods.reconciledAt,
-            })
-            .from(periods)
-            .innerJoin(subscriptions, eq(subscriptions.id, periods.subscriptionId))
-            .innerJoin(customers, eq(customers.id, subscriptions.customerId))
-            .where(and(clienteProprio, apos ? gt(periods.id, apos) : undefined))
-            .orderBy(periods.id)
-            .limit(limites.pagina),
+          readPersonalRecreioPaymentPeriods(tx, autor.contaId, apos, limites.pagina),
         );
         await paginas("previa_direitos", (apos) =>
           tx

@@ -52,6 +52,7 @@ async function memoria(sql: postgres.Sql) {
   return { perfis: linha.conteudo, mundos: mundos.conteudo };
 }
 
+let etapa = "inicio";
 async function main() {
   assert.equal(process.env.GITHUB_ACTIONS, "true", "Este ensaio roda somente no GitHub.");
   const origem = process.env.DATABASE_URL;
@@ -69,6 +70,7 @@ async function main() {
   let criada = false;
   let conexao: postgres.Sql | undefined;
   try {
+    etapa = "historico";
     const anterior = {
       ...journal,
       entries: journal.entries.filter((e) => e.idx <= ULTIMA_ANTERIOR),
@@ -93,7 +95,9 @@ async function main() {
     const sql = postgres(url.toString(), { max: 1, onnotice: () => {} });
     conexao = sql;
     const banco = drizzle(sql);
+    etapa = "migrations_anteriores";
     await migrate(banco, { migrationsFolder: pasta });
+    etapa = "fixtures";
     const contas = [randomUUID(), randomUUID()];
     const grupos = [randomUUID(), randomUUID()];
     const perfis = [randomUUID(), randomUUID()];
@@ -152,7 +156,9 @@ async function main() {
     }
     const antes = await memoria(sql);
     const atual = fileURLToPath(new URL("../migrations", import.meta.url));
+    etapa = "upgrade";
     await migrate(banco, { migrationsFolder: atual });
+    etapa = "conferencia";
     assert.deepEqual(
       await memoria(sql),
       antes,
@@ -279,6 +285,20 @@ async function main() {
 }
 
 main().catch((erro) => {
-  console.error("recreio.group_upgrade.failed", erro instanceof Error ? erro.name : "UnknownError");
+  const frames =
+    erro instanceof Error
+      ? erro.stack
+          ?.split("\n")
+          .filter((l) => /^\s+at /.test(l) && /\/packages\/db\/|\/postgres\//.test(l))
+          .slice(0, 5)
+      : [];
+  console.error(
+    JSON.stringify({
+      erro: "recreio.group_upgrade.failed",
+      etapa,
+      nome: erro instanceof Error ? erro.name : "UnknownError",
+      frames,
+    }),
+  );
   process.exitCode = 1;
 });
