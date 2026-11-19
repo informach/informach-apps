@@ -4,14 +4,17 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioSnapshotObjectDeliveries as deliveries,
+  recreioSpaceJournal as journal,
   recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
+  recreioRightsWorldProjection,
   recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
   recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { MundoIdSchema } from "@informach/recreio";
+import { type ResumoDoMundo, ResumoDoMundoSchema } from "@informach/recreio/contrato";
 import { z } from "zod";
 import { travarColetaDeObjetos } from "@/features/backup/captura-repository";
 import { limitesDoJogo } from "@/features/jogos/config";
@@ -48,10 +51,11 @@ function conferirMundo(
 /** No máximo uma foto por lease. Só prepara referência limitada, sem rede,
  * gzip ou simulação na transação. O worker operacional verifica o livro antes
  * de transformar/publicar. Operações sem mundos seguem o executor de domínio. */
-export function reservarFotografiaDeDireitos(config: {
+type CoordenacaoDuravel = {
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
   prova: Awaited<ReturnType<typeof conferirPrefixoDoLivro>>;
-}) {
+};
+export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
   const livroId = z.uuid().parse(config.assinatura.livroId);
   assertAllowed(
     config.prova.cabecalho.documento.livroId === livroId &&
@@ -135,6 +139,10 @@ export function reservarFotografiaDeDireitos(config: {
         .update(worlds)
         .set({ phase: "dependencies" })
         .where(and(eq(worlds.operationId, operacao.id), eq(worlds.spaceId, atual.id)));
+      await tx
+        .update(operations)
+        .set({ nextAttemptAt: AGORA, updatedAt: AGORA })
+        .where(eq(operations.id, operacao.id));
       return { tipo: "fotos_prontas" as const, operacaoId: operacao.id };
     }
     const fonte = await armazenamentoPg.prepararLeituraDaFotografia(
@@ -163,6 +171,146 @@ export function reservarFotografiaDeDireitos(config: {
       passo: pista,
       fonte,
       token,
+    };
+  });
+}
+
+/** O diário já materializado na última foto deixa de ser necessário à abertura
+ * atual. Remove somente o prefixo coberto, em lotes de 100, preservando o
+ * journalSeq autoritativo e as fotos históricas/fixadas já tratadas. Não reescreve
+ * fatos individuais nem atribui ao simulador ações de uma pessoa retirada. */
+export function compactarDiarioDeDireitos(config: CoordenacaoDuravel) {
+  const livroId = z.uuid().parse(config.assinatura.livroId);
+  assertAllowed(
+    config.prova.cabecalho.documento.livroId === livroId &&
+      config.prova.cabecalho.documento.estado === "aberto",
+    "DIREITOS_LIVRO",
+    "Livro indisponível para execução.",
+  );
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const [op] = await tx
+      .select()
+      .from(operations)
+      .where(
+        and(
+          eq(operations.ledgerId, livroId),
+          inArray(operations.state, ["admitted", "running"]),
+          or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
+          sql`${operations.nextAttemptAt}<=${AGORA}`,
+          sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies' and exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId}))`,
+        ),
+      )
+      .orderBy(operations.nextAttemptAt, operations.id)
+      .limit(1)
+      .for("update", { skipLocked: true });
+    if (!op) return { situacao: "ociosa" as const };
+    assertAllowed(
+      config.prova.referencias.some(
+        (r) => r.operacaoId === op.id && r.revisao === op.revision && r.sha256 === op.intentSha256,
+      ),
+      "DIREITOS_LIVRO",
+      "Intenção não admitida no prefixo verificado.",
+    );
+    const [preparacao] = await tx
+      .select()
+      .from(preparations)
+      .where(eq(preparations.id, op.preparationId));
+    const selecionados = await tx
+      .select({ id: subjects.profileReference })
+      .from(subjects)
+      .where(eq(subjects.operationId, op.id))
+      .orderBy(subjects.profileReference);
+    conferirIntencaoNativa(op, preparacao, selecionados, config.assinatura);
+    const [passo] = await tx
+      .select()
+      .from(worlds)
+      .where(
+        and(
+          eq(worlds.operationId, op.id),
+          eq(worlds.phase, "dependencies"),
+          sql`exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId})`,
+        ),
+      )
+      .orderBy(worlds.spaceId)
+      .limit(1);
+    assertAllowed(passo, "DIREITOS_INTEGRIDADE", "Etapa do mundo ausente.");
+    const [mundo] = await tx
+      .select()
+      .from(spaces)
+      .where(eq(spaces.id, passo.spaceId))
+      .for("update");
+    const atual = conferirMundo(mundo, passo);
+    assertAllowed(
+      passo.snapshotCursor === passo.sourceRevision && passo.sourceRevision > 0,
+      "DIREITOS_INTEGRIDADE",
+      "Fotografias ainda não concluídas.",
+    );
+    const [foto] = await tx
+      .select({
+        data: snapshots.data,
+        bytes: snapshots.byteSize,
+        sha256: snapshots.sha256,
+        diario: snapshots.journalSeq,
+      })
+      .from(snapshots)
+      .where(
+        and(
+          eq(snapshots.spaceId, atual.id),
+          eq(snapshots.revision, passo.sourceRevision),
+          eq(snapshots.storage, "pg"),
+          sql`octet_length(${snapshots.data})=${snapshots.byteSize} and ${snapshots.byteSize}<=${limitesDoJogo(atual.gameId).fotografiaMaxBytes}`,
+        ),
+      );
+    assertAllowed(
+      foto?.data &&
+        foto.diario === passo.sourceJournalSeq &&
+        foto.data.length === foto.bytes &&
+        createHash("sha256").update(foto.data).digest("hex") === foto.sha256,
+      "DIREITOS_INTEGRIDADE",
+      "Última fotografia inconsistente.",
+    );
+    const [semCobertura] = await tx
+      .select({ seq: journal.seq })
+      .from(journal)
+      .where(and(eq(journal.spaceId, atual.id), sql`${journal.seq}>${passo.sourceJournalSeq}`))
+      .limit(1);
+    assertAllowed(!semCobertura, "DIREITOS_INTEGRIDADE", "Há diário sem cobertura da fotografia.");
+    const lote = await tx
+      .select({ seq: journal.seq })
+      .from(journal)
+      .where(and(eq(journal.spaceId, atual.id), sql`${journal.seq}<=${passo.sourceJournalSeq}`))
+      .orderBy(journal.seq)
+      .limit(100);
+    const removidas = lote.length
+      ? await tx
+          .delete(journal)
+          .where(
+            and(
+              eq(journal.spaceId, atual.id),
+              inArray(
+                journal.seq,
+                lote.map((l) => l.seq),
+              ),
+            ),
+          )
+          .returning({ seq: journal.seq })
+      : [];
+    await tx
+      .update(operations)
+      .set({ nextAttemptAt: AGORA, updatedAt: AGORA })
+      .where(eq(operations.id, op.id));
+    if (removidas.length)
+      await logAuditEventStrict(
+        "recreio.rights_journal_compacted",
+        op.requesterUserId,
+        { app: "recreio", operationId: op.id, gameId: atual.gameId, entryCount: removidas.length },
+        { writer: tx },
+      );
+    return {
+      situacao: "diario_compactado" as const,
+      operacaoId: op.id,
+      entradas: removidas.length,
     };
   });
 }
@@ -207,6 +355,7 @@ export function confirmarFotografiaDeDireitos(
     sha256: string;
     schemaVersion: number;
     tick: number;
+    resumo: ResumoDoMundo;
   },
 ) {
   const teto = limitesDoJogo(reserva.mundo.gameId).fotografiaMaxBytes;
@@ -221,6 +370,7 @@ export function confirmarFotografiaDeDireitos(
     "Resultado da fotografia inconsistente.",
   );
   const bytes = Buffer.from(resultado.bytes);
+  const resumo = ResumoDoMundoSchema.parse(resultado.resumo);
   return db.transaction(async (tx) => {
     await limites(tx);
     await travarColetaDeObjetos(tx);
@@ -293,13 +443,24 @@ export function confirmarFotografiaDeDireitos(
         sha256: resultado.sha256,
       })
       .where(eq(snapshots.id, foto.id));
+    if (reserva.fonte.meta.revisao === reserva.passo.sourceRevision) {
+      const summary = sql`${JSON.stringify(resumo)}::jsonb`;
+      await tx
+        .update(spaces)
+        .set({
+          summary,
+          rightsFrozenState: recreioRightsWorldProjection({ ...spaces, summary }),
+          updatedAt: AGORA,
+        })
+        .where(eq(spaces.id, reserva.mundo.id));
+    }
     await tx
       .update(worlds)
       .set({ snapshotCursor: reserva.fonte.meta.revisao, phase: "snapshots" })
       .where(and(eq(worlds.operationId, operacao.id), eq(worlds.spaceId, reserva.mundo.id)));
     await tx
       .update(operations)
-      .set({ leaseToken: null, leaseUntil: null, updatedAt: AGORA })
+      .set({ leaseToken: null, leaseUntil: null, nextAttemptAt: AGORA, updatedAt: AGORA })
       .where(eq(operations.id, operacao.id));
     await logAuditEventStrict(
       "recreio.rights_photo_processed",

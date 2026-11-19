@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { jogoPorId } from "@informach/config/jogos";
 import { criarMundo } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
 import { FOTOGRAFIA_ABERTA_MAX_BYTES } from "@informach/morada-sim/formatos";
 import { describe, expect, it } from "vitest";
-import { limitesDoJogo } from "@/features/jogos/config";
 import { prepararFotoPessoalDoMorada as preparar } from "../../../../scripts/direitos/morada";
 
 const mundoId = "00000000-0000-4000-8000-000000000001";
@@ -12,6 +12,9 @@ const perfilId = "00000000-0000-4000-8000-000000000002";
 const outroId = "00000000-0000-4000-8000-000000000003";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const politica = { retirarTextosDaFundacao: true };
+const manifesto = jogoPorId("morada");
+if (!manifesto) throw new Error("Morada absent from canonical catalog");
+const fotografiaMaxBytes = manifesto.limites.fotografiaMaxBytes;
 function fonte(bytes?: Buffer) {
   const mundo = criarMundo({
     mundoId,
@@ -91,7 +94,7 @@ describe("direitos: bytes privados do Morada", () => {
   });
 
   it("limita o corpo comprimido antes de interpretar os bytes", () => {
-    const bytes = Buffer.alloc(limitesDoJogo("morada").fotografiaMaxBytes + 1);
+    const bytes = Buffer.alloc(fotografiaMaxBytes + 1);
     const f = fonte(bytes);
     expect(() => preparar(f.bytes, f.meta, perfilId, politica)).toThrowError(
       expect.objectContaining({ codigo: "LIMITE" }),
@@ -100,7 +103,7 @@ describe("direitos: bytes privados do Morada", () => {
 
   it("impede expansão além do orçamento compartilhado com o servidor", () => {
     const f = fonte(gzipSync(Buffer.alloc(FOTOGRAFIA_ABERTA_MAX_BYTES + 1, 32)));
-    expect(f.bytes.length).toBeLessThan(limitesDoJogo("morada").fotografiaMaxBytes);
+    expect(f.bytes.length).toBeLessThan(fotografiaMaxBytes);
     expect(() => preparar(f.bytes, f.meta, perfilId, politica)).toThrowError(
       expect.objectContaining({ codigo: "LIMITE" }),
     );

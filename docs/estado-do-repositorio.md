@@ -1,5 +1,17 @@
 # Estado do trabalho no repositório
 
+**19/11 — F7, continuação candidata:** consentimento individual nativo, outbox
+assinada e processamento de fotos com cursor/cerca em implementação. 0226 cria
+primeiro a UNIQUE de preparação; 0227 acrescenta operações/recibos/barreiras,
+ambas geradas e adotadas intactas após corrigir ordem da FK. Candidata
+59113f71 passou 1352 integrações, 16 de captura e cinco HTTP; o gate de upgrade
+identificou comparação antiga incluindo colunas novas, corrigida junto ao
+acoplamento do preparador binário ao env completo. Seguem resumo regenerado e
+compactação delimitada do diário coberto. Ainda não há encerramento completo,
+exportação integral ou exclusão pública. Todas as validações manuais ficam ao
+final, por determinação do titular; nenhuma ativação/migration em produção.
+[Registro atual](recreio/congelamento-direitos-2026-11-19.md).
+
 **19/11 — Recreio, F7 ainda em implementação:** fonte candidata `aa95fb7b`
 concluiu os dezesseis gates `44535164302` (1330 integrações, 44 E2E comuns e
 252 casos da simulação). Prévia nativa de direitos, idempotência/cancelamento,

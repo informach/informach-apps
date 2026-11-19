@@ -11,14 +11,13 @@ import {
   type EdicaoDoCliente,
   type Fato,
   type Intencao,
-  listar,
   type Mundo,
   projetarEdicao,
   type RegrasDoMundo,
   restaurar,
+  resumoDoEstadoDoMorada,
   resumoDoTexto,
   type SaidaDoPasso,
-  ticksPorDia,
   VERSAO_DO_MUNDO,
 } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
@@ -900,17 +899,8 @@ export class Ator {
   // --- Fotografia, hibernação, fim ---
 
   private resumo(): { titulo: string; subtitulo: string } {
-    const estado = (this.mundo as Mundo).estado;
-    const familias = listar(estado.familias);
-    const moradores = listar(estado.moradores).filter((m) => m.familiaId !== null).length;
-    const dia = Math.floor(estado.relogio.tick / ticksPorDia(estado.relogio)) + 1;
-    return {
-      titulo: familias
-        .map((f) => `Família ${f.nome}`)
-        .join(" e ")
-        .slice(0, 60),
-      subtitulo: `Dia ${dia} · ${moradores} ${moradores === 1 ? "morador" : "moradores"}`,
-    };
+    if (!this.mundo) throw new ErroDoRecreio("INDISPONIVEL");
+    return resumoDoEstadoDoMorada(this.mundo.estado);
   }
 
   private async fotografar(tipo: "checkpoint" | "hibernate"): Promise<void> {

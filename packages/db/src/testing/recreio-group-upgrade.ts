@@ -22,7 +22,7 @@ const baseFile = (path: string) => execFileSync("git", ["show", `${BASE}:${path}
 async function memoria(sql: postgres.Sql) {
   const [linha] = await sql<{ conteudo: unknown }[]>`select jsonb_build_object(
     'grupos',(select jsonb_agg(to_jsonb(g) order by g.id) from recreio.groups g),
-    'perfis',(select jsonb_agg(to_jsonb(p) order by p.id) from recreio.profiles p),
+    'perfis',(select jsonb_agg(to_jsonb(p)-array['rights_operation_id','rights_frozen_state'] order by p.id) from recreio.profiles p),
     'chaves',(select jsonb_agg(to_jsonb(k) order by k.id) from recreio.profile_data_keys k),
     'versoes',(select jsonb_agg(to_jsonb(v) order by v.id) from recreio.profile_data_versions v),
     'conquistas',(select jsonb_agg(to_jsonb(a) order by a.id) from recreio.profile_achievements a)
@@ -30,7 +30,7 @@ async function memoria(sql: postgres.Sql) {
   assert.ok(linha);
   if (!COM_MUNDOS) return linha.conteudo;
   const [mundos] = await sql<{ conteudo: unknown }[]>`select jsonb_build_object(
-    'mundos',(select jsonb_agg(to_jsonb(s)-array['management_revision','archived_at'] order by s.id) from recreio.spaces s),
+    'mundos',(select jsonb_agg(to_jsonb(s)-array['management_revision','archived_at','rights_operation_id','rights_frozen_state'] order by s.id) from recreio.spaces s),
     'membros',(select jsonb_agg(to_jsonb(m) order by m.id) from recreio.space_members m),
     'convites',(select jsonb_agg(to_jsonb(i) order by i.id) from recreio.space_invites i),
     'posses',(select jsonb_agg(to_jsonb(l) order by l.id) from recreio.space_leases l),
@@ -130,11 +130,29 @@ async function main() {
       antes,
       "Atualização mudou IDs, composição ou progresso existente.",
     );
+    const [perfisCongelados] = await sql<
+      { total: number }[]
+    >`select count(*)::integer as total from recreio.profiles where rights_operation_id is not null or rights_frozen_state is not null`;
+    assert.equal(
+      perfisCongelados?.total,
+      0,
+      "DDL não pode congelar perfil ou fabricar consentimento.",
+    );
+    for (const tabela of ["rights_operations", "rights_subjects", "rights_worlds"]) {
+      const [linhas] = await sql.unsafe<{ total: number }[]>(
+        `select count(*)::integer as total from recreio.${tabela}`,
+      );
+      assert.equal(linhas?.total, 0, "DDL não pode fabricar operações ou recibos de retirada.");
+    }
     if (COM_MUNDOS) {
       const mundos = await sql<
         { management_revision: number; archived_at: Date | null }[]
       >`select management_revision,archived_at from recreio.spaces`;
       assert.equal(mundos.length, 2);
+      const [congelados] = await sql<
+        { total: number }[]
+      >`select count(*)::integer as total from recreio.spaces where rights_operation_id is not null or rights_frozen_state is not null`;
+      assert.equal(congelados?.total, 0, "DDL não pode congelar mundos.");
       assert.ok(mundos.every((m) => m.management_revision === 1 && m.archived_at === null));
       for (const tabela of [
         "directed_space_invites",

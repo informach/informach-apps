@@ -1,14 +1,14 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
-import { prepararRetiradaNaFotografiaDoMorada } from "@informach/morada-sim/direitos";
+import { jogoPorId } from "@informach/config/jogos";
+import { prepararFotografiaEResumoPessoaisDoMorada } from "@informach/morada-sim/direitos";
 import {
   conferirMetadadosDaFotografia,
   FOTOGRAFIA_ABERTA_MAX_BYTES,
 } from "@informach/morada-sim/formatos";
 import { MundoIdSchema, PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
-import { limitesDoJogo } from "../../src/features/jogos/config";
 
 const Meta = z.strictObject({
   mundoId: MundoIdSchema,
@@ -24,7 +24,7 @@ export class FalhaDaPreparacaoDeFotoPessoal extends Error {
   }
 }
 function limiteDeBytes() {
-  const limite = limitesDoJogo("morada").fotografiaMaxBytes;
+  const limite = jogoPorId("morada")?.limites.fotografiaMaxBytes;
   if (!limite || !Number.isSafeInteger(limite) || limite <= 0)
     throw new FalhaDaPreparacaoDeFotoPessoal("CONFIGURACAO");
   return limite;
@@ -77,7 +77,11 @@ export function prepararFotoPessoalDoMorada(
     })
   )
     throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
-  const retirada = prepararRetiradaNaFotografiaDoMorada(foto, perfilId, politica);
+  const { fotografia: retirada, resumo } = prepararFotografiaEResumoPessoaisDoMorada(
+    foto,
+    perfilId,
+    politica,
+  );
   const texto = JSON.stringify(retirada);
   if (Buffer.byteLength(texto) > FOTOGRAFIA_ABERTA_MAX_BYTES)
     throw new FalhaDaPreparacaoDeFotoPessoal("LIMITE");
@@ -92,5 +96,6 @@ export function prepararFotoPessoalDoMorada(
     sha256: sha(resultado),
     schemaVersion: meta.schemaVersion,
     tick: meta.tick,
+    resumo,
   };
 }

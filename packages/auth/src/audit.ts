@@ -154,6 +154,7 @@ export type AuditEventType =
   | "recreio.rights_consented"
   | "recreio.rights_admitted"
   | "recreio.rights_photo_processed"
+  | "recreio.rights_journal_compacted"
   | "recreio.achievement_unlocked"
   | "recreio.device_session_revoked"
   | "recreio.device_paired"

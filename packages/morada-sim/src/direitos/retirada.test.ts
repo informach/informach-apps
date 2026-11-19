@@ -10,7 +10,10 @@ import { criarMundo, restaurar } from "../execucao";
 import { abrirFotografia, type Fotografia } from "../formatos/fotografia";
 import { copiar } from "../nucleo/canonico";
 import { BRUNO, criarMundoDaProva, LIA } from "../testes";
-import { prepararRetiradaNaFotografiaDoMorada as retirarFoto } from "./fotografia";
+import {
+  prepararFotografiaEResumoPessoaisDoMorada,
+  prepararRetiradaNaFotografiaDoMorada as retirarFoto,
+} from "./fotografia";
 import { prepararRetiradaPessoalDoMorada as retirar } from "./retirada";
 
 function fundacao() {
@@ -324,4 +327,13 @@ describe("Morada: retirada em fotografia conserva o formato persistido", () => {
     expect(() => retirarFoto({ ...foto, tick: foto.tick + 1 }, LIA, politica)).toThrow();
     expect(() => retirarFoto({ ...foto, mundoId: "outro-mundo" }, LIA, politica)).toThrow();
   });
+});
+
+it("resumo de direitos é regenerado sem o nome pessoal original da fundação", () => {
+  const mundo = fundacao();
+  const resultado = prepararFotografiaEResumoPessoaisDoMorada(mundo.fotografar(), LIA, politica);
+  expect(resultado.resumo.titulo).not.toContain("Nome pessoal");
+  expect(resultado.resumo.titulo.length).toBeGreaterThan(0);
+  expect(resultado.resumo.titulo.length).toBeLessThanOrEqual(60);
+  expect(resultado.resumo.subtitulo).toContain("morador");
 });

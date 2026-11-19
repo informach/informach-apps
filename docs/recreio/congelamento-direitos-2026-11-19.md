@@ -179,3 +179,35 @@ RESTRICT, mas PostgreSQL 18 devolveu 23001, conservando os registros. Corrigida
 a expectativa estrita para o código observado, sem alterar a proteção. A nova
 rodada inclui processamento real de fotos, preservação de outro perfil/formato,
 rollback de auditoria, token vencido e recusa de livro congelado.
+
+## Resumo regenerado e prefixo coberto do diário
+
+Nova candidata compartilha a projeção pública do estado entre o servidor Morada
+e o adapter de direitos, sem mudar seu contrato. A última foto tratada atualiza
+o resumo/projeção congelada no mesmo commit; títulos pessoais da fundação não
+ficam na cópia do portal. A fila avança nextAttemptAt ao concluir cada foto,
+para uma operação com muitas fotos não monopolizar as passagens.
+
+Depois de todas as fotos, a compactação remove lotes de até 100 entradas do
+diário que a última fotografia já materializou. Confere prefixo/assinatura,
+barreira/cursor e SHA do corpo PG atual; recusa qualquer entrada além da
+cobertura. journalSeq e revisões não voltam a zero. A próxima abertura usa a
+última foto e lê apenas seq maior que ela; fatos individuais não são reescritos
+com autoria falsa. Fotos históricas/fixadas tratadas continuam presentes.
+Recuperação anterior à retirada continua obrigada ao replay do livro antes do
+tráfego; não oferecer reconstrução do diário pessoal compactado.
+
+Isto ainda não conclui vínculos, nome do mundo, objetos/retencões ou remoção
+final do perfil. A execução permanece interna/candidata, sem ativação pública.
+
+A candidata 59113f71 passou os 1352 cenários PostgreSQL (106 arquivos), os
+16 de captura e cinco HTTP em 44550763912. O gate de upgrade revelou que a
+comparação integral antiga incluía as duas novas colunas nulas; a projeção
+agora conserva todos os campos antigos e verifica separadamente que barreiras
+e operações novas continuam vazias. Não ignorar colunas novas sem essa prova.
+
+O CI compartilhado dessa fonte encontrou acoplamento indevido do preparador
+binário ao env completo do portal. O preparador e sua prova usam agora somente
+o limite canônico do Morada em @informach/config/jogos; não recebem env fictício
+ou mock de login/e-mail para conseguir ler bytes. O CI da fonte anterior aa95
+concluiu com sucesso em 44535164045, sem qualificar automaticamente esta mudança.

@@ -2,6 +2,7 @@ import { FalhaDaRetiradaDoMorada } from "@informach/morada-sim/direitos";
 import { ErroDoRecreio } from "@informach/recreio";
 import { ZodError } from "zod";
 import {
+  compactarDiarioDeDireitos,
   confirmarFotografiaDeDireitos,
   reservarFotografiaDeDireitos,
   revisarFotografiaDeDireitos,
@@ -29,7 +30,7 @@ export async function processarProximaFotografiaDeDireitos(config: {
     tempoLimiteMs: 30_000,
   });
   const reserva = await reservarFotografiaDeDireitos({ prova, assinatura: config.assinatura });
-  if (!reserva) return { situacao: "ociosa" as const };
+  if (!reserva) return compactarDiarioDeDireitos({ prova, assinatura: config.assinatura });
   if (reserva.tipo === "fotos_prontas")
     return { situacao: "dependencias" as const, operacaoId: reserva.operacaoId };
   let bytes: Uint8Array | undefined,

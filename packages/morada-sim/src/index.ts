@@ -24,6 +24,7 @@ export {
   type Migracao,
   migrar,
 } from "./formatos/fotografia";
+export { resumoDoEstadoDoMorada } from "./formatos/resumo";
 export * from "./nucleo/canonico";
 export * from "./nucleo/fixo";
 export * from "./nucleo/relogio";

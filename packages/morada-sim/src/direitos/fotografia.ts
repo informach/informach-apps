@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "../dominio/revisao-dos-objetos";
 import type { EstadoDoMundo } from "../dominio/tipos";
 import { abrirFotografia } from "../formatos/fotografia";
+import { resumoDoEstadoDoMorada } from "../formatos/resumo";
 import { canonico } from "../nucleo/canonico";
 import { FalhaDaRetiradaDoMorada, prepararRetiradaPessoalDoMorada } from "./retirada";
 
@@ -85,6 +86,14 @@ export function prepararRetiradaNaFotografiaDoMorada(
   perfilId: string,
   politica: { retirarTextosDaFundacao: boolean },
 ) {
+  return prepararFotografiaEResumoPessoaisDoMorada(bruto, perfilId, politica).fotografia;
+}
+
+export function prepararFotografiaEResumoPessoaisDoMorada(
+  bruto: unknown,
+  perfilId: string,
+  politica: { retirarTextosDaFundacao: boolean },
+) {
   const lido = Envelope.safeParse(bruto);
   if (!lido.success) throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
   const origem = lido.data;
@@ -109,5 +118,5 @@ export function prepararRetiradaNaFotografiaDoMorada(
   const reaberta = abrirFotografia(foto);
   if (canonico(reaberta.estado) !== canonico(retirada))
     throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
-  return foto;
+  return { fotografia: foto, resumo: resumoDoEstadoDoMorada(retirada) };
 }

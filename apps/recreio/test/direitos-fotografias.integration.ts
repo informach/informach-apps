@@ -3,6 +3,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
+  recreioSpaceJournal as journal,
   recreioSpaceMembers as members,
   recreioRightsOperations as operations,
   sessions,
@@ -47,8 +48,11 @@ async function adulto() {
   });
   return { autor, perfil };
 }
-async function cenario(fn: (f: Awaited<ReturnType<typeof preparar>>) => Promise<void>) {
-  const f = await preparar();
+async function cenario(
+  fn: (f: Awaited<ReturnType<typeof preparar>>) => Promise<void>,
+  entradas = 0,
+) {
+  const f = await preparar(entradas);
   try {
     await fn(f);
   } finally {
@@ -56,7 +60,7 @@ async function cenario(fn: (f: Awaited<ReturnType<typeof preparar>>) => Promise<
     await f.http.fechar();
   }
 }
-async function preparar() {
+async function preparar(entradas: number) {
   const livro = fixtureDoLivro(),
     http = await criarBucketDoLivro();
   const storage = criarArmazenamentoDoLivro({
@@ -99,7 +103,7 @@ async function preparar() {
       revision,
       fence: 1,
       schemaVersion: foto.estado.versao,
-      journalSeq: 0,
+      journalSeq: entradas,
       tick: foto.tick,
       kind: revision === 1 ? "pinned" : "hibernate",
       storage: "pg",
@@ -109,8 +113,25 @@ async function preparar() {
     });
   await db
     .update(spaces)
-    .set({ revision: 2, schemaVersion: foto.estado.versao })
+    .set({ revision: 2, journalSeq: entradas, schemaVersion: foto.estado.versao })
     .where(eq(spaces.id, mundo.id));
+  // Diário sintético já coberto pela fotografia admitida. A plataforma não
+  // interpreta fatos do jogo para compactar um prefixo confirmado pelo host.
+  if (entradas)
+    await db.insert(journal).values(
+      Array.from({ length: entradas }, (_, i) => {
+        const payload = Buffer.from(JSON.stringify({ fatoCoberto: i + 1, autor: a.perfil.id }));
+        return {
+          spaceId: mundo.id,
+          seq: i + 1,
+          fence: 1,
+          tick: foto.tick,
+          factId: `coberto-${i + 1}`,
+          payload,
+          byteSize: payload.length,
+        };
+      }),
+    );
   const previa = await prepararPedidoDeDireitos(a.autor, {
     pedidoId: randomUUID(),
     tipo: "retirar_perfil",
@@ -243,4 +264,52 @@ describe("retirada nas fotografias com simulação, PostgreSQL e SDK HTTP reais"
       expect(op?.state).toBe("admitted");
       expect(op?.leaseToken).toBeNull();
     }));
+  it("compacta só o prefixo coberto em lotes, sem resetar o cursor autoritativo", async () =>
+    cenario(async (f) => {
+      await processar(f.config);
+      await processar(f.config);
+      await processar(f.config);
+      expect(await processar(f.config)).toMatchObject({
+        situacao: "diario_compactado",
+        entradas: 100,
+      });
+      expect(await processar(f.config)).toMatchObject({
+        situacao: "diario_compactado",
+        entradas: 5,
+      });
+      expect(await processar(f.config)).toEqual({ situacao: "ociosa" });
+      expect((await db.select().from(journal).where(eq(journal.spaceId, f.mundo.id))).length).toBe(
+        0,
+      );
+      const [mundo] = await db.select().from(spaces).where(eq(spaces.id, f.mundo.id));
+      expect(mundo?.journalSeq).toBe(105);
+      expect(mundo?.revision).toBe(2);
+      const fotos = await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id));
+      expect(fotos.every((p) => p.journalSeq === 105)).toBe(true);
+      expect(
+        (await db.select().from(operations).where(eq(operations.id, f.op.operacaoId)))[0]
+          ?.completedAt,
+      ).toBeNull();
+    }, 105));
+
+  it("diário fora do salvamento confirmado impede compactar qualquer entrada", async () =>
+    cenario(async (f) => {
+      await processar(f.config);
+      await processar(f.config);
+      await processar(f.config);
+      const payload = Buffer.from("fato nao coberto");
+      await db.insert(journal).values({
+        spaceId: f.mundo.id,
+        seq: 3,
+        fence: 1,
+        tick: 0,
+        factId: "fora-da-cobertura",
+        payload,
+        byteSize: payload.length,
+      });
+      await expect(processar(f.config)).rejects.toMatchObject({ code: "DIREITOS_INTEGRIDADE" });
+      expect((await db.select().from(journal).where(eq(journal.spaceId, f.mundo.id))).length).toBe(
+        3,
+      );
+    }, 2));
 });

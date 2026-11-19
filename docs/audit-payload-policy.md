@@ -344,3 +344,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.rights_admitted`: `{ app, operationId, kind }`. Intenção confirmada no prefixo verificado do livro externo. Não representa execução ou conclusão. Nenhum conteúdo, referência pessoal adicional ou dado criptográfico no evento.
 
 - `recreio.rights_photo_processed`: `{ app, operationId, gameId, photoCount }`. Passo atômico de uma fotografia e cursor; não afirma limpeza integral do mundo ou perfil. Não registrar IDs do mundo/foto/perfil, conteúdo, referências de objeto ou hashes.
+
+- `recreio.rights_journal_compacted`: `{ app, operationId, gameId, entryCount }`. Retirada de até 100 entradas já cobertas pela última foto tratada e conferida; preserva o cursor autoritativo. Não registrar IDs de fatos/mundos/perfis, payloads ou hashes.
