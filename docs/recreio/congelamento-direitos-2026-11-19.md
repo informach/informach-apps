@@ -559,3 +559,20 @@ falha foi a expectativa exata do DTO antigo do painel: faltava o novo campo
 comparação integral, incluindo a negativa de plano/bytes/dados alheios. Os
 novos testes de confirmação, livro ausente/congelado e repetição passaram;
 nova rodada necessária antes de qualificar esta fonte.
+
+
+## Captura pessoal consistente — em implementação
+
+O coordenador pessoal passa a reutilizar os leitores existentes na mesma
+transação `repeatable read`, em vez de juntar recortes de instantes diferentes.
+Cadastro, jogos históricos/versões/conflitos/conquistas e vínculos próprios
+entram em NDJSON com projeções explícitas. Metadados paginam de cem em cem;
+32 MiB, cem mil registros e 256 jogos são tetos de recusa integral, nunca
+truncamento. O arquivo só é montado depois do commit e os buffers intermediários
+são apagados inclusive no rollback. SID, aparelho/login, PIN/hashes, nomes de
+mundos, dados financeiros e conteúdo compartilhado não são entregues.
+
+Esta captura ainda não equivale à exportação integral da conta: faltam os
+domínios pessoais de conta/cobrança e a composição de artefato privado,
+expiração/revogação/download. Também não transforma responsabilidade por
+perfil em autorização de exportar os bytes completos de um mundo.

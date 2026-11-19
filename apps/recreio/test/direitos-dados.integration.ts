@@ -4,6 +4,7 @@ import { and, db, eq, sql } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,
   recreioDeviceSessions as devices,
+  recreioGameSessions as gameSessions,
   recreioGroups as groups,
   recreioGuardianLinks as guardians,
   recreioProfileDataKeys as keys,
@@ -21,6 +22,7 @@ import {
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { capturarDadosPessoaisDoPerfil } from "@/features/direitos/captura-perfil-repository";
 import {
   cancelarPreviaDeDireitos,
   consultarMeusDireitos,
@@ -106,6 +108,97 @@ function proprio(a: Awaited<ReturnType<typeof adulto>>) {
 }
 const copiar = (autor: AutorNativoRecente, perfilId: string, jogo = JOGO) =>
   prepararCopiaPessoalDoJogo(autor, { perfilId, jogo });
+
+describe("direitos: captura pessoal consistente", () => {
+  it("inclui jogos históricos e todas as páginas próprias sem exportar credenciais ou conteúdo compartilhado", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    if (!a.perfil || !b.perfil) throw new Error("Profiles absent");
+    await dados(proprio(a));
+    await dados(proprio(b), "jogo-privado-de-outro-adulto");
+    const mundos = await db
+      .insert(spaces)
+      .values(
+        Array.from({ length: 205 }, () => ({
+          gameId: "morada",
+          name: "Nome privado de mundo compartilhado",
+          contentPolicy: "family" as const,
+          createdByProfileId: proprio(b),
+          stewardProfileId: proprio(b),
+        })),
+      )
+      .returning({ id: spaces.id });
+    await db.insert(spaceMembers).values(
+      mundos.map((m) => ({
+        spaceId: m.id,
+        profileId: proprio(a),
+        role: "member" as const,
+        state: "active" as const,
+        participation: "minha participação",
+      })),
+    );
+    const [sid] = await db
+      .insert(gameSessions)
+      .values({
+        profileId: proprio(a),
+        deviceSessionId: a.autor.sessaoDeAparelhoId,
+        gameId: JOGO,
+        expiresAt: new Date(Date.now() + 60_000),
+      })
+      .returning({ id: gameSessions.id });
+    if (!sid) throw new Error("Game session absent");
+    const captura = await capturarDadosPessoaisDoPerfil(a.autor, a.perfil.id);
+    try {
+      const texto = captura.bytes.toString("utf8");
+      expect(texto.split("\n").filter((l) => l.startsWith('{"tipo":"participacao"'))).toHaveLength(
+        205,
+      );
+      expect(texto).toContain(JOGO);
+      expect(texto).toContain('"estado":"conflict"');
+      expect(texto).toContain('"conteudo":"YXR1YWw="');
+      for (const privado of [
+        a.conta.id,
+        a.conta.email,
+        b.conta.id,
+        b.conta.email,
+        proprio(b),
+        sid.id,
+        a.autor.sessaoDeAparelhoId,
+        a.autor.login.authSessionId,
+        "Nome privado de mundo compartilhado",
+        "jogo-privado-de-outro-adulto",
+        "keyHash",
+        "pinHash",
+        '"cursor"',
+      ])
+        expect(texto).not.toContain(privado);
+      expect(captura).toMatchObject({ perfilId: proprio(a), responsabilidadeId: null });
+      await expect(capturarDadosPessoaisDoPerfil(b.autor, a.perfil.id)).rejects.toMatchObject({
+        code: "PERFIL",
+      });
+    } finally {
+      captura.bytes.fill(0);
+    }
+  });
+  it("pode capturar menor sem jogador pagante e nega contexto infantil por chamada direta", async () => {
+    const a = await adulto(false),
+      perfil = await menor(a.autor);
+    const captura = await capturarDadosPessoaisDoPerfil(a.autor, perfil.id);
+    try {
+      expect(captura.responsabilidadeId).not.toBeNull();
+      expect(captura.bytes.toString("utf8")).toContain('"tipo":"minor"');
+    } finally {
+      captura.bytes.fill(0);
+    }
+    await db
+      .update(devices)
+      .set({ minorContextGeneration: crypto.randomUUID() })
+      .where(eq(devices.id, a.autor.sessaoDeAparelhoId));
+    await expect(capturarDadosPessoaisDoPerfil(a.autor, perfil.id)).rejects.toMatchObject({
+      code: "AUTH",
+    });
+  });
+});
 
 describe("direitos: recorte pessoal por jogo sem autoridade de gameplay", () => {
   it("copia cadastro do adulto próprio, sem credenciais ou dados do responsável comercial", async () => {
