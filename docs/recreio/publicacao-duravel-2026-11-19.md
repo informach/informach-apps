@@ -51,3 +51,11 @@ teve 1.275 casos aprovados e uma expectativa incorreta de SQLSTATE no teste de
 FK RESTRICT: PostgreSQL devolveu `23001`, conservando a proteção; teste corrigido
 para esse código específico. Não contar a rodada como aprovada. Nova integração
 qualifica conjuntamente publicação e coleta na candidata seguinte.
+
+A prova externa `44488576793`/`02ea9242` foi cancelada após o build ficar
+mais de dezessete minutos no bootstrap do Corepack, antes de executar o teste
+ou criar objetos. O log termina no download do pnpm 9.15.0; não comprova erro
+de integridade nem publicação/limpeza no provedor. O executor passa a instalar
+explicitamente o gerenciador fixado com limite de 120 s e dependências com
+limite de 600 s, sem mudar versões/digests, desativar integridade ou trocar
+registry. A indisponibilidade de rede permanece uma falha, com término limitado.
