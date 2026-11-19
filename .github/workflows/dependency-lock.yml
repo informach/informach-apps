@@ -48,10 +48,18 @@ jobs:
           const bytes = await readFile(path);
           const original = execFileSync('git', ['show', 'HEAD:pnpm-lock.yaml']);
           const manifest = await readFile('apps/recreio/package.json');
+          const rootManifest = await readFile('package.json');
           const sha = value => createHash('sha256').update(value).digest('hex');
+          const patches = [];
+          for (const path of Object.values(JSON.parse(rootManifest).pnpm?.patchedDependencies ?? {})) {
+            if (typeof path !== 'string' || !/^patches\/[a-z0-9@._+-]+\.patch$/.test(path) || !(await lstat(path)).isFile())
+              throw new Error('Patch must be a regular versioned file in patches');
+            const content = await readFile(path);
+            patches.push({ path, bytes: content.length, sha256: sha(content) });
+          }
           const receipt = { source: process.env.GITHUB_SHA, node: process.version,
             pnpm: execFileSync('pnpm', ['--version'], { encoding: 'utf8' }).trim(),
-            originalLockSha256: sha(original), recreioManifestSha256: sha(manifest),
+            originalLockSha256: sha(original), recreioManifestSha256: sha(manifest), rootManifestSha256: sha(rootManifest), patches,
             file: { path, bytes: bytes.length, sha256: sha(bytes) } };
           await writeFile(resolve(root, 'proveniencia.json'), JSON.stringify(receipt, null, 2) + '\n');
           console.log(JSON.stringify(receipt));
