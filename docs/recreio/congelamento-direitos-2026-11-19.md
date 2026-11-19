@@ -552,3 +552,10 @@ estado do pedido, preserva o acompanhamento sem jogador e retira o botão de
 cancelar prévia quando já há consentimento. Confirmadas não consomem o limite
 de três prévias ainda não consentidas. Segredos/bytes de intenção nunca entram
 no DTO. Validação remota desta composição e da interface ainda pendente.
+
+A rodada focada 44588168487 (9d297e44) passou 90 de 91 casos. A única
+falha foi a expectativa exata do DTO antigo do painel: faltava o novo campo
+`operacao: null` quando a prévia não tem consentimento. A correção mantém a
+comparação integral, incluindo a negativa de plano/bytes/dados alheios. Os
+novos testes de confirmação, livro ausente/congelado e repetição passaram;
+nova rodada necessária antes de qualificar esta fonte.

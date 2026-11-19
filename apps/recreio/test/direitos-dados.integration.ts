@@ -828,6 +828,7 @@ describe("direitos: painel pessoal com autoridade atual", () => {
       {
         preparacaoId: previa.preparacaoId,
         planoSha256: previa.planoSha256,
+        operacao: null,
         tipo: "encerrar_conta",
         criadaEm: expect.any(String),
         expiraEm: previa.expiraEm,
