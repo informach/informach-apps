@@ -334,3 +334,10 @@ em banco `ci` local e sem conteúdo/domínio de produção. CI compartilhado
 o pacote instalado, sem embutir/mascarar seu driver no teste. A cópia Cloudflare
 recebe o mesmo ajuste, sem homologação de runtime neste projeto. Gates desse patch e o
 fechamento de captura permanecem pendentes; não aplicar em produção antes deles.
+
+O lock final `44458443087`/`b935970c` foi adotado intacto, com hash do patch das
+três entradas e igualdade estrutural preservando todas as versões anteriores.
+[Recibo completo](evidencias/postgres-lock-44458443087.json). Próximo gate exige
+instalação congelada, cinco quedas por formato Node e as dez provas da captura;
+depois, rodada aplicável do Recreio e CI de todos os consumidores. Nenhum
+`node_modules`, teste pesado ou build foi executado nesta máquina.

@@ -39,4 +39,7 @@ runtime deste repositório. O lock intermediário `44457602594` conferiu igualda
 de versões, mas foi substituído antes da homologação para incluir as três
 entradas. Exige nova geração e instalação congelada do patch completo.
 
-Estado: correção candidata; lock final e gates ainda pendentes.
+O lock final foi gerado em `44458443087`/`b935970c`, adotado intacto e conferido
+sem mudança nas versões/estruturas de 1.438 packages e 1.446 snapshots, além da
+identidade do patch. [Proveniência](../docs/recreio/evidencias/postgres-lock-44458443087.json).
+Estado: correção candidata; instalação congelada e gates ainda pendentes.

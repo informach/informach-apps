@@ -98,9 +98,15 @@ custo/carga remota e homologação final permanecem abertos no
 `44453304274` validou arquivo sintético de 64 MiB, escrita condicional, replay,
 recuperação sem cópia local, acesso privado e limpeza; perfil offline de 384 MiB
 `44453287884` também aprovado. Reservas de captura 0218 foram geradas/adotadas
-intactas (219 recibos candidatos), ainda sem escritor ou implantação.
+intactas (219 recibos candidatos), sem implantação. Primeiro writer de captura
+e reservas passou em `44455214243`: 1.242 integrações, dez provas de captura,
+cinco HTTP e upgrades com dados preservados. Referências impossíveis passaram
+a ser recusadas antes da rede (`44456149519`, 71 testes). A revisão de
+encerramento revelou exceção no driver postgres após queda real da conexão
+(`44456802954`/`39e362f0`); correção reproduzível do escopo em patch pnpm,
+mantendo versões, com prova ESM/CommonJS e CI compartilhado ainda pendentes.
 [Recibos, plano de captura e limites](recreio/backup-e-retirada-2026-11-19.md).
-Captura consistente, coleta, custódia e restauração do arquivo completo seguem
+Fechamento da captura, coleta, custódia e restauração do arquivo completo seguem
 abertas; esses ensaios sintéticos não concluem F8.
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)

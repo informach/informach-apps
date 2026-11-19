@@ -22,6 +22,11 @@ overrides:
   pptxgenjs@4.0.1>https: '-'
   body-parser@>=2.0.0 <2.4.0: ^2.4.0
 
+patchedDependencies:
+  postgres@3.4.9:
+    hash: m6v47jn2at2aouvttgmoh7lqwe
+    path: patches/postgres@3.4.9.patch
+
 importers:
 
   .:
@@ -156,7 +161,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       better-auth:
         specifier: 1.7.10
-        version: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
+        version: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -368,7 +373,7 @@ importers:
         version: 0.28.2
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -638,7 +643,7 @@ importers:
         version: 16.6.1
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -1314,7 +1319,7 @@ importers:
         version: 16.6.1
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -1469,7 +1474,7 @@ importers:
         version: 16.6.1
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -1515,10 +1520,10 @@ importers:
         version: 24.19.2
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1566,7 +1571,7 @@ importers:
         version: 6.0.309(zod@4.6.7)
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
@@ -1600,10 +1605,10 @@ importers:
     dependencies:
       '@better-auth/oauth-provider':
         specifier: 1.7.10
-        version: 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))
+        version: 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))
       '@better-auth/passkey':
         specifier: 1.7.10
-        version: 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))(nanostores@1.5.5)
+        version: 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))(nanostores@1.5.5)
       '@informach/config':
         specifier: workspace:*
         version: link:../config
@@ -1618,10 +1623,10 @@ importers:
         version: link:../emails
       better-auth:
         specifier: 1.7.10
-        version: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
+        version: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       jose:
         specifier: ^6.2.12
         version: 6.2.12
@@ -1670,7 +1675,7 @@ importers:
         version: link:../family
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       stripe:
         specifier: 22.1.0
         version: 22.1.0(@types/node@24.19.2)
@@ -1683,7 +1688,7 @@ importers:
         version: 16.6.1
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -1710,13 +1715,13 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       papaparse:
         specifier: ^5.7.0
         version: 5.7.0
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
     devDependencies:
       '@types/node':
         specifier: ^24.19.2
@@ -1818,7 +1823,7 @@ importers:
         version: link:../edi-contracts
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
     devDependencies:
       '@types/node':
         specifier: ^24.19.2
@@ -1964,7 +1969,7 @@ importers:
         version: 8.1.6
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       next-intl:
         specifier: ^4.14.9
         version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
@@ -2010,7 +2015,7 @@ importers:
         version: link:../db
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -2020,7 +2025,7 @@ importers:
         version: 24.19.2
       postgres:
         specifier: ^3.4.9
-        version: 3.4.9
+        version: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -9820,12 +9825,12 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
 
-  '@better-auth/drizzle-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))':
+  '@better-auth/drizzle-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))':
     dependencies:
       '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
     optionalDependencies:
-      drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+      drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
 
   '@better-auth/kysely-adapter@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(kysely@0.28.17)':
     dependencies:
@@ -9844,24 +9849,24 @@ snapshots:
       '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
 
-  '@better-auth/oauth-provider@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))':
+  '@better-auth/oauth-provider@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))':
     dependencies:
       '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
       '@better-fetch/fetch': 1.3.2
-      better-auth: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
+      better-auth: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
       better-call: 1.4.2(zod@4.6.7)
       jose: 6.2.12
       zod: 4.6.7
 
-  '@better-auth/passkey@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))(nanostores@1.5.5)':
+  '@better-auth/passkey@1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))))(better-call@1.4.2(zod@4.6.7))(nanostores@1.5.5)':
     dependencies:
       '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.0
       '@better-fetch/fetch': 1.3.2
       '@simplewebauthn/browser': 13.3.0
       '@simplewebauthn/server': 13.3.3
-      better-auth: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
+      better-auth: 1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)))
       better-call: 1.4.2(zod@4.6.7)
       nanostores: 1.5.5
       zod: 4.6.7
@@ -12855,10 +12860,10 @@ snapshots:
 
   baseline-browser-mapping@2.11.29: {}
 
-  better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))):
+  better-auth@1.7.10(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))(next@16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))):
     dependencies:
       '@better-auth/core': 1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5)
-      '@better-auth/drizzle-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))
+      '@better-auth/drizzle-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)))
       '@better-auth/kysely-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)(kysely@0.28.17)
       '@better-auth/memory-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
       '@better-auth/mongo-adapter': 1.7.10(@better-auth/core@1.7.10(@better-auth/utils@0.5.0)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.2(zod@4.6.7))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.5.5))(@better-auth/utils@0.5.0)
@@ -12876,7 +12881,7 @@ snapshots:
       zod: 4.6.7
     optionalDependencies:
       drizzle-kit: 0.31.11
-      drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
+      drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe))
       next: 16.4.2(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       pg: 8.23.1
       react: 19.3.1
@@ -13348,13 +13353,13 @@ snapshots:
       esbuild: 0.28.2
       tsx: 4.23.15
 
-  drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9):
+  drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.15.6
       kysely: 0.28.17
       pg: 8.23.1
-      postgres: 3.4.9
+      postgres: 3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe)
 
   dunder-proto@1.0.1:
     dependencies:
@@ -15226,7 +15231,7 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  postgres@3.4.9: {}
+  postgres@3.4.9(patch_hash=m6v47jn2at2aouvttgmoh7lqwe): {}
 
   posthog-node@5.56.2(@opentelemetry/api@1.9.1):
     dependencies:
