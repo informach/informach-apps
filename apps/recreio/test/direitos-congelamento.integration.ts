@@ -314,14 +314,12 @@ describe("barreiras persistidas de direitos (PostgreSQL real)", () => {
 
   it("minimização exige prazo e política explícitos, e não admite remoção antes do prazo", async () => {
     const c = await cenario();
-    await db
-      .insert(subjects)
-      .values({
-        operationId: c.id,
-        profileReference: c.perfilId,
-        liveProfileId: c.perfilId,
-        policyVersion: 1,
-      });
+    await db.insert(subjects).values({
+      operationId: c.id,
+      profileReference: c.perfilId,
+      liveProfileId: c.perfilId,
+      policyVersion: 1,
+    });
     const agora = new Date(),
       prazo = new Date(agora.getTime() + 30_000);
     expect(

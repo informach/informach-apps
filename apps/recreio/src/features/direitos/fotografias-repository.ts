@@ -21,6 +21,7 @@ import { limitesDoJogo } from "@/features/jogos/config";
 import { armazenamentoPg } from "@/features/posse/armazenamento-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import { comEfeitoNativoDeDireitos } from "./efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import type { conferirPrefixoDoLivro } from "./livro/leitura";
@@ -59,7 +60,8 @@ export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
   const livroId = z.uuid().parse(config.assinatura.livroId);
   assertAllowed(
     config.prova.cabecalho.documento.livroId === livroId &&
-      config.prova.cabecalho.documento.estado === "aberto",
+      config.prova.cabecalho.documento.estado === "aberto" &&
+      config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva,
     "DIREITOS_LIVRO",
     "Livro indisponível para execução.",
   );
@@ -180,48 +182,7 @@ export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
  * journalSeq autoritativo e as fotos históricas/fixadas já tratadas. Não reescreve
  * fatos individuais nem atribui ao simulador ações de uma pessoa retirada. */
 export function compactarDiarioDeDireitos(config: CoordenacaoDuravel) {
-  const livroId = z.uuid().parse(config.assinatura.livroId);
-  assertAllowed(
-    config.prova.cabecalho.documento.livroId === livroId &&
-      config.prova.cabecalho.documento.estado === "aberto",
-    "DIREITOS_LIVRO",
-    "Livro indisponível para execução.",
-  );
-  return db.transaction(async (tx) => {
-    await limites(tx);
-    const [op] = await tx
-      .select()
-      .from(operations)
-      .where(
-        and(
-          eq(operations.ledgerId, livroId),
-          inArray(operations.state, ["admitted", "running"]),
-          or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
-          sql`${operations.nextAttemptAt}<=${AGORA}`,
-          sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies' and exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId}))`,
-        ),
-      )
-      .orderBy(operations.nextAttemptAt, operations.id)
-      .limit(1)
-      .for("update", { skipLocked: true });
-    if (!op) return { situacao: "ociosa" as const };
-    assertAllowed(
-      config.prova.referencias.some(
-        (r) => r.operacaoId === op.id && r.revisao === op.revision && r.sha256 === op.intentSha256,
-      ),
-      "DIREITOS_LIVRO",
-      "Intenção não admitida no prefixo verificado.",
-    );
-    const [preparacao] = await tx
-      .select()
-      .from(preparations)
-      .where(eq(preparations.id, op.preparationId));
-    const selecionados = await tx
-      .select({ id: subjects.profileReference })
-      .from(subjects)
-      .where(eq(subjects.operationId, op.id))
-      .orderBy(subjects.profileReference);
-    conferirIntencaoNativa(op, preparacao, selecionados, config.assinatura);
+  return comEfeitoNativoDeDireitos(config, "diario", async (tx, op) => {
     const [passo] = await tx
       .select()
       .from(worlds)
@@ -296,10 +257,6 @@ export function compactarDiarioDeDireitos(config: CoordenacaoDuravel) {
           )
           .returning({ seq: journal.seq })
       : [];
-    await tx
-      .update(operations)
-      .set({ nextAttemptAt: AGORA, updatedAt: AGORA })
-      .where(eq(operations.id, op.id));
     if (removidas.length)
       await logAuditEventStrict(
         "recreio.rights_journal_compacted",

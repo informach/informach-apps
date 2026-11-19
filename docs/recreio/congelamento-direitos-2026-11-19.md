@@ -229,3 +229,38 @@ cobertura desligada e rótulo/avatar genéricos; CHECK da projeção continua
 impedindo writer antigo. Não autoriza criador de perfil a emitir essa referência.
 Ainda faltam o minimizador, expurgo por prazo, recibo final e telas/retensões
 completas. Gerar/qualificar esse DDL remotamente antes da adoção.
+
+## Gates e revisão da fila
+
+2a7acd8b concluiu os dezesseis gates em 44552782455: 1354 integrações/106
+arquivos, 16 captura, cinco HTTP, 253 simulação e upgrades 179→228/191→228
+preservados. Recibo estruturado em evidencias/rodada-direitos-44552782455.json.
+Isso não qualifica automaticamente o incremento seguinte ou produção.
+
+0228 foi gerada/adotada intacta em 44554233226, 229 recibos na candidata.
+A primeira integração 44554917115 passou 1355 e falhou em um caso de parâmetro
+polimórfico de jsonb_build_array: recebeu 42P18 antes de atingir o CHECK.
+A função de projeção compartilhada agora fixa os tipos PG de todos os campos,
+em vez de aceitar esse erro no teste. Gerar a alteração dos dois CHECKs intacta.
+
+Passos SQL de diário/cadastro ganham lease durável antes da transação de
+efeitos. Erro de integridade entra em revisão automática auditada; erro inesperado
+continua falhando o job, com próxima tentativa adiada sem refazer o consentimento.
+Isso permite atender outros pedidos e preserva rollback/origem do erro.
+Conteúdo pessoal é retirado em lotes de 100 sem carregar BLOBs, buscando versões
+pelo índice da chave e mantendo o conteúdo dos demais perfis. A minimização
+final do cadastro ainda é outra etapa. A chave ativa do worker também precisa
+coincidir com a cabeça verificada, inclusive ao reconhecer intenção histórica;
+um writer da época antiga não pode continuar após rotação.
+
+## Fechamento de mundos ativos ainda a implementar
+
+A recusa de mundo em uso é segura, mas não basta para a plataforma final quando
+outros continuam jogando. Próxima coordenação deve admitir intenção, bloquear
+novas entradas e encerrar SIDs do mundo pelo cursor já existente. O host atual
+recebe esses encerramentos, fotografa ao ficar vazio e libera a posse. Só após
+confirmar esse salvamento e sua cobertura a operação passa à projeção congelada
+com cerca nova. Enquanto drena, preservar escritas finais do host autorizado;
+não arquivar/congelar contadores antes de seu checkpoint. Estado inconsistente
+ou host perdido com diário pendente permanece recuperável, sem descartar
+progresso. Isso é contrato da plataforma/host; não exige publicar o jogo D3.

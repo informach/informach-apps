@@ -32,7 +32,8 @@ export async function admitirIntencaoNoLivro(config: {
   const head = prova.cabecalho,
     antes = head.documento;
   if (antes.estado !== "aberto") throw new FalhaDoLivroDeDireitos("CONGELADO");
-  if (antes.livroId !== doc.livroId) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+  if (antes.livroId !== doc.livroId || head.chaveId !== assinatura.chaveAtiva)
+    throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
   const sha256 = resumoDoRegistro(bytes),
     ref = { operacaoId: doc.operacaoId, revisao: doc.revisao, sha256 };
   const existente = prova.referencias.find((r) => r.operacaoId === doc.operacaoId);

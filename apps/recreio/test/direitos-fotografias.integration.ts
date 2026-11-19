@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
@@ -20,6 +20,7 @@ import {
   reservarFotografiaDeDireitos,
 } from "@/features/direitos/fotografias-repository";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
+import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { consentirRetiradaNoBanco } from "@/features/direitos/retirada-consentimento-repository";
@@ -307,9 +308,55 @@ describe("retirada nas fotografias com simulação, PostgreSQL e SDK HTTP reais"
         payload,
         byteSize: payload.length,
       });
-      await expect(processar(f.config)).rejects.toMatchObject({ code: "DIREITOS_INTEGRIDADE" });
+      expect((await processar(f.config)).situacao).toBe("revisao");
+      const [bloqueada] = await db
+        .select()
+        .from(operations)
+        .where(eq(operations.id, f.op.operacaoId));
+      expect(bloqueada?.state).toBe("review");
+      expect(bloqueada?.reviewCode).toBe("integrity");
       expect((await db.select().from(journal).where(eq(journal.spaceId, f.mundo.id))).length).toBe(
         3,
       );
     }, 2));
+  it("worker antigo é cercado após rotação; o novo conserva a intenção histórica", async () =>
+    cenario(async (f) => {
+      const agora = new Date().toISOString();
+      await f.config.storage.congelarCabecalho(await f.config.storage.lerCabecalho(), agora);
+      const key = randomBytes(32),
+        nova = criarAssinaturaDoLivro({
+          livroId: f.livro.livroId,
+          chaveAtiva: "v2",
+          chaves: new Map([
+            ["v1", f.livro.segredo],
+            ["v2", key],
+          ]),
+        });
+      try {
+        const storage = criarArmazenamentoDoLivro({
+          cliente: f.http.cliente,
+          bucket: "recreio-fixture",
+          assinatura: nova,
+          tempoLimiteMs: 2000,
+        });
+        await storage.retomarComNovaChave(
+          await storage.lerCabecalho(),
+          "e".repeat(64),
+          new Date().toISOString(),
+        );
+        await expect(processar({ ...f.config, storage })).rejects.toMatchObject({
+          code: "DIREITOS_LIVRO",
+        });
+        expect(
+          (await db.select().from(operations).where(eq(operations.id, f.op.operacaoId)))[0]
+            ?.leaseToken,
+        ).toBeNull();
+        expect((await processar({ ...f.config, storage, assinatura: nova })).situacao).toBe(
+          "fotografia_processada",
+        );
+      } finally {
+        nova.encerrar();
+        key.fill(0);
+      }
+    }));
 });

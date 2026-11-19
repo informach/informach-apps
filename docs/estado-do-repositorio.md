@@ -1,5 +1,16 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, fonte 2a7acd8b qualificada:** dezesseis gates 44552782455,
+1354 integrações e upgrades 179/191→228 preservados. Consentimento/outbox,
+fotos, resumo e diário coberto; ainda sem encerramento/exportação integrais.
+Segue candidata de fila justa, conteúdo pessoal em lotes e referência mínima
+com retenção (0228, 229 recibos). Projeções SQL recebem tipos explícitos após
+42P18 identificado no teste; DDL seguinte deve ser gerado remotamente.
+Mundos ativos ainda precisam de drenagem pelo host, e minimizador, retenções,
+encerramento nativo, custódia/restauração e homologação final continuam abertos.
+Nenhuma dessas candidatas ativada em produção; testes manuais só no final.
+[Contrato e evidências](recreio/congelamento-direitos-2026-11-19.md).
+
 **19/11 — F7, continuação candidata:** consentimento individual nativo, outbox
 assinada e processamento de fotos com cursor/cerca em implementação. 0226 cria
 primeiro a UNIQUE de preparação; 0227 acrescenta operações/recibos/barreiras,

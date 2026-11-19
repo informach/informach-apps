@@ -1,0 +1,106 @@
+{
+  "runId": 44552782455,
+  "source": "2a7acd8b3fda25d29f2955f7cc5da59439d4357e",
+  "url": "https://github.com/informach/informach-apps/actions/runs/44552782455",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 135660698324,
+      "name": "Recreio / trial-play",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660698324"
+    },
+    {
+      "id": 135660698803,
+      "name": "Recreio / e2e",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660698803"
+    },
+    {
+      "id": 135660698866,
+      "name": "Recreio / checkpoint",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660698866"
+    },
+    {
+      "id": 135660698867,
+      "name": "Recreio / trial-setup",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660698867"
+    },
+    {
+      "id": 135660698948,
+      "name": "Recreio / trial-experiment",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660698948"
+    },
+    {
+      "id": 135660698964,
+      "name": "Recreio / commercial-setup",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660698964"
+    },
+    {
+      "id": 135660698978,
+      "name": "Recreio / integration",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660698978"
+    },
+    {
+      "id": 135660699000,
+      "name": "Recreio / trial-ui",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699000"
+    },
+    {
+      "id": 135660699007,
+      "name": "Recreio / quality",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699007"
+    },
+    {
+      "id": 135660699012,
+      "name": "Recreio / commercial-reconciliation",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699012"
+    },
+    {
+      "id": 135660699042,
+      "name": "Recreio / commercial-ui",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699042"
+    },
+    {
+      "id": 135660699195,
+      "name": "Recreio / cliente",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699195"
+    },
+    {
+      "id": 135660699296,
+      "name": "Recreio / longa",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699296"
+    },
+    {
+      "id": 135660699343,
+      "name": "Recreio / equipe",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699343"
+    },
+    {
+      "id": 135660699455,
+      "name": "Recreio / versoes",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660699455"
+    },
+    {
+      "id": 135660701488,
+      "name": "Recreio / commercial-checkout",
+      "conclusion": "success",
+      "url": "https://github.com/informach/informach-apps/actions/runs/44552782455/job/135660701488"
+    }
+  ],
+  "productionApplied": false,
+  "scope": "Fonte candidata de consentimento/outbox/fotografias/resumo/diario; nao conclui encerramento/exportacao/custodia."
+}

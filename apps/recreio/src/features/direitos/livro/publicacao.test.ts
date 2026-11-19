@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { fixtureDoLivro } from "../../../../test/livro-apoio";
 import { criarBucketDoLivro } from "../../../../test/livro-s3-apoio";
 import { criarArmazenamentoDoLivro } from "./armazenamento";
+import { criarAssinaturaDoLivro } from "./assinatura";
 import { conferirPrefixoDoLivro } from "./leitura";
 import { admitirIntencaoNoLivro } from "./publicacao";
 
@@ -113,5 +114,47 @@ describe("admissão retomável do consentimento no livro", () => {
         if (r.status === "rejected") expect(r.reason).toMatchObject({ codigo: "CONCORRENCIA" });
       expect((await f.publicar(bytes)).jaAdmitida).toBe(true);
       expect((await f.storage.lerCabecalho()).documento.entradas).toBe(1);
+    }));
+  it("publicador com chave ativa antiga não readmite operação depois da rotação", async () =>
+    cenario(async (f) => {
+      await f.storage.iniciarCabecalho(f.assinatura.assinarCabecalho(f.inicial));
+      const bytes = f.assinatura.assinarIntencao(f.intencao());
+      await f.publicar(bytes);
+      await f.storage.congelarCabecalho(await f.storage.lerCabecalho(), "2026-11-19T10:03:00.000Z");
+      const key = randomBytes(32),
+        nova = criarAssinaturaDoLivro({
+          livroId: f.livroId,
+          chaveAtiva: "v2",
+          chaves: new Map([
+            ["v1", f.segredo],
+            ["v2", key],
+          ]),
+        });
+      try {
+        const storage = criarArmazenamentoDoLivro({
+          cliente: f.http.cliente,
+          bucket: "recreio-fixture",
+          assinatura: nova,
+          tempoLimiteMs: 2000,
+        });
+        await storage.retomarComNovaChave(
+          await storage.lerCabecalho(),
+          "e".repeat(64),
+          "2026-11-19T10:04:00.000Z",
+        );
+        const puts = f.http.pedidos.filter((r) => r.metodo === "PUT").length;
+        await expect(
+          admitirIntencaoNoLivro({
+            storage,
+            assinatura: f.assinatura,
+            bytes,
+            instante: "2026-11-19T10:05:00.000Z",
+          }),
+        ).rejects.toMatchObject({ codigo: "CONFIGURACAO" });
+        expect(f.http.pedidos.filter((r) => r.metodo === "PUT")).toHaveLength(puts);
+      } finally {
+        nova.encerrar();
+        key.fill(0);
+      }
     }));
 });

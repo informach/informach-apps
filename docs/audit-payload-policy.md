@@ -346,3 +346,6 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.rights_photo_processed`: `{ app, operationId, gameId, photoCount }`. Passo atômico de uma fotografia e cursor; não afirma limpeza integral do mundo ou perfil. Não registrar IDs do mundo/foto/perfil, conteúdo, referências de objeto ou hashes.
 
 - `recreio.rights_journal_compacted`: `{ app, operationId, gameId, entryCount }`. Retirada de até 100 entradas já cobertas pela última foto tratada e conferida; preserva o cursor autoritativo. Não registrar IDs de fatos/mundos/perfis, payloads ou hashes.
+
+- `recreio.rights_processing_blocked`: `{ app, operationId, kind, reasonCode }`. Bloqueio automático por integridade; não é revisão humana concluída. Códigos fixos, sem mensagens do provedor, conteúdo ou identificadores pessoais adicionais.
+- `recreio.rights_profile_data_removed`: `{ app, operationId, domain, count }`. Lote de até 100 versões/chaves/conquistas pessoais; rollback estrito com a auditoria. Sem IDs dos itens/perfil/jogo, hashes ou bytes. Não representa remoção final do perfil.
