@@ -1,0 +1,30 @@
+{
+  "source": "23b29660486d152ead9ec44afe9a1518f29b04bb",
+  "runId": 44470950325,
+  "boundary": "synthetic_native_capture_sql_photo_signed_index_same_cluster_restore",
+  "status": "passed",
+  "externalProvider": true,
+  "productionDataTouched": false,
+  "bucket": "recreio-homologacao-c0xyqx",
+  "objectKeys": [
+    "recreio/v1/fotografia/98f5b91d-50ae-485c-8a12-4dc83edf0fe2/d3033c3011ede25ab81befa21c74e366ce3f93c3fec7b318e902c93fa5a4cd59",
+    "recreio/v1/backup/3ca7f99a-1831-4fb0-8cba-9255f7491f24/8e33253bccd1530a60f97e43da7600074fbe7c1ab0f4b0d449090ff3e3f622ce",
+    "recreio/v1/backup/3ca7f99a-1831-4fb0-8cba-9255f7491f24/manifesto.json",
+    "recreio/v1/backup/3ca7f99a-1831-4fb0-8cba-9255f7491f24/retirado.json"
+  ],
+  "nativeRecoveryVerified": true,
+  "retirementVerified": true,
+  "anonymousReadDenied": true,
+  "cleanupConfirmed": true,
+  "failure": null,
+  "cleanupFailure": null,
+  "freshCluster": false,
+  "authoritiesNormalizedForTraffic": false,
+  "durableCaptureFinalized": false,
+  "jobId": 135380473531,
+  "artifactId": 14503659873,
+  "artifactZipBytes": 704,
+  "artifactZipSha256": "c3777765a53bf950950d063d3be5f4bd078e1ec61b96ea0f45938eac015aaf0c",
+  "productionApplied": false,
+  "scopeLimit": "Synthetic native SQL/photo capture; actual homologation bucket, immutable encrypted file and signed index/replay/retirement, removal of local sources/live photo, same-cluster SQL restore and confirmed own-object cleanup. Not fresh-cluster disaster recovery, normalized traffic authorities/destinations, durable capture finalization, key custody, rights replay, schedule or production qualification."
+}

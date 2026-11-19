@@ -107,11 +107,17 @@ encerramento revelou exceção no driver postgres após queda real da conexão
 mantendo versões. Instalação congelada e prova ESM/CommonJS/captura passaram
 em `44459074435`; dezesseis gates completos `44459423949`/`4952ae0b` aprovados,
 com CI compartilhado `44459423698` também aprovado. Montador/conferidor do
-composto passou em `44461354124` (22 casos, 93 testes de objetos); capacidades
-de cópia/restauração por trechos ainda estão em candidata.
+composto/capacidades/índice avançaram até `4e6d9b2b`: quality e integração aprovados,
+481 unitários do app, 1.242 integrações, cinco HTTP, 146 testes de objetos e
+16 provas de captura/restauração. A fonte `23b29660` passou a composição no
+bucket real em `44470950325`: SQL e fotografia recuperados pelo arquivo/índice,
+replay, retirada, anonimato negado e quatro objetos sintéticos removidos com
+NoSuchKey/LIST vazio confirmados. [Recibo externo](recreio/evidencias/captura-provider-44470950325.json).
+Restauração ainda em outro banco do mesmo cluster; não qualifica cluster novo,
+normalização de autoridades/destinos, controle durável ou produção.
 [Recibos, plano de captura e limites](recreio/backup-e-retirada-2026-11-19.md).
-Fechamento da captura, coleta, custódia e restauração do arquivo completo seguem
-abertas; esses ensaios sintéticos não concluem F8.
+Fechamento durável da captura, coleta, custódia, catálogo SQL completo, replay F7
+e ensaio de cluster novo seguem abertos; esses ensaios sintéticos não concluem F8.
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de

@@ -213,3 +213,12 @@ e nos tipos/objetos em `44470645967`, antes de admitir a prova externa.
 [Recibo](evidencias/captura-provider-fechado-44470641584.json). O modo externo
 exige também negar leitura anônima dos três objetos do backup, inclusive o
 documento de retirada; a fotografia já foi apagada com ausência confirmada.
+
+Prova externa aprovada em [44470950325](https://github.com/informach/informach-apps/actions/runs/44470950325),
+fonte `23b29660`: recuperação nativa, replay condicional do índice, retirada,
+anonimato negado e limpeza das quatro chaves confirmados. Artefato `14503659873`,
+704 bytes, SHA-256 `c3777765a53bf950950d063d3be5f4bd078e1ec61b96ea0f45938eac015aaf0c`,
+conferido e adotado no [recibo público](evidencias/captura-provider-44470950325.json).
+Nenhum dado de produção foi usado. O recibo explicita `freshCluster=false`,
+`authoritiesNormalizedForTraffic=false` e `durableCaptureFinalized=false`;
+a prova não encerra as lacunas registradas acima.
