@@ -160,6 +160,13 @@ function bancoValido(bruto: Buffer): boolean {
   const v = Banco.safeParse(json(bruto));
   return v.success && Buffer.from(JSON.stringify(v.data), "utf8").equals(bruto);
 }
+function interpretarCabecalho(b: Buffer) {
+  const v = Cabecalho.safeParse(json(b));
+  exigir(v.success, "INTEGRIDADE");
+  exigir(Buffer.from(JSON.stringify(v.data), "utf8").equals(b), "INTEGRIDADE");
+  return v.data;
+}
+type Trecho = { inicio: number; bytes: number; sha256: string };
 async function limpar(h: FileHandle) {
   try {
     await h.truncate(0);
@@ -177,24 +184,30 @@ export function criarArquivoComposto(config: {
   limiteFotografiaBytes: number;
   tempoLimiteMs: number;
 }) {
+  const { limiteBytes, limiteFotografiaBytes, tempoLimiteMs } = config;
   exigir(
-    Number.isSafeInteger(config.limiteBytes) &&
-      config.limiteBytes > 0 &&
-      config.limiteBytes <= MAX &&
-      Number.isSafeInteger(config.limiteFotografiaBytes) &&
-      config.limiteFotografiaBytes > 0 &&
-      config.limiteFotografiaBytes <= 256 * 1024 * 1024 &&
-      Number.isSafeInteger(config.tempoLimiteMs) &&
-      config.tempoLimiteMs > 0 &&
-      config.tempoLimiteMs <= 900_000,
+    Number.isSafeInteger(limiteBytes) &&
+      limiteBytes > 0 &&
+      limiteBytes <= MAX &&
+      Number.isSafeInteger(limiteFotografiaBytes) &&
+      limiteFotografiaBytes > 0 &&
+      limiteFotografiaBytes <= 256 * 1024 * 1024 &&
+      Number.isSafeInteger(tempoLimiteMs) &&
+      tempoLimiteMs > 0 &&
+      tempoLimiteMs <= 900_000,
     "CONFIGURACAO",
   );
-  async function comPrazo<T>(fn: (s: AbortSignal) => Promise<T>, externo?: AbortSignal) {
+  async function comPrazo<T>(
+    fn: (s: AbortSignal) => Promise<T>,
+    ...externos: (AbortSignal | undefined)[]
+  ) {
     const c = new AbortController(),
       cancelar = () => c.abort();
-    externo?.addEventListener("abort", cancelar, { once: true });
-    if (externo?.aborted) cancelar();
-    const timer = setTimeout(cancelar, config.tempoLimiteMs);
+    for (const externo of externos) {
+      externo?.addEventListener("abort", cancelar, { once: true });
+      if (externo?.aborted) cancelar();
+    }
+    const timer = setTimeout(cancelar, tempoLimiteMs);
     timer.unref();
     try {
       exigir(!c.signal.aborted, "INTERROMPIDO");
@@ -206,7 +219,7 @@ export function criarArquivoComposto(config: {
       throw new FalhaDoArquivoComposto("IO");
     } finally {
       clearTimeout(timer);
-      externo?.removeEventListener("abort", cancelar);
+      for (const externo of externos) externo?.removeEventListener("abort", cancelar);
       c.abort();
     }
   }
@@ -223,10 +236,12 @@ export function criarArquivoComposto(config: {
     externo?: AbortSignal,
   ): Promise<ReferenciaDoArquivoComposto> {
     return comPrazo(async (signal) => {
+      const capturaId = pedido.capturaId,
+        lido = Inventario.safeParse(pedido.inventario);
+      exigir(lido.success, "CONFIGURACAO");
+      const esperado = lido.data;
       exigir(
-        z.uuid().safeParse(pedido.capturaId).success &&
-          Inventario.safeParse(pedido.inventario).success &&
-          pedido.chaves.size <= 16,
+        z.uuid().safeParse(capturaId).success && lido.success && pedido.chaves.size <= 16,
         "CONFIGURACAO",
       );
       const saida = await info(destino, 0);
@@ -247,10 +262,10 @@ export function criarArquivoComposto(config: {
           ? criarCifradorDeObjetos({
               chaveAtiva: ids[0],
               chaves: pedido.chaves,
-              limiteBytes: config.limiteFotografiaBytes,
+              limiteBytes: limiteFotografiaBytes,
             })
           : null;
-        const dump = await resumo(pedido.dump, config.limiteBytes, signal),
+        const dump = await resumo(pedido.dump, limiteBytes, signal),
           banco = await resumo(pedido.inventarioBanco, MAX_JSON, signal);
         exigir(dump.antes.dev !== saida.dev || dump.antes.ino !== saida.ino, "CONFIGURACAO");
         exigir(banco.antes.dev !== saida.dev || banco.antes.ino !== saida.ino, "CONFIGURACAO");
@@ -267,7 +282,7 @@ export function criarArquivoComposto(config: {
         const total = createHash("sha256");
         const escrever = async (bytes: Buffer) => {
           exigir(!signal.aborted, "INTERROMPIDO");
-          exigir(pos + bytes.length <= config.limiteBytes, "LIMITE");
+          exigir(pos + bytes.length <= limiteBytes, "LIMITE");
           let n = 0;
           while (n < bytes.length) {
             const r = await destino.write(bytes, n, bytes.length - n, pos + n);
@@ -292,15 +307,15 @@ export function criarArquivoComposto(config: {
             await escrever(b);
           });
           exigir(
-            hash.digest("hex") === r.sha256 && mesma(r.antes, await info(h, config.limiteBytes)),
+            hash.digest("hex") === r.sha256 && mesma(r.antes, await info(h, limiteBytes)),
             "FONTE_ALTERADA",
           );
         };
         await escrever(MAGIA);
         await cabecalho({
           tipo: "inicio",
-          capturaId: pedido.capturaId,
-          inventario: pedido.inventario,
+          capturaId,
+          inventario: esperado,
         });
         await cabecalho({ tipo: "chaves", ids });
         await escrever(material);
@@ -318,14 +333,11 @@ export function criarArquivoComposto(config: {
           exigir(!signal.aborted, "INTERROMPIDO");
           const objeto = conferirObjetoDaCaptura(item.objeto),
             r = objeto.referencia;
-          exigir(
-            objeto.fotografiaId > anterior && quantidade < pedido.inventario.quantidade,
-            "INTEGRIDADE",
-          );
+          exigir(objeto.fotografiaId > anterior && quantidade < esperado.quantidade, "INTEGRIDADE");
           anterior = objeto.fotografiaId;
           exigir(codec && ids.includes(r.chaveId), "INTEGRIDADE");
-          exigir(r.bytes <= config.limiteFotografiaBytes, "LIMITE");
-          const antes = await info(item.arquivo, config.limiteFotografiaBytes + 1024);
+          exigir(r.bytes <= limiteFotografiaBytes, "LIMITE");
+          const antes = await info(item.arquivo, limiteFotografiaBytes + 1024);
           exigir(Number(antes.size) === r.bytesCifrados, "INTEGRIDADE");
           exigir(
             Number(antes.size) === r.bytesCifrados &&
@@ -347,21 +359,18 @@ export function criarArquivoComposto(config: {
           usadas.add(r.chaveId);
         }
         const inventario = { quantidade, bytesCifrados, sha256: hash.digest("hex") };
-        exigir(
-          mesmoInventario(inventario, pedido.inventario) && usadas.size === ids.length,
-          "INTEGRIDADE",
-        );
-        await cabecalho({ tipo: "fim", capturaId: pedido.capturaId, inventario });
+        exigir(mesmoInventario(inventario, esperado) && usadas.size === ids.length, "INTEGRIDADE");
+        await cabecalho({ tipo: "fim", capturaId, inventario });
         await destino.sync();
         exigir(
-          mesma(dump.antes, await info(pedido.dump, config.limiteBytes)) &&
+          mesma(dump.antes, await info(pedido.dump, limiteBytes)) &&
             mesma(banco.antes, await info(pedido.inventarioBanco, MAX_JSON)),
           "FONTE_ALTERADA",
         );
         exigir(!signal.aborted, "INTERROMPIDO");
         return Referencia.parse({
           formato: "recreio-captura-composta-v1",
-          capturaId: pedido.capturaId,
+          capturaId,
           bytes: pos,
           sha256: total.digest("hex"),
         });
@@ -374,12 +383,12 @@ export function criarArquivoComposto(config: {
     }, externo);
   }
 
-  async function conferir(origem: FileHandle, bruto: unknown, externo?: AbortSignal) {
+  async function analisar(origem: FileHandle, bruto: unknown, externo?: AbortSignal) {
     return comPrazo(async (signal) => {
       const lida = Referencia.safeParse(bruto);
       exigir(lida.success, "INTEGRIDADE");
       const ref = lida.data;
-      const antes = await info(origem, config.limiteBytes);
+      const antes = await info(origem, limiteBytes);
       exigir(Number(antes.size) === ref.bytes, "INTEGRIDADE");
       let pos = 0;
       const total = createHash("sha256"),
@@ -416,10 +425,7 @@ export function criarArquivoComposto(config: {
         exigir(bytes >= 2 && bytes <= 4096, "INTEGRIDADE");
         const b = await pequenoEm(bytes, 4096);
         try {
-          const v = Cabecalho.safeParse(json(b));
-          exigir(v.success, "INTEGRIDADE");
-          exigir(Buffer.from(JSON.stringify(v.data), "utf8").equals(b), "INTEGRIDADE");
-          return v.data;
+          return interpretarCabecalho(b);
         } finally {
           b.fill(0);
         }
@@ -435,7 +441,9 @@ export function criarArquivoComposto(config: {
             keys.ids.every((id, i) => i === 0 || id > (keys.ids[i - 1] ?? "")),
           "INTEGRIDADE",
         );
-        const material = await pequenoEm(keys.ids.length * 32, 512);
+        const inicioChaves = pos;
+        const material = await pequenoEm(keys.ids.length * 32, 512),
+          shaChaves = sha(material);
         try {
           for (const [i, id] of keys.ids.entries())
             chaves.set(id, Buffer.from(material.subarray(i * 32, i * 32 + 32)));
@@ -446,11 +454,12 @@ export function criarArquivoComposto(config: {
           ? criarCifradorDeObjetos({
               chaveAtiva: keys.ids[0],
               chaves,
-              limiteBytes: config.limiteFotografiaBytes,
+              limiteBytes: limiteFotografiaBytes,
             })
           : null;
         const dump = await cabecalho();
         exigir(dump.tipo === "dump" && dump.bytes >= 5, "INTEGRIDADE");
+        const inicioDump = pos;
         const hashDump = createHash("sha256");
         let prefixo = Buffer.alloc(0);
         await consumir(dump.bytes, (b) => {
@@ -464,12 +473,14 @@ export function criarArquivoComposto(config: {
         );
         const banco = await cabecalho();
         exigir(banco.tipo === "banco", "INTEGRIDADE");
+        const inicioBanco = pos;
         const bancoJson = await pequenoEm(banco.bytes, MAX_JSON);
         try {
           exigir(sha(bancoJson) === banco.sha256 && bancoValido(bancoJson), "INTEGRIDADE");
         } finally {
           bancoJson.fill(0);
         }
+        const inicioObjetos = pos;
         let quantidade = 0,
           bytesCifrados = 0,
           anterior = "";
@@ -497,8 +508,8 @@ export function criarArquivoComposto(config: {
           exigir(objeto.fotografiaId > anterior, "INTEGRIDADE");
           anterior = objeto.fotografiaId;
           exigir(codec && chaves.has(r.chaveId), "INTEGRIDADE");
-          exigir(r.bytes <= config.limiteFotografiaBytes, "LIMITE");
-          const envelope = await pequenoEm(r.bytesCifrados, config.limiteFotografiaBytes + 1024);
+          exigir(r.bytes <= limiteFotografiaBytes, "LIMITE");
+          const envelope = await pequenoEm(r.bytesCifrados, limiteFotografiaBytes + 1024);
           try {
             codec.abrir(r, envelope).fill(0);
           } finally {
@@ -512,20 +523,204 @@ export function criarArquivoComposto(config: {
         exigir(
           pos === ref.bytes &&
             total.digest("hex") === ref.sha256 &&
-            mesma(antes, await info(origem, config.limiteBytes)),
+            mesma(antes, await info(origem, limiteBytes)),
           "INTEGRIDADE",
         );
         exigir(!signal.aborted, "INTERROMPIDO");
         return {
-          capturaId: ref.capturaId,
-          inventario: inicio.inventario,
-          dump: { bytes: dump.bytes, sha256: dump.sha256 },
-          banco: { bytes: banco.bytes, sha256: banco.sha256 },
+          resumo: {
+            capturaId: ref.capturaId,
+            inventario: inicio.inventario,
+            dump: { bytes: dump.bytes, sha256: dump.sha256 },
+            banco: { bytes: banco.bytes, sha256: banco.sha256 },
+          },
+          fonte: antes,
+          ref,
+          trechos: {
+            dump: { inicio: inicioDump, bytes: dump.bytes, sha256: dump.sha256 },
+            banco: { inicio: inicioBanco, bytes: banco.bytes, sha256: banco.sha256 },
+            chaves: { inicio: inicioChaves, bytes: keys.ids.length * 32, sha256: shaChaves },
+            idsChaves: keys.ids,
+            inicioObjetos,
+          },
         };
       } finally {
         for (const k of chaves.values()) k.fill(0);
       }
     }, externo);
   }
-  return Object.freeze({ montar, conferir });
+  async function conferir(origem: FileHandle, bruto: unknown, externo?: AbortSignal) {
+    return (await analisar(origem, bruto, externo)).resumo;
+  }
+  /** Só após validar TODO o arquivo. Capacidades de trechos não são caminhos,
+   * autorização de download ou confirmação de restauração. Origem emprestada
+   * deve permanecer aberta/imutável; encerramento revoga as capacidades. */
+  async function abrir(origem: FileHandle, bruto: unknown, externo?: AbortSignal) {
+    const v = await analisar(origem, bruto, externo),
+      vida = new AbortController();
+    const conferirFonte = async (signal: AbortSignal) => {
+      exigir(!signal.aborted, "INTERROMPIDO");
+      exigir(mesma(v.fonte, await info(origem, limiteBytes)), "FONTE_ALTERADA");
+    };
+    async function copiar(trecho: Trecho, destino: FileHandle, signal: AbortSignal) {
+      await conferirFonte(signal);
+      const saida = await info(destino, 0);
+      exigir(saida.dev !== v.fonte.dev || saida.ino !== v.fonte.ino, "CONFIGURACAO");
+      let admitida = false;
+      try {
+        admitida = true;
+        let n = 0;
+        const hash = createHash("sha256");
+        await ler(origem, trecho.inicio, trecho.bytes, signal, async (b) => {
+          let gravados = 0;
+          while (gravados < b.length) {
+            exigir(!signal.aborted, "INTERROMPIDO");
+            const r = await destino.write(b, gravados, b.length - gravados, n + gravados);
+            exigir(r.bytesWritten > 0, "IO");
+            gravados += r.bytesWritten;
+          }
+          n += b.length;
+          hash.update(b);
+        });
+        exigir(n === trecho.bytes && hash.digest("hex") === trecho.sha256, "INTEGRIDADE");
+        await destino.sync();
+        await conferirFonte(signal);
+      } catch (e) {
+        if (admitida) await limpar(destino);
+        throw e;
+      }
+    }
+    async function lerTrecho(trecho: Trecho, signal: AbortSignal, teto: number) {
+      await conferirFonte(signal);
+      exigir(trecho.bytes <= teto, "LIMITE");
+      const b = await pequeno(origem, trecho.inicio, trecho.bytes, signal);
+      try {
+        exigir(sha(b) === trecho.sha256, "INTEGRIDADE");
+        await conferirFonte(signal);
+        return b;
+      } catch (e) {
+        b.fill(0);
+        throw e;
+      }
+    }
+    async function header(pos: number, signal: AbortSignal) {
+      await conferirFonte(signal);
+      exigir(pos + 4 <= v.ref.bytes, "INTEGRIDADE");
+      const n = await pequeno(origem, pos, 4, signal),
+        bytes = n.readUInt32BE();
+      exigir(bytes >= 2 && bytes <= 4096 && pos + 4 + bytes <= v.ref.bytes, "INTEGRIDADE");
+      const b = await pequeno(origem, pos + 4, bytes, signal);
+      try {
+        return { valor: interpretarCabecalho(b), pos: pos + 4 + bytes };
+      } finally {
+        b.fill(0);
+      }
+    }
+    return Object.freeze({
+      resumo: Object.freeze({
+        capturaId: v.resumo.capturaId,
+        inventario: Object.freeze({ ...v.resumo.inventario }),
+        dump: Object.freeze({ ...v.resumo.dump }),
+        banco: Object.freeze({ ...v.resumo.banco }),
+      }),
+      encerrar: () => vida.abort(),
+      copiarDump: (destino: FileHandle, sinal?: AbortSignal) =>
+        comPrazo((signal) => copiar(v.trechos.dump, destino, signal), externo, vida.signal, sinal),
+      lerInventarioBanco: (sinal?: AbortSignal) =>
+        comPrazo(
+          async (signal) => {
+            const b = await lerTrecho(v.trechos.banco, signal, MAX_JSON);
+            try {
+              exigir(bancoValido(b), "INTEGRIDADE");
+              return Banco.parse(json(b));
+            } finally {
+              b.fill(0);
+            }
+          },
+          externo,
+          vida.signal,
+          sinal,
+        ),
+      comChaves: <T>(
+        fn: (chaves: ReadonlyMap<string, Uint8Array>, signal: AbortSignal) => Promise<T>,
+        sinal?: AbortSignal,
+      ) =>
+        comPrazo(
+          async (signal) => {
+            const material = await lerTrecho(v.trechos.chaves, signal, 512),
+              chaves = new Map<string, Buffer>();
+            try {
+              for (const [i, id] of v.trechos.idsChaves.entries())
+                chaves.set(id, Buffer.from(material.subarray(i * 32, i * 32 + 32)));
+              return await fn(chaves, signal);
+            } finally {
+              material.fill(0);
+              for (const k of chaves.values()) k.fill(0);
+              chaves.clear();
+            }
+          },
+          externo,
+          vida.signal,
+          sinal,
+        ),
+      objetos: async function* (sinal?: AbortSignal) {
+        let pos = v.trechos.inicioObjetos,
+          quantidade = 0,
+          bytesCifrados = 0,
+          anterior = "";
+        const hash = createHash("sha256");
+        while (quantidade < v.resumo.inventario.quantidade) {
+          const passo = await comPrazo(
+            async (signal) => {
+              const h = await header(pos, signal);
+              exigir(h.valor.tipo === "objeto", "INTEGRIDADE");
+              const objeto = conferirObjetoDaCaptura(h.valor.objeto),
+                r = objeto.referencia;
+              exigir(
+                objeto.fotografiaId > anterior && h.pos + r.bytesCifrados <= v.ref.bytes,
+                "INTEGRIDADE",
+              );
+              return {
+                objeto,
+                trecho: { inicio: h.pos, bytes: r.bytesCifrados, sha256: r.sha256Cifrado },
+              };
+            },
+            externo,
+            vida.signal,
+            sinal,
+          );
+          const trecho = passo.trecho;
+          pos = trecho.inicio + trecho.bytes;
+          anterior = passo.objeto.fotografiaId;
+          hash.update(resumoDaReferencia(passo.objeto), "ascii");
+          quantidade++;
+          bytesCifrados += trecho.bytes;
+          yield Object.freeze({
+            objeto: passo.objeto,
+            copiarPara: (destino: FileHandle) =>
+              comPrazo((signal) => copiar(trecho, destino, signal), externo, vida.signal, sinal),
+          });
+        }
+        await comPrazo(
+          async (signal) => {
+            const h = await header(pos, signal),
+              inventario = { quantidade, bytesCifrados, sha256: hash.digest("hex") };
+            exigir(
+              h.valor.tipo === "fim" &&
+                h.valor.capturaId === v.ref.capturaId &&
+                h.pos === v.ref.bytes &&
+                mesmoInventario(inventario, v.resumo.inventario) &&
+                mesmoInventario(inventario, h.valor.inventario),
+              "INTEGRIDADE",
+            );
+            await conferirFonte(signal);
+          },
+          externo,
+          vida.signal,
+          sinal,
+        );
+      },
+    });
+  }
+  return Object.freeze({ montar, conferir, abrir });
 }

@@ -42,4 +42,8 @@ entradas. Exige nova geração e instalação congelada do patch completo.
 O lock final foi gerado em `44458443087`/`b935970c`, adotado intacto e conferido
 sem mudança nas versões/estruturas de 1.438 packages e 1.446 snapshots, além da
 identidade do patch. [Proveniência](../docs/recreio/evidencias/postgres-lock-44458443087.json).
-Estado: correção candidata; instalação congelada e gates ainda pendentes.
+Instalação congelada, tipos e cinco quedas por formato Node, mais dez casos de
+captura, passaram em `44459074435`/`4952ae0b`; os dezesseis gates completos do
+Recreio passaram em `44459423949`. [Evidência](../docs/recreio/evidencias/postgres-recreio-completo-44459423949.json).
+Estado: correção candidata; CI compartilhado `44459423698` ainda em execução.
+Nenhuma implantação decorre dessas provas.

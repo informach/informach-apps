@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { watch } from "node:fs";
 import { type FileHandle, mkdtemp, open, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -142,6 +143,154 @@ async function preparar(n = 2) {
 }
 
 describe("arquivo composto: arquivos reais, manifesto/chaves/envelopes fechados", () => {
+  it("orçamento validado não cresce por mutação posterior da configuração", async () =>
+    cenario(async (f) => {
+      const politica = { ...config, limiteBytes: 1024 },
+        codec = criarArquivoComposto(politica);
+      politica.limiteBytes = config.limiteBytes;
+      await expect(codec.montar(f.pedido, f.saida)).rejects.toMatchObject({ codigo: "LIMITE" });
+      expect((await f.saida.stat()).size).toBe(0);
+    }));
+  it("manifesto admitido não muda se o chamador alterar o objeto enquanto fornece fotos", async () =>
+    cenario(async (f) => {
+      const shaAdmitido = f.pedido.inventario.sha256;
+      const ref = await f.codec.montar(
+        {
+          ...f.pedido,
+          objetos: (async function* () {
+            Object.assign(f.pedido.inventario, {
+              quantidade: 0,
+              bytesCifrados: 0,
+              sha256: "a".repeat(64),
+            });
+            yield* f.itens;
+          })(),
+        },
+        f.saida,
+      );
+      expect((await f.codec.conferir(f.saida, ref)).inventario).toMatchObject({
+        quantidade: 2,
+        sha256: shaAdmitido,
+      });
+    }));
+  it("capacidades copiam dump e envelopes idênticos, com inventário e chaves privadas", async () =>
+    cenario(async (f) => {
+      const ref = await f.codec.montar(f.pedido, f.saida),
+        aberto = await f.codec.abrir(f.saida, ref),
+        dump = await f.arquivo("dump-recuperado.bin");
+      await aberto.copiarDump(dump);
+      expect(await readFile(join(f.root, "dump-recuperado.bin"))).toEqual(f.dumpBytes);
+      expect(await aberto.lerInventarioBanco()).toEqual(JSON.parse(banco.toString("utf8")));
+      const emprestadas: Uint8Array[] = [];
+      await aberto.comChaves(async (chaves, signal) => {
+        expect(signal.aborted).toBe(false);
+        expect(chaves.size).toBe(2);
+        for (const [id, k] of chaves) {
+          expect(k).toEqual(f.keys.get(id));
+          emprestadas.push(k);
+        }
+      });
+      expect(emprestadas.every((k) => k.every((b) => b === 0))).toBe(true);
+      let n = 0;
+      for await (const item of aberto.objetos()) {
+        const destino = await f.arquivo(`foto-recuperada-${n}.bin`);
+        await item.copiarPara(destino);
+        expect(await readFile(join(f.root, `foto-recuperada-${n}.bin`))).toEqual(
+          f.itens[n]?.envelope,
+        );
+        n++;
+      }
+      expect(n).toBe(2);
+      aberto.encerrar();
+      expect((await f.saida.stat()).size).toBe(ref.bytes);
+    }));
+  it("capacidade vazia não fabrica objetos ou chaves", async () =>
+    cenario(async (f) => {
+      const ref = await f.codec.montar(f.pedido, f.saida),
+        aberto = await f.codec.abrir(f.saida, ref);
+      let n = 0;
+      for await (const _ of aberto.objetos()) n++;
+      expect(n).toBe(0);
+      await aberto.comChaves(async (keys) => {
+        expect(keys.size).toBe(0);
+      });
+      aberto.encerrar();
+    }, 0));
+  it("capacidade encerrada/abortada não reabre fonte nem sobrescreve destino", async () =>
+    cenario(async (f) => {
+      const ref = await f.codec.montar(f.pedido, f.saida),
+        ctrl = new AbortController(),
+        aberto = await f.codec.abrir(f.saida, ref, ctrl.signal),
+        destino = await f.arquivo("interrompido.bin");
+      ctrl.abort();
+      await expect(aberto.copiarDump(destino)).rejects.toMatchObject({ codigo: "INTERROMPIDO" });
+      expect((await destino.stat()).size).toBe(0);
+      const outro = await f.codec.abrir(f.saida, ref);
+      outro.encerrar();
+      let chamado = false;
+      await expect(
+        outro.comChaves(async () => {
+          chamado = true;
+        }),
+      ).rejects.toMatchObject({ codigo: "INTERROMPIDO" });
+      expect(chamado).toBe(false);
+      expect((await f.saida.stat()).size).toBe(ref.bytes);
+    }));
+  it("cópia recusa destino preexistente e alteração da fonte depois da prova", async () =>
+    cenario(async (f) => {
+      const ref = await f.codec.montar(f.pedido, f.saida),
+        aberto = await f.codec.abrir(f.saida, ref),
+        destino = await f.arquivo("preservado.bin", Buffer.from("PRESERVAR"));
+      await expect(aberto.copiarDump(destino)).rejects.toThrow();
+      expect(await readFile(join(f.root, "preservado.bin"))).toEqual(Buffer.from("PRESERVAR"));
+      await f.saida.write(Buffer.from([0]), 0, 1, 0);
+      await f.saida.sync();
+      const vazio = await f.arquivo("fonte-alterada.bin");
+      await expect(aberto.copiarDump(vazio)).rejects.toMatchObject({ codigo: "FONTE_ALTERADA" });
+      expect((await vazio.stat()).size).toBe(0);
+      aberto.encerrar();
+    }));
+  it("callback que falha não conserva a cópia emprestada das chaves", async () =>
+    cenario(async (f) => {
+      const ref = await f.codec.montar(f.pedido, f.saida),
+        aberto = await f.codec.abrir(f.saida, ref);
+      const emprestadas: Uint8Array[] = [];
+      await expect(
+        aberto.comChaves(async (keys) => {
+          emprestadas.push(...keys.values());
+          throw new Error("FALHA_SINTETICA");
+        }),
+      ).rejects.toThrow();
+      expect(emprestadas).toHaveLength(2);
+      expect(emprestadas.every((k) => k.every((b) => b === 0))).toBe(true);
+      aberto.encerrar();
+    }));
+  it("cancelamento durante cópia de 32 MiB limpa somente a saída admitida", async () =>
+    cenario(async (f) => {
+      await f.dump.truncate(32 * 1024 * 1024);
+      await f.dump.sync();
+      const codec = criarArquivoComposto({
+          ...config,
+          limiteBytes: 64 * 1024 * 1024,
+          tempoLimiteMs: 15000,
+        }),
+        ref = await codec.montar(f.pedido, f.saida),
+        aberto = await codec.abrir(f.saida, ref),
+        destino = await f.arquivo("cancelado.bin"),
+        ctrl = new AbortController();
+      const observador = watch(join(f.root, "cancelado.bin"), () => ctrl.abort());
+      try {
+        await expect(aberto.copiarDump(destino, ctrl.signal)).rejects.toMatchObject({
+          codigo: "INTERROMPIDO",
+        });
+        expect(ctrl.signal.aborted).toBe(true);
+        expect((await destino.stat()).size).toBe(0);
+        expect((await f.dump.stat()).size).toBe(32 * 1024 * 1024);
+      } finally {
+        observador.close();
+        aberto.encerrar();
+      }
+    }));
   it("inventário com chave duplicada é recusado antes de gravar o composto", async () =>
     cenario(async (f) => {
       const duplicado = Buffer.from(

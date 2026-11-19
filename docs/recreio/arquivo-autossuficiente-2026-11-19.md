@@ -81,6 +81,20 @@ Dump usa blocos de 64 KiB; apenas uma fotografia limitada e o inventário de at�
 Os testes reais de arquivos cobrem duas versões/zero chaves, composição com o
 envelope externo, adulteração mesmo recalculando SHA externo, duplicidade de
 campos/objetos, truncamento/excesso, chaves ausentes/erradas/extras, cancelamento,
-limite total, alteração do dump e preservação de destino preexistente. Ainda
-precisam passar no GitHub. Não há extração, pg_dump composto, transporte dessa
-captura, liberação de reservas ou restauração implementados por esta etapa.
+limite total, alteração do dump e preservação de destino preexistente.
+Passaram em `44461354124`/`3c41bb19`: tipos e 93 testes de objetos, incluindo
+22 do composto. [Recibo](evidencias/arquivo-composto-44461354124.json).
+Não há pg_dump composto, transporte dessa captura, liberação de reservas ou
+restauração de banco implementados por esta etapa.
+
+O incremento seguinte acrescenta capacidades de copiar dump/envelopes para
+FileHandles privados e obter o inventário lógico, somente depois da conferência
+integral. Cada cópia revalida a identidade da origem, tamanho e SHA do trecho;
+fonte alterada, destino preexistente/alias, encerramento e cancelamento recusam
+a cópia. Falha limpa apenas saída vazia admitida. A iteração conserva ordem,
+contagens e hash das referências; não extrai caminhos. As chaves são entregues
+somente a callback privado e suas cópias emprestadas são zeradas ao retornar,
+inclusive na falha. Encerrar revoga capacidades sem fechar o handle emprestado.
+Configuração e manifesto admitidos são copiados, sem aceitar mutação posterior
+do chamador. Testes dessas capacidades, inclusive cancelamento real em cópia
+de 32 MiB, ainda precisam dos gates remotos. Não representam restauração SQL.

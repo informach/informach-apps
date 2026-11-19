@@ -1,0 +1,105 @@
+{
+  "runId": 44459423949,
+  "source": "4952ae0b97790992065adb9d75f2130121b5f3f2",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 135342300886,
+      "name": "Recreio / trial-setup",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301140,
+      "name": "Recreio / quality",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301156,
+      "name": "Recreio / trial-play",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301186,
+      "name": "Recreio / commercial-checkout",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301195,
+      "name": "Recreio / commercial-ui",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301224,
+      "name": "Recreio / trial-ui",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301228,
+      "name": "Recreio / trial-experiment",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301254,
+      "name": "Recreio / cliente",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301297,
+      "name": "Recreio / integration",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301310,
+      "name": "Recreio / checkpoint",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301312,
+      "name": "Recreio / commercial-setup",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301325,
+      "name": "Recreio / equipe",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301349,
+      "name": "Recreio / versoes",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301363,
+      "name": "Recreio / commercial-reconciliation",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301378,
+      "name": "Recreio / longa",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342301390,
+      "name": "Recreio / e2e",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342302566,
+      "name": "Recreio / jornada Stripe Sandbox real",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135342302664,
+      "name": "Recreio / catálogo Stripe Sandbox real",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135342302896,
+      "name": "Recreio / APIs Stripe com relógio de teste",
+      "conclusion": "skipped"
+    }
+  ],
+  "productionApplied": false,
+  "verificationGates": 16,
+  "scopeLimit": "Full Recreio qualification for driver patch and capture/reservations. Shared consumer CI and retained database backup/restore remain separate."
+}

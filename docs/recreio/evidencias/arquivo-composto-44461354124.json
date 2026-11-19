@@ -1,0 +1,32 @@
+{
+  "runId": 44461354124,
+  "source": "3c41bb190aa61d33de4e4c237c660c414e5511f2",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 135348639744,
+      "name": "qualify",
+      "conclusion": "success"
+    },
+    {
+      "id": 135349049336,
+      "name": "native-provider",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135349049484,
+      "name": "file-provider",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135349049875,
+      "name": "provider",
+      "conclusion": "skipped"
+    }
+  ],
+  "productionApplied": false,
+  "objectTests": 93,
+  "compositeFileTests": 22,
+  "objectFiles": 6,
+  "scopeLimit": "Synthetic real files, outer encryption and private container integrity only; not pg_dump/pg_restore, retained production archive, key custody or extraction qualification."
+}

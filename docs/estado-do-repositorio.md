@@ -104,7 +104,11 @@ cinco HTTP e upgrades com dados preservados. Referências impossíveis passaram
 a ser recusadas antes da rede (`44456149519`, 71 testes). A revisão de
 encerramento revelou exceção no driver postgres após queda real da conexão
 (`44456802954`/`39e362f0`); correção reproduzível do escopo em patch pnpm,
-mantendo versões, com prova ESM/CommonJS e CI compartilhado ainda pendentes.
+mantendo versões. Instalação congelada e prova ESM/CommonJS/captura passaram
+em `44459074435`; dezesseis gates completos `44459423949`/`4952ae0b` aprovados,
+com CI compartilhado `44459423698` ainda em execução. Montador/conferidor do
+composto passou em `44461354124` (22 casos, 93 testes de objetos); capacidades
+de cópia/restauração por trechos ainda estão em candidata.
 [Recibos, plano de captura e limites](recreio/backup-e-retirada-2026-11-19.md).
 Fechamento da captura, coleta, custódia e restauração do arquivo completo seguem
 abertas; esses ensaios sintéticos não concluem F8.
