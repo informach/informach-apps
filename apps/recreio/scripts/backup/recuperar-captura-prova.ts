@@ -2,6 +2,7 @@ import { type FileHandle, mkdtemp, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { S3Client } from "@aws-sdk/client-s3";
+import postgres from "postgres";
 import { z } from "zod";
 
 import { criarCifradorDeArquivos } from "./arquivo-cifrado";
@@ -198,31 +199,44 @@ async function main() {
     try {
       await acesso.copiarDump(dump);
       const inventario = await acesso.lerInventarioBanco();
-      const prova = await comBancoRestaurado({ dump, inventario }, async (copia) => {
-        let divergencia = false;
+      const prova = await comBancoRestaurado({ dump, inventario }, async (conexaoInicial) => {
+        // Somente esta prova injeta FATAL. A inspeção posterior possui uma
+        // conexão nova ao mesmo socket privado; nunca repete escritas incertas.
+        const opcoes = z
+          .object({
+            host: z.tuple([z.string().regex(/^\/tmp\/recreio-backup-[A-Za-z0-9]+$/)]),
+            port: z.tuple([z.literal(55432)]),
+            database: z.string().regex(/^recreio_restore_[a-f0-9]{24}$/),
+            user: z.string().min(1).max(63),
+            pass: z.string().min(1),
+          })
+          .parse(conexaoInicial.options);
+        let copia = conexaoInicial;
+        let inspecao: postgres.Sql | undefined;
         try {
-          await normalizarFotografiasRestauradas({
-            copia,
-            acesso,
-            fotografia,
-            inventario: {
-              ...fria.publicacao.inventario,
-              sha256: `${fria.publicacao.inventario.sha256.startsWith("0") ? "1" : "0"}${fria.publicacao.inventario.sha256.slice(1)}`,
-            },
-          });
-        } catch (e) {
-          divergencia = e instanceof FalhaDaNormalizacao && e.codigo === "INVENTARIO";
-        }
-        exigir(divergencia, "MANIFESTO_DIVERGENTE_ADMITIDO");
-        // Exclusivo desta CLI sintética: matar o backend depois das alterações
-        // de foto/recibo, antes do controle, deve reverter a transação inteira.
-        await copia.unsafe(`create function recreio.normalization_loss_probe() returns trigger language plpgsql as $$
+          let divergencia = false;
+          try {
+            await normalizarFotografiasRestauradas({
+              copia,
+              acesso,
+              fotografia,
+              inventario: {
+                ...fria.publicacao.inventario,
+                sha256: `${fria.publicacao.inventario.sha256.startsWith("0") ? "1" : "0"}${fria.publicacao.inventario.sha256.slice(1)}`,
+              },
+            });
+          } catch (e) {
+            divergencia = e instanceof FalhaDaNormalizacao && e.codigo === "INVENTARIO";
+          }
+          exigir(divergencia, "MANIFESTO_DIVERGENTE_ADMITIDO");
+          // Exclusivo desta CLI sintética: matar o backend depois das alterações
+          // de foto/recibo, antes do controle, deve reverter a transação inteira.
+          await copia.unsafe(`create function recreio.normalization_loss_probe() returns trigger language plpgsql as $$
           begin if new.protocol_version=0 and old.protocol_version<>0 then perform pg_catalog.pg_terminate_backend(pg_catalog.pg_backend_pid()); end if; return new; end $$`);
-        let perdeu = false;
-        try {
           await copia.unsafe(
             `create trigger normalization_loss_probe before update on recreio.backup_captures for each row execute function recreio.normalization_loss_probe()`,
           );
+          let perdeu = false;
           try {
             await normalizarFotografiasRestauradas({
               copia,
@@ -231,91 +245,105 @@ async function main() {
               inventario: fria.publicacao.inventario,
             });
           } catch (e) {
-            perdeu = perdeuConexao(e);
+            if (!perdeuConexao(e)) throw e;
+            perdeu = true;
           }
-        } finally {
-          await copia.unsafe(
-            "drop trigger if exists normalization_loss_probe on recreio.backup_captures",
-          );
+          exigir(perdeu, "QUEDA_DE_CONEXAO_NAO_EXERCITADA");
+          await conexaoInicial.end({ timeout: 5 });
+          inspecao = postgres({
+            host: opcoes.host[0],
+            port: opcoes.port[0],
+            database: opcoes.database,
+            username: opcoes.user,
+            password: opcoes.pass,
+            ssl: false,
+            max: 1,
+            prepare: false,
+            connect_timeout: 15,
+            idle_timeout: 1,
+          });
+          copia = inspecao;
+          await copia.unsafe("drop trigger normalization_loss_probe on recreio.backup_captures");
           await copia.unsafe("drop function recreio.normalization_loss_probe()");
-        }
-        exigir(perdeu, "QUEDA_DE_CONEXAO_NAO_EXERCITADA");
-        conferirInventarios(
-          inventario,
-          await copia.begin("isolation level repeatable read read only", inventariarBackup),
-        );
-        normalizacao = await normalizarFotografiasRestauradas({
-          copia,
-          acesso,
-          fotografia,
-          inventario: fria.publicacao.inventario,
-        });
-        let fotografiaId: string | undefined;
-        for await (const item of acesso.objetos()) {
-          fotografiaId = item.objeto.fotografiaId;
-          break;
-        }
-        exigir(fotografiaId, "PROVA_SEM_FOTOGRAFIA");
-        const [foto] = await copia.unsafe<{ data: Buffer }[]>(
-          "select data from recreio.space_snapshots where id=$1 and storage='pg'",
-          [fotografiaId],
-        );
-        exigir(
-          foto && Buffer.isBuffer(foto.data) && foto.data.length > 0,
-          "FOTOGRAFIA_NORMALIZADA_AUSENTE",
-        );
-        const original = Buffer.from(foto.data),
-          ruim = Buffer.from(foto.data);
-        foto.data.fill(0);
-        ruim.writeUInt8(ruim.readUInt8(0) ^ 1, 0);
-        let recusou = false;
-        try {
-          await copia.unsafe("update recreio.space_snapshots set data=$1 where id=$2", [
-            ruim,
-            fotografiaId,
-          ]);
-          try {
-            await normalizarFotografiasRestauradas({
-              copia,
-              acesso,
-              fotografia,
-              inventario: fria.publicacao.inventario,
-            });
-          } catch (e) {
-            recusou = e instanceof FalhaDaNormalizacao && e.codigo === "INTEGRIDADE";
+          conferirInventarios(
+            inventario,
+            await copia.begin("isolation level repeatable read read only", inventariarBackup),
+          );
+          normalizacao = await normalizarFotografiasRestauradas({
+            copia,
+            acesso,
+            fotografia,
+            inventario: fria.publicacao.inventario,
+          });
+          let fotografiaId: string | undefined;
+          for await (const item of acesso.objetos()) {
+            fotografiaId = item.objeto.fotografiaId;
+            break;
           }
-          const [mantida] = await copia.unsafe<{ data: Buffer }[]>(
-            "select data from recreio.space_snapshots where id=$1",
+          exigir(fotografiaId, "PROVA_SEM_FOTOGRAFIA");
+          const [foto] = await copia.unsafe<{ data: Buffer }[]>(
+            "select data from recreio.space_snapshots where id=$1 and storage='pg'",
             [fotografiaId],
           );
-          try {
-            exigir(recusou && mantida?.data.equals(ruim), "CORRUPCAO_SOBRESCRITA");
-          } finally {
-            mantida?.data.fill(0);
-          }
-        } finally {
+          exigir(
+            foto && Buffer.isBuffer(foto.data) && foto.data.length > 0,
+            "FOTOGRAFIA_NORMALIZADA_AUSENTE",
+          );
+          const original = Buffer.from(foto.data),
+            ruim = Buffer.from(foto.data);
+          foto.data.fill(0);
+          ruim.writeUInt8(ruim.readUInt8(0) ^ 1, 0);
+          let recusou = false;
           try {
             await copia.unsafe("update recreio.space_snapshots set data=$1 where id=$2", [
-              original,
+              ruim,
               fotografiaId,
             ]);
+            try {
+              await normalizarFotografiasRestauradas({
+                copia,
+                acesso,
+                fotografia,
+                inventario: fria.publicacao.inventario,
+              });
+            } catch (e) {
+              recusou = e instanceof FalhaDaNormalizacao && e.codigo === "INTEGRIDADE";
+            }
+            const [mantida] = await copia.unsafe<{ data: Buffer }[]>(
+              "select data from recreio.space_snapshots where id=$1",
+              [fotografiaId],
+            );
+            try {
+              exigir(recusou && mantida?.data.equals(ruim), "CORRUPCAO_SOBRESCRITA");
+            } finally {
+              mantida?.data.fill(0);
+            }
           } finally {
-            original.fill(0);
-            ruim.fill(0);
+            try {
+              await copia.unsafe("update recreio.space_snapshots set data=$1 where id=$2", [
+                original,
+                fotografiaId,
+              ]);
+            } finally {
+              original.fill(0);
+              ruim.fill(0);
+            }
           }
+          const repetida = await normalizarFotografiasRestauradas({
+            copia,
+            acesso,
+            fotografia,
+            inventario: fria.publicacao.inventario,
+          });
+          exigir(
+            JSON.stringify(normalizacao) === JSON.stringify(repetida),
+            "NORMALIZACAO_NAO_REPETIVEL",
+          );
+          fotos = normalizacao.fotosAutenticadas;
+          ligadas = normalizacao.vinculosConferidos;
+        } finally {
+          await inspecao?.end({ timeout: 5 });
         }
-        const repetida = await normalizarFotografiasRestauradas({
-          copia,
-          acesso,
-          fotografia,
-          inventario: fria.publicacao.inventario,
-        });
-        exigir(
-          JSON.stringify(normalizacao) === JSON.stringify(repetida),
-          "NORMALIZACAO_NAO_REPETIVEL",
-        );
-        fotos = normalizacao.fotosAutenticadas;
-        ligadas = normalizacao.vinculosConferidos;
       });
       exigir(normalizacao, "NORMALIZACAO_AUSENTE");
       clusterLimpo = prova.temporariosRemovidos;

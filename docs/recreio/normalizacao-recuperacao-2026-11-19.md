@@ -47,3 +47,10 @@ queda depois das escritas, comparar todo o inventário após rollback, recusar
 manifesto divergente e recusar foto PG corrompida sem sobrescrita silenciosa.
 Estes casos posteriores exigem nova prova; não pertencem ao recibo anterior.
 Diagnósticos usam somente enum fixa, nunca mensagens/cause/SQL/conteúdo/chaves.
+
+A injeção posterior falhou em `44504197654`/`bc957b7f`, com diagnóstico
+`SQL_57P01` e limpeza dos objetos confirmada. A prova passa a encerrar o
+cliente atingido pelo FATAL antes de inspecionar o rollback por conexão nova,
+restrita ao mesmo socket/banco privado e encerrada antes da remoção do cluster.
+Não repete escritas desconhecidas nem altera a API operacional para ensaios.
+A correção ainda depende de nova execução remota.
