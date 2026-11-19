@@ -1,0 +1,30 @@
+{
+  "source": "c8133890f32dd65d11decd6cf2e754ceda952b9f",
+  "node": "v24.15.0",
+  "pnpm": "9.15.0",
+  "originalLockSha256": "a0824f11da2252c0ccc4d8f8ff9f14e1768dde9bf3154ed37a780c215cd4c715",
+  "recreioManifestSha256": "1f5a56abc8bcfee3f57b34cde7f403793d27dcc7d33c289d0e70deb620dae74d",
+  "rootManifestSha256": "4d4d3f333f3a6ae29b5d63e175fc2a9fbea4b49ab961bd8708e098f086b1d09f",
+  "patches": [
+    {
+      "path": "patches/postgres@3.4.9.patch",
+      "bytes": 1408,
+      "sha256": "d8561da47094401407273301b6bb5467fd75898c61a3ad4d34c936f59ae3d200"
+    }
+  ],
+  "file": {
+    "path": "pnpm-lock.yaml",
+    "bytes": 577054,
+    "sha256": "f63c905788a376fe0c54404bee9f8ac3ca21be4f625ced1d99c3288ce7ec536c"
+  },
+  "runId": 44457602594,
+  "artifactId": 14498935568,
+  "zipBytes": 157435,
+  "zipSha256": "d62cc5a1286ee2d678b643ba55d983458f6b7d13be23037c77658102a7098394",
+  "allDependencyVersionsPreserved": true,
+  "packages": 1438,
+  "snapshots": 1446,
+  "productionApplied": false,
+  "supersededBeforeQualification": true,
+  "note": "Intermediate ESM-only patch lock; final patch includes all shipped builds and requires a newly generated lock."
+}

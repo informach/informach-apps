@@ -309,3 +309,28 @@ de trava, comando e transação. A capacidade de captura expõe AbortSignal vál
 somente durante a leitura; o consumidor deve propagá-lo ao I/O. A prova agora
 aguarda o término real do backend e exige zero conexões de captura ao retornar.
 Esse ajuste ainda precisa dos gates remotos; não é RTO de produção.
+
+A rodada `44456802688` aprovou quality de `39e362f0`. Entretanto a prova
+específica `44456802954` e a integração `44456802458` revelaram uma falha do
+driver `postgres@3.4.9`: o callback de `begin` continuava depois do fechamento
+e tentava ROLLBACK/COMMIT/consulta no socket nulo, gerando exceção não tratada.
+Dez asserções passarem não elimina essa falha; essas rodadas não qualificam o
+encerramento. A correção fica no ciclo de vida do próprio driver, em patch
+versionado do pnpm, sem atualizar versões nem interceptar exceções globais.
+[Causa, diff e verificação exigida](../../patches/README.md).
+
+O lock intermediário `44457602594`/`c8133890` foi gerado e conferido: 1.438 packages e 1.446
+snapshots preservados, com igualdade estrutural ao remover somente o hash do
+patch; nenhuma dependência foi atualizada. Manifest raiz e patch possuem hashes
+no [recibo](evidencias/postgres-lock-44457602594.json). Ele foi substituído antes
+da qualificação para corrigir também CommonJS (entrada default) e a cópia
+publicada para Cloudflare. O patch completo exige nova geração/admissão intacta.
+Prova independente em
+`packages/db/src/testing/postgres-connection-loss.ts` termina backends reais,
+verifica retorno/erro/consulta tardia/savepoint e consultas ainda na fila,
+reabertura legítima do pool e zero conexões restantes. Roda apenas no GitHub,
+em banco `ci` local e sem conteúdo/domínio de produção. CI compartilhado
+(PG 16) e o gate de captura (PG 18) executam a prova em ESM e CommonJS, carregando
+o pacote instalado, sem embutir/mascarar seu driver no teste. A cópia Cloudflare
+recebe o mesmo ajuste, sem homologação de runtime neste projeto. Gates desse patch e o
+fechamento de captura permanecem pendentes; não aplicar em produção antes deles.
