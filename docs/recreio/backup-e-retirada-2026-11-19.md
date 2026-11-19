@@ -56,15 +56,21 @@ não uma garantia adicional do provedor.
    manifesto por captura. Em transações de controle, travar mundos em ordem e
    reservar suas entregas, inclusive uma que tenha sido destacada pela retenção
    depois do snapshot. Não liberar a barreira antes de todas as reservas duráveis.
+   O primeiro writer mantém a barreira até fechar a visão exportada, inclusive
+   durante o consumidor de dump/objetos. Isso reduz a concorrência entre coleta
+   e captura; a liberação antecipada só deve existir com prova própria.
 6. O coletor adquire a versão compartilhada dessa barreira antes da admissão,
    depois mundo → entrega → reservas. Só admite objeto já destacado/retirando,
    sem reserva ativa, após carência e tentativa em voo. Assim, uma coleta já
    admitida antes da barreira só alcança fotografias retiradas antes do novo
    snapshot. Uma captura iniciada antes de adquirir a barreira é inválida.
    [Travas de sessão e transação](https://www.postgresql.org/docs/18/explicit-locking.html#ADVISORY-LOCKS)
-   têm vidas distintas; usar conexão dedicada, prazo e liberação explícita,
-   encerrando-a também na falha. Não deixar trava de sessão num pool genérico.
-7. Com reservas confirmadas, liberar a barreira e executar dump/inventário sob
+   têm vidas distintas. O primeiro writer usa trava de transação em conexão
+   própria, conservada até fechar o snapshot, sem trava de sessão no pool.
+   Conferir o backend proprietário em `pg_locks` depois de travar as entregas
+   e antes de gravar cada lote: perder a conexão de coordenação não pode admitir
+   reservas silenciosamente. Encerrar as duas conexões também na falha.
+7. Com reservas confirmadas, executar dump/inventário sob
    o snapshot original ainda aberto. Ler e verificar cada objeto referenciado.
    O arquivo contém dump, manifesto e todos os objetos necessários, com versões
    de formato/chaves recuperáveis. Nenhum ponteiro pode depender exclusivamente
@@ -226,7 +232,8 @@ não há dump, credenciais ou material de chave nessas tabelas. Campos de arquiv
 precisam estar completos antes de admitir a escrita externa. Um abandono após
 preparar arquivo exige prova de ausência, não apenas expiração.
 
-Este é schema candidato aditivo, sem escritor operacional.
+Este é schema candidato aditivo. O primeiro writer de controle está em preparação,
+sem entrada operacional habilitada.
 A 0218 foi gerada em `44453708963`/`9c9ecf72`, adotada intacta e conferida:
 predecessor 0217, 219 recibos candidatos, somente duas tabelas novas e nenhum
 schema anterior alterado. [Proveniência e hashes](evidencias/migracao-backup-reservas-0218.json).
@@ -235,5 +242,31 @@ transacional e seus testes; FK/CHECK isolados não demonstram captura segura.
 Geração ocorreu em `db-generate.yml`, sem banco/segredos/seeds.
 Testes de integridade PostgreSQL cobrem campos NULL incompletos, limites,
 contexto de chave, datas, estados de evidência e FKs que sobrevivem à retenção.
-Ainda precisam executar. Qualificar upgrade e concorrência em PostgreSQL descartável antes de qualquer
+Rodada `44454106669` aprovou quality do schema. A integração `44454106758`
+detectou duas expectativas incorretas do teste: exclusão RESTRICT retorna
+`23001`, enquanto referência inexistente retorna `23503`. As recusas reais
+foram preservadas e as expectativas foram separadas conforme os
+[códigos oficiais](https://www.postgresql.org/docs/18/errcodes-appendix.html).
+Os 16 casos e o upgrade precisam passar de novo. Qualificar concorrência em PostgreSQL descartável antes de qualquer
 implantação. Não alterar as 0216/0217 para incluir essas tabelas.
+
+`features/backup/captura-repository.ts` prepara controle auditado, adquire a
+barreira antes de abrir uma origem READ ONLY/REPEATABLE READ e exporta a visão
+para `pg_dump`. Inventário completo de fotografias em bucket usa LEFT JOIN;
+sem recibo ou identidade divergente, falha em vez de omitir conteúdo. Reserva
+até cem referências por transação, na ordem mundo → entrega → captura/reservas,
+e confere a barreira proprietária depois dessas travas. Tamanho e quantidade
+são limitados; nenhuma fotografia/envelope inteiro entra no controle em memória.
+Retenção pode destacar a fotografia depois da visão; o recibo imutável continua
+reservável. A visão original permanece aberta durante o consumidor, e falha
+conserva reservas/revisão. Ainda não guarda arquivo nem libera reservas.
+
+`pnpm --filter @informach/recreio-app test:backup-capture` usa outro banco
+descartável, criado pelo executor isolado existente, com configuração própria.
+Esse teste precisa inventariar o banco inteiro; filtrar as fixtures inválidas
+de outros testes enfraqueceria o protocolo. O gate integration executa ambas as
+suítes. Casos incluem snapshot importável, origem READ ONLY, reservas duráveis,
+retenção antes/depois da reserva, alteração enquanto espera trava, coleta que
+espera a barreira, falha de auditoria e término real do backend de coordenação.
+Esses novos gates ainda estão pendentes. Nenhuma migração, coleta ou captura foi
+ativada em produção.

@@ -241,6 +241,9 @@ jobs:
           pnpm --workspace-concurrency=1 --filter @informach/config --filter @informach/billing --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'
         run: pnpm --filter @informach/recreio-app test:integration
+      - name: Conferir captura global e reservas em outro banco descartavel
+        if: matrix.gate == 'integration'
+        run: pnpm --filter @informach/recreio-app test:backup-capture
       - if: matrix.gate == 'trial-setup'
         run: pnpm --filter @informach/recreio-app test:trial-setup
       - if: matrix.gate == 'trial-experiment'

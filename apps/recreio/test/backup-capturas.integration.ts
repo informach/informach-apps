@@ -227,8 +227,8 @@ describe("capturas/reservas: integridade PostgreSQL real", () => {
       .where(eq(deliveries.id, r.id));
     await db.delete(snapshots).where(eq(snapshots.id, foto.id));
     expect(await db.select().from(holds).where(eq(holds.captureId, c.id))).toHaveLength(1);
-    await recusar(db.delete(deliveries).where(eq(deliveries.id, r.id)), "23503");
-    await recusar(db.delete(captures).where(eq(captures.id, c.id)), "23503");
+    await recusar(db.delete(deliveries).where(eq(deliveries.id, r.id)), "23001");
+    await recusar(db.delete(captures).where(eq(captures.id, c.id)), "23001");
   });
   it("liberação exige data/motivo juntos e conserva unicidade do recibo", async () => {
     const c = await captura(),
@@ -250,6 +250,6 @@ describe("capturas/reservas: integridade PostgreSQL real", () => {
       .set({ releasedAt: sql`clock_timestamp()`, releaseReason: "abandoned" })
       .where(eq(holds.captureId, c.id));
     expect(await db.select().from(holds).where(eq(holds.captureId, c.id))).toHaveLength(1);
-    await recusar(db.delete(deliveries).where(eq(deliveries.id, r.id)), "23503");
+    await recusar(db.delete(deliveries).where(eq(deliveries.id, r.id)), "23001");
   });
 });

@@ -286,6 +286,9 @@ Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo �
 - `recreio.snapshot_object_prepared`: `{ app, spaceId, gameId, revision, storageScope }`, ator técnico nulo. Registro cifrado e evento são atômicos; repetição não cria novo evento. Não incluir envelope, referência/chave do objeto, SHA, nome do bucket, credenciais ou conteúdo. Preparação não comprova envio, confirmação nem migração da fotografia.
 - `recreio.snapshot_object_confirmed`: `{ app, spaceId, gameId, revision, storageScope }`, ator técnico nulo; confirmação persistida, ponteiro e evento atômicos após reabrir integralmente o objeto fora das travas. Não incluir hashes, envelope, bucket ou conteúdo.
 - `recreio.snapshot_object_reviewed`: `{ app, spaceId, gameId, reasonCode }`, ator técnico nulo, motivo fixo (`integrity`, `missing_key` ou `unconfirmed_write`). Não inclui mensagens de erro externas ou conteúdo; a revisão e o evento são atômicos.
+- `recreio.backup_capture_prepared`: `{ app, captureId, storageScope }`, ator técnico nulo; preparação do controle, sem indicar arquivo guardado.
+- `recreio.backup_inventory_fixed`: `{ app, captureId, objectCount }`, ator técnico nulo; inventário e evento estritos na mesma transação, após reservas duráveis. Não inclui hashes, referências, chaves, bucket ou conteúdo.
+- `recreio.backup_capture_reviewed`: `{ app, captureId, reasonCode }`, ator técnico nulo; `source_lost` indica que a visão exportada não está mais disponível depois de interromper a captura. Não transporta exceção ou mensagem externa. Revisão não libera reserva.
 
 Como entram: os eventos que acompanham uma gravação (`game_session_started`, `game_session_ended`, `space_*` menos `space_write_refused`) usam a forma estrita, na mesma transação da mudança: ou os dois ficam gravados, ou nenhum. As recusas (`ticket_rejected`, `space_write_refused`) não têm transação para acompanhar e seguem a forma padrão, sem derrubar a resposta se a auditoria falhar.
 
