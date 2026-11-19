@@ -174,6 +174,12 @@ const testEnv = {
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
   RECREIO_VISITS_MODE: "on",
+  // Artefato pessoal real no banco descartável; nenhuma chave do operador.
+  RECREIO_EXPORT_MODE: "native",
+  RECREIO_EXPORT_ACTIVE_KEY: "isolated",
+  RECREIO_EXPORT_KEYRING: JSON.stringify([["isolated", randomBytes(32).toString("base64")]]),
+  RECREIO_RIGHTS_MODE: "off",
+  RECREIO_RIGHTS_CONSENT_MODE: "off",
   RECREIO_MODERATION_SECRET: randomBytes(32).toString("hex"),
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:

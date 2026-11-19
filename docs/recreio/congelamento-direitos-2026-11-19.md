@@ -598,3 +598,17 @@ há 24 h por rodada; o prazo nega download mesmo antes da manutenção. A
 remoção da sessão/perfil/aparelho elimina o artefato pela FK. Novos testes
 remotos de publicação/repetição/concorrência de revogação/política/auditoria e
 expiração ainda precisam passar. Nada aplicado em produção.
+
+
+A rodada focada 44589568755/db70b8aa passou os 93 casos, incluindo captura
+paginada. A primeira rodada do artefato (44591271477/0cdbe71b) passou esses
+93 e recusou os cinco testes novos ainda na criação da fixture: o apelido
+sintético excedia o limite existente. O nome foi encurtado; nenhum limite de
+cadastro ou teste foi relaxado. A validação do artefato precisa ser repetida.
+
+A interface candidata permite preparar, baixar por POST autenticado e revogar
+a cópia do perfil, com escopo/validade explícitos, repetição do mesmo pedido e
+retorno de login recente. O executor isolado prepara chave própria descartável
+para testar essa jornada real no navegador (390 px), incluindo leitura do
+arquivo, tentativa de outro adulto e download após revogação. Não usa chaves
+ou dados de produção. Confirmação destrutiva continua off nesse executor.

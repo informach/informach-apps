@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CopiaPessoal } from "@/features/direitos/components/copia-pessoal";
 import { PainelDeDireitos } from "@/features/direitos/components/painel-de-direitos";
 import { retiradaDisponivel } from "@/features/direitos/consentimento-runtime";
+import { exportacaoDisponivel } from "@/features/direitos/exportacao-runtime";
 import { consultarMeusDireitos } from "@/features/direitos/service";
 import { paginaDaGestao } from "@/features/sessao/ator";
 import { AppError } from "@/lib/errors";
@@ -20,6 +22,7 @@ export default async function MeusDados() {
         Confira seus direitos sobre o próprio perfil e os perfis sob sua responsabilidade, mesmo sem
         assinatura.
       </p>
+      {exportacaoDisponivel() && <CopiaPessoal perfis={estado.perfis} />}
       <PainelDeDireitos estado={estado} podeRetirar={retiradaDisponivel()} />
       <Link
         href="/conta"

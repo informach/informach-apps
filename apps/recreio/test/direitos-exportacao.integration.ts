@@ -37,7 +37,7 @@ async function adulto() {
     login: { authSessionId: sessao.id, criadoEm: sessao.createdAt, expiraEm: sessao.expiresAt },
   };
   const { perfil } = await criarPerfilProprio(autor, {
-    apelido: "Apelido pessoal para exportar",
+    apelido: "Perfil exportado",
     avatar: "padrao",
   });
   return { conta, autor, perfil };
@@ -68,16 +68,14 @@ describe("direitos: artefato temporário pessoal", () => {
         outra = await adulto();
       const recibo = await prepararArquivoPessoal(f.autor, pedido, f.cifrador);
       const [linha] = await db.select().from(exports).where(eq(exports.id, pedido.copiaId));
-      expect(linha?.encryptedBytes?.includes(Buffer.from("Apelido pessoal para exportar"))).toBe(
-        false,
-      );
+      expect(linha?.encryptedBytes?.includes(Buffer.from("Perfil exportado"))).toBe(false);
       expect(await prepararArquivoPessoal(f.autor, pedido, f.cifrador)).toEqual(recibo);
       expect(
         (await db.select().from(exports).where(eq(exports.id, pedido.copiaId)))[0]?.encryptedBytes,
       ).toEqual(linha?.encryptedBytes);
       const bytes = await abrirArquivoPessoal(f.autor, { copiaId: pedido.copiaId }, f.cifrador);
       try {
-        expect(bytes.toString("utf8")).toContain("Apelido pessoal para exportar");
+        expect(bytes.toString("utf8")).toContain("Perfil exportado");
         expect(bytes.toString("utf8")).not.toContain(f.autor.login.authSessionId);
       } finally {
         bytes.fill(0);
