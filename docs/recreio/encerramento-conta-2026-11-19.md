@@ -395,3 +395,39 @@ Novo caso mantém token por uma hora e comprova retirada social imediata, prazo
 original preservado e preferência de terceiro intacta. O caso de 103 códigos
 agora qualifica duas passagens anteriores à minimização e a remoção física
 posterior. Gates remotos ainda necessários.
+
+
+### Próximo coordenador: conta e recibo final
+
+- Reutilizar a conferência de sujeitos mínimos/prazos da retirada em
+  `conclusao-perfis-repository.ts`; retenção vencida impede concluir até expurgo.
+- `encerramento-conta-lotes-repository.ts` remove um domínio/até cem linhas por
+  passagem, sem carregar corpos: PIN próprio, intenções de criação, avisos,
+  declarações sem responsabilidade, prévias sem operação consentida, convites
+  pendentes do emissor/destinatário e artefatos temporários. Convite histórico
+  e prova consentida seguem sua retenção; não apagar fatos financeiros/teste usado.
+- `encerramento-conta-repository.ts` descobre candidato sem trava, serializa a
+  identidade e toma UPDATE nela antes da operação/participação. Revalida prefixo,
+  bytes assinados, V2, todos os sujeitos/mundos, finanças e ausência de novos
+  perfis/responsabilidades. Não há I/O dentro da TX de 15/5/2 segundos.
+- Uma passagem registra a limpeza junto à auditoria estrita. Quando não há
+  pendência, fechar participação 2→3 e operação completed na mesma TX/evento;
+  rollback integral se auditoria falhar. Não renovar prazo nem reabrir teste.
+- Preservar core.users e logins de outros apps, livros/consentimentos,
+  cobrança/períodos e referências técnicas com prazo próprio. Sessão nativa
+  continua restrita à leitura de direitos/gestão financeira pela participação;
+  perfil infantil não vira adulto ao apagar PIN/perfil. Não apresentar esses
+  registros como anônimos ou destruídos. Expurgo de retenções prossegue após
+  conclusão. A operação não revoga períodos de outros adultos do grupo.
+- Provar conta sem jogador, bloqueio financeiro, dependência de perfis, lotes,
+  dados de terceiro preservados, falha de auditoria, concorrência, replay e
+  cópia nova depois de closed. Consentimento/UI públicos e implantação seguem
+  outro incremento após essas provas.
+
+
+O escritor candidato agora compõe essas etapas e a rodada privada inclui
+encerramento_conta após a retirada. Seis casos novos preparados usam o livro
+S3 e consentimento nativo: zero jogador com PIN/103 intenções/convites,
+rollback da auditoria final e do lote, execução concorrente, namespace recusado
+e expurgo com relógio real depois de closed. Nenhum estado foi aplicado em
+produção. Validação remota obrigatória antes de qualificar este escritor.

@@ -1,6 +1,7 @@
 import { concluirProximaRetirada } from "../../src/features/direitos/conclusao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
 import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
+import { concluirProximoEncerramento } from "../../src/features/direitos/encerramento-conta-repository";
 import {
   criarProcessadorFinanceiroDoEncerramento,
   type RuntimeFinanceiroDoEncerramento,
@@ -59,6 +60,10 @@ export async function processarRodadaDeDireitos(config: Config) {
     { nome: "cadastro", executar: async () => minimizarProximoPerfil(await efeito()) },
     { nome: "referencias", executar: async () => expurgarProximaReferencia(await efeito()) },
     { nome: "conclusao", executar: async () => concluirProximaRetirada(await efeito()) },
+    {
+      nome: "encerramento_conta",
+      executar: async () => concluirProximoEncerramento(await efeito()),
+    },
   ];
   for (const etapa of etapas) {
     try {

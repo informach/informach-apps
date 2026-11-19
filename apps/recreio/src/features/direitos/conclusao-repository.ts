@@ -4,12 +4,14 @@ import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
-  recreioProfiles as profiles,
   recreioRightsSubjects as subjects,
-  recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import {
+  conferirConclusaoDosPerfis,
+  conferirPrazosDaConclusao,
+} from "./conclusao-perfis-repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
@@ -77,47 +79,7 @@ export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
         config.assinatura,
         await referenciasDeMundosDaOperacao(tx, op.id),
       );
-      const retidos = alvos.filter((s) => s.phase === "minimized");
-      const ids = retidos.map((s) => s.profileReference);
-      const cadastros = ids.length
-        ? await tx
-            .select()
-            .from(profiles)
-            .where(inArray(profiles.id, ids))
-            .orderBy(profiles.id)
-            .for("share")
-        : [];
-      assertAllowed(
-        alvos.every(
-          (s) =>
-            s.retentionPolicyVersion === "perfil-2026-11-19" &&
-            s.minimizedAt !== null &&
-            ((s.phase === "removed" && s.liveProfileId === null && s.completedAt !== null) ||
-              (s.phase === "minimized" &&
-                s.liveProfileId === s.profileReference &&
-                s.completedAt === null &&
-                cadastros.some(
-                  (p) =>
-                    p.id === s.profileReference &&
-                    p.rightsOperationId === op.id &&
-                    p.status === "suspended" &&
-                    p.rightsFrozenState !== null &&
-                    p.userId === null &&
-                    p.groupId === null &&
-                    !p.coverageEnabled &&
-                    p.nickname === "Perfil retirado" &&
-                    p.avatar === "padrao",
-                ))),
-        ),
-        "DIREITOS_INTEGRIDADE",
-        "Os sujeitos ainda não têm recibo de retirada.",
-      );
-      const passos = await tx.select().from(worlds).where(eq(worlds.operationId, op.id));
-      assertAllowed(
-        passos.every((p) => p.phase === "completed" && p.completedAt !== null),
-        "DIREITOS_INTEGRIDADE",
-        "Os mundos ainda não foram liberados.",
-      );
+      const retidos = await conferirConclusaoDosPerfis(tx, op, alvos);
       // O CHECK impede completed com lease: concluir e liberar no mesmo comando.
       await tx
         .update(operations)
@@ -141,23 +103,7 @@ export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
         },
         { writer: tx },
       );
-      // Um prazo vencido enquanto esperávamos a auditoria exige purgar antes de concluir.
-      const vencidos = await tx
-        .select({ id: subjects.profileReference })
-        .from(subjects)
-        .where(
-          and(
-            eq(subjects.operationId, op.id),
-            eq(subjects.phase, "minimized"),
-            sql`${subjects.retainedUntil}<=${AGORA}`,
-          ),
-        )
-        .limit(1);
-      assertAllowed(
-        vencidos.length === 0,
-        "DIREITOS_INTEGRIDADE",
-        "Uma retenção venceu durante a conclusão.",
-      );
+      await conferirPrazosDaConclusao(tx, op.id);
       return {
         situacao: "retirada_concluida" as const,
         operacaoId: op.id,

@@ -384,3 +384,7 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.personal_exports_cleared`: `{ app, expiredCount, receiptCount }`. Expiração dos envelopes temporários e remoção dos recibos já sem corpo há 24 h, em lotes delimitados. Auditoria estrita no mesmo commit; sem IDs, bytes, referências ou conteúdo.
 
 - `recreio.account_personal_capture_prepared`: `{ app }`. Fotografia consistente dos dados próprios de conta/pagante no Recreio, sem jogador obrigatório. Sem contato, conteúdo, credenciais, dados fiscais ou identificadores de terceiros no evento; não comprova entrega do arquivo.
+
+- `recreio.account_closure_data_removed`: `{ app, operationId, domain, count }`. Um domínio fixo da conta, no máximo cem linhas, depois de plano assinado, retirada dos perfis/mundos e confirmação financeira. Sem endereço, rótulo, PIN, corpo cifrado, UUIDs de convites ou dados de terceiros. Limpeza e evento atômicos.
+
+- `recreio.account_closure_completed`: `{ app, operationId, profileCount, retainedCount, policyVersion, globalIdentityPreserved, financialRecordsPreserved }`. Conclusão conjunta da operação e participação 2→3, com retenções mínimas explícitas. Sem nomes, contatos, referências Stripe ou segredos. Não representa anonimização das referências retidas, encerramento global ou destruição de registros financeiros.
