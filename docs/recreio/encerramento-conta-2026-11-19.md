@@ -67,6 +67,11 @@ SDK/API continuam fixados; consultas às referências primárias por Context7:
 Testes HTTP novos aguardam gate; composição do coordenador financeiro ainda
 pendente. Observação do inventário não é, isoladamente, conclusão de exclusão.
 
+O reader HTTP b1055d38 passou quality 44627066896. A restrição de tipo dos
+executores 6b3947a2 passou direitos 44628387749, incluindo a publicação V2
+PG/S3; quality ainda em curso na última consulta. O coordenador financeiro e
+a ampliação autorizada dos efeitos continuam pendentes.
+
 Revisão do encadeamento encontrou que a seleção genérica de efeitos/fotografias
 não filtrava o tipo, apesar das recusas posteriores em cadastro/transformação.
 Isso podia encaminhar uma operação de encerramento publicada a uma etapa de
@@ -95,6 +100,12 @@ Revalidar o escopo local após a rede; confirmar recibo/auditoria na mesma TX,
 com relógio PG, lease e backoff. Só essa prova permitirá ampliar os executores
 e concluir os próprios domínios/participação; o ledger/publicador continua
 conservando o pedido original, sem reinterpretar prévias V1.
+
+O inventário local mínimo de assinaturas pertence ao reader compartilhado de
+billing, com escopo próprio e teto de 600, sem dar ausência por truncamento.
+A cópia da conta inclui o estado/datas/resultado do acompanhamento financeiro
+do encerramento; não expõe referências Stripe, SHA de provas, lease ou intenção
+assinada. Novo caso nativo cobre a cópia durante `closing`, ainda sem gate.
 
 ## Exportação
 

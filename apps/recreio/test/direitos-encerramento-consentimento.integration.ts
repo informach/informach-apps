@@ -18,6 +18,7 @@ import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/particip
 import { VERSAO_DA_COMPRA } from "@/features/cobranca/constantes";
 import { AceiteDaCompraSchema } from "@/features/cobranca/regras";
 import { prepararCompraNoBanco } from "@/features/cobranca/repository";
+import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
 import { reservarFotografiaDeDireitos } from "@/features/direitos/fotografias-repository";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
@@ -116,6 +117,26 @@ async function compraNaoEnviada(f: Fixture) {
 }
 
 describe("encerramento: consentimento v2 e congelamento atômico, ainda sem conclusão", () => {
+  it("inclui o acompanhamento financeiro na cópia própria durante o encerramento, sem provas privadas", () =>
+    cenario(false, async (f) => {
+      await f.confirmar(await f.preparar());
+      const copia = await capturarDadosPessoaisDaConta(f.autor);
+      try {
+        const texto = copia.bytes.toString("utf8");
+        expect(texto).toContain('"tipo":"encerramento_financeiro"');
+        expect(texto).toContain('"estado":"pending"');
+        for (const privado of [
+          "providerCustomerId",
+          "customer_id",
+          "observationSha256",
+          "leaseToken",
+          "signedIntent",
+        ])
+          expect(texto).not.toContain(privado);
+      } finally {
+        copia.bytes.fill(0);
+      }
+    }));
   it("publicação no livro não admite retirada genérica nem coloca encerramento financeiro pendente em revisão", () =>
     cenario(true, async (f) => {
       const http = await criarBucketDoLivro();

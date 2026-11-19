@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readRecreioOwnedSubscriptions } from "@informach/billing/recreio-account-closure";
 import { db, eq } from "@informach/db";
 import {
   checkoutIntents,
@@ -6,6 +7,7 @@ import {
   recreioDeviceSessions as devices,
   recreioRightsPreparations as preparations,
   sessions,
+  subscriptions,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
@@ -74,6 +76,67 @@ function compra(): AceiteDaCompra {
 }
 
 describe("encerramento: origem financeira própria, sem I/O ou cancelamento", () => {
+  it("inventário local completo não inclui outro app/pagante nem metadados fiscais", async () => {
+    const f = await adulto(),
+      outro = await adulto();
+    const [proprio, outroApp, outroPagante] = await Promise.all([
+      cliente(f),
+      cliente(f, "cozya"),
+      cliente(outro),
+    ]);
+    const inicio = new Date(),
+      fim = new Date(inicio.getTime() + 86400_000);
+    const inseridas = await db
+      .insert(subscriptions)
+      .values(
+        [proprio, outroApp, outroPagante].map((c) => ({
+          customerId: c.id,
+          provider: "stripe" as const,
+          providerSubscriptionId: `sub_fixture_${randomUUID().replaceAll("-", "")}`,
+          productId: "recreio_individual_monthly",
+          providerPriceId: "price_native_inventory",
+          status: "active" as const,
+          currentPeriodStart: inicio,
+          currentPeriodEnd: fim,
+          metadata: { privado: "NAO_EXPORTAR" },
+        })),
+      )
+      .returning();
+    const rows = await comCicloDeCobranca(f.conta.id, () =>
+      db.transaction((tx) => readRecreioOwnedSubscriptions(tx, f.conta.id)),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: inseridas[0]?.id,
+      customerId: proprio.id,
+      providerCustomerId: proprio.providerCustomerId,
+    });
+    for (const privado of ["fiscal-nao-incluir", "METADADO_NAO_INCLUIR", "NAO_EXPORTAR"])
+      expect(JSON.stringify(rows)).not.toContain(privado);
+  });
+  it("inventário local acima do teto recusa a captura inteira em vez de retornar ausência/truncamento", async () => {
+    const f = await adulto(),
+      c = await cliente(f),
+      inicio = new Date(),
+      fim = new Date(inicio.getTime() + 86400_000);
+    await db.insert(subscriptions).values(
+      Array.from({ length: 601 }, () => ({
+        customerId: c.id,
+        provider: "stripe" as const,
+        providerSubscriptionId: `sub_fixture_${randomUUID().replaceAll("-", "")}`,
+        productId: "recreio_individual_monthly",
+        providerPriceId: "price_native_inventory",
+        status: "canceled" as const,
+        currentPeriodStart: inicio,
+        currentPeriodEnd: fim,
+      })),
+    );
+    await expect(
+      comCicloDeCobranca(f.conta.id, () =>
+        db.transaction((tx) => readRecreioOwnedSubscriptions(tx, f.conta.id)),
+      ),
+    ).rejects.toThrow("complete-read limit");
+  });
   it("prévia v2 persiste plano privado, conserva resposta perdida e marca mudança de seleção sem substituir o original", async () => {
     const f = await adulto(),
       c = await cliente(f);

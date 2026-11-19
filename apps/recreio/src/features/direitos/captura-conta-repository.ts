@@ -9,6 +9,7 @@ import {
   recreioRenewalCancellations as cancellations,
   recreioPlanChanges as changes,
   recreioTrialClaims as claims,
+  recreioAccountClosureFinances as closureFinances,
   recreioAdultDeclarations as declarations,
   recreioDeviceSessions as devices,
   recreioGroupInvites as invites,
@@ -49,6 +50,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "aceite_compra",
             "troca_plano",
             "cancelamento_renovacao",
+            "encerramento_financeiro",
             "assinatura",
             "periodo_financeiro",
             "previa_direitos",
@@ -111,6 +113,28 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
               ),
             )
             .orderBy(declarations.id)
+            .limit(limites.pagina),
+        );
+        await paginas("encerramento_financeiro", (apos) =>
+          tx
+            .select({
+              cursor: closureFinances.operationId,
+              condicoes: closureFinances.policyVersion,
+              estado: closureFinances.state,
+              criadaEm: closureFinances.createdAt,
+              tentativaEm: closureFinances.requestStartedAt,
+              observadoEm: closureFinances.observedAt,
+              confirmadoEm: closureFinances.confirmedAt,
+              resultado: closureFinances.result,
+            })
+            .from(closureFinances)
+            .where(
+              and(
+                eq(closureFinances.requesterUserId, autor.contaId),
+                apos ? gt(closureFinances.operationId, apos) : undefined,
+              ),
+            )
+            .orderBy(closureFinances.operationId)
             .limit(limites.pagina),
         );
         await paginas("cancelamento_renovacao", (apos) =>

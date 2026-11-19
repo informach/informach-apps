@@ -78,3 +78,36 @@ export async function readRecreioOwnedSubscription(
     .for("share");
   return row ?? null;
 }
+
+/** Complete bounded local identity inventory for the technical closure worker.
+ * Caller holds its lifecycle; rows are not proof of a provider-side absence. */
+export async function readRecreioOwnedSubscriptions(tx: Tx, payerId: string) {
+  if (!payerId || payerId.length > 256) throw new BillingError("Invalid Recreio inventory owner");
+  const rows = await tx
+    .select({
+      id: subscriptions.id,
+      customerId: customers.id,
+      providerCustomerId: customers.providerCustomerId,
+      providerSubscriptionId: subscriptions.providerSubscriptionId,
+      productId: subscriptions.productId,
+      priceId: subscriptions.providerPriceId,
+      periodEnd: subscriptions.currentPeriodEnd,
+    })
+    .from(subscriptions)
+    .innerJoin(customers, eq(customers.id, subscriptions.customerId))
+    .where(
+      and(
+        eq(subscriptions.provider, "stripe"),
+        eq(customers.app, "recreio"),
+        eq(customers.provider, "stripe"),
+        eq(customers.subjectType, "user"),
+        eq(customers.subjectId, payerId),
+      ),
+    )
+    .orderBy(subscriptions.id)
+    .limit(601)
+    .for("share");
+  if (rows.length > 600)
+    throw new BillingError("Recreio inventory exceeds its complete-read limit");
+  return rows;
+}
