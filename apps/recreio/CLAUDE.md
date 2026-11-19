@@ -28,10 +28,17 @@ aparelho, integridade e auditoria estritas. [Escopo e pendências](../../docs/re
 Na candidata F8, `features/objetos/criptografia.ts` oferece o envelope
 AES-256-GCM limitado em memória, com contexto autenticado, rotação de chaves e
 referência de integridade. `features/objetos/s3.ts` transporta e relê o envelope
-com prazo/corpo limitados e recuperação separada. Os 26 testes fechados passaram;
-não é armazenamento integrado/implantado nem concede autorização de conteúdo.
+com prazo/corpo limitados e recuperação separada. Os 26 testes fechados passaram. Leitura em duas etapas, recuperação histórica,
+checkpoint/retenção e entrega auditada passaram em 53 cenários nativos/1226
+integrações em `44443406913`, quality `44443402920` aprovado. Não concede
+autorização de conteúdo nem significa implantação do armazenamento.
 Bucket isolado de homologação provisionado; prova externa `44433527147`
 aprovada com escrita condicionada, negativa anônima e limpeza confirmada.
+A prova nativa `44444276302` combinou o executor, PostgreSQL descartável e o
+bucket real, com espera persistida de cinco minutos, leitura pela composição
+servidora, revogação e limpeza confirmadas. `RECREIO_OBJECTS_MODE` nasce `off`
+e só admite `read`; nenhum job ou modo de migração foi habilitado. Faltam coleta,
+backup cifrado/guardado/restaurado, proteção de captura e corte.
 [Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
 
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
@@ -156,7 +163,7 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 - O batimento renova cada posse com um comando condicionado à mesma linha que a retomada fecha: renovar e retomar nunca acontecem as duas. Pode não acontecer nenhuma (a abertura encontra a posse no prazo e o batimento chega depois do vencimento): a dona já se cercou e a próxima abertura retoma, ao custo de uma reconexão. Também soma jogadores por segundo e o pico, e devolve as sessões de jogo encerradas depois do cursor. Sem cursor valem as encerradas desde o registro da instância.
 - Uma instância só se registra com o endereço de `RECREIO_GAME_ORIGINS[jogo].ws`.
 - Diário: contínuo a partir de `journal_seq + 1`, tudo ou nada; repetir exatamente uma entrada gravada (ou já compactada) não faz nada. Fotografia: só sobre a `revisaoEsperada`; o `sha256` é calculado aqui; ficam as 5 mais novas e as fixadas, e o diário é compactado até a mais antiga guardada. Os tetos vêm de `limites` do manifesto.
-- `features/posse/armazenamento.ts` é a porta das fotografias e do diário; `armazenamento-repository.ts` é a implementação no Postgres (`storage = 'pg'`). A variante com bucket não existe.
+- `features/posse/armazenamento.ts` é a porta das fotografias e do diário; `armazenamento-repository.ts` conserva metadados/recibos no Postgres e devolve fonte pg limitada ou referência de bucket confirmada. O serviço materializa fora da transação e relê posse/fonte antes de entregar. Executor de entrega e leitores estão em candidata qualificada, com migração de produção desligada; não tratar pg_dump de ponteiros como backup completo.
 - `POST /api/jobs/manutencao` (`CRON_SECRET`, registrado em `ops.job_runs`): posses vencidas, instâncias caladas há mais de dois prazos (`gone`; se voltarem a bater, ficam `active` de novo), ingressos vencidos há mais de um dia, sessões de jogo sem renovação e, por último, convites sem aceite vencidos há mais de um dia. Ingressos e convites: até 500 de cada por passagem, consulta em até 5 s e linhas disputadas ficam para a próxima. Convites aceitos conservam sua evidência; não se apagam membros, mundos ou auditoria. O escritor de convites exige antes o índice 0164 válido/pronto. Repetir continua lotes sem duplicar efeitos; só contagens, falha parcial responde 503. [Retenção técnica](../../docs/recreio/retencao-tecnica-2026-11-16.md) e [convites](../../docs/recreio/convites-retencao-2026-11-16.md).
 - Auditoria: `recreio.space_lease_taken_over` na transação da retomada; `recreio.space_write_refused` quando uma instância autenticada escreve sem a posse.
 

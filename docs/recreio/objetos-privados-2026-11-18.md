@@ -355,3 +355,26 @@ A prova ainda precisa executar; não é backup, jornada familiar, compra nem
 homologação de um jogo. Não migra ou restaura dados de produção. O inventário
 Railway foi relido: 34 serviços, um bucket de homologação e nenhuma alteração
 operacional pendente nesta preparação.
+
+
+O executor `b8894978` passou em quality `44443402920` e integração
+`44443406913`: 53 cenários de fotografias, 98 arquivos/1226 casos PostgreSQL e
+cinco HTTP. [Recibo](evidencias/objetos-entrega-44443406913.json).
+
+A prova nativa `44444276302`/`12459f31` concluiu qualificação e o job externo.
+Comprovou preparo durável, perda da resposta após upload/leitura reais, espera
+dos cinco minutos persistidos sem alterar relógio/recibo, recuperação do mesmo
+objeto, publicação atômica, leitura pela composição servidora, negativa de posse
+revogada e de acesso anônimo. O objeto sintético foi removido; inventário vazio
+e GET ausente confirmados. O artefato original foi baixado e conferido por hash
+e lista estrita de campos/flags. [Proveniência e limites](evidencias/objetos-nativos-provider-44444276302.json).
+
+A prova usou mundo/posse técnicos e banco descartável, sem famílias, compras,
+jogadores ou dados de produção. Nenhuma migration, agenda ou migração de bytes
+foi habilitada em produção. Coleta, proteção de captura, arquivo cifrado,
+restauração do objeto guardado e corte continuam em implementação. O CI
+compartilhado da fonte anterior `38b544fe` também concluiu em `44433295619`;
+fontes seguintes ainda exigem os próprios gates completos aplicáveis.
+
+
+Próximo bloco: [arquivo cifrado, captura consistente e retirada](backup-e-retirada-2026-11-19.md).

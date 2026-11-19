@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "b88949786011f45f0da0c5209c3603033201ebf9",
+  "quality": {
+    "runId": 44443402920,
+    "jobId": 135289577490,
+    "conclusion": "success"
+  },
+  "integration": {
+    "runId": 44443406913,
+    "jobId": 135289588920,
+    "conclusion": "success",
+    "postgresTests": 1226,
+    "postgresFiles": 98,
+    "snapshotCases": 53,
+    "httpTests": 5
+  },
+  "scope": "native delivery, durable retry, fencing, audited atomic publication, bounded readers, recovery and retention against disposable PostgreSQL and real SDK in closed HTTP",
+  "productionMigrationsApplied": false,
+  "productionObjectsMigrated": false
+}

@@ -63,7 +63,7 @@ direções aprovadas, incluindo crédito/estorno, limpeza de todos os recursos
 confirmada. Não é Checkout ou webhook nativos. Rodada integral `44426286901`: dezesseis gates aprovados.
 CI compartilhado `44424819941` aprovado. A fonte `38b544fe` também
 concluiu os dezesseis gates `44433292118`; seu CI compartilhado
-`44433295619` continua em curso. Preparação de F7 no
+`44433295619` aprovado. Preparação de F7 no
 [levantamento de direitos](recreio/direitos-implementacao-2026-11-18.md); recorte pessoal de progresso com quinze integrações PostgreSQL aprovadas
 em `44427172908`/`8647b310`. Inventário/cadastro e kernel de direitos passaram em quality
 `44428544763` e integração `44428548764`/`0e735ff4` (vinte cenários de direitos,
@@ -79,8 +79,11 @@ quality `44437014121` aprovado. Leitor nativo em duas etapas aprovado em
 quality `44439533813` e integração `44439538487` (17 cenários novos, 1190
 integrações e cinco HTTP). Checkpoint/retenção, recuperação histórica e preparação cifrada/auditada
 aprovados em `44442018626` e `44442022199`/`d4b77c2a` (41 cenários de fotografia,
-1214 integrações e cinco HTTP). Executor de entrega em candidata; coleta e
-backup permanecem pendentes, sem migração habilitada. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
+1214 integrações e cinco HTTP). Executor de entrega aprovado em quality `44443402920` e integração
+`44443406913`/`b8894978` (53 cenários, 1226 integrações e cinco HTTP). Prova
+nativa `44444276302`/`12459f31` no bucket real e PostgreSQL descartável aprovada,
+incluindo espera persistida de cinco minutos, leitura/revogação e limpeza
+confirmada. Coleta e backup permanecem pendentes, sem migração habilitada. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,
