@@ -34,6 +34,7 @@ export * from "./recreio-planos";
 export * from "./recreio-politicas";
 export * from "./recreio-presencas";
 export * from "./recreio-protecao";
+export * from "./recreio-renovacao";
 export * from "./recreio-salvamento";
 export * from "./recreio-social";
 export * from "./recreio-sucessao";
