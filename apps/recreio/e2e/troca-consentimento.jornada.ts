@@ -56,7 +56,9 @@ test("cancelamento nativo sem jogador exige aceite e distingue recebimento de co
     a.page.waitForEvent("load"),
     regiao.getByRole("button", { name: "Conferir pedido de cancelamento", exact: true }).click(),
   ]);
-  await expect(regiao.getByText(/Pedido recebido/)).toBeVisible();
+  await expect(regiao.getByRole("status")).toHaveText(
+    "Pedido recebido. A interrupção da renovação ainda aguarda confirmação.",
+  );
   const [auditoria] =
     await banco`select count(*)::integer as total from audit.events where event_type='recreio.renewal_cancellation_accepted' and payload->>'cancellationId'=${recibo.id}`;
   expect(auditoria?.total).toBe(1);

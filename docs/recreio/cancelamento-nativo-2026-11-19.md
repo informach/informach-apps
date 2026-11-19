@@ -67,6 +67,11 @@ filtrar a violação. Repetição remota obrigatória, inclusive jornada de reno
 que a falha anterior impediu de executar. Integração do worker f89b6ac5 passou
 44620911792; configuração/agenda de produção continuam intactas.
 
+A repetição 44623222188/a9c052a8 executou as jornadas sem a violação de CSP,
+mas a nova jornada falhou num seletor textual ambíguo (estado e data começavam
+por “Pedido recebido”). Corrigida para conferir o papel acessível `status` e
+seu texto completo, sem retirar a asserção. Nova repetição obrigatória.
+
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
 todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já
