@@ -179,3 +179,17 @@ de operar o bucket vivo. Não normaliza autoridades, não reaplica exclusões e
 não torna o banco apto ao tráfego. Ledger F7 e retenção precisam compor todas
 as capturas, publicações e retiradas; UUIDs/hashes continuam dados vinculáveis.
 Nenhuma dessas migrations foi aplicada em produção.
+
+
+## Incremento candidato 0224
+
+Acrescenta somente `rights_preparations`: 69 tabelas Recreio e 148 FKs. A FK
+RESTRICT para `core.users` preserva a prévia nativa até que o encerramento
+coordene sua retenção/retirada. O JSON contém IDs históricos de perfis/mundos,
+versões e dependências; não é anônimo e também precisa entrar em exportação,
+expurgo e replay F7. Não contém conteúdo dos mundos ou credenciais. Não há
+consentimento ou exclusão implícita nesta tabela.
+
+[Proveniência intacta](evidencias/migracao-direitos-preparacao-44526938362.json):
+SQL, snapshot e journal gerados no GitHub, predecessor 0223 e todas as tabelas
+anteriores conferidos. Nenhuma aplicação em produção.

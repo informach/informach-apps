@@ -1569,6 +1569,13 @@
       "when": 1795081461432,
       "tag": "0223_recreio_recuperacao_quarentena",
       "breakpoints": true
+    },
+    {
+      "idx": 224,
+      "version": "7",
+      "when": 1795092392025,
+      "tag": "0224_recreio_direitos_preparacao",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 # F7 — preparação persistida de direitos
 
-Estado: candidata em implementação, ainda sem migration gerada ou gate próprio.
+Estado: candidata em implementação. Migration 0224 gerada e adotada intacta;
+gates próprios ainda pendentes.
 Não é consentimento, exportação integral, exclusão ou liberação de tráfego.
 
 O pedido distingue retirar um perfil e encerrar a participação no Recreio.
@@ -21,7 +22,9 @@ Cancelamento é idempotente e restrito à própria prévia/hash, com auditoria
 atômica. A linha não é capacidade destrutiva. Não há endpoint, publicação de
 intenção externa, corte de sessão, transferência ou limpeza neste incremento.
 
-Migration será gerada exclusivamente pelo workflow `db-generate.yml`; nenhum
-SQL/snapshot/journal foi escrito manualmente. Gates PostgreSQL e qualidade
+Migration 0224 gerada exclusivamente pelo workflow `db-generate.yml`, rodada
+`44526938362`/`c9ea06d7`, e adotada intacta após ZIP/SHA, proveniência,
+predecessor e igualdade de todas as tabelas anteriores. São 69 tabelas/148 FKs
+Recreio e 225 recibos. Nenhum SQL/snapshot/journal foi escrito manualmente. Gates PostgreSQL e qualidade
 precisam comprovar autoridade, conta sem jogador, preservação de terceiros,
 limite, contexto infantil e rollback de auditoria.

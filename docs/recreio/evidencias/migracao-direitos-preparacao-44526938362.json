@@ -1,0 +1,27 @@
+{
+  "source": "c9ea06d75d35968b1b65ffb5901d0704d1226026",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0224_recreio_direitos_preparacao.sql",
+      "bytes": 1885,
+      "sha256": "91068cbdd5ce8a47d782f12636299ab1a97ed56a5373a0cf12a201507b778a1a"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0224_snapshot.json",
+      "bytes": 1061464,
+      "sha256": "8c311701b5767d27459932b399709dc33916af9e9d24740045f8cf075cdf5f7a"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 33973,
+      "sha256": "84c9eb0bbfb97d4d5318a56aee7bcba70a2c8bc40e03a1212a458662ebc77856"
+    }
+  ],
+  "runId": 44526938362,
+  "jobId": 135569883066,
+  "artifactId": 14531271946,
+  "artifactZipBytes": 74847,
+  "artifactZipSha256": "1abd6c286b3eec90664cccae5c37f4db133e671afa3f4e819f5547f75d5c40df",
+  "productionApplied": false,
+  "unchangedPreviousTables": true
+}
