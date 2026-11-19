@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { avaliarAcesso } from "@/features/acesso/service";
+import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { temCliente } from "@/features/jogar/registro";
 import { jogoAbre } from "@/features/jogos/config";
 import { GerarConvite } from "@/features/mundos/components/gerar-convite";
@@ -24,7 +25,15 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
   // que abre e que o portal sabe hospedar.
   const acesso = await avaliarAcesso({ profileId: ator.perfil.id, gameId: mundo.jogo });
   const disponivel = mundo.estado === "active" || mundo.estado === "hibernating";
-  const jogavel = disponivel && acesso.podeJogar && jogoAbre(mundo.jogo) && temCliente(mundo.jogo);
+  const jogavel =
+    disponivel &&
+    jogoAbre(mundo.jogo) &&
+    temCliente(mundo.jogo) &&
+    (acesso.podeJogar ||
+      (await conferirAberturaDoJogo(
+        { perfilId: ator.perfil.id, sessaoDeAparelhoId: ator.sessaoDeAparelhoId },
+        mundo.jogo,
+      )));
   return (
     <>
       <p className="text-sm font-semibold text-tinta-suave">

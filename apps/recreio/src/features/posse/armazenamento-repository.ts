@@ -1,14 +1,20 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, ne, sql } from "@informach/db";
 import {
   recreioSpaceJournal as journal,
+  recreioSnapshotObjectDeliveries as objects,
   recreioSpaceSnapshots as snapshots,
 } from "@informach/db/schema";
+import { ErroDoRecreio } from "@informach/recreio";
 import {
   DIARIO_PAGINA_MAX_BYTES,
   DIARIO_PAGINA_MAX_ENTRADAS,
   type MetaDeFotografia,
+  MetaDeFotografiaSchema,
 } from "@informach/recreio/contrato";
+import { conferirReferenciaDoObjeto } from "@/features/objetos/criptografia";
+import { AGORA } from "@/lib/repository";
 import type { ArmazenamentoDeMundos, EntradaGuardada } from "./armazenamento";
 
 /**
@@ -36,7 +42,7 @@ function meta(linha: {
   byteSize: number;
   sha256: string;
 }): MetaDeFotografia {
-  return {
+  const valor = MetaDeFotografiaSchema.safeParse({
     revisao: linha.revision,
     diarioSeq: linha.journalSeq,
     tick: linha.tick,
@@ -44,7 +50,9 @@ function meta(linha: {
     tipo: linha.kind,
     bytes: linha.byteSize,
     sha256: linha.sha256,
-  };
+  });
+  if (!valor.success) throw new ErroDoRecreio("INDISPONIVEL");
+  return valor.data;
 }
 
 const camposDaEntrada = {
@@ -79,19 +87,111 @@ export const armazenamentoPg: ArmazenamentoDeMundos = {
     return linha ? meta(linha) : null;
   },
 
-  async lerUltimaFotografia(tx, mundoId) {
+  async prepararLeituraDaFotografia(tx, mundoId, tetoBytes, revisao) {
+    if (!Number.isSafeInteger(tetoBytes) || tetoBytes < 1) throw new ErroDoRecreio("INDISPONIVEL");
+    if (revisao !== undefined && (!Number.isSafeInteger(revisao) || revisao < 0))
+      throw new ErroDoRecreio("INDISPONIVEL");
     const [linha] = await tx
-      .select({ ...camposDaMeta, storage: snapshots.storage, data: snapshots.data })
+      .select({
+        ...camposDaMeta,
+        id: snapshots.id,
+        storage: snapshots.storage,
+        objectKey: snapshots.objectKey,
+        bytesPg: sql<number | null>`octet_length(${snapshots.data})`.mapWith((v) =>
+          v === null ? null : Number(v),
+        ),
+      })
       .from(snapshots)
-      .where(eq(snapshots.spaceId, mundoId))
+      .where(
+        and(
+          eq(snapshots.spaceId, mundoId),
+          revisao === undefined ? undefined : eq(snapshots.revision, revisao),
+        ),
+      )
       .orderBy(desc(snapshots.revision))
       .limit(1);
     if (!linha) return null;
-    if (linha.storage !== "pg" || linha.data === null)
-      throw new Error(
-        "Fotografia guardada fora do Postgres: armazenamento ainda não implementado.",
-      );
-    return { meta: meta(linha), bytes: new Uint8Array(linha.data) };
+    const metadados = meta(linha);
+    if (metadados.bytes > tetoBytes) throw new ErroDoRecreio("INDISPONIVEL");
+    if (linha.storage === "pg") {
+      if (linha.objectKey !== null || linha.bytesPg !== metadados.bytes)
+        throw new ErroDoRecreio("INDISPONIVEL");
+      const [conteudo] = await tx
+        .select({ data: snapshots.data })
+        .from(snapshots)
+        .where(
+          and(
+            eq(snapshots.id, linha.id),
+            eq(snapshots.storage, "pg"),
+            sql`octet_length(${snapshots.data})=${metadados.bytes} and octet_length(${snapshots.data})<=${tetoBytes}`,
+          ),
+        );
+      if (
+        !conteudo?.data ||
+        conteudo.data.length !== metadados.bytes ||
+        createHash("sha256").update(conteudo.data).digest("hex") !== metadados.sha256
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return {
+        id: linha.id,
+        meta: metadados,
+        origem: { tipo: "pg", bytes: new Uint8Array(conteudo.data) },
+      };
+    }
+    if (linha.storage !== "bucket" || linha.bytesPg !== null || !linha.objectKey)
+      throw new ErroDoRecreio("INDISPONIVEL");
+    // Nunca carregar o envelope temporário nesta leitura; somente referência confirmada.
+    const [objeto] = await tx
+      .select({
+        snapshotReference: objects.snapshotReference,
+        spaceId: objects.spaceId,
+        plaintextSha256: objects.plaintextSha256,
+        plaintextBytes: objects.plaintextBytes,
+        bucketId: objects.bucketId,
+        bucketName: objects.bucketName,
+        escopo: objects.storageScope,
+        objectKey: objects.objectKey,
+        state: objects.state,
+        verifiedAt: objects.verifiedAt,
+        keyId: objects.encryptionKeyId,
+        formatVersion: objects.formatVersion,
+        cipherSha256: objects.cipherSha256,
+        cipherBytes: objects.cipherBytes,
+      })
+      .from(objects)
+      .where(eq(objects.snapshotId, linha.id));
+    if (
+      !objeto ||
+      objeto.snapshotReference !== linha.id ||
+      objeto.spaceId !== mundoId ||
+      objeto.state !== "verified" ||
+      !objeto.verifiedAt ||
+      objeto.objectKey !== linha.objectKey ||
+      objeto.plaintextSha256 !== metadados.sha256 ||
+      objeto.plaintextBytes !== metadados.bytes ||
+      objeto.formatVersion !== 1
+    )
+      throw new ErroDoRecreio("INDISPONIVEL");
+    const referencia = conferirReferenciaDoObjeto({
+      formato: "recreio-objeto-cifrado-v1",
+      chaveId: objeto.keyId,
+      contexto: { tipo: "fotografia", id: mundoId },
+      bytes: objeto.plaintextBytes,
+      sha256: objeto.plaintextSha256,
+      sha256Cifrado: objeto.cipherSha256,
+      bytesCifrados: objeto.cipherBytes,
+    });
+    return {
+      id: linha.id,
+      meta: metadados,
+      origem: {
+        tipo: "bucket",
+        bucketId: objeto.bucketId,
+        bucketName: objeto.bucketName,
+        escopo: objeto.escopo,
+        objeto: referencia,
+      },
+    };
   },
 
   async gravarFotografia(tx, mundoId, foto) {
@@ -117,7 +217,23 @@ export const armazenamentoPg: ArmazenamentoDeMundos = {
       .where(and(eq(snapshots.spaceId, mundoId), ne(snapshots.kind, "pinned")))
       .orderBy(desc(snapshots.revision));
     const sobram = comuns.slice(guardar).map((linha) => linha.id);
-    if (sobram.length > 0) await tx.delete(snapshots).where(inArray(snapshots.id, sobram));
+    if (sobram.length > 0) {
+      // Retirar o vínculo e a fotografia na mesma transação, sob a trava do
+      // mundo. O recibo permanece para GC; não apagar objeto durante retenção.
+      // Lease de tentativa em voo continua visível ao futuro coletor.
+      await tx
+        .update(objects)
+        .set({
+          snapshotId: null,
+          detachedAt: AGORA,
+          state: "retiring",
+          envelope: null,
+          reviewReason: null,
+          nextAttemptAt: sql`${AGORA}+interval '15 minutes'`,
+        })
+        .where(and(eq(objects.spaceId, mundoId), inArray(objects.snapshotId, sobram)));
+      await tx.delete(snapshots).where(inArray(snapshots.id, sobram));
+    }
     const [maisAntiga] = await tx
       .select({ journalSeq: snapshots.journalSeq })
       .from(snapshots)

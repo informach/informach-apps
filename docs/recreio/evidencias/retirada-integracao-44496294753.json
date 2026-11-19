@@ -1,0 +1,17 @@
+{
+  "source": "28be07537e4a4bcc31d60b7281064b0aae09cc09",
+  "runId": 44496294753,
+  "status": "passed",
+  "jobs": [
+    {
+      "jobId": 135464372615,
+      "name": "Recreio / integration"
+    }
+  ],
+  "postgresTests": 1309,
+  "postgresFiles": 102,
+  "nativeCaptureTests": 16,
+  "httpTests": 5,
+  "productionApplied": false,
+  "scopeLimit": "Disposable PostgreSQL, native capture, HTTP and upgrade gates including durable retirement. Before later private recovery quarantine/fault qualifications."
+}

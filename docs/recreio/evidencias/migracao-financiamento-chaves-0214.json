@@ -1,0 +1,37 @@
+{
+  "source": "7d6aa5a3fe0a4af52b818ef27e7a2441bdeddc70",
+  "runId": "44405179681",
+  "artifactId": "14474653283",
+  "zipBytes": 68664,
+  "zipSha256": "ba55fc8dcf56d6a6e25b8d05f0b6691c5057285a1c2d9d51b1f4029d2cbad527",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0214_clever_slapstick.sql",
+      "bytes": 382,
+      "sha256": "5e6ff74f6cbb2f3b9e500c8427377d40f4ad35a51015e63bedc7f08327800085"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0214_snapshot.json",
+      "bytes": 990240,
+      "sha256": "efe0edaa625d45d17f17aae00b150d51619c8dd3117a83827d6142c8f63a7506"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 32432,
+      "sha256": "64d9d3a771fc87bab47e6301df4e15fb072751cc7d0816045e3e8cab1dcf2af0"
+    }
+  ],
+  "entriesBefore": 214,
+  "entriesAfter": 215,
+  "snapshotId": "822bd440-5926-4c4d-97e2-74dae4fc2130",
+  "previousSnapshotId": "7670fab6-6d00-4f32-b7e3-cc7739efb5f8",
+  "scope": "keys_before_native_funding_tables",
+  "requiredBeforeDeployment": [
+    "qualify_shared_consumers",
+    "measure_shared_index_volume_and_lock_risk",
+    "control_migrator_and_verify_restore"
+  ],
+  "productionApplied": false,
+  "productionIndexPreflightMeasured": false,
+  "fabricatedFinancialBackfill": false
+}

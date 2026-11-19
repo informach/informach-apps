@@ -1,0 +1,31 @@
+{
+  "runId": "44342573592",
+  "artifactId": "14444302182",
+  "artifactBytes": 65900,
+  "artifactSha256": "1cdd245b7aafe8608ecf44ca189f57cc99bb15d1623a96a22469f720fc104541",
+  "provenance": {
+    "source": "0770ed21519e9d3fc9a50c3955da6ec4d21b6584",
+    "files": [
+      {
+        "path": "packages/db/src/migrations/0209_true_gabe_jones.sql",
+        "bytes": 171,
+        "sha256": "cbab7a7cb4ec7d43ddbc98c5938e5cea4c7f1a1378629e344cb6ca6841b36fc5"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/0209_snapshot.json",
+        "bytes": 957169,
+        "sha256": "88ec1a6546e22b59f8b98c4e488129b30370761736ba775d7bf0e6436947f1bc"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/_journal.json",
+        "bytes": 31692,
+        "sha256": "d542f063eb9cbb1f1eb6b8d63bfedda8f0fcdb5f09dd7ebb526aed03e1ea6fbf"
+      }
+    ]
+  },
+  "snapshotId": "d777c364-4fc3-4bdd-b37a-db8d9149fd1b",
+  "previousId": "dea623ef-8a6b-4f5a-a4cf-130199c85867",
+  "journalEntries": 210,
+  "adoptedUnmodified": true,
+  "productionApplied": false
+}

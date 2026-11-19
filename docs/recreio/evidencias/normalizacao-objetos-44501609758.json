@@ -1,0 +1,15 @@
+{
+  "source": "f9b6727b54629b8ec1414f182bb3025cc555c1b0",
+  "runId": 44501609758,
+  "status": "passed",
+  "jobs": [
+    {
+      "jobId": 135482565015,
+      "name": "qualify"
+    }
+  ],
+  "unitTests": 167,
+  "unitFiles": 11,
+  "productionApplied": false,
+  "scopeLimit": "Closed object/transport tests and TypeScript at the initial normalized recovery source; does not cover later forced connection loss scenarios."
+}

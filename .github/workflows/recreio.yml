@@ -2,6 +2,41 @@ name: Recreio
 
 on:
   workflow_dispatch:
+    inputs:
+      verification_gate:
+        description: Verificação auxiliar; somente all qualifica a rodada completa
+        type: choice
+        options: [all, quality, integration, backup-capture, commercial-reconciliation, commercial-ui]
+        default: all
+      sandbox_catalog:
+        description: Conferir catálogo real no Stripe Sandbox (sem clientes ou cobranças)
+        type: boolean
+        default: false
+      sandbox_journey:
+        description: Homologar Checkout e webhook reais em modo de teste e banco descartável
+        type: boolean
+        default: false
+      sandbox_plans:
+        description: Homologar APIs de agenda, renovação, cancelamento e estorno com relógio de teste (sem Checkout nativo)
+        type: boolean
+        default: false
+      sandbox_plans_scenario:
+        description: Cenário de API do provedor (sem homologar Checkout nativo)
+        type: choice
+        options: [monthly_upgrade, annual_credit, plan_matrix]
+        default: monthly_upgrade
+      sandbox_apply:
+        description: Criar somente produtos/preços/portal Sandbox ausentes
+        type: boolean
+        default: false
+      sandbox_account:
+        description: ID da conta Stripe de teste esperada
+        type: string
+        default: ""
+      sandbox_app_url:
+        description: Origem da aplicação de homologação
+        type: string
+        default: "https://recreio.informach.com.br"
   push:
     branches: [main, "verify/recreio-*"]
     paths:
@@ -27,18 +62,142 @@ permissions:
   contents: read
 
 concurrency:
-  group: recreio-${{ github.ref }}
+  group: recreio-${{ github.ref }}-${{ inputs.sandbox_plans && 'stripe-plans' || inputs.sandbox_journey && 'stripe-journey' || inputs.sandbox_catalog && 'stripe-catalog' || 'verification' }}-${{ inputs.verification_gate || 'all' }}
   cancel-in-progress: true
 
 jobs:
+  sandbox-catalog:
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_catalog && !inputs.sandbox_journey && !inputs.sandbox_plans
+    name: Recreio / catálogo Stripe Sandbox real
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
+      STRIPE_SECRET_KEY: ${{ secrets.RECREIO_STRIPE_SANDBOX_SECRET_KEY }}
+      STRIPE_EXPECTED_ACCOUNT: ${{ inputs.sandbox_account }}
+      RECREIO_SANDBOX_APP_URL: ${{ inputs.sandbox_app_url }}
+      RECREIO_SANDBOX_APPLY: ${{ inputs.sandbox_apply }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - run: pnpm --filter @informach/recreio-app exec tsx scripts/sandbox-catalogo.ts
+        env:
+          RECREIO_SANDBOX_RECEIPT_PATH: ${{ runner.temp }}/recreio-stripe-sandbox.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recreio-stripe-sandbox-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recreio-stripe-sandbox.json
+          if-no-files-found: error
+          retention-days: 7
+  sandbox-journey:
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_journey && !inputs.sandbox_plans
+    name: Recreio / jornada Stripe Sandbox real
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+      STRIPE_SECRET_KEY: ${{ secrets.RECREIO_STRIPE_SANDBOX_SECRET_KEY }}
+      STRIPE_EXPECTED_ACCOUNT: ${{ inputs.sandbox_account }}
+      STRIPE_NO_AUTO_UPDATE: "1"
+      STRIPE_CLI_TELEMETRY_OPTOUT: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+      STRIPE_CLI_VERSION: "1.55.12"
+      STRIPE_CLI_ARCHIVE_SHA256: "89d0bbec0970917a07fbd4d3a98afecf95b08f88f0687362c4a94447a0610245"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - name: Instalar CLI Stripe fixado e conferir SHA-256 oficial
+        shell: bash
+        run: |
+          set -euo pipefail
+          stripe_tool_dir="$RUNNER_TEMP/recreio-stripe-cli"
+          mkdir -p "$stripe_tool_dir"
+          curl --fail --location --silent --show-error "https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_CLI_VERSION}/stripe_${STRIPE_CLI_VERSION}_linux_x86_64.tar.gz" --output "$stripe_tool_dir/stripe.tar.gz"
+          echo "$STRIPE_CLI_ARCHIVE_SHA256  $stripe_tool_dir/stripe.tar.gz" | sha256sum --check --status
+          tar -xzf "$stripe_tool_dir/stripe.tar.gz" -C "$stripe_tool_dir" stripe
+          chmod +x "$stripe_tool_dir/stripe"
+          echo "$stripe_tool_dir" >> "$GITHUB_PATH"
+      - run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
+      - name: Homologar pelo portal e pelo SDK com webhook real encaminhado
+        run: pnpm --filter @informach/recreio-app homologar:stripe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recreio-stripe-jornada-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/recreio-stripe-journey.json
+            ${{ runner.temp }}/recreio-stripe-journey-diagnostic.json
+            ${{ runner.temp }}/recreio-stripe-local-catalog.json
+          if-no-files-found: warn
+          retention-days: 7
+  sandbox-plans:
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_plans
+    name: Recreio / APIs Stripe com relógio de teste
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
+      STRIPE_SECRET_KEY: ${{ secrets.RECREIO_STRIPE_SANDBOX_SECRET_KEY }}
+      STRIPE_EXPECTED_ACCOUNT: ${{ inputs.sandbox_account }}
+      RECREIO_SANDBOX_PLANS_SCENARIO: ${{ inputs.sandbox_plans_scenario || 'monthly_upgrade' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - run: pnpm --filter @informach/billing test -- src/__tests__/stripe-plans.test.ts src/__tests__/stripe-recreio-plans.test.ts src/__tests__/stripe-recreio-upgrades.test.ts src/__tests__/stripe-proration-contract.test.ts src/__tests__/payment-facts-settlement.test.ts src/__tests__/payment-funding-facts.test.ts src/__tests__/stripe-legacy-deferral.test.ts
+      - run: pnpm --filter @informach/recreio-app test -- src/features/cobranca/financiamento-regras.test.ts src/features/cobranca/financiamento-stripe.test.ts
+      - name: Provar APIs e limpar apenas os recursos do próprio relógio
+        run: pnpm --filter @informach/recreio-app homologar:stripe-agendas
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recreio-stripe-provider-plans-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/recreio-stripe-provider-plans.json
+            ${{ runner.temp }}/recreio-stripe-plans-catalog.json
+          if-no-files-found: warn
+          retention-days: 7
   verify:
+    if: github.event_name != 'workflow_dispatch' || (!inputs.sandbox_catalog && !inputs.sandbox_journey && !inputs.sandbox_plans)
     name: Recreio / ${{ matrix.gate }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes, equipe]
+        gate: ${{ fromJSON(inputs.verification_gate == 'quality' && '["quality"]' || inputs.verification_gate == 'integration' && '["integration"]' || inputs.verification_gate == 'backup-capture' && '["backup-capture"]' || inputs.verification_gate == 'commercial-reconciliation' && '["commercial-reconciliation"]' || inputs.verification_gate == 'commercial-ui' && '["commercial-ui"]' || '["quality","integration","trial-setup","trial-experiment","trial-ui","trial-play","commercial-setup","commercial-checkout","commercial-ui","commercial-reconciliation","e2e","checkpoint","cliente","longa","versoes","equipe"]') }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -78,10 +237,40 @@ jobs:
         run: |
           pnpm check --diagnostic-level=error
           pnpm compasso:test:infrastructure
-          pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
-          pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
+          pnpm --workspace-concurrency=1 --filter @informach/config --filter @informach/billing --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
+          pnpm --workspace-concurrency=1 --filter @informach/config --filter @informach/billing --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'
         run: pnpm --filter @informach/recreio-app test:integration
+      - name: Preparar cliente nativo PostgreSQL 18 para a captura
+        if: matrix.gate == 'integration' || matrix.gate == 'backup-capture'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! test -x /usr/lib/postgresql/18/bin/pg_dump; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-18
+          fi
+          /usr/lib/postgresql/18/bin/pg_dump --version | grep -E '^pg_dump \(PostgreSQL\) 18\.'
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+      - name: Conferir captura global e reservas em outro banco descartavel
+        if: matrix.gate == 'integration' || matrix.gate == 'backup-capture'
+        run: |
+          pnpm --filter @informach/db typecheck
+          pnpm --filter @informach/recreio-app typecheck
+          pnpm --filter @informach/db exec tsx src/testing/postgres-connection-loss.ts
+          pnpm --filter @informach/morada-server exec esbuild ../../packages/db/src/testing/postgres-connection-loss.ts --platform=node --format=cjs --bundle --external:postgres --outfile=../../packages/db/node_modules/.cache/postgres-connection-loss.cjs
+          node packages/db/node_modules/.cache/postgres-connection-loss.cjs
+          pnpm --filter @informach/recreio-app test:backup-capture
+      - if: matrix.gate == 'trial-setup'
+        run: pnpm --filter @informach/recreio-app test:trial-setup
+      - if: matrix.gate == 'trial-experiment'
+        run: pnpm --filter @informach/recreio-app test:trial-experiment
+      - if: matrix.gate == 'commercial-setup'
+        run: pnpm --filter @informach/recreio-app test:commercial-setup
+      - if: matrix.gate == 'commercial-checkout'
+        run: pnpm --filter @informach/recreio-app test:commercial-checkout
+      - if: matrix.gate == 'commercial-reconciliation'
+        run: pnpm --filter @informach/recreio-app test:commercial-reconciliation
       - name: Verify administration safety projection on isolated PostgreSQL
         if: matrix.gate == 'integration'
         run: pnpm compasso:test:integration --admin-only
@@ -111,12 +300,23 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
       - if: matrix.gate == 'equipe'
         run: pnpm --filter @informach/recreio-app e2e:equipe
+      - if: matrix.gate == 'trial-ui'
+        run: pnpm --filter @informach/recreio-app e2e:trial-setup
+      - if: matrix.gate == 'commercial-ui'
+        run: pnpm --filter @informach/recreio-app e2e:commercial-setup
+      - name: Block external Stripe for synthetic plan UI
+        if: matrix.gate == 'commercial-ui'
+        run: echo '127.0.0.1 api.stripe.com' | sudo tee -a /etc/hosts
+      - if: matrix.gate == 'commercial-ui'
+        run: pnpm --filter @informach/recreio-app e2e:commercial-plans
+      - if: matrix.gate == 'trial-play'
+        run: pnpm --filter @informach/recreio-app e2e:trial-experiment
       - if: matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
         env:
@@ -178,7 +378,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve synthetic browser failure evidence
-        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe')
+        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui')
         uses: actions/upload-artifact@v4
         with:
           name: recreio-${{ matrix.gate }}-${{ github.run_attempt }}
@@ -246,6 +446,44 @@ jobs:
           path: |
             apps/recreio/tmp/telas/visitas-gestao-mobile.png
             apps/recreio/tmp/telas/visitas-partida-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic trial consent screens
+        if: always() && matrix.gate == 'trial-ui'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-teste-telas-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/teste-consentimento-mobile.png
+            apps/recreio/tmp/telas/teste-recibo-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic purchase consent screens
+        if: always() && matrix.gate == 'commercial-ui'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-compra-telas-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/compra-ofertas-mobile.png
+            apps/recreio/tmp/telas/compra-recibo-mobile.png
+            apps/recreio/tmp/telas/compra-paga-mobile.png
+            apps/recreio/tmp/telas/compra-conferencia-mobile.png
+            apps/recreio/tmp/telas/troca-selecao-mobile.png
+            apps/recreio/tmp/telas/troca-selecao-confirmada-mobile.png
+            apps/recreio/tmp/telas/compra-perfis-individual-mobile.png
+            apps/recreio/tmp/telas/troca-cotacao-mobile.png
+            apps/recreio/tmp/telas/troca-autorizada-mobile.png
+            apps/recreio/tmp/telas/troca-credito-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic first-session screens
+        if: always() && matrix.gate == 'trial-play'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-teste-inicio-telas-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/teste-mundo-preparado-mobile.png
+            apps/recreio/tmp/telas/teste-primeira-sessao-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic staff queue screen

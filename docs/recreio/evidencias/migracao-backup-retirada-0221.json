@@ -1,0 +1,24 @@
+{
+  "source": "82a591b9c05cd1bac5873cf69a3cb73808813cb7",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0221_recreio_backup_retirada.sql",
+      "bytes": 3465,
+      "sha256": "cabd3933bc4434eee80c2587e047615803d2df592b7f5bf739fc32666633bae8"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0221_snapshot.json",
+      "bytes": 1053611,
+      "sha256": "281f3eefd42a05c93c9a8fe731203a9bf183b36172a390c040bd16a51c76ed53"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 33496,
+      "sha256": "82f5304d38bebcf590ecd5d159ea12a330c6fee324e7a10284a1a944be146488"
+    }
+  ],
+  "runId": 44493113881,
+  "artifactId": 14513288610,
+  "artifactZipSha256": "48889b8c849116cd6753687bf68ff6578b1cef89cc9e2c762d2f705217896337",
+  "productionApplied": false
+}

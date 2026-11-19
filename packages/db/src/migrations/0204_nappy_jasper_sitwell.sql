@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."entitlements" ADD CONSTRAINT "recreio_entitlement_trial_identity" UNIQUE("id","group_id","kind","tier","starts_at","ends_at");

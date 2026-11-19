@@ -1,0 +1,24 @@
+{
+  "source": "065c8ff8b502b6e93cbe95a7de005f0d20541a1d",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0219_recreio_backup_publicacao.sql",
+      "bytes": 3936,
+      "sha256": "de096c77c742697b3ef5ed2c1fb4b536675c17be25ce9f751397831af25fd241"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0219_snapshot.json",
+      "bytes": 1045862,
+      "sha256": "5efc5b1af2a24231c2c025448f4f3f5381090f34f215ae8ccacfe598bbe5b854"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 33189,
+      "sha256": "8a7c62c71284b390b6c55c701f6c40e144a78bd7f501dc1ef73c83e78e64234b"
+    }
+  ],
+  "runId": 44486780124,
+  "artifactId": 14510657014,
+  "artifactZipSha256": "f4c983ab531066e5f27457daa3f23aa8a372d0cde8a1ba9fc1d86a6fa0ef0dff",
+  "productionApplied": false
+}

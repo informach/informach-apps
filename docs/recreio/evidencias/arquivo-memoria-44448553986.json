@@ -1,0 +1,26 @@
+{
+  "runId": 44448553986,
+  "jobId": 135306566283,
+  "artifactId": 14494277521,
+  "zipBytes": 455,
+  "zipSha256": "26731f7ce1fc017ec3acf1b48e9d8c190ee74a381874234d136fe85b497f317a",
+  "receipt": {
+    "source": "52e45d8f665bb8a8cf0842bd1c566751cacf10c9",
+    "runId": "44448553986",
+    "boundary": "synthetic_private_files_no_network_or_database",
+    "status": "passed",
+    "plainBytes": 402653184,
+    "cipherBytes": 402653355,
+    "rssLimitBytes": 201326592,
+    "maxRssBytes": 74784768,
+    "encryptMs": 2945,
+    "decryptMs": 4607,
+    "roundtripVerified": true,
+    "sourcePreserved": true,
+    "cleanupConfirmed": true,
+    "failure": null,
+    "cleanupFailure": null,
+    "productionDataTouched": false
+  },
+  "scopeLimit": "Standalone codec and native file I/O under Docker memory/network limits. Not database restore, retained backup, production throughput or total recovery time."
+}

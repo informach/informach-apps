@@ -1,0 +1,14 @@
+{
+  "source": "45590f3b0cb56021f2dcb5e961a5af2c693771ce",
+  "integrationRunId": 44472614111,
+  "integrationJobId": 135385500907,
+  "objectsRunId": 44472619085,
+  "objectsJobId": 135385515119,
+  "conclusion": "success",
+  "appTypesVerified": true,
+  "frozenInstallVerified": true,
+  "productionApplied": false,
+  "runtimeProofRun": 44472623639,
+  "runtimeProofConclusion": "failure_before_restore_fixture_database_not_ready",
+  "scopeLimit": "Inventory v2 catalog/ACL fingerprint and explicit unsupported-resource failure, actual PostgreSQL divergence tests, composite native recovery and existing object primitives. Docker executor must pass after authenticated TCP readiness correction; no global role reconstruction, fresh-cluster composite recovery or production qualification."
+}

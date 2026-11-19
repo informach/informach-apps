@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "29d090c467f923c683cb65ad9510312fdbac7745",
+  "quality": {
+    "runId": 44437014121,
+    "conclusion": "success"
+  },
+  "integration": {
+    "runId": 44437017538,
+    "jobId": 135268319987,
+    "conclusion": "success",
+    "postgresTests": 1173,
+    "postgresFiles": 97,
+    "objectRegistryCases": 18,
+    "httpTests": 5,
+    "httpFiles": 2
+  },
+  "scope": "disposable PostgreSQL and closed HTTP; schema registry, not native migration or provider confirmation",
+  "productionMigrationsApplied": false,
+  "productionObjectsMigrated": false
+}

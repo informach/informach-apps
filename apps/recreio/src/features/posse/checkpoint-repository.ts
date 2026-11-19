@@ -7,6 +7,7 @@ import {
 } from "@informach/db/schema";
 import { ErroDoRecreio, type MundoId, PerfilIdSchema } from "@informach/recreio";
 import type { CheckpointDoHost } from "@informach/recreio/contrato";
+import { limitesDoJogo } from "@/features/jogos/config";
 import { confirmarCheckpointDoJogo } from "@/features/sessao-de-jogo/checkpoint-repository";
 import { conferirParticipacaoParaEncerramento } from "@/features/visitas/encerramento-contexto-repository";
 import { conferirFotografiaDeCheckpoint } from "./prova-fotografia";
@@ -92,6 +93,7 @@ export async function confirmarCheckpointDoMundoNoBanco(
         await conferirFotografiaDeCheckpoint(tx, {
           ...prova,
           diarioAtual: mundo.journalSeq,
+          fotografiaMaxBytes: limitesDoJogo(host.jogo).fotografiaMaxBytes,
           criadaApos: sql`(select requested_at from recreio.session_handoffs where id=${pedido.id}::uuid)`,
         });
         return prova;

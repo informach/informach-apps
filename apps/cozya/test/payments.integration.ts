@@ -267,8 +267,10 @@ describe("payment compatibility with the kitchen trial", () => {
         customer: customer.providerCustomerId,
         status: "active",
         items: {
+          has_more: false,
           data: [
             {
+              quantity: 1,
               price: { id: product.stripePriceId.dev },
               current_period_start: periodStart,
               current_period_end: periodStart + days * 86400,

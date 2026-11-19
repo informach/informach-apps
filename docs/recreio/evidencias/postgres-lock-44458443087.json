@@ -1,0 +1,29 @@
+{
+  "source": "b935970cf1154250cd2e976bb9cf29a6a8c1ba54",
+  "node": "v24.15.0",
+  "pnpm": "9.15.0",
+  "originalLockSha256": "a0824f11da2252c0ccc4d8f8ff9f14e1768dde9bf3154ed37a780c215cd4c715",
+  "recreioManifestSha256": "1f5a56abc8bcfee3f57b34cde7f403793d27dcc7d33c289d0e70deb620dae74d",
+  "rootManifestSha256": "4d4d3f333f3a6ae29b5d63e175fc2a9fbea4b49ab961bd8708e098f086b1d09f",
+  "patches": [
+    {
+      "path": "patches/postgres@3.4.9.patch",
+      "bytes": 4252,
+      "sha256": "46f044f006d3c5645373de657ac26dde73cd1223a6cdae4f5c4c6b3f5e56e560"
+    }
+  ],
+  "file": {
+    "path": "pnpm-lock.yaml",
+    "bytes": 577054,
+    "sha256": "7416c6b851245c0546d22640e5138e60522179731b65bd265aacdb0983a697d7"
+  },
+  "runId": 44458443087,
+  "artifactId": 14498319269,
+  "zipBytes": 157435,
+  "zipSha256": "a59d6a4de2a68938841acbc417374f06060c5f5f710b6a935cae56b67e1b855b",
+  "allDependencyVersionsPreserved": true,
+  "packages": 1438,
+  "snapshots": 1446,
+  "patchedBuilds": ["src/index.js", "cjs/src/index.js", "cf/src/index.js"],
+  "productionApplied": false
+}

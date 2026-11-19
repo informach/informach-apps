@@ -64,7 +64,16 @@ describe("cobertura pelo plano em vigor", () => {
   it("a assinatura ativa define o limite, mesmo com uma cortesia maior", () => {
     const decisao = decidirComCobertura(
       fatos(perfil(2), {
-        assinatura: { id: "s1", status: "active", tier: "individual", cancelaEm: null },
+        assinatura: {
+          id: "s1",
+          status: "active",
+          tier: "individual",
+          cancelaEm: null,
+          inicioDoPeriodo: dias(-1),
+          fimDoPeriodo: dias(29),
+          pagamentoConfirmadoAte: dias(29),
+          fimDoTeste: null,
+        },
         teveAssinatura: true,
         concessoes: [cortesia("family")],
       }),

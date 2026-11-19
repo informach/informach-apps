@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
@@ -13,18 +13,60 @@ import postgres from "postgres";
 // - `e2e`: build de produção com o jogo de teste ligado, `next start` numa
 //   porta própria e o Playwright (`e2e/*.spec.ts`). O servidor do jogo de
 //   teste e o servidor do Morada (`apps/morada-server`, como processo à parte)
-//   são iniciados e derrubados pelos próprios testes. Nada sai da máquina: sem
+//   são iniciados e derrubados pelos próprios testes. Nos modos comuns nada sai da máquina: sem
 //   Redis, sem envio de e-mail (os códigos ficam em arquivos) e sem segredo
 //   guardado (tudo é gerado aqui, a cada execução).
+// - `e2e-stripe-sandbox`: exceção explícita, só no GitHub, com conta de teste
+//   conferida e listener Stripe. Credenciais reais nunca entram nos modos comuns.
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
 const mode = process.argv[2];
-if (!["integration", "e2e", "versoes", "equipe"].includes(mode))
-  throw new Error("Choose integration, e2e, versoes or equipe");
+if (
+  ![
+    "integration",
+    "backup-capture",
+    "trial-setup",
+    "trial-experiment",
+    "commercial-setup",
+    "commercial-checkout",
+    "commercial-reconciliation",
+    "e2e-commercial-setup",
+    "e2e-commercial-plans",
+    "e2e-stripe-sandbox",
+    "e2e-trial-setup",
+    "e2e-trial-experiment",
+    "e2e",
+    "versoes",
+    "equipe",
+  ].includes(mode)
+)
+  throw new Error(
+    "Choose integration, backup-capture, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+  );
+const trialSetup = mode === "trial-setup";
+const backupCapture = mode === "backup-capture";
+const trialExperiment = mode === "trial-experiment";
+const commercialSetup = mode === "commercial-setup";
+const commercialReconciliation = mode === "commercial-reconciliation";
+const jornadaDasTrocas = mode === "e2e-commercial-plans";
+const commercialCheckout =
+  mode === "commercial-checkout" || commercialReconciliation || jornadaDasTrocas;
+const jornadaDaCompra = mode === "e2e-commercial-setup";
+const jornadaStripe = mode === "e2e-stripe-sandbox";
+const jornadaDoTeste = mode === "e2e-trial-setup";
+const jornadaDoInicio = mode === "e2e-trial-experiment";
 const versoes = mode === "versoes";
 const equipe = mode === "equipe";
-const e2e = mode === "e2e" || versoes || equipe;
+const e2e =
+  mode === "e2e" ||
+  versoes ||
+  equipe ||
+  jornadaDoTeste ||
+  jornadaDoInicio ||
+  jornadaDaCompra ||
+  jornadaDasTrocas ||
+  jornadaStripe;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -97,10 +139,38 @@ const testEnv = {
   NEXT_PUBLIC_APP_URL: origin,
   SENDGRID_API_KEY: "SG.local-not-sent",
   SENDGRID_FROM: "Recreio <nao-responda@example.test>",
+  STRIPE_MODE: "dev",
+  STRIPE_SECRET_KEY: "sk_test_isolated_not_sent",
+  STRIPE_WEBHOOK_SECRET: "whsec_isolated_not_sent",
+  STRIPE_PORTAL_CONFIGURATION_ID: "",
   // No E2E os códigos de acesso ficam em arquivos, onde o teste os lê.
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
+  RECREIO_FINANCIAL_JOBS_MODE: "off",
+  RECREIO_TRIAL_MODE:
+    trialExperiment || jornadaDoInicio || commercialSetup || commercialCheckout
+      ? "experiment"
+      : trialSetup || jornadaDoTeste
+        ? "setup"
+        : "off",
+  RECREIO_BILLING_MODE: commercialCheckout
+    ? "sandbox"
+    : commercialSetup || jornadaDaCompra
+      ? "setup"
+      : "off",
+  ...(commercialCheckout
+    ? {
+        STRIPE_MODE: "dev",
+        STRIPE_SECRET_KEY: "sk_test_isolated_not_sent",
+        STRIPE_WEBHOOK_SECRET: "whsec_isolated_not_sent",
+        STRIPE_PORTAL_CONFIGURATION_ID: "bpc_recreio",
+        RECREIO_INDIVIDUAL_MONTHLY_PRICE: "price_recreio_individual_monthly",
+        RECREIO_INDIVIDUAL_ANNUAL_PRICE: "price_recreio_individual_annual",
+        RECREIO_FAMILY_MONTHLY_PRICE: "price_recreio_family_monthly",
+        RECREIO_FAMILY_ANNUAL_PRICE: "price_recreio_family_annual",
+      }
+    : {}),
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
   RECREIO_VISITS_MODE: "on",
@@ -145,6 +215,52 @@ const testEnv = {
     : {}),
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
+if (jornadaStripe) {
+  const key = process.env.RECREIO_STRIPE_SANDBOX_KEY;
+  const secret = process.env.RECREIO_STRIPE_SANDBOX_WEBHOOK_SECRET;
+  const receiptPath = process.env.RECREIO_STRIPE_SANDBOX_CATALOG_PATH;
+  if (
+    process.env.GITHUB_ACTIONS !== "true" ||
+    process.env.CI !== "true" ||
+    !/^(sk|rk)_test_[A-Za-z0-9_]{8,}$/.test(key ?? "") ||
+    !/^whsec_[A-Za-z0-9_]{8,}$/.test(secret ?? "") ||
+    !receiptPath
+  )
+    throw new Error("External Stripe journey requires explicit GitHub/test-only configuration");
+  const bytes = readFileSync(receiptPath);
+  if (bytes.length > 65_536) throw new Error("Sandbox catalog receipt too large");
+  const receipt = JSON.parse(bytes.toString("utf8"));
+  if (
+    receipt.mode !== "dev" ||
+    receipt.verified !== true ||
+    receipt.origin !== origin ||
+    receipt.accountId !== process.env.STRIPE_EXPECTED_ACCOUNT ||
+    !receipt.variables
+  )
+    throw new Error("Sandbox catalog receipt does not belong to this isolated journey");
+  const entries = Object.entries(receipt.variables);
+  if (
+    entries.length !== 5 ||
+    entries.some(
+      ([name, value]) =>
+        typeof value !== "string" ||
+        !(name === "STRIPE_PORTAL_CONFIGURATION_ID"
+          ? /^bpc_[A-Za-z0-9_]+$/.test(value)
+          : /^RECREIO_(INDIVIDUAL|FAMILY)_(MONTHLY|ANNUAL)_PRICE$/.test(name) &&
+            /^price_[A-Za-z0-9_]+$/.test(value)),
+    )
+  )
+    throw new Error("Sandbox catalog receipt has unexpected variables");
+  Object.assign(childEnv, Object.fromEntries(entries), {
+    STRIPE_MODE: "dev",
+    STRIPE_SECRET_KEY: key,
+    STRIPE_WEBHOOK_SECRET: secret,
+    RECREIO_BILLING_MODE: "sandbox",
+    RECREIO_FINANCIAL_JOBS_MODE: "on",
+    RECREIO_TRIAL_MODE: "off",
+  });
+  console.log(`::add-mask::${childEnv.CRON_SECRET}`);
+}
 delete childEnv.MORADA_ARTE_DIR;
 delete childEnv.RECREIO_E2E_PRIVATE_ARTIFACTS;
 if (artDir) childEnv.MORADA_ARTE_DIR = artDir;
@@ -182,7 +298,15 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
-    if (!versoes && !equipe) run(["--filter", "@informach/morada-server", "build"], root);
+    if (
+      !versoes &&
+      !equipe &&
+      !jornadaDoTeste &&
+      !jornadaDoInicio &&
+      !jornadaDaCompra &&
+      !jornadaStripe
+    )
+      run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
     // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
     const buildPath = generatedPaths[0];
@@ -215,6 +339,11 @@ try {
           "playwright",
           "test",
           ...(equipe ? ["--config", "playwright.equipe.config.ts"] : []),
+          ...(jornadaDoTeste ? ["--config", "playwright.teste.config.ts"] : []),
+          ...(jornadaDoInicio ? ["--config", "playwright.teste-inicio.config.ts"] : []),
+          ...(jornadaDaCompra ? ["--config", "playwright.compra.config.ts"] : []),
+          ...(jornadaDasTrocas ? ["--config", "playwright.trocas.config.ts"] : []),
+          ...(jornadaStripe ? ["--config", "playwright.stripe-sandbox.config.ts"] : []),
           ...process.argv.slice(3),
         ],
         app,
@@ -226,7 +355,19 @@ try {
         "vitest",
         "run",
         "--config",
-        "vitest.integration.config.ts",
+        backupCapture
+          ? "vitest.backup-capture.config.ts"
+          : commercialReconciliation
+            ? "vitest.commercial-reconciliation.config.ts"
+            : commercialCheckout
+              ? "vitest.commercial-checkout.config.ts"
+              : commercialSetup
+                ? "vitest.commercial-setup.config.ts"
+                : trialExperiment
+                  ? "vitest.trial-experiment.config.ts"
+                  : trialSetup
+                    ? "vitest.trial-setup.config.ts"
+                    : "vitest.integration.config.ts",
         ...process.argv.slice(3),
       ],
       app,

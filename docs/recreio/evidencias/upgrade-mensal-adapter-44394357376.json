@@ -1,0 +1,22 @@
+{
+  "source": "1233bd0a931a1d61d4e8474a6056b9a68c211845",
+  "runId": "44394357376",
+  "artifactId": "14469049107",
+  "zipBytes": 1441,
+  "zipSha256": "3032b050683135dc44df88d3fa3bbe38573c4985ed3e3749add6c3ae93c786e7",
+  "scenario": "monthly_upgrade",
+  "mode": "dev",
+  "upgradeAdapter": "recreio_scoped_v1",
+  "cleanupConfirmed": true,
+  "nativeCheckoutCompleted": false,
+  "nativePlanChangeAccepted": false,
+  "nativeGameAccessProven": false,
+  "providerWebhookDeliveryProven": false,
+  "pendingUpgradeKeptOriginalPrice": true,
+  "upgradeAmountPaidCents": 6800,
+  "sameInvoiceRecoveryObserved": true,
+  "renewalAmountPaidCents": 5990,
+  "originalProductPreserved": true,
+  "cancellationEffective": true,
+  "sourceRefundDetected": true
+}

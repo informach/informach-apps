@@ -1,4 +1,5 @@
 import { generateKeyPairSync } from "node:crypto";
+import { PRODUCTS } from "@informach/config";
 import { describe, expect, it } from "vitest";
 import { validateEnvironment } from "./environment";
 
@@ -37,6 +38,87 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("valida a composição de objetos na partida sem expor credenciais", () => {
+    expect(validateEnvironment(base).RECREIO_OBJECTS_MODE).toBe("off");
+    expect(() =>
+      validateEnvironment({
+        ...base,
+        RECREIO_OBJECTS_MODE: "read",
+        RECREIO_OBJECTS_SECRET_KEY: "NAO_MOSTRAR",
+      }),
+    ).toThrow(/^Invalid RECREIO_OBJECTS configuration$/);
+  });
+  it("mantém cobrança fechada e só admite sandbox com catálogo e credenciais test", () => {
+    expect(validateEnvironment(base).RECREIO_BILLING_MODE).toBe("off");
+    expect(validateEnvironment(base).RECREIO_FINANCIAL_JOBS_MODE).toBe("off");
+    expect(() => validateEnvironment({ ...base, RECREIO_FINANCIAL_JOBS_MODE: "on" })).toThrow(
+      "Invalid sandbox billing environment",
+    );
+    expect(
+      validateEnvironment({ ...base, RECREIO_BILLING_MODE: "setup" }).RECREIO_BILLING_MODE,
+    ).toBe("setup");
+    const prices = Object.fromEntries(
+      PRODUCTS.filter((p) => p.app === "recreio").map((p) => {
+        if (!p.stripePriceEnvironmentVariable) throw new Error("Missing catalog variable");
+        return [p.stripePriceEnvironmentVariable, `price_${p.id}`];
+      }),
+    );
+    const sandbox = {
+      ...base,
+      ...prices,
+      RECREIO_BILLING_MODE: "sandbox",
+      STRIPE_MODE: "dev",
+      STRIPE_SECRET_KEY: "sk_test_isolated_not_sent",
+      STRIPE_WEBHOOK_SECRET: "whsec_isolated_not_sent",
+      STRIPE_PORTAL_CONFIGURATION_ID: "bpc_recreio",
+    };
+    expect(validateEnvironment(sandbox).RECREIO_BILLING_MODE).toBe("sandbox");
+    for (const modo of ["off", "setup", "sandbox"]) {
+      const operacao = validateEnvironment({
+        ...sandbox,
+        RECREIO_BILLING_MODE: modo,
+        RECREIO_FINANCIAL_JOBS_MODE: "on",
+        STRIPE_SECRET_KEY: "rk_test_isolated_not_sent",
+      });
+      expect(operacao.RECREIO_BILLING_MODE).toBe(modo);
+      expect(operacao.RECREIO_FINANCIAL_JOBS_MODE).toBe("on");
+    }
+    const invalid = [
+      { STRIPE_MODE: "prod" },
+      { STRIPE_SECRET_KEY: "sk_live_private_fixture" },
+      { STRIPE_WEBHOOK_SECRET: "" },
+      { STRIPE_PORTAL_CONFIGURATION_ID: "" },
+      { RECREIO_FAMILY_MONTHLY_PRICE: "price_TODO_recreio" },
+      { RECREIO_BILLING_MODE: "live" },
+    ];
+    for (const override of invalid) {
+      expect(() => validateEnvironment({ ...sandbox, ...override })).toThrow();
+    }
+    for (const override of invalid.filter((item) => !("RECREIO_BILLING_MODE" in item)))
+      expect(() =>
+        validateEnvironment({
+          ...sandbox,
+          RECREIO_BILLING_MODE: "off",
+          RECREIO_FINANCIAL_JOBS_MODE: "on",
+          ...override,
+        }),
+      ).toThrow();
+    expect(() =>
+      validateEnvironment({ ...sandbox, STRIPE_SECRET_KEY: "sk_live_private_fixture" }),
+    ).toThrow(
+      "Invalid sandbox billing environment: STRIPE_MODE, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PORTAL_CONFIGURATION_ID",
+    );
+  });
+  it("mantém teste desligado e distingue consentimento de início do experimento", () => {
+    expect(validateEnvironment(production).RECREIO_TRIAL_MODE).toBe("off");
+    for (const modo of ["setup", "experiment"] as const)
+      expect(
+        validateEnvironment({ ...production, RECREIO_TRIAL_MODE: modo }).RECREIO_TRIAL_MODE,
+      ).toBe(modo);
+    expect(() => validateEnvironment({ ...production, RECREIO_TRIAL_MODE: "on" })).toThrow(
+      "RECREIO_TRIAL_MODE",
+    );
+  });
   it("moderação sem chave permanece indisponível e a chave configurada precisa ser exclusiva", () => {
     expect(validateEnvironment(base).RECREIO_MODERATION_SECRET).toBeUndefined();
     const propria = "moderacao-exclusiva-".repeat(4);

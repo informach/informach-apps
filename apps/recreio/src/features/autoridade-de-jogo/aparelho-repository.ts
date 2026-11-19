@@ -37,7 +37,11 @@ export const recusarAutoridade = (
 ): RecusaDeAutoridade => ({ admitida: false, erro });
 
 /** Só trava identidade. Mundos tomam suas travas antes de admitir o perfil/aparelho. */
-export async function prepararIdentidadeDoJogo(tx: Transacao, referencia: ReferenciaDeJogador) {
+export async function prepararIdentidadeDoJogo(
+  tx: Transacao,
+  referencia: ReferenciaDeJogador,
+  antesDaConta?: (tx: Transacao, contaId: string) => Promise<void>,
+) {
   const [perfil] = await tx
     .select({ kind: profiles.kind })
     .from(profiles)
@@ -55,6 +59,7 @@ export async function prepararIdentidadeDoJogo(tx: Transacao, referencia: Refere
       : [];
   const contaId = aparelho?.kind === "account" ? aparelho.userId : pareado?.responsavelId;
   if (!contaId || !perfil) throw new ErroDoRecreio("SESSAO_INVALIDA");
+  await antesDaConta?.(tx, contaId);
   const [conta] = await tx.select().from(users).where(eq(users.id, contaId)).for("share");
   if (!conta?.emailVerified) throw new ErroDoRecreio("SESSAO_INVALIDA");
   return { conta, tipo: perfil.kind };
@@ -182,6 +187,24 @@ export async function admitirAparelhoAtual(
   };
 }
 
+/** Conteúdo e supervisão, sem conceder direito comercial ou iniciar uma sessão. */
+export function conteudoPermitido(
+  contexto: Extract<Awaited<ReturnType<typeof admitirAparelhoAtual>>, { admitida: true }>,
+  jogo: string,
+  agora: Date,
+) {
+  const manifesto = jogoQueAbre(jogo);
+  const { politica } = contexto;
+  return (
+    (contexto.perfil.kind !== "minor" || jogosProtegidosDisponiveis) &&
+    (!politica ||
+      (politicaConfereNoInstante(politica, agora) &&
+        politica.reconhecida &&
+        !politica.politica.pausado &&
+        faixaPermite(politica.politica.faixa, manifesto.classificacao.faixa)))
+  );
+}
+
 /** Concessão de gameplay: soma direito comercial, conteúdo e política à identidade atual. */
 export async function admitirAparelhoDeJogo(
   tx: Transacao,
@@ -193,8 +216,7 @@ export async function admitirAparelhoDeJogo(
     throw new ErroDoRecreio("SESSAO_INVALIDA");
   const contexto = await admitirAparelhoAtual(tx, pedido, identidade, antesDoAparelho);
   if (!contexto.admitida) return contexto;
-  const { politica } = contexto;
-  const manifesto = jogoQueAbre(pedido.jogo);
+  jogoQueAbre(pedido.jogo);
   const fatos = await lerFatosDeAcesso(pedido.perfilId, tx);
   const agora = await contexto.conferirPrazo();
   const decisao = decidirFatosLidos(fatos, agora);
@@ -202,13 +224,7 @@ export async function admitirAparelhoDeJogo(
     return recusarAutoridade(
       new ErroDoRecreio("ACESSO_PERDIDO", { estado: decisao.estado, motivo: decisao.motivo }),
     );
-  if (
-    politica &&
-    (!politicaConfereNoInstante(politica, agora) ||
-      !politica.reconhecida ||
-      politica.politica.pausado ||
-      !faixaPermite(politica.politica.faixa, manifesto.classificacao.faixa))
-  )
+  if (!conteudoPermitido(contexto, pedido.jogo, agora))
     return recusarAutoridade(new ErroDoRecreio("POLITICA_INCOMPATIVEL"));
   const conferirPrazo = async () => {
     const instante = await contexto.conferirPrazo();

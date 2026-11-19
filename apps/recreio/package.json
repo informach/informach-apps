@@ -10,7 +10,19 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "node scripts/isolated.mjs integration",
+    "test:backup-capture": "node scripts/isolated.mjs backup-capture",
+    "test:trial-setup": "node scripts/isolated.mjs trial-setup",
+    "test:trial-experiment": "node scripts/isolated.mjs trial-experiment",
+    "test:commercial-setup": "node scripts/isolated.mjs commercial-setup",
+    "test:commercial-checkout": "node scripts/isolated.mjs commercial-checkout",
+    "test:commercial-reconciliation": "node scripts/isolated.mjs commercial-reconciliation",
+    "homologar:stripe": "tsx scripts/sandbox-jornada.ts",
+    "homologar:stripe-agendas": "node --conditions=react-server --import tsx scripts/sandbox-agendas.ts",
     "e2e": "node scripts/isolated.mjs e2e",
+    "e2e:trial-setup": "node scripts/isolated.mjs e2e-trial-setup",
+    "e2e:commercial-setup": "node scripts/isolated.mjs e2e-commercial-setup",
+    "e2e:commercial-plans": "node scripts/isolated.mjs e2e-commercial-plans",
+    "e2e:trial-experiment": "node scripts/isolated.mjs e2e-trial-experiment",
     "e2e:versoes": "node scripts/isolated.mjs versoes",
     "e2e:equipe": "node scripts/isolated.mjs equipe",
     "jogo-de-teste": "node --import tsx e2e/servidor/main.ts",
@@ -20,6 +32,7 @@
     "gerar-chave": "node scripts/gerar-chave.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1172.0",
     "@better-auth/redis-storage": "1.7.10",
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
@@ -41,6 +54,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "server-only": "^0.0.1",
+    "stripe": "22.1.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

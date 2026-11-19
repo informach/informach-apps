@@ -36,6 +36,7 @@ import {
 import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { mundoCompativel } from "@/features/mundos/politica";
+import { materializarFotografia, mesmaFotografia } from "@/features/objetos/fotografia";
 import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
 import { conferirCapacidadeDeJogadores } from "@/features/visitas/capacidade-repository";
 import { exigirSessaoSemVisita } from "@/features/visitas/sessao-repository";
@@ -44,6 +45,7 @@ import type {
   ArmazenamentoDeMundos,
   EntradaGuardada,
   FotografiaParaGuardar,
+  LeitorDeFotografiasPrivadas,
   PaginaDoDiario,
 } from "./armazenamento";
 import { armazenamentoPg } from "./armazenamento-repository";
@@ -632,11 +634,31 @@ export async function reivindicarPosse(entrada: {
 
 export async function lerFotografiaDoMundo(
   pedido: PedidoComPosse,
+  leitor: LeitorDeFotografiasPrivadas | null = null,
 ): Promise<{ meta: MetaDeFotografia; bytes: Uint8Array } | null> {
-  return db.transaction(async (tx) => {
+  const teto = jogoDoCatalogo(pedido.jogo).limites.fotografiaMaxBytes;
+  const fonte = await db.transaction(async (tx) => {
     await conferirPosse(tx, pedido);
-    return armazenamento.lerUltimaFotografia(tx, pedido.mundoId);
+    const preparada = await armazenamento.prepararLeituraDaFotografia(tx, pedido.mundoId, teto);
+    await conferirPosse(tx, pedido);
+    return preparada;
   });
+  if (!fonte) return null;
+  // A leitura de pg já foi limitada e conferida sob posse atual, sem I/O externo.
+  if (fonte.origem.tipo === "pg") return { meta: fonte.meta, bytes: fonte.origem.bytes };
+  const bytes = await materializarFotografia(fonte, leitor);
+  try {
+    await db.transaction(async (tx) => {
+      await conferirPosse(tx, pedido);
+      const atual = await armazenamento.prepararLeituraDaFotografia(tx, pedido.mundoId, teto);
+      if (!atual || !mesmaFotografia(atual, fonte)) throw new ErroDoRecreio("INDISPONIVEL");
+      await conferirPosse(tx, pedido);
+    });
+    return { meta: fonte.meta, bytes };
+  } catch (erro) {
+    bytes.fill(0);
+    throw erro;
+  }
 }
 
 export async function lerDiarioDoMundo(

@@ -1,0 +1,24 @@
+{
+  "runId": 44459423698,
+  "source": "4952ae0b97790992065adb9d75f2130121b5f3f2",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 135342299936,
+      "name": "alteracao",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342384041,
+      "name": "ci",
+      "conclusion": "success"
+    },
+    {
+      "id": 135342385559,
+      "name": "documentos-recreio",
+      "conclusion": "skipped"
+    }
+  ],
+  "productionApplied": false,
+  "scopeLimit": "Full shared-consumer CI for reproducible postgres 3.4.9 patch and capture source; does not qualify later compound/index/dump increments or production deployment."
+}

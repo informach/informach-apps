@@ -12,11 +12,39 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 
 - **Domínio e contratos:** `packages/recreio` (`decidirAcesso`, regras de mundo, posse, convite, tokens, API das instâncias). O app não repete essas regras; ele carrega os fatos e chama o package. Leia o [README do package](../../packages/recreio/README.md).
 - **Catálogo dos jogos:** `@informach/config/jogos`. O estado de publicação de um jogo não é direito de abrir. O app pergunta sempre a `features/jogos/config.ts`, que é o catálogo deste deploy (o público mais, só fora de produção e com a variável ligada, o jogo de teste).
-- **Produtos e preços:** `@informach/config/products` (`recreio_*`, ainda `price_TODO_*`). Não existe plano gratuito.
+- **Produtos e preços:** `@informach/config/products` (`recreio_*`), com as quatro variáveis de preço registradas no catálogo. Individual R$ 59,90/mês ou R$ 599/ano; Família R$ 127,90/mês ou R$ 1.279/ano. Não existe plano gratuito permanente.
 - **Fechamento da plataforma:** [escopo vigente](../../docs/recreio/fechamento-plataforma-2026-11-16.md). O titular confirmou os quatro preços e responsabilidade declarada pelo adulto; conta pagante não precisa ocupar perfil de jogador. Estas decisões não declaram os fluxos familiares/comerciais concluídos. SDK independente com dados opacos/conflitos/conquistas implantado em `6b51dd13`; migração 0167 e 168 recibos conferidos na [evidência operacional](../../docs/recreio/dados-de-perfil-2026-11-16.md). Leitores familiares e autoridade de mundos implantados em `ad37ca93`, com famílias desligadas e 175 recibos/0174 conferidos; [prova atual](../../docs/recreio/leitores-protegidos-2026-11-17.md). Checkpoint e o restante do plano continuam em implementação.
 - **Este app:** rotas, sessão, telas e tudo o que grava no schema `recreio` (`packages/db/src/schema/recreio.ts`). Ele é o único a gravar nesse schema; o servidor de um jogo fala com o Recreio por HTTP.
 
 ## Camadas
+
+Na candidata F7, `features/direitos` prepara recortes pessoais de cadastro e de
+progresso/versões/conflitos/conquistas por perfil/jogo, com inventário histórico
+paginado dos jogos persistidos. Não é exportação completa
+ou download publicado. Usa autoridade nativa recente própria ou responsabilidade
+explícita, independente de assinatura e gameplay; mutex dos dados antes do
+aparelho, integridade e auditoria estritas. [Escopo e pendências](../../docs/recreio/direitos-implementacao-2026-11-18.md).
+
+Na candidata F8, `features/objetos/criptografia.ts` oferece o envelope
+AES-256-GCM limitado em memória, com contexto autenticado, rotação de chaves e
+referência de integridade. `features/objetos/s3.ts` transporta e relê o envelope
+com prazo/corpo limitados e recuperação separada. Os 26 testes fechados passaram. Leitura em duas etapas, recuperação histórica,
+checkpoint/retenção e entrega auditada passaram em 53 cenários nativos/1226
+integrações em `44443406913`, quality `44443402920` aprovado. Não concede
+autorização de conteúdo nem significa implantação do armazenamento.
+Bucket isolado de homologação provisionado; prova externa `44433527147`
+aprovada com escrita condicionada, negativa anônima e limpeza confirmada.
+A prova nativa `44444276302` combinou o executor, PostgreSQL descartável e o
+bucket real, com espera persistida de cinco minutos, leitura pela composição
+servidora, revogação e limpeza confirmadas. `RECREIO_OBJECTS_MODE` nasce `off`
+e só admite `read`; nenhum job ou modo de migração foi habilitado. Em candidatas
+posteriores, captura protegida, publicação durável, coleta e retirada restritas
+passaram em banco descartável e no bucket de homologação. A recuperação em
+cluster novo e a normalização offline de fotos também têm prova sintética.
+Custódia real, autoridades, replay de direitos, agenda, RPO/RTO e corte continuam
+abertos. Confira fontes e limites no [protocolo F8](../../docs/recreio/backup-e-retirada-2026-11-19.md)
+e na [normalização offline](../../docs/recreio/normalizacao-recuperacao-2026-11-19.md).
+[Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
 
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
 o layout não exige jogador. Estante e mundos adultos conferem `paginaDoPortal`
@@ -81,8 +109,10 @@ São cinco coisas separadas: a conta (`core.users`, do login compartilhado), a a
 - `features/acesso/service.ts`: `avaliarAcesso({ profileId, gameId? })` carrega os fatos (perfil, grupo, assinatura do titular pelo `getProSubscription`, concessões) e entrega a `decidirAcesso`. **É o único lugar do app que lê assinatura ou concessão para decidir acesso**; `features/acesso/fronteira.test.ts` falha se outro arquivo de `src` fizer isso. Telas, ingresso e renovação de sessão chamam `avaliarAcesso`.
 - `features/acesso/decisao.ts` compõe a mesma decisão a partir dos fatos; o repository aceita a conexão da transação. A troca de ingresso toma SHARE no perfil antes de reler a autorização na própria transação. A revogação toma UPDATE nos perfis do grupo, ordenados, e encerra somente as sessões que perderam cobertura pelo cursor transacional. A instância as recebe no próximo batimento (10 s quando o transporte está saudável); não depende da renovação do navegador.
 - Cobertura: o perfil precisa ter grupo, estar com `coverage_enabled` e caber, por ordem de criação, no limite de perfis do plano em vigor (`acesso/cobertura.ts`).
-- A cobrança ainda não existe: o `@informach/billing` entra só para a leitura acima. Sem checkout, webhook ou serviço de cobrança; os produtos seguem `price_TODO_recreio_*`.
-- Nesta etapa quem joga é quem a equipe liberou: `pnpm --filter @informach/recreio-app conceder --email <e> --tier individual|family --dias <n> --motivo <codigo>` e `revogar --email <e> --motivo <codigo>` (`scripts/`, rodam com `tsx` e só precisam de `DATABASE_URL`). A linha em `recreio.entitlements` e o evento de auditoria entram na mesma transação. Uma concessão vigente por grupo; o motivo é um código curto, nunca texto livre.
+- F6 tem candidatas de consentimento, teste pela primeira sessão, Checkout recuperável, conciliação financeira completa, webhook e job autenticado. Catálogo/preços/portal foram conferidos no Stripe de teste; o Checkout hospedado parou no hCaptcha e ainda exige homologação humana. Agendas, recibos e revisão comercial das trocas estão em qualificação. Cobrança e teste continuam desligados em produção; faltam trocas completas, agendamento operacional, endpoint público e homologação comercial. [Estado comercial](../../docs/recreio/comercial-levantamento-2026-11-18.md) e [trocas](../../docs/recreio/trocas-plano-2026-11-18.md).
+- Na candidata de admissão financeira, status ativo exige origem comercial admitida, fatura paga compatível e conferência bem-sucedida dos últimos quinze minutos. O prazo de ingresso/sessão é limitado por esses fatos. Falha, estorno, contestação ou prova ausente recusam acesso pago; concessões explícitas conservam seu contrato separado. O repository de acesso carrega estes fatos e a decisão pura compõe o limite.
+- Na candidata de financiamento, saldo do customer é composto entre seus contratos nativos. O escritor conserva datas/flags core e guarda prova, captura e fontes separadas; o acesso pago exige prova `verified` da política atual com relógio igual ao período core. Creditar um sufixo limita a prova original; estorno da origem afeta dependentes sem falsificar flags de suas faturas. Ausência de prova recusa acesso pago. Componentes e integração têm gates distintos; [estado e limites](../../docs/recreio/financiamento-creditos-2026-11-18.md). Não implantar migrations ou ativar cobrança com base na prova de API.
+- Em produção, o alfa joga por concessão auditada: `pnpm --filter @informach/recreio-app conceder --email <e> --tier individual|family --dias <n> --motivo <codigo>` e `revogar --email <e> --motivo <codigo>` (`scripts/`, rodam com `tsx`). Exigem `DATABASE_URL`; a avaliação de assinatura paga também exige `STRIPE_MODE` igual ao serviço atendido (padrão `dev`). A linha em `recreio.entitlements` e o evento de auditoria entram na mesma transação. Uma concessão vigente por grupo; o motivo é um código curto, nunca texto livre.
 - Auditoria: `recreio.profile_created`, `recreio.entitlement_granted` e `recreio.entitlement_revoked`, com os campos de `docs/audit-payload-policy.md`. Nunca apelido, e-mail, IP ou token.
 - A criação de perfil/grupo e seu evento são atômicos no repository. Os scripts operacionais usam `node --conditions=react-server --import tsx` pelos comandos do package para consumir os mesmos repositories protegidos por `server-only`; não precisam das variáveis de ambiente do Next.
 - `/estante` e `/conta` mostram a situação do acesso em texto simples (`acesso/texto.ts`).
@@ -138,7 +168,7 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 - O batimento renova cada posse com um comando condicionado à mesma linha que a retomada fecha: renovar e retomar nunca acontecem as duas. Pode não acontecer nenhuma (a abertura encontra a posse no prazo e o batimento chega depois do vencimento): a dona já se cercou e a próxima abertura retoma, ao custo de uma reconexão. Também soma jogadores por segundo e o pico, e devolve as sessões de jogo encerradas depois do cursor. Sem cursor valem as encerradas desde o registro da instância.
 - Uma instância só se registra com o endereço de `RECREIO_GAME_ORIGINS[jogo].ws`.
 - Diário: contínuo a partir de `journal_seq + 1`, tudo ou nada; repetir exatamente uma entrada gravada (ou já compactada) não faz nada. Fotografia: só sobre a `revisaoEsperada`; o `sha256` é calculado aqui; ficam as 5 mais novas e as fixadas, e o diário é compactado até a mais antiga guardada. Os tetos vêm de `limites` do manifesto.
-- `features/posse/armazenamento.ts` é a porta das fotografias e do diário; `armazenamento-repository.ts` é a implementação no Postgres (`storage = 'pg'`). A variante com bucket não existe.
+- `features/posse/armazenamento.ts` é a porta das fotografias e do diário; `armazenamento-repository.ts` conserva metadados/recibos no Postgres e devolve fonte pg limitada ou referência de bucket confirmada. O serviço materializa fora da transação e relê posse/fonte antes de entregar. Executor de entrega e leitores estão em candidata qualificada, com migração de produção desligada; não tratar pg_dump de ponteiros como backup completo.
 - `POST /api/jobs/manutencao` (`CRON_SECRET`, registrado em `ops.job_runs`): posses vencidas, instâncias caladas há mais de dois prazos (`gone`; se voltarem a bater, ficam `active` de novo), ingressos vencidos há mais de um dia, sessões de jogo sem renovação e, por último, convites sem aceite vencidos há mais de um dia. Ingressos e convites: até 500 de cada por passagem, consulta em até 5 s e linhas disputadas ficam para a próxima. Convites aceitos conservam sua evidência; não se apagam membros, mundos ou auditoria. O escritor de convites exige antes o índice 0164 válido/pronto. Repetir continua lotes sem duplicar efeitos; só contagens, falha parcial responde 503. [Retenção técnica](../../docs/recreio/retencao-tecnica-2026-11-16.md) e [convites](../../docs/recreio/convites-retencao-2026-11-16.md).
 - Auditoria: `recreio.space_lease_taken_over` na transação da retomada; `recreio.space_write_refused` quando uma instância autenticada escreve sem a posse.
 

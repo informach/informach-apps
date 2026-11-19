@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "d4b77c2a",
+  "quality": {
+    "runId": 44442018626,
+    "jobId": 135284908210,
+    "conclusion": "success"
+  },
+  "integration": {
+    "runId": 44442022199,
+    "jobId": 135284920110,
+    "conclusion": "success",
+    "postgresTests": 1214,
+    "postgresFiles": 98,
+    "snapshotCases": 41,
+    "httpTests": 5
+  },
+  "scope": "native bounded readers, historical recovery, checkpoint, retention and durable audited preparation; real PostgreSQL and S3 SDK in closed HTTP",
+  "deliveryWorkerQualified": false,
+  "productionMigrationsApplied": false,
+  "productionObjectsMigrated": false
+}

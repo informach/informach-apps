@@ -119,6 +119,8 @@ const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
     () => import("@/app/api/interno/v1/mundos/[id]/entradas/route"),
   ],
   [/^\/api\/jobs\/manutencao$/, () => import("@/app/api/jobs/manutencao/route")],
+  [/^\/api\/jobs\/conciliacao$/, () => import("@/app/api/jobs/conciliacao/route")],
+  [/^\/api\/webhooks\/stripe$/, () => import("@/app/api/webhooks/stripe/route")],
 ];
 
 export const ORIGEM = "http://localhost:3009";

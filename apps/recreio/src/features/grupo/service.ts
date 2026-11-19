@@ -5,7 +5,7 @@ import type {
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
-import { CoberturaDoGrupoSchema } from "./regras";
+import { ConfirmacaoCoberturaDoGrupoSchema } from "./regras";
 import { gravarCoberturaDoGrupo, lerComposicaoDoGrupo, lerGrupoDoTitular } from "./repository";
 
 export async function consultarMeuGrupo(autor: IdentidadeNativa) {
@@ -28,7 +28,7 @@ export async function consultarGrupo(autor: IdentidadeNativa, grupoId: unknown) 
 }
 
 export async function atualizarCobertura(autor: AutorNativoRecente, entrada: unknown) {
-  const pedido = CoberturaDoGrupoSchema.parse(entrada);
+  const pedido = ConfirmacaoCoberturaDoGrupoSchema.parse(entrada);
   await limitarTentativas({
     chave: `grupo-cobertura:${autor.contaId}`,
     max: 30,

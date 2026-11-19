@@ -205,6 +205,21 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   ],
   "recreio.entitlement_granted": () => [t("Recebeu acesso ao Recreio")],
   "recreio.entitlement_revoked": () => [t("Teve o acesso ao Recreio revogado")],
+  "recreio.trial_enrollment_recorded": () => [t("Autorizou o experimento de teste do Recreio")],
+  "recreio.trial_enrollment_withdrawn": () => [t("Retirou o consentimento do teste do Recreio")],
+  "recreio.trial_started": () => [t("Iniciou o teste gratuito do Recreio")],
+  "recreio.purchase_authorization_recorded": () => [t("Autorizou uma oferta do Recreio")],
+  "recreio.purchase_authorization_closed": () => [
+    t("Encerrou uma compra do Recreio ainda não enviada"),
+  ],
+  "recreio.purchase_attempt_started": () => [t("Admitiu uma tentativa de compra do Recreio")],
+  "recreio.billing_reconciliation_failed": () => [
+    t("Registrou uma pendência na conciliação financeira do Recreio"),
+  ],
+  "recreio.billing_reconciled": () => [t("Conferiu os fatos financeiros do Recreio")],
+  "recreio.purchase_checkout_observed": () => [
+    t("Conferiu o resultado de uma tentativa de compra do Recreio"),
+  ],
   "recreio.game_session_started": () => [t("Abriu uma sessão de jogo no Recreio")],
   "recreio.game_session_ended": () => [t("Encerrou uma sessão de jogo no Recreio")],
   "recreio.ticket_rejected": () => [t("Ingresso do Recreio recusado")],

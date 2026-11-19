@@ -1,0 +1,31 @@
+{
+  "runId": "44343024899",
+  "artifactId": "14445140996",
+  "artifactBytes": 69544,
+  "artifactSha256": "05a9b5f8f0fd6afd505dfc8628a6421dd5f09109424c37ab4a3cf5a691af13c0",
+  "provenance": {
+    "source": "a5025f6aefca0d6b909ef663cc2ca4ab06606659",
+    "files": [
+      {
+        "path": "packages/db/src/migrations/0210_polite_santa_claus.sql",
+        "bytes": 12362,
+        "sha256": "814bc27c41d65f5de7527fb8bf0ba0eb62b0967c2b98e860bfb9fa5c7e5f1584"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/0210_snapshot.json",
+        "bytes": 982467,
+        "sha256": "b05dfdc0af55c54ff7b7341c147d365de70ed1668c33651b695b5a8c10cd424d"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/_journal.json",
+        "bytes": 31840,
+        "sha256": "64b67e1c4eed93a1a99144bae8bf8cd717fd02b9f8a2c1b72fca1ea5e6f2152e"
+      }
+    ]
+  },
+  "snapshotId": "8d46705c-e460-431c-bb87-bdec727b981b",
+  "previousId": "d777c364-4fc3-4bdd-b37a-db8d9149fd1b",
+  "journalEntries": 211,
+  "adoptedUnmodified": true,
+  "productionApplied": false
+}

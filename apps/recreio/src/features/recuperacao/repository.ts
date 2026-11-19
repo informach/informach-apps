@@ -9,9 +9,17 @@ import {
   recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
 } from "@informach/db/schema";
-import { FOTOGRAFIAS_GUARDADAS, type MundoId } from "@informach/recreio";
+import { ErroDoRecreio, FOTOGRAFIAS_GUARDADAS, type MundoId } from "@informach/recreio";
 import { DIARIO_RECUPERACAO_MAX_ENTRADAS } from "@informach/recreio/contrato";
 import { z } from "zod";
+import { FalhaDoObjetoPrivado } from "@/features/objetos/criptografia";
+import { materializarFotografia, mesmaFotografia } from "@/features/objetos/fotografia";
+import { leitorDeFotografias } from "@/features/objetos/runtime";
+import type {
+  LeitorDeFotografiasPrivadas,
+  ReferenciaDeFotografia,
+} from "@/features/posse/armazenamento";
+import { armazenamentoPg } from "@/features/posse/armazenamento-repository";
 import { AGORA, type Transacao, travar } from "@/lib/repository";
 
 export class RecusaDeRecuperacao extends Error {
@@ -22,6 +30,7 @@ export class RecusaDeRecuperacao extends Error {
       | "INTEGRIDADE"
       | "LIMITE"
       | "MATERIAL_ALTERADO"
+      | "ARMAZENAMENTO_INDISPONIVEL"
       | "OPERACAO_REUTILIZADA",
   ) {
     super(codigo);
@@ -58,6 +67,11 @@ type Material = {
     sha256: string;
   };
   entradas: { seq: number; tick: number; fatoId: string; bytes: Uint8Array }[];
+};
+type MaterialPreparado = {
+  mundo: Material["mundo"];
+  fonte: ReferenciaDeFotografia;
+  entradas: Material["entradas"];
 };
 export type MaterialDeRecuperacao = Material & { impressao: string };
 export type FotografiaRecuperada = { bytes: Uint8Array; tick: number; schemaVersion: number };
@@ -103,7 +117,7 @@ async function lerMaterial(
   tx: Transacao,
   pedido: PedidoDeRecuperacao,
   trava: "share" | "update",
-): Promise<MaterialDeRecuperacao> {
+): Promise<MaterialPreparado> {
   const [mundo] = await tx
     .select({
       id: spaces.id,
@@ -125,29 +139,22 @@ async function lerMaterial(
     .where(and(eq(leases.spaceId, mundo.id), isNull(leases.releasedAt)))
     .limit(1);
   if (mundo.status !== "hibernating" || posse) throw new RecusaDeRecuperacao("MUNDO_NAO_PARADO");
-  const [foto] = await tx
-    .select({
-      revision: snapshots.revision,
-      journalSeq: snapshots.journalSeq,
-      tick: snapshots.tick,
-      schemaVersion: snapshots.schemaVersion,
-      byteSize: snapshots.byteSize,
-      sha256: snapshots.sha256,
-      data: snapshots.data,
-    })
-    .from(snapshots)
-    .where(
-      and(
-        eq(snapshots.spaceId, mundo.id),
-        eq(snapshots.revision, pedido.revisaoFonte),
-        eq(snapshots.storage, "pg"),
-        sql`octet_length(${snapshots.data}) <= ${pedido.fotografiaMaxBytes}`,
-      ),
+  let fonte: ReferenciaDeFotografia | null;
+  try {
+    fonte = await armazenamentoPg.prepararLeituraDaFotografia(
+      tx,
+      pedido.mundoId,
+      pedido.fotografiaMaxBytes,
+      pedido.revisaoFonte,
     );
-  if (!foto?.data || foto.revision > mundo.revision || foto.journalSeq > mundo.journalSeq)
+  } catch (erro) {
+    if (erro instanceof ErroDoRecreio || erro instanceof FalhaDoObjetoPrivado)
+      throw new RecusaDeRecuperacao("INTEGRIDADE");
+    throw erro;
+  }
+  if (!fonte || fonte.meta.revisao > mundo.revision || fonte.meta.diarioSeq > mundo.journalSeq)
     throw new RecusaDeRecuperacao("INTEGRIDADE");
-  if (foto.data.length !== foto.byteSize || resumo(foto.data) !== foto.sha256)
-    throw new RecusaDeRecuperacao("INTEGRIDADE");
+  const foto = { journalSeq: fonte.meta.diarioSeq };
   const filtro = and(
     eq(journal.spaceId, mundo.id),
     gt(journal.seq, foto.journalSeq),
@@ -182,7 +189,7 @@ async function lerMaterial(
     .from(journal)
     .where(filtro)
     .orderBy(asc(journal.seq));
-  const material: Material = {
+  return {
     mundo: {
       id: mundo.id,
       gameId: mundo.gameId,
@@ -191,21 +198,57 @@ async function lerMaterial(
       leaseEpoch: mundo.leaseEpoch,
       schemaVersion: mundo.schemaVersion,
     },
+    fonte,
+    entradas: linhas.map((e) => ({ ...e, bytes: new Uint8Array(e.bytes) })),
+  };
+}
+
+function montarMaterial(preparado: MaterialPreparado, bytes: Uint8Array): MaterialDeRecuperacao {
+  const foto = preparado.fonte.meta;
+  if (bytes.length !== foto.bytes || resumo(bytes) !== foto.sha256)
+    throw new RecusaDeRecuperacao("INTEGRIDADE");
+  const material: Material = {
+    mundo: preparado.mundo,
+    entradas: preparado.entradas,
     foto: {
-      revision: foto.revision,
-      journalSeq: foto.journalSeq,
+      revision: foto.revisao,
+      journalSeq: foto.diarioSeq,
       tick: foto.tick,
       schemaVersion: foto.schemaVersion,
-      bytes: new Uint8Array(foto.data),
+      bytes,
       sha256: foto.sha256,
     },
-    entradas: linhas.map((e) => ({ ...e, bytes: new Uint8Array(e.bytes) })),
   };
   return { ...material, impressao: impressao(material) };
 }
 
-export function prepararRecuperacao(pedido: PedidoDeRecuperacao): Promise<MaterialDeRecuperacao> {
-  return db.transaction((tx) => lerMaterial(tx, pedido, "share"));
+export async function prepararRecuperacao(
+  pedido: PedidoDeRecuperacao,
+  leitor: LeitorDeFotografiasPrivadas | null = leitorDeFotografias(),
+): Promise<MaterialDeRecuperacao> {
+  const base = await db.transaction((tx) => lerMaterial(tx, pedido, "share"));
+  if (base.fonte.origem.tipo === "pg") return montarMaterial(base, base.fonte.origem.bytes);
+  let bytes: Uint8Array;
+  try {
+    bytes = await materializarFotografia(base.fonte, leitor);
+  } catch {
+    throw new RecusaDeRecuperacao("ARMAZENAMENTO_INDISPONIVEL");
+  }
+  try {
+    const original = montarMaterial(base, bytes);
+    return await db.transaction(async (tx) => {
+      const atual = await lerMaterial(tx, pedido, "share");
+      if (!mesmaFotografia(base.fonte, atual.fonte))
+        throw new RecusaDeRecuperacao("MATERIAL_ALTERADO");
+      const conferido = montarMaterial(atual, bytes);
+      if (original.impressao !== conferido.impressao)
+        throw new RecusaDeRecuperacao("MATERIAL_ALTERADO");
+      return conferido;
+    });
+  } catch (erro) {
+    bytes.fill(0);
+    throw erro;
+  }
 }
 
 async function lerRecibo(
@@ -262,7 +305,13 @@ export function aplicarRecuperacao(
     await travar(tx, `recreio:restore:${pedido.operacaoId}`);
     const anterior = await lerRecibo(tx, pedido);
     if (anterior) return anterior;
-    const atual = await lerMaterial(tx, pedido, "update");
+    const preparada = await lerMaterial(tx, pedido, "update");
+    // Bucket já foi materializado e conferido na preparação. Revalidar a fonte,
+    // mundo, diário e SHA sob trava; a nova fotografia pg guarda estes bytes.
+    const atual = montarMaterial(
+      preparada,
+      preparada.fonte.origem.tipo === "pg" ? preparada.fonte.origem.bytes : material.foto.bytes,
+    );
     if (atual.impressao !== material.impressao) throw new RecusaDeRecuperacao("MATERIAL_ALTERADO");
     if (foto.schemaVersion < atual.mundo.schemaVersion)
       throw new RecusaDeRecuperacao("INTEGRIDADE");

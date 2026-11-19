@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "5d5df72eee5c7de6d3b859cf4c2e02d4bedab67a",
+  "quality": {
+    "runId": 44439533813,
+    "jobId": 135276631801,
+    "conclusion": "success"
+  },
+  "integration": {
+    "runId": 44439538487,
+    "jobId": 135276646988,
+    "conclusion": "success",
+    "postgresTests": 1190,
+    "postgresFiles": 98,
+    "snapshotReaderCases": 17,
+    "httpTests": 5
+  },
+  "scope": "native snapshot reader using disposable PostgreSQL and real S3 SDK against closed HTTP; SQL fixture promotion, not migration worker qualification",
+  "productionMigrationsApplied": false,
+  "productionObjectsMigrated": false
+}

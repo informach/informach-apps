@@ -46,10 +46,24 @@ const assinatura = (status: StatusDaAssinatura, cancelaEm: Date | null = null) =
   id: "sub_1",
   status,
   tier: "individual" as const,
+  pagamentoConfirmadoAte: em(29),
+  inicioDoPeriodo: em(-1),
+  fimDoPeriodo: em(29),
+  fimDoTeste: status === "trialing" ? em(7) : null,
   cancelaEm,
 });
 
 describe("decidirAcesso", () => {
+  it.each([null, new Date(Number.NaN), agora])(
+    "status ativo sem prazo pago vigente não joga: %s",
+    (pagoAte) => {
+      expect(
+        decidirAcesso(
+          fatos({ assinatura: { ...assinatura("active"), pagamentoConfirmadoAte: pagoAte } }),
+        ),
+      ).toMatchObject({ podeJogar: false, estado: "PAGAMENTO_PENDENTE" });
+    },
+  );
   it("sem plano nem concessão não joga", () => {
     const decisao = decidirAcesso(fatos());
     expect(decisao).toMatchObject({
@@ -69,7 +83,7 @@ describe("decidirAcesso", () => {
       origem: "assinatura",
       origemId: "sub_1",
       limiteDePerfis: 1,
-      validoAte: null,
+      validoAte: status === "trialing" ? em(7) : em(29),
     });
   });
 
@@ -83,6 +97,82 @@ describe("decidirAcesso", () => {
     expect(decisao.estado).toBe("CANCELAMENTO_AGENDADO");
     expect(decisao.podeJogar).toBe(true);
     expect(decisao.validoAte).toEqual(em(5));
+  });
+
+  it.each([
+    ["período vencido", { fimDoPeriodo: agora }],
+    ["período futuro", { inicioDoPeriodo: em(1) }],
+    ["período invertido", { inicioDoPeriodo: em(1), fimDoPeriodo: em(-1) }],
+    ["cancelamento vencido", { cancelaEm: agora }],
+    ["fim inválido", { fimDoPeriodo: new Date(Number.NaN) }],
+    ["início inválido", { inicioDoPeriodo: new Date(Number.NaN) }],
+    ["cancelamento inválido", { cancelaEm: new Date(Number.NaN) }],
+  ] as const)("status ativo não ultrapassa %s", (_nome, mudancas) => {
+    const decisao = decidirAcesso(
+      fatos({
+        assinatura: { ...assinatura("active"), ...mudancas },
+        teveAssinatura: true,
+      }),
+    );
+    expect(decisao).toMatchObject({
+      podeJogar: false,
+      estado: "ENCERRADO",
+      motivo: "assinatura_encerrada",
+      limiteDePerfis: 0,
+    });
+  });
+
+  it("o início do período é inclusivo e o cancelamento não estende o fim", () => {
+    expect(
+      decidirAcesso(
+        fatos({
+          assinatura: { ...assinatura("active", em(40)), inicioDoPeriodo: agora },
+        }),
+      ),
+    ).toMatchObject({ podeJogar: true, validoAte: em(29) });
+  });
+
+  it.each([null, agora, em(-1), new Date(Number.NaN)])(
+    "trialing exige fim de teste finito e vigente: %s",
+    (fimDoTeste) => {
+      expect(
+        decidirAcesso(
+          fatos({
+            assinatura: { ...assinatura("trialing"), fimDoTeste },
+            teveAssinatura: true,
+          }),
+        ),
+      ).toMatchObject({ podeJogar: false, estado: "ENCERRADO" });
+    },
+  );
+
+  it("teste respeita o menor prazo entre período, teste e cancelamento", () => {
+    expect(
+      decidirAcesso(
+        fatos({
+          assinatura: { ...assinatura("trialing", em(2)), fimDoPeriodo: em(3) },
+        }),
+      ),
+    ).toMatchObject({ podeJogar: true, validoAte: em(2) });
+    expect(
+      decidirAcesso(
+        fatos({
+          assinatura: { ...assinatura("trialing"), fimDoPeriodo: em(3) },
+        }),
+      ),
+    ).toMatchObject({ podeJogar: true, validoAte: em(3) });
+  });
+
+  it("assinatura vencida não elimina uma cortesia ainda vigente", () => {
+    expect(
+      decidirAcesso(
+        fatos({
+          assinatura: { ...assinatura("active"), fimDoPeriodo: agora },
+          teveAssinatura: true,
+          concessoes: [concessao()],
+        }),
+      ),
+    ).toMatchObject({ podeJogar: true, origem: "concessao", limiteDePerfis: 4 });
   });
 
   it("cortesia vigente dá acesso ativo com o limite do tier", () => {

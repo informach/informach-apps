@@ -16,6 +16,28 @@
 
 Preferir sempre identificadores e estado transacional:
 
+`recreio.plan_change_quoted`, `recreio.plan_change_accepted`,
+`recreio.plan_change_closed`, `recreio.plan_change_attempt_started` e
+`recreio.plan_change_provider_observed`, `recreio.plan_change_applied` e
+`recreio.plan_change_selection_confirmed` e `recreio.plan_change_cancel_requested`
+registram apenas `app`, `groupId`, `planChangeId`,
+`subscriptionId` interno quando necessário, `revision` e `state`. O ator fica
+no campo próprio. Valores, seleção de perfis e termos financeiros permanecem
+no recibo comercial; não duplicar nomes, datas de nascimento, dados de cartão,
+respostas do provedor ou URLs financeiras na auditoria. Fechar uma cotação
+sem tentativa não comprova cancelamento de uma operação enviada.
+
+`recreio.purchase_selection_processed` e `recreio.purchase_selection_confirmed`
+registram apenas `app`, `groupId`, `authorizationId`, `subscriptionId` interno,
+`revision` e `state`, com ator no campo próprio. Seleção e política ficam no
+recibo; processamento pode exigir revisão e não equivale a acesso confirmado.
+
+`recreio.payment_funding_observed` registra apenas `app`, `groupId`,
+`subscriptionId`, `paymentPeriodId`, `observationId` internos e `state`, na
+transação da prova e com ator no campo próprio. Valores, capturas, referências
+Stripe e hashes permanecem nas tabelas financeiras. Refresh idêntico não
+duplica o evento. A observação financeira sozinha não concede acesso ao jogo.
+
 - IDs internos: `userId`, `organizationId`, `sessionId`, `subscriptionId`, `invoiceId`, `deliveryId`, `messageKey`.
 - Classificadores: `category`, `status`, `role`, `reason`, `classification`, `providerEvent`, `source`.
 - Chaves de correlação de provider quando não forem secretas: `providerMessageId`, `stripeEventId`, `checkoutSessionId`.
@@ -93,6 +115,56 @@ Finalidade: investigar mudanças na conta da família e atender suporte. O Basti
 
 ## Eventos do Recreio
 
+`recreio.trial_enrollment_recorded` registra `app`, `groupId`, `enrollmentId`,
+`policyVersion` e `declarationVersion`, com o adulto nativo no campo do ator,
+na transação do consentimento. `trial_enrollment_withdrawn` registra somente
+`app`, `groupId` e `enrollmentId`. São declaração/retirada, nunca verificação
+externa de idade ou início de teste. Não incluir nome, nascimento, e-mail,
+aparelho, login, cartão ou corpo do pedido. Revogação de uma concessão real
+usa o evento existente `entitlement_revoked`, na mesma transação.
+
+`recreio.trial_started` só é gravado junto da primeira SID e do recibo único:
+`app`, `groupId`, `enrollmentId`, `entitlementId`, `profileId`, `sessionId`,
+`cohort` (`48h`/`7d`) e `policyVersion`. O ator é a conta real que admitiu o
+aparelho, inclusive o responsável de um perfil pareado; não se fabrica sessão
+ou ação nativa do pagante. Nenhum token, segredo de pareamento ou dado pessoal
+entra no payload. Cadastro, autorização e ingresso não produzem esse evento.
+
+`recreio.purchase_authorization_recorded` registra `app`, `groupId`,
+`authorizationId`, `productId`, `policyVersion` e `declarationVersion`, com
+o pagante nativo real no ator. `purchase_authorization_closed` registra `app`,
+`groupId`, `authorizationId` e a resolução fechada `not_started`.
+`purchase_attempt_started` registra `app`, `groupId`, `authorizationId` e
+`productId`, antes do I/O. Não incluir URL, e-mail, cartão, dados fiscais,
+segredos ou corpo do pedido; o valor aceito fica no recibo de compra próprio.
+Esses eventos não comprovam pagamento ou concessão de gameplay.
+
+`recreio.purchase_checkout_observed` registra `app`, `groupId`, `authorizationId`
+e `status` (`open`, `complete`, `expired` ou `unknown`). É fato técnico do
+executor, com ator nulo: captura a resposta da operação admitida mesmo quando
+o login foi encerrado durante a rede. Não registra URL nem dados do customer;
+capturar o fato não autoriza devolvê-lo ao aparelho e não comprova pagamento.
+
+`recreio.billing_reconciled` e `recreio.billing_reconciliation_failed` registram
+`app`, `groupId`, `providerMode` e `attemptCount`, com ator técnico nulo.
+A falha acrescenta `reasonCode` fechado (`customer_unconfirmed`,
+`provider_unavailable`, `evidence_mismatch`, `adverse_event`, `foreign_contract`).
+Não registrar dados fiscais, períodos completos, valores, corpos do provedor,
+e-mail ou URLs. Confirmação financeira, estado e corte das SIDs compartilham
+a transação; uma tentativa falha não atualiza a última confirmação.
+
+`recreio.billing_provider_event_received` registra somente `app`, `groupId`,
+`providerMode`, `receiptId`, `eventType` e `adverse`, com ator técnico nulo,
+na mesma transação da fila e do corte de acesso. O recibo mínimo no domínio
+billing usa chave `recreio-native:<modo>:<evento>`, sem corpo bruto, assinatura,
+dados fiscais ou contato. Notificação positiva agenda leitura completa; não
+confirma pagamento. Replay admitido não suspende uma conta já recuperada.
+
+`recreio.billing_portal_requested` e `recreio.billing_portal_opened` registram
+`app` e `groupId`, com ator adulto atual e auditoria estrita. O primeiro admite
+a solicitação antes da rede; o segundo exige nova autorização após a resposta.
+Nenhuma URL do portal, customer, dados fiscais ou cartões entram na auditoria.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/
@@ -158,6 +230,9 @@ Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jo
 - `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista somente `nickname` e/ou `avatar`, nunca os valores. A edição do perfil adulto próprio revalida a sessão e grava dados/evento na mesma transação; repetição sem mudança não emite evento. Conflito com outra edição recusa a gravação.
 - `recreio.minor_policy_recalculated`: `{ profileId, revision }`, ator nulo no cálculo servidor. `recreio.minor_supervision_changed`: `{ profileId, revision, changed }`, ator responsável autenticado; `changed=false` confirma a revisão sem alterar configuração. Nenhum deles registra nascimento, faixa, horários, orçamento ou conteúdo dos jogos. Política, invalidação das partidas e evento estrito são atômicos.
 - `recreio.profile_data_updated`, `recreio.profile_data_conflict` e `recreio.profile_data_conflict_discarded`: `{ profileId, gameId, dataId, versionId, revision }`. Nunca registrar chave, bytes, resumo criptográfico ou progresso. O conflito é confirmado no banco antes de devolver 409; versões não resolvidas não são removidas pela retenção. Evento e alteração usam a mesma transação estrita.
+- `recreio.profile_game_copy_prepared`: `{ app, profileId, gameId, keyCount, versionCount, achievementCount }`. Preparo de recorte pessoal por jogo, somente após autoridade nativa recente própria ou responsabilidade explícita. Nunca incluir nomes de chaves, bytes, checksums, progresso, apelidos, contatos ou credenciais. Falha de auditoria ou prazo impede devolver a cópia; não registra entrega de download ou exportação completa da conta.
+- `recreio.profile_game_inventory_viewed`: `{ app, profileId, gameCount, hasMore }`. Página de IDs de jogos com dados pessoais persistidos, sob a mesma autoridade recente do recorte. Não registrar IDs da página, cursor, chaves, conteúdo ou contato; não afirma captura consistente de várias páginas ou exportação completa.
+- `recreio.profile_record_copy_prepared`: `{ app, profileId, kind }`. Cópia do cadastro/proteção/supervisão/preferência social sob autoridade pessoal recente. Nunca registrar nome, nascimento, horários, PIN/hash/gerações, declaração, contato ou conteúdo; não representa exportação completa ou entrega de download.
 - `recreio.achievement_unlocked`: `{ profileId, gameId, achievementId }`, somente IDs de conquista do manifesto estático. Nunca registrar chave de idempotência. Repetição do recibo não emite evento; conquistas declaradas pelo cliente não dão dinheiro ou direito de jogar.
 - `recreio.device_session_revoked`: `{ deviceSessionId, profileId? }`, ator da própria conta adulta. Sem jogador selecionado, omitir `profileId`; não criar perfil para auditar administração. Revogação de outro aparelho de login e fim das partidas usam a mesma transação do evento estrito. Repetição sem efeito não emite novo evento; nunca incluir token, ID da sessão de login, IP, user-agent ou nome do aparelho. Não altera acessos de outros apps. A ampliação para conta sem perfil está no incremento de gestão; conferir a implantação no registro antes de assumir produção.
 - `recreio.entitlement_granted`: `{ entitlementId, groupId, targetId, tier, days, reasonCode }`, com `tier` igual a `individual` ou `family`, `days` o número de dias concedidos e `targetId` a conta titular do grupo.
@@ -208,6 +283,12 @@ Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo �
 - `recreio.space_lease_taken_over`: `{ spaceId, previousLeaseId, previousFence, previousInstanceId, leaseId, fence, instanceId }`. Ator nulo. Sai quando abrir um mundo encontra a posse vencida, fecha-a e atribui outra.
 - `recreio.space_write_refused`: `{ spaceId, gameId, instanceId, fence, operation }`, com `operation` igual a `journal`, `snapshot` ou `release`. Ator nulo. Sai quando uma instância autenticada tenta escrever sem a posse (cerca velha, posse vencida ou de outra instância). Pedido com segredo errado ou para mundo de outro jogo não gera evento.
 - `recreio.space_restored`: `{ operationId, spaceId, gameId, sourceRevision, previousRevision, revision, journalSeq, fence, reasonCode }`, com ator nulo no comando técnico autenticado pela conexão operacional. Nova revisão e evento entram na mesma transação. O UUID identifica o recibo de repetição e fica vinculado a mundo, revisão escolhida, topo anterior e motivo. Não registrar corpo, hash de conteúdo, nomes, apelidos ou fatos do jogo. A inspeção do CLI mostra somente metadados técnicos; não cria acesso ao conteúdo pelo Bastidores.
+- `recreio.snapshot_object_prepared`: `{ app, spaceId, gameId, revision, storageScope }`, ator técnico nulo. Registro cifrado e evento são atômicos; repetição não cria novo evento. Não incluir envelope, referência/chave do objeto, SHA, nome do bucket, credenciais ou conteúdo. Preparação não comprova envio, confirmação nem migração da fotografia.
+- `recreio.snapshot_object_confirmed`: `{ app, spaceId, gameId, revision, storageScope }`, ator técnico nulo; confirmação persistida, ponteiro e evento atômicos após reabrir integralmente o objeto fora das travas. Não incluir hashes, envelope, bucket ou conteúdo.
+- `recreio.snapshot_object_reviewed`: `{ app, spaceId, gameId, reasonCode }`, ator técnico nulo, motivo fixo (`integrity`, `missing_key` ou `unconfirmed_write`). Não inclui mensagens de erro externas ou conteúdo; a revisão e o evento são atômicos.
+- `recreio.backup_capture_prepared`: `{ app, captureId, storageScope }`, ator técnico nulo; preparação do controle, sem indicar arquivo guardado.
+- `recreio.backup_inventory_fixed`: `{ app, captureId, objectCount }`, ator técnico nulo; inventário e evento estritos na mesma transação, após reservas duráveis. Não inclui hashes, referências, chaves, bucket ou conteúdo.
+- `recreio.backup_capture_reviewed`: `{ app, captureId, reasonCode }`, ator técnico nulo; `source_lost` indica que a visão exportada não está mais disponível depois de interromper a captura. Não transporta exceção ou mensagem externa. Revisão não libera reserva.
 
 Como entram: os eventos que acompanham uma gravação (`game_session_started`, `game_session_ended`, `space_*` menos `space_write_refused`) usam a forma estrita, na mesma transação da mudança: ou os dois ficam gravados, ou nenhum. As recusas (`ticket_rejected`, `space_write_refused`) não têm transação para acompanhar e seguem a forma padrão, sem derrubar a resposta se a auditoria falhar.
 
@@ -237,3 +318,21 @@ Eventos `admin.*` registram consultas e ações da equipe no Bastidores (`apps/a
 Banimento e papel usam os eventos do pacote de autenticação, também em nome de quem agiu: `user.banned` e `user.unbanned` com `{ targetId, reason }`, e `user.role_changed` com `{ targetId, previousRole, newRole, reason }` (o script do primeiro owner grava `source` no lugar de `reason`). Toda ação que muda algo leva motivo, inclusive desbanir e mudar papel. `reason` é texto curto (até 280 caracteres) escrito pela equipe para explicar a ação; a tela orienta a não colar mensagens da pessoa nem dados além do necessário.
 
 No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só mostram os dados com o evento gravado; banir, desbanir e mudar papel gravam o evento na mesma transação da mudança; encerrar sessões, reenviar confirmação e desconectar computador mostram erro e reportam `audit.change_unrecorded` quando a mudança aconteceu e o evento não gravou.
+
+- `recreio.backup_publication_prepared`: `{ app, captureId, storageScope }`, ator técnico nulo; referência imutável e destino persistidos antes de I/O. Sem bucket/hash/índice/chave.
+- `recreio.backup_publication_claimed`: `{ app, captureId }`, ator técnico nulo; nova tentativa após prazo; não declara I/O anterior encerrado. Token não entra na auditoria.
+- `recreio.backup_published`: `{ app, captureId, objectCount }`, ator técnico nulo; confirmação de arquivo/índice guardados e estados atômicos. Não libera reservas por si só.
+- `recreio.backup_holds_released`: `{ app, captureId, objectCount }`, ator técnico nulo; lote de até cem reservas após publicação confirmada; repetição sem alteração não gera evento. Todos os quatro eventos são estritos na transação do controle.
+
+- `recreio.snapshot_collection_admitted`: `{ app, deliveryId, spaceId, storageScope }`, ator técnico nulo; token antes de I/O, sem referência/hash/chave/bucket/conteúdo.
+- `recreio.snapshot_object_retired`: `{ app, deliveryId, spaceId, storageScope, lateObject }`, ator técnico nulo; GET confirmou ausência e autoridade foi relida. `lateObject` marca objeto encontrado em reconferência de tombstone; não altera a primeira data de retirada.
+- `recreio.snapshot_collection_deferred`: `{ app, deliveryId, spaceId, storageScope }`, ator técnico nulo; falha inconclusiva conserva recibo para nova tentativa. Sem mensagem externa. Eventos de coleta são estritos e atômicos com seus estados.
+
+- `recreio.backup_unsealed_abandoned`: `{ app, captureId }`, ator técnico nulo; abandono do protocolo atual sem arquivo admitido, após barreira exclusiva. Não conclui ausência de operação legada nem normaliza banco restaurado.
+- `recreio.backup_abandoned_holds_released`: `{ app, captureId, objectCount }`, ator técnico nulo; lote de até cem reservas após abandono sem arquivo ou retirada confirmada. Não apaga recibos.
+- `recreio.backup_retirement_prepared`: `{ app, captureId, reasonCode }`, ator técnico nulo; intenção e bytes assinados fixados antes de I/O; `abandonado`, `retencao` ou `privacidade`. Sem destino/hash/chave/índice.
+- `recreio.backup_retirement_claimed`: `{ app, captureId }`, ator técnico nulo; retomada após prazo, com os mesmos bytes; nunca inclui token.
+- `recreio.backup_retirement_marked`: `{ app, captureId }`, ator técnico nulo; adapter confirmou tombstone idêntico, sem comprovar ainda a ausência do payload.
+- `recreio.backup_retired`: `{ app, captureId, reasonCode, lateObject }`, ator técnico nulo; ausência do payload confirmada, mantendo primeira data e tombstone. `lateObject` indica arquivo reencontrado na reconferência. Todos os eventos são estritos na mesma transação dos seus fatos.
+
+- `recreio.backup_retirement_deferred`: `{ app, captureId }`, ator técnico nulo; tentativa inconclusiva encerrada para repetição limitada; não muda motivo, bytes ou fatos históricos. Estrito na mesma transação, sem erro externo/token.

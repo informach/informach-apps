@@ -128,6 +128,10 @@ export type ProviderUpdateSubscriptionInput = {
   providerSubscriptionId: string;
   newPriceId: string;
   prorationBehavior?: "create_prorations" | "none" | "always_invoice";
+  /** Exact Unix second used for the accepted preview. */
+  prorationDate?: number;
+  /** Stable key of the already admitted plan-change attempt. */
+  idempotencyKey?: string;
   /**
    * Stripe payment behavior for updates that generate an invoice. `pending_if_incomplete`
    * keeps the existing subscription items in force until the invoice is paid.
@@ -161,9 +165,13 @@ export type ProviderPreviewInvoiceInput = {
   newPriceId: string;
   /** Default `always_invoice` to surface charge-now behavior in the UI. */
   prorationBehavior?: "create_prorations" | "none" | "always_invoice";
+  /** Reuse this same Unix second when applying an accepted quote. */
+  prorationDate?: number;
 };
 
 export type ProviderInvoicePreview = {
+  /** Provider invoice total, before customer balance. Native receipts require it. */
+  totalCents?: number;
   /**
    * Sum of POSITIVE line items in cents — the gross price of the new plan
    * (typically the full annual subscription, plus any add-ons). The UI shows
@@ -205,6 +213,7 @@ export interface BillingProviderClient {
     customerId: string,
     intentId: string,
     sessionId?: string | null,
+    budget?: { deadlineMs: number },
   ): Promise<ProviderCheckoutState | null>;
   /** Refuse an existing nonterminal subscription; expire other payable sessions. */
   prepareSubscriptionCheckout?(customerId: string, preserveSessionId?: string): Promise<void>;

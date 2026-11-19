@@ -1,0 +1,35 @@
+{
+  "runId": 44455214243,
+  "source": "a4c58bc927cb1e70761000352d8fbd92629565f6",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 135328496171,
+      "name": "Recreio / integration",
+      "conclusion": "success"
+    },
+    {
+      "id": 135328497972,
+      "name": "Recreio / catálogo Stripe Sandbox real",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135328497973,
+      "name": "Recreio / APIs Stripe com relógio de teste",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135328498246,
+      "name": "Recreio / jornada Stripe Sandbox real",
+      "conclusion": "skipped"
+    }
+  ],
+  "integrationTests": 1242,
+  "integrationFiles": 99,
+  "captureTests": 10,
+  "httpTests": 5,
+  "upgradesPreserveData": true,
+  "productionDataTouched": false,
+  "productionApplied": false,
+  "scopeLimit": "Native snapshot and reservation protocol only; no stored database archive, S3 copy, release, collection, key custody or production deployment."
+}

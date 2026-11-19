@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { recriarGlobaisPostgres } from "../scripts/backup/globais-postgres";
 import {
   conferirInventarios,
   type InventarioDoBackup,
@@ -30,6 +31,21 @@ async function preencher(sql: postgres.Sql, inverso = false): Promise<void> {
     id int primary key, bytes bytea not null, dados jsonb not null,
     em timestamptz not null default now())`);
   await sql.unsafe("create index documentos_bytes_idx on recreio.documentos(bytes)");
+  await sql.unsafe("create type recreio.cor as enum ('azul','verde')");
+  await sql.unsafe(
+    "create domain recreio.texto as text constraint texto_tamanho check (length(value)>0)",
+  );
+  await sql.unsafe("create sequence recreio.numero start 10 increment 3");
+  await sql.unsafe("create view recreio.ids as select id from recreio.documentos");
+  await sql.unsafe(
+    "create function recreio.calcular(n integer) returns integer language sql immutable as 'select n+1'",
+  );
+  await sql.unsafe(
+    "create function recreio.conservar() returns trigger language plpgsql as 'begin return new; end'",
+  );
+  await sql.unsafe(
+    "create trigger conservar before insert on recreio.documentos for each row execute function recreio.conservar()",
+  );
   const ids = inverso ? [2, 1] : [1, 2];
   for (const numero of ids)
     await sql`insert into recreio.documentos(id,bytes,dados,em) values (
@@ -87,7 +103,14 @@ describe("inventário de restauração em dois bancos reais", () => {
     expect(original.tabelas.find((t) => t.nome === "documentos")?.resumo.linhas).toBe(2);
     expect(() => conferirInventarios(original, restaurado)).not.toThrow();
     expect(JSON.stringify(original)).not.toContain("conteúdo sintético");
-    expect(JSON.stringify(original)).not.toContain(leitor);
+    expect(
+      JSON.stringify({
+        tabelas: original.tabelas,
+        estrutura: original.estrutura,
+        permissoes: original.permissoes,
+      }),
+    ).not.toContain(leitor);
+    expect(original.globais.papeis.some((p) => p.nome === leitor)).toBe(true);
   });
 
   it("recusa conteúdo diferente mesmo com a mesma quantidade e tamanho de linhas", async () => {
@@ -112,5 +135,59 @@ describe("inventário de restauração em dois bancos reais", () => {
     const restaurado = await ler(copia);
     expect(restaurado.tabelas).toEqual(original.tabelas);
     expect(() => conferirInventarios(original, restaurado)).toThrow("ESTRUTURA_DIVERGENTE");
+  });
+  it.each([
+    [
+      "função",
+      "create or replace function recreio.calcular(n integer) returns integer language sql immutable as 'select n+2'",
+    ],
+    ["view", "create or replace view recreio.ids as select id from recreio.documentos where id=1"],
+    ["trigger", "alter table recreio.documentos disable trigger conservar"],
+    ["sequência", "alter sequence recreio.numero increment 7"],
+    ["enum", "alter type recreio.cor add value 'amarelo'"],
+    ["domínio", "alter domain recreio.texto add constraint texto_maior check (length(value)>1)"],
+    [
+      "nome da constraint",
+      "alter table recreio.documentos rename constraint documentos_pkey to documentos_pk",
+    ],
+    [
+      "privilégios padrão",
+      `alter default privileges in schema recreio grant select on tables to "${leitor}"`,
+    ],
+    ["permissão de schema", `revoke usage on schema recreio from "${leitor}"`],
+    ["permissão de função", "revoke execute on function recreio.calcular(integer) from public"],
+    ["permissão de coluna", `grant update(bytes) on recreio.documentos to "${leitor}"`],
+    ["permissão de tipo", "revoke usage on type recreio.cor from public"],
+    ["permissão de sequência", `grant usage on sequence recreio.numero to "${leitor}"`],
+  ])("recusa divergência de %s com conteúdo das tabelas preservado", async (_nome, consulta) => {
+    const original = await ler(origem);
+    await copia.unsafe(consulta);
+    const restaurado = await ler(copia);
+    expect(restaurado.tabelas).toEqual(original.tabelas);
+    expect(() => conferirInventarios(original, restaurado)).toThrow("ESTRUTURA_DIVERGENTE");
+  });
+  it("recurso sem perfil de conferência falha explicitamente", async () => {
+    await copia.unsafe('create collation recreio.prova from "C"');
+    await expect(ler(copia)).rejects.toMatchObject({ codigo: "CATALOGO_NAO_SUPORTADO" });
+  });
+  it("inventários de algoritmos diferentes não são comparados como equivalentes", async () => {
+    const original = await ler(origem);
+    const adulterado = JSON.parse(JSON.stringify(original));
+    delete adulterado.metodo;
+    expect(() => conferirInventarios(adulterado, original)).toThrow("FORMATO_DIVERGENTE");
+  });
+  it("detecta alteração de atributo de papel mesmo com todas as tabelas iguais", async () => {
+    const original = await ler(origem);
+    await copia.unsafe(`alter role "${leitor}" connection limit 3`);
+    const restaurado = await ler(copia);
+    expect(restaurado.tabelas).toEqual(original.tabelas);
+    expect(() => conferirInventarios(original, restaurado)).toThrow("ESTRUTURA_DIVERGENTE");
+  });
+  it("recriação global recusa o cluster de origem sem alterar seus metadados", async () => {
+    const original = await ler(origem);
+    await expect(
+      recriarGlobaisPostgres(origem, original.globais, "/tmp/recreio-backup-Prova123", 55432),
+    ).rejects.toMatchObject({ codigo: "ALVO_NAO_ISOLADO" });
+    expect(await ler(origem)).toEqual(original);
   });
 });

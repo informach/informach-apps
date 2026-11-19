@@ -1,0 +1,29 @@
+{
+  "runId": 44444276302,
+  "artifactId": 14491868821,
+  "zipBytes": 599,
+  "zipSha256": "4866ffc42570c8a4bdc1fb2e8e898c6ea91f51cdc130d758cfaaa483c70120d1",
+  "receipt": {
+    "source": "12459f310813b50245841913354e5bef427c7975",
+    "runId": "44444276302",
+    "boundary": "disposable_postgres_and_private_qualification_bucket",
+    "status": "passed",
+    "bucket": "recreio-homologacao-c0xyqx",
+    "worldLeaseFixture": true,
+    "objectKey": "recreio/v1/fotografia/a9bdfd09-bf8d-4957-8664-480c0b469b41/398c67aff120ebd4592cce8cbbff1dc234e214aaa299411f5c5985a45556069a",
+    "preparationVerified": true,
+    "responseLossRecovered": true,
+    "retryDelayRespected": true,
+    "atomicPublicationVerified": true,
+    "nativeRuntimeReadVerified": true,
+    "revokedLeaseDenied": true,
+    "anonymousReadDenied": true,
+    "cleanupConfirmed": true,
+    "failure": null,
+    "cleanupFailure": null,
+    "productionDataTouched": false
+  },
+  "qualifyJobId": 135292488572,
+  "providerJobId": 135292953213,
+  "scopeLimit": "Technical world and lease fixtures in disposable PostgreSQL. Not family, commercial, production-game or backup qualification."
+}

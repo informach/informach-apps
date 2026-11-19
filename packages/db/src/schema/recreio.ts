@@ -168,6 +168,14 @@ export const recreioEntitlements = recreio.table(
   },
   (t) => [
     index("recreio_entitlements_group").on(t.groupId, t.endsAt),
+    unique("recreio_entitlement_trial_identity").on(
+      t.id,
+      t.groupId,
+      t.kind,
+      t.tier,
+      t.startsAt,
+      t.endsAt,
+    ),
     check("recreio_entitlements_kind", sql`${t.kind} in ('courtesy', 'trial')`),
     check("recreio_entitlements_tier", sql`${t.tier} in ('individual', 'family')`),
     check("recreio_entitlements_period", sql`${t.endsAt} > ${t.startsAt}`),
@@ -588,6 +596,9 @@ export const recreioSpaceSnapshots = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_space_snapshots_revision").on(t.spaceId, t.revision),
+    // O registro aditivo de objetos deve comprovar fotografia, mundo e conteúdo.
+    // Gerar/adotar esta chave antes de gerar as FKs da nova tabela de objetos.
+    unique("recreio_snapshot_content_identity").on(t.id, t.spaceId, t.sha256, t.byteSize),
     check("recreio_space_snapshots_kind", sql`${t.kind} in ('checkpoint', 'hibernate', 'pinned')`),
     check(
       "recreio_space_snapshots_storage",

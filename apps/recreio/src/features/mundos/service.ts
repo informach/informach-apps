@@ -20,6 +20,7 @@ import {
 } from "@informach/recreio/contrato";
 import {
   type AutorDeMundos,
+  comAutorDaPreparacaoDeMundo,
   comAutorDeMundos,
 } from "@/features/autoridade-de-jogo/mundos-repository";
 import { jogoDoCatalogo, jogoQueAbre, politicaDeMundo } from "@/features/jogos/config";
@@ -74,11 +75,11 @@ export async function mundosDoPerfil(
   });
 }
 
-/** A lista do SDK: exige o direito de jogar. */
+/** O SDK exige gameplay; a prévia nativa pode preparar um teste ainda não iniciado. */
 export async function listarMundos(
   quem: AutorDeMundos & { jogo: string },
 ): Promise<ResumoDeMundo[]> {
-  return comAutorDeMundos(
+  return comAutorDaPreparacaoDeMundo(
     quem,
     quem.jogo,
     async () => {},
@@ -98,7 +99,7 @@ export async function criarMundo(
   const manifesto = jogoQueAbre(quem.jogo);
   if (!manifesto.capacidades.mundos) throw new ErroDoRecreio("SEM_PERMISSAO");
   const politica = politicaDeMundo(manifesto, novo.politicaDeConteudo);
-  const mundo = await comAutorDeMundos(
+  const mundo = await comAutorDaPreparacaoDeMundo(
     quem,
     manifesto.id,
     (tx) => travar(tx, `recreio:spaces:criador:${quem.perfilId}`),
@@ -213,7 +214,7 @@ export async function detalheDoMundo(
 
 /** Página de jogo: só devolve o conteúdo dentro da autoridade atual do aparelho. */
 export function detalheAtualDoMundo(autor: AutorDeMundos, jogo: string, mundoId: MundoId) {
-  return comAutorDeMundos(
+  return comAutorDaPreparacaoDeMundo(
     autor,
     jogo,
     (tx) => travarMundoDaOperacao(tx, mundoId, jogo),

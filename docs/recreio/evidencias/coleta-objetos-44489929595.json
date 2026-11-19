@@ -1,0 +1,12 @@
+{
+  "source": "8154725f8d2c4ead66e07131f11e6953c67f8ad2",
+  "runId": 44489929595,
+  "jobId": 135442681536,
+  "status": "passed",
+  "scope": "application types and actual SDK against closed HTTP; restricted cleanup GET/DELETE/GET, lost response, absent object, wrong destination, denied access and deadline",
+  "objectTests": 163,
+  "objectFiles": 10,
+  "collectionS3Tests": 9,
+  "productionApplied": false,
+  "externalProvider": false
+}

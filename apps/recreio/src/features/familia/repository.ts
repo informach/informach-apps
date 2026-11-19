@@ -22,6 +22,7 @@ import {
   autorizarContaNativa,
   type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
+import { coberturaDeNovoPerfilLocked } from "@/features/grupo/cobertura-nova-repository";
 import { paraPerfil } from "@/features/perfis/repository";
 import { assertAllowed } from "@/lib/errors";
 import { type Transacao, travar } from "@/lib/repository";
@@ -237,6 +238,7 @@ export async function confirmarCadastroDeMenor(autor: AutorNativoRecente, pedido
         ),
       );
     assertAllowed(declaracao, "CADASTRO", "Não foi possível registrar a responsabilidade.");
+    const coberturaLigada = await coberturaDeNovoPerfilLocked(tx, grupo.id);
     const [perfil] = await tx
       .insert(profiles)
       .values({
@@ -244,6 +246,7 @@ export async function confirmarCadastroDeMenor(autor: AutorNativoRecente, pedido
         groupId: grupo.id,
         nickname: pedido.perfil.apelido,
         avatar: pedido.perfil.avatar,
+        coverageEnabled: coberturaLigada,
         createdAt: agora,
         updatedAt: agora,
       })

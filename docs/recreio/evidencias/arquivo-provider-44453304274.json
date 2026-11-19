@@ -1,0 +1,57 @@
+{
+  "runId": 44453304274,
+  "artifactId": 14497260818,
+  "zipBytes": 660,
+  "zipSha256": "75ef27583f602a08bc05f3789dec5b886e76510ec1f60394f181eeefa90e5bd0",
+  "receipt": {
+    "source": "07b5ff8a24f16420076015943dc50ff8f133edfa",
+    "runId": "44453304274",
+    "boundary": "private_file_provider_with_synthetic_bytes_no_database",
+    "status": "passed",
+    "bucket": "recreio-homologacao-c0xyqx",
+    "objectKey": "recreio/v1/backup/ae1f86b8-1824-4fae-964f-7c31b3e36f73/402230036e76813536bcc2faa2dddbac865185350099e3fc75746271b7ff5034",
+    "plainBytes": 67108864,
+    "cipherBytes": 67109042,
+    "encryptMs": 396,
+    "uploadReadbackMs": 4237,
+    "recoveryMs": 1202,
+    "replayMs": 3866,
+    "maxRssBytes": 183816192,
+    "conditionalWriteVerified": true,
+    "replayVerified": true,
+    "localCipherRemoved": true,
+    "recoveredWithoutLocalCipher": true,
+    "roundtripVerified": true,
+    "anonymousReadDenied": true,
+    "oneObjectOnly": true,
+    "remoteCleanupConfirmed": true,
+    "localCleanupConfirmed": true,
+    "failure": null,
+    "remoteCleanupFailure": null,
+    "localCleanupFailure": null,
+    "productionDataTouched": false
+  },
+  "jobs": [
+    {
+      "id": 135322241302,
+      "name": "qualify",
+      "conclusion": "success"
+    },
+    {
+      "id": 135322633364,
+      "name": "file-provider",
+      "conclusion": "success"
+    },
+    {
+      "id": 135322635589,
+      "name": "provider",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135322635678,
+      "name": "native-provider",
+      "conclusion": "skipped"
+    }
+  ],
+  "scopeLimit": "Synthetic 64 MiB file only. Not database capture, stored database restore, key custody or production qualification."
+}

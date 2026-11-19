@@ -2,6 +2,24 @@
 
 > Documentação primária do package para humanos e agentes. Para checklist de produção (Stripe Dashboard, webhooks, cron jobs no Railway, NF-e/PCI), ver [`PRODUCTION.md`](./PRODUCTION.md). Para integração com email transacional, ver [`@informach/emails/CLAUDE.md`](../emails/CLAUDE.md). Para audit/permission integration, ver [`@informach/auth/CLAUDE.md`](../auth/CLAUDE.md).
 
+## Recreio: adapter de agenda em candidata (18/11/2026)
+
+`providers/stripe-plans` expõe `createStripeRecreioPlanSchedules`, separado da
+composição Compasso existente. Exige modo explícito e origem imutável do
+Checkout (pagante, aceite e produto inicial); suas chaves e recibos usam
+`recreio:plan`/`recreio_plan_intent`. Uma redução altera o mesmo contrato com
+fase futura sem proporcional; conserva `product_id` da compra original e não
+adota agenda anexada sem correlação exata. A fábrica Compasso conserva seus
+defaults. Este adapter não concede acesso, não substitui consentimento nativo
+e ainda não está composto no Recreio nem implantado. Qualificação no
+[incremento de trocas](../../docs/recreio/trocas-plano-2026-11-18.md).
+
+O provider Stripe comum recebe `prorationDate` opcional na prévia e na aplicação
+e `idempotencyKey` opcional na aplicação. A mesma data fixa o proporcional já
+apresentado; segundos inválidos são recusados antes da rede. Os defaults dos
+consumidores existentes permanecem. Esses parâmetros não substituem escopo,
+aceite persistido, recuperação ou confirmação financeira no domínio consumidor.
+
 ## Compasso em implementação (10/11/2026)
 
 Para operação solicitada expressamente pela titular do negócio, o módulo interno
@@ -718,6 +736,15 @@ As decisões e o estado de migração ficam em [implementação Compasso](../../
 ## Contrato de pagamento/licença Edi (16/10/2026)
 
 `@informach/billing/payment-facts` exporta o leitor Stripe de snapshots e a persistência dos períodos pagos. A licença Edi usa `@informach/edi-licensing`: status isolado não prova pagamento. Períodos pagos, reembolsos/disputas, suspensão, dispositivos e freshness participam da decisão. Não substituir por `hasProSubscription`; essa exceção não altera o Pro dos produtos web existentes.
+
+`readWithFunding` acrescenta fatos normalizados de faturas, capturas e linhas
+creditadas, sem incluir conteúdo pessoal. Essa coleta não comprova a origem
+do saldo nem concede acesso. A composição nativa do Recreio confere o ledger
+do customer, contratos e aceites e mantém sua própria prova versionada. O
+`read` comum conserva seu contrato e recusa criar períodos sem captura própria
+a partir de uma fatura de valor pago zero. Não copiar a política do Recreio
+para os demais consumidores nem reinterpretar um período dependente como
+estornado/contestado por uma flag inventada.
 
 O portal mantém outbox e reconciliação periódica serializada pelo lifecycle de cobrança. `edi.billing_reconciliations` separa tentativas/backoff de `edi.entitlements.reconciled_at`, que só avança após persistência bem-sucedida. Falhas não renovam freshness/licença. Sucesso periódico: 6 h; reserva após início/interrupção: 10 min; backoff: 30 s exponencial, máximo 6 h. Outbox mantém retry próprio.
 

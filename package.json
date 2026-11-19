@@ -121,6 +121,9 @@
       "pptxgenjs@4.0.1>image-size": "2.0.3",
       "pptxgenjs@4.0.1>https": "-",
       "body-parser@>=2.0.0 <2.4.0": "^2.4.0"
+    },
+    "patchedDependencies": {
+      "postgres@3.4.9": "patches/postgres@3.4.9.patch"
     }
   }
 }

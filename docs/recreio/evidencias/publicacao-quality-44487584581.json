@@ -1,0 +1,10 @@
+{
+  "source": "eb6f31462a6811d8d2bf519df15a8cdbedbe289d",
+  "runId": 44487584581,
+  "jobId": 135434809242,
+  "status": "passed",
+  "scope": "quality gate; source before native controller and final deadline recheck",
+  "appUnitTests": 489,
+  "productionApplied": false,
+  "externalProvider": false
+}

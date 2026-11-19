@@ -5,7 +5,16 @@ import { and, eq, lt, lte } from "drizzle-orm";
 import Stripe from "stripe";
 import { reconcileSubscriptionFunding } from "./credits/funding";
 import { PaymentEvidenceMismatchError } from "./errors";
+import { InvoiceFundingCollector, type InvoiceFundingFacts } from "./payment-funding-facts";
 import { cancelsAtPeriodEnd } from "./providers/stripe-cancellation";
+
+export type {
+  InvoiceCaptureFact,
+  InvoiceFundingFact,
+  InvoiceFundingFacts,
+  InvoiceFundingLine,
+} from "./payment-funding-facts";
+export { cancelsAtPeriodEnd } from "./providers/stripe-cancellation";
 
 export type PaidPeriodFact = {
   invoiceId: string;
@@ -29,36 +38,340 @@ export type SubscriptionPaymentSnapshot = {
   cancelAtPeriodEnd: boolean;
   periods: PaidPeriodFact[];
   observedAt: Date;
+  /** Optional for legacy readers; native purchases require this exact origin. */
+  origin?: {
+    authorizationId: string;
+    subjectType: string | null;
+    subjectId: string | null;
+    productId: string | null;
+  };
 };
 const MAX_HISTORY = 600;
 
-export function createStripePaymentFactReader(config: { secretKey: string; client?: Stripe }) {
+/** Apps with coverage selection must keep plan changes in their native flow.
+ * The legacy three-argument catalog verification keeps the Edi portal policy.
+ */
+export type NativePlanPortalPolicy = {
+  planUpdates: "application";
+  app: string;
+  returnUrl: string;
+  termsUrl: string;
+  privacyUrl: string;
+};
+
+/** Optional worker deadline; legacy callers retain their existing SDK policy. */
+export type PaymentReadBudget = { deadlineMs: number };
+
+export function createStripePaymentFactReader(config: {
+  secretKey: string;
+  client?: Stripe;
+  expectedMode?: StripeMode;
+  timeoutMs?: number;
+  maxNetworkRetries?: number;
+}) {
   const stripe =
     config.client ??
     new Stripe(config.secretKey, {
       apiVersion: "2026-04-22.dahlia",
-      timeout: 30000,
-      maxNetworkRetries: 2,
+      timeout: config.timeoutMs ?? 30000,
+      maxNetworkRetries: config.maxNetworkRetries ?? 2,
     });
-  async function chargeForPayment(payment: Stripe.InvoicePayment): Promise<Stripe.Charge> {
+  function requestOptions(budget?: PaymentReadBudget): Stripe.RequestOptions | undefined {
+    if (!budget) return undefined;
+    const remaining = budget.deadlineMs - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0)
+      throw new Error("Financial reconciliation read deadline exceeded");
+    return {
+      timeout: Math.max(1, Math.min(config.timeoutMs ?? 30000, remaining)),
+      maxNetworkRetries: 0,
+    };
+  }
+  function conferirModo(resource: { livemode: boolean }) {
+    if (config.expectedMode !== undefined && resource.livemode !== (config.expectedMode === "prod"))
+      throw new Error("Financial resource belongs to another Stripe mode");
+  }
+  /** Explicit collection pages refresh the remaining timeout on every request.
+   * Legacy reads retain their existing SDK pagination contract. */
+  async function* fundingPages<T extends { id: string }>(
+    getPage: (cursor?: string) => PromiseLike<{ data: T[]; has_more: boolean }>,
+  ) {
+    let cursor: string | undefined;
+    const seen = new Set<string>();
+    for (;;) {
+      const page = await getPage(cursor);
+      if (typeof page.has_more !== "boolean" || !Array.isArray(page.data))
+        throw new Error("Invoice funding evidence needs reconciliation: incomplete page");
+      for (const entry of page.data) {
+        if (
+          typeof entry.id !== "string" ||
+          !entry.id ||
+          seen.has(entry.id) ||
+          seen.size >= MAX_HISTORY
+        )
+          throw new Error(
+            "Invoice funding evidence needs reconciliation: duplicate or excessive page item",
+          );
+        seen.add(entry.id);
+        yield entry;
+      }
+      if (!page.has_more) return;
+      const next = page.data.at(-1)?.id;
+      if (!next || next === cursor)
+        throw new Error("Invoice funding evidence needs reconciliation: incomplete page cursor");
+      cursor = next;
+    }
+  }
+  async function chargeForPayment(
+    payment: Stripe.InvoicePayment,
+    budget?: PaymentReadBudget,
+  ): Promise<Stripe.Charge> {
+    requestOptions(budget);
     if (payment.payment.type === "payment_intent" && payment.payment.payment_intent) {
       const intent =
         typeof payment.payment.payment_intent === "string"
-          ? await stripe.paymentIntents.retrieve(payment.payment.payment_intent, {
-              expand: ["latest_charge"],
-            })
+          ? await stripe.paymentIntents.retrieve(
+              payment.payment.payment_intent,
+              {
+                expand: ["latest_charge"],
+              },
+              requestOptions(budget),
+            )
           : payment.payment.payment_intent;
       const charge = intent.latest_charge;
       if (charge && typeof charge !== "string") return charge;
-      if (charge) return stripe.charges.retrieve(charge);
+      if (charge) return stripe.charges.retrieve(charge, {}, requestOptions(budget));
     }
     // Read-only legacy payment reconciliation, never creates a Charges payment.
     if (payment.payment.type === "charge" && payment.payment.charge)
       return typeof payment.payment.charge === "string"
-        ? stripe.charges.retrieve(payment.payment.charge)
+        ? stripe.charges.retrieve(payment.payment.charge, {}, requestOptions(budget))
         : payment.payment.charge;
     throw new Error("Invoice settlement needs manual reconciliation before granting access");
   }
+  async function readComplete(
+    subscriptionId: string,
+    acceptedPriceIds: ReadonlySet<string>,
+    budget: PaymentReadBudget | undefined,
+    collectFunding: boolean,
+  ): Promise<{
+    snapshot: SubscriptionPaymentSnapshot;
+    funding: InvoiceFundingFacts | null;
+  } | null> {
+    const observedAt = new Date();
+    const subscription = await stripe.subscriptions.retrieve(
+      subscriptionId,
+      {},
+      requestOptions(budget),
+    );
+    requestOptions(budget);
+    conferirModo(subscription);
+    if (
+      subscription.id !== subscriptionId ||
+      subscription.items.has_more ||
+      subscription.items.data.length !== 1 ||
+      subscription.items.data[0]?.quantity !== 1
+    )
+      throw new Error("Subscription identity or recurring item scope is inconsistent");
+    const item = subscription.items.data[0];
+    if (!item || !acceptedPriceIds.has(item.price.id)) return null;
+    const customerId =
+      typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+    let funding: InvoiceFundingCollector | undefined;
+    if (collectFunding) {
+      if (config.expectedMode === undefined)
+        throw new Error("Invoice funding collection requires an explicit Stripe mode");
+      funding = new InvoiceFundingCollector({
+        customerId,
+        subscriptionId,
+        mode: config.expectedMode,
+        acceptedPriceIds,
+      });
+    }
+    const periods: PaidPeriodFact[] = [];
+    let invoices = 0;
+    const invoiceList = funding
+      ? fundingPages<Stripe.Invoice>((cursor) =>
+          stripe.invoices.list(
+            {
+              subscription: subscription.id,
+              status: "paid",
+              limit: 100,
+              ...(cursor ? { starting_after: cursor } : {}),
+            },
+            requestOptions(budget),
+          ),
+        )
+      : stripe.invoices.list(
+          { subscription: subscription.id, status: "paid", limit: 100 },
+          requestOptions(budget),
+        );
+    for await (const invoice of invoiceList) {
+      requestOptions(budget);
+      conferirModo(invoice);
+      if (++invoices > MAX_HISTORY) throw new Error("Invoice history exceeds reconciliation limit");
+      const paidAt = invoice.status_transitions?.paid_at;
+      if (!paidAt) throw new Error("Paid invoice has no payment confirmation timestamp");
+      const invoiceCustomerId =
+        typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+      if (
+        invoiceCustomerId !== customerId ||
+        !Number.isSafeInteger(invoice.amount_paid) ||
+        invoice.amount_paid < 0
+      )
+        throw new Error("Invoice settlement does not belong to this customer");
+      funding?.addInvoice(invoice);
+      let refunded = 0;
+      let allocated = 0;
+      let disputed = false;
+      let payments = 0;
+      const paymentList = funding
+        ? fundingPages<Stripe.InvoicePayment>((cursor) =>
+            stripe.invoicePayments.list(
+              {
+                invoice: invoice.id,
+                status: "paid",
+                limit: 100,
+                ...(cursor ? { starting_after: cursor } : {}),
+              },
+              requestOptions(budget),
+            ),
+          )
+        : stripe.invoicePayments.list(
+            { invoice: invoice.id, status: "paid", limit: 100 },
+            requestOptions(budget),
+          );
+      for await (const payment of paymentList) {
+        requestOptions(budget);
+        const amount = payment.amount_paid;
+        if (++payments > MAX_HISTORY)
+          throw new Error("Invoice payment history exceeds reconciliation limit");
+        if (amount === null || !Number.isSafeInteger(amount) || amount < 0)
+          throw new Error("Paid invoice settlement has no valid amount");
+        if (amount === 0) continue;
+        const charge = await chargeForPayment(payment, budget);
+        requestOptions(budget);
+        conferirModo(charge);
+        const chargeCustomerId =
+          typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
+        if (
+          !charge.paid ||
+          !charge.captured ||
+          chargeCustomerId !== customerId ||
+          charge.currency !== invoice.currency ||
+          !Number.isSafeInteger(charge.amount_captured) ||
+          charge.amount_captured < amount ||
+          !Number.isSafeInteger(charge.amount_refunded) ||
+          charge.amount_refunded < 0 ||
+          charge.amount_refunded > charge.amount_captured
+        )
+          throw new Error("Invoice charge settlement is inconsistent");
+        allocated += amount;
+        // Shared PaymentIntents may settle multiple invoices. Never attribute
+        // an ambiguous partial refund to the wrong paid period.
+        if (charge.amount_refunded > 0 && !charge.refunded && charge.amount_captured !== amount)
+          throw new Error("Shared payment partial refund needs explicit allocation review");
+        refunded += charge.refunded ? amount : Math.min(amount, charge.amount_refunded);
+        let chargeDisputed = false;
+        if (charge.disputed) {
+          let unresolved = false;
+          let disputes = 0;
+          const disputeList = funding
+            ? fundingPages<Stripe.Dispute>((cursor) =>
+                stripe.disputes.list(
+                  { charge: charge.id, limit: 100, ...(cursor ? { starting_after: cursor } : {}) },
+                  requestOptions(budget),
+                ),
+              )
+            : stripe.disputes.list({ charge: charge.id, limit: 100 }, requestOptions(budget));
+          for await (const dispute of disputeList) {
+            requestOptions(budget);
+            if (++disputes > MAX_HISTORY)
+              throw new Error("Dispute history exceeds reconciliation limit");
+            if (dispute.status !== "won" && dispute.status !== "warning_closed") unresolved = true;
+          }
+          if (!disputes) throw new Error("Disputed invoice charge has no dispute facts");
+          chargeDisputed = unresolved;
+          disputed ||= unresolved;
+        }
+        funding?.addCapture(invoice.id, payment, charge, chargeDisputed);
+      }
+      if (invoice.amount_paid !== allocated)
+        throw new Error("Invoice has an unsupported or missing settlement");
+      // A positive recurring line can coexist with a zero invoice payment
+      // (discount/customer balance). It is not proof of captured funding.
+      // Credit-funded coverage needs explicit origin/adverse-event tracing.
+      if (invoice.amount_paid === 0 && !funding) continue;
+      const fullyRefunded = invoice.amount_paid > 0 && refunded >= invoice.amount_paid;
+      let lines = 0;
+      const lineList = funding
+        ? fundingPages<Stripe.InvoiceLineItem>((cursor) =>
+            stripe.invoices.listLineItems(
+              invoice.id,
+              { limit: 100, ...(cursor ? { starting_after: cursor } : {}) },
+              requestOptions(budget),
+            ),
+          )
+        : stripe.invoices.listLineItems(invoice.id, { limit: 100 }, requestOptions(budget));
+      for await (const line of lineList) {
+        requestOptions(budget);
+        if (++lines > MAX_HISTORY)
+          throw new Error("Invoice line history exceeds reconciliation limit");
+        funding?.addLine(invoice.id, line);
+        if (invoice.amount_paid === 0) continue;
+        const details = line.parent?.subscription_item_details;
+        const price = line.pricing?.price_details?.price;
+        const priceId = typeof price === "string" ? price : price?.id;
+        if (
+          !details ||
+          details.subscription !== subscription.id ||
+          !priceId ||
+          !acceptedPriceIds.has(priceId) ||
+          !Number.isSafeInteger(line.amount) ||
+          line.amount <= 0
+        )
+          continue;
+        if (line.period.end <= line.period.start) continue;
+        periods.push({
+          invoiceId: invoice.id,
+          lineId: line.id,
+          priceId,
+          start: new Date(line.period.start * 1000),
+          end: new Date(line.period.end * 1000),
+          paidAt: new Date(paidAt * 1000),
+          fullyRefunded,
+          disputed,
+        });
+      }
+    }
+    requestOptions(budget);
+    return {
+      snapshot: {
+        customerId,
+        subscriptionId: subscription.id,
+        priceId: item.price.id,
+        status: subscription.status,
+        start: new Date(item.current_period_start * 1000),
+        end: new Date(item.current_period_end * 1000),
+        trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+        canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+        cancelAtPeriodEnd: cancelsAtPeriodEnd(subscription, item.current_period_end),
+        periods,
+        observedAt,
+        ...(subscription.metadata?.checkout_intent_id
+          ? {
+              origin: {
+                authorizationId: subscription.metadata.checkout_intent_id,
+                subjectType: subscription.metadata.subject_type ?? null,
+                subjectId: subscription.metadata.subject_id ?? null,
+                productId: subscription.metadata.product_id ?? null,
+              },
+            }
+          : {}),
+      },
+      funding: funding?.finish() ?? null,
+    };
+  }
+
   return {
     async verifyCompassoCatalog(
       products: readonly Product[],
@@ -152,9 +465,13 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
       products: readonly Product[],
       mode: StripeMode,
       portalConfigurationId: string,
+      nativePolicy?: NativePlanPortalPolicy,
+      budget?: PaymentReadBudget,
     ) {
       const ids = new Set<string>();
       const productIds = new Set<string>();
+      if (!products.length || (nativePolicy && products.some((p) => p.app !== nativePolicy.app)))
+        throw new Error("Invalid subscription catalog scope");
       for (const expected of products) {
         const id = expected.stripePriceId[mode];
         if (
@@ -166,10 +483,10 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         )
           throw new Error("Invalid subscription catalog");
         ids.add(id);
-        const price = await stripe.prices.retrieve(id);
+        const price = await stripe.prices.retrieve(id, {}, requestOptions(budget));
         const product =
           typeof price.product === "string"
-            ? await stripe.products.retrieve(price.product)
+            ? await stripe.products.retrieve(price.product, {}, requestOptions(budget))
             : price.product;
         if (
           !price.active ||
@@ -187,13 +504,44 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
           throw new Error("Stripe catalog does not match the approved offer");
         productIds.add(product.id);
       }
-      if (productIds.size !== 1) throw new Error("Suite prices must belong to one product");
-      const portal = await stripe.billingPortal.configurations.retrieve(portalConfigurationId, {
-        // Stripe omits the allowed products unless explicitly expanded. Without
-        // this, a valid portal is rejected and every Edi checkout is blocked.
-        expand: ["features.subscription_update.products"],
-      });
+      if (!nativePolicy && productIds.size !== 1)
+        throw new Error("Suite prices must belong to one product");
+      const portal = await stripe.billingPortal.configurations.retrieve(
+        portalConfigurationId,
+        {
+          // Stripe omits the allowed products unless explicitly expanded. Without
+          // this, a valid portal is rejected and every Edi checkout is blocked.
+          expand: ["features.subscription_update.products"],
+        },
+        requestOptions(budget),
+      );
+      requestOptions(budget);
       const updates = portal.features.subscription_update;
+      if (nativePolicy) {
+        const cancellation = portal.features.subscription_cancel;
+        const customerUpdates = portal.features.customer_update;
+        if (
+          !portal.active ||
+          portal.livemode !== (mode === "prod") ||
+          portal.metadata?.app !== nativePolicy.app ||
+          portal.default_return_url !== nativePolicy.returnUrl ||
+          portal.business_profile.terms_of_service_url !== nativePolicy.termsUrl ||
+          portal.business_profile.privacy_policy_url !== nativePolicy.privacyUrl ||
+          portal.login_page.enabled ||
+          updates.enabled ||
+          !cancellation.enabled ||
+          cancellation.mode !== "at_period_end" ||
+          cancellation.proration_behavior !== "none" ||
+          !portal.features.payment_method_update.enabled ||
+          !portal.features.invoice_history.enabled ||
+          (customerUpdates.enabled &&
+            customerUpdates.allowed_updates.some(
+              (field) => !["name", "address", "email", "tax_id"].includes(field),
+            ))
+        )
+          throw new Error("Stripe portal must preserve native plan and coverage decisions");
+        return;
+      }
       if (
         !portal.active ||
         portal.livemode !== (mode === "prod") ||
@@ -222,155 +570,57 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         return object.customer.id;
       if ("charge" in object && typeof object.charge === "string") {
         const charge = await stripe.charges.retrieve(object.charge);
+        conferirModo(charge);
         return typeof charge.customer === "string"
           ? charge.customer
           : (charge.customer?.id ?? null);
       }
       if ("payment_intent" in object && typeof object.payment_intent === "string") {
         const payment = await stripe.paymentIntents.retrieve(object.payment_intent);
+        conferirModo(payment);
         return typeof payment.customer === "string"
           ? payment.customer
           : (payment.customer?.id ?? null);
       }
       return null;
     },
-    async listSubscriptionIds(customerId: string): Promise<string[]> {
+    async listSubscriptionIds(customerId: string, budget?: PaymentReadBudget): Promise<string[]> {
       const ids: string[] = [];
-      for await (const subscription of stripe.subscriptions.list({
-        customer: customerId,
-        status: "all",
-        limit: 100,
-      })) {
+      for await (const subscription of stripe.subscriptions.list(
+        {
+          customer: customerId,
+          status: "all",
+          limit: 100,
+        },
+        requestOptions(budget),
+      )) {
+        requestOptions(budget);
+        conferirModo(subscription);
         if (ids.length >= MAX_HISTORY)
           throw new Error("Subscription history exceeds reconciliation limit");
         ids.push(subscription.id);
       }
+      requestOptions(budget);
       return ids;
     },
     async read(
       subscriptionId: string,
       acceptedPriceIds: ReadonlySet<string>,
+      budget?: PaymentReadBudget,
     ): Promise<SubscriptionPaymentSnapshot | null> {
-      const observedAt = new Date();
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      if (subscription.items.data.length !== 1)
-        throw new Error("Suite subscriptions require exactly one recurring item");
-      const item = subscription.items.data[0];
-      if (!item || !acceptedPriceIds.has(item.price.id)) return null;
-      const customerId =
-        typeof subscription.customer === "string"
-          ? subscription.customer
-          : subscription.customer.id;
-      const periods: PaidPeriodFact[] = [];
-      let invoices = 0;
-      for await (const invoice of stripe.invoices.list({
-        subscription: subscription.id,
-        status: "paid",
-        limit: 100,
-      })) {
-        if (++invoices > MAX_HISTORY)
-          throw new Error("Invoice history exceeds reconciliation limit");
-        const paidAt = invoice.status_transitions?.paid_at;
-        if (!paidAt) throw new Error("Paid invoice has no payment confirmation timestamp");
-        const invoiceCustomerId =
-          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
-        if (
-          invoiceCustomerId !== customerId ||
-          !Number.isSafeInteger(invoice.amount_paid) ||
-          invoice.amount_paid < 0
-        )
-          throw new Error("Invoice settlement does not belong to this customer");
-        let refunded = 0;
-        let allocated = 0;
-        let disputed = false;
-        let payments = 0;
-        for await (const payment of stripe.invoicePayments.list({
-          invoice: invoice.id,
-          status: "paid",
-          limit: 100,
-        })) {
-          const amount = payment.amount_paid;
-          if (++payments > MAX_HISTORY)
-            throw new Error("Invoice payment history exceeds reconciliation limit");
-          if (amount === null || !Number.isSafeInteger(amount) || amount < 0)
-            throw new Error("Paid invoice settlement has no valid amount");
-          if (amount === 0) continue;
-          const charge = await chargeForPayment(payment);
-          const chargeCustomerId =
-            typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
-          if (
-            !charge.paid ||
-            !charge.captured ||
-            chargeCustomerId !== customerId ||
-            charge.currency !== invoice.currency ||
-            !Number.isSafeInteger(charge.amount_captured) ||
-            charge.amount_captured < amount ||
-            !Number.isSafeInteger(charge.amount_refunded) ||
-            charge.amount_refunded < 0 ||
-            charge.amount_refunded > charge.amount_captured
-          )
-            throw new Error("Invoice charge settlement is inconsistent");
-          allocated += amount;
-          // Shared PaymentIntents may settle multiple invoices. Never attribute
-          // an ambiguous partial refund to the wrong paid period.
-          if (charge.amount_refunded > 0 && !charge.refunded && charge.amount_captured !== amount)
-            throw new Error("Shared payment partial refund needs explicit allocation review");
-          refunded += charge.refunded ? amount : Math.min(amount, charge.amount_refunded);
-          if (charge.disputed) {
-            let unresolved = false;
-            let disputes = 0;
-            for await (const dispute of stripe.disputes.list({ charge: charge.id, limit: 100 })) {
-              if (++disputes > MAX_HISTORY)
-                throw new Error("Dispute history exceeds reconciliation limit");
-              if (dispute.status !== "won" && dispute.status !== "warning_closed")
-                unresolved = true;
-            }
-            if (!disputes) throw new Error("Disputed invoice charge has no dispute facts");
-            disputed ||= unresolved;
-          }
-        }
-        if (invoice.amount_paid !== allocated)
-          throw new Error("Invoice has an unsupported or missing settlement");
-        const fullyRefunded = invoice.amount_paid > 0 && refunded >= invoice.amount_paid;
-        for await (const line of stripe.invoices.listLineItems(invoice.id, { limit: 100 })) {
-          const details = line.parent?.subscription_item_details;
-          const price = line.pricing?.price_details?.price;
-          const priceId = typeof price === "string" ? price : price?.id;
-          if (
-            !details ||
-            details.subscription !== subscription.id ||
-            !priceId ||
-            !acceptedPriceIds.has(priceId) ||
-            !Number.isSafeInteger(line.amount) ||
-            line.amount <= 0
-          )
-            continue;
-          if (line.period.end <= line.period.start) continue;
-          periods.push({
-            invoiceId: invoice.id,
-            lineId: line.id,
-            priceId,
-            start: new Date(line.period.start * 1000),
-            end: new Date(line.period.end * 1000),
-            paidAt: new Date(paidAt * 1000),
-            fullyRefunded,
-            disputed,
-          });
-        }
-      }
-      return {
-        customerId,
-        subscriptionId: subscription.id,
-        priceId: item.price.id,
-        status: subscription.status,
-        start: new Date(item.current_period_start * 1000),
-        end: new Date(item.current_period_end * 1000),
-        trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
-        canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
-        cancelAtPeriodEnd: cancelsAtPeriodEnd(subscription, item.current_period_end),
-        periods,
-        observedAt,
-      };
+      return (
+        (await readComplete(subscriptionId, acceptedPriceIds, budget, false))?.snapshot ?? null
+      );
+    },
+    async readWithFunding(
+      subscriptionId: string,
+      acceptedPriceIds: ReadonlySet<string>,
+      budget?: PaymentReadBudget,
+    ) {
+      const result = await readComplete(subscriptionId, acceptedPriceIds, budget, true);
+      if (!result) return null;
+      if (!result.funding) throw new Error("Invoice funding collection was not completed");
+      return { snapshot: result.snapshot, funding: result.funding };
     },
   };
 }

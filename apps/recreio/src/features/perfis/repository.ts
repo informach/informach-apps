@@ -16,6 +16,7 @@ import {
   type IdentidadeNativa,
   serializarContaNativa,
 } from "@/features/account/autoridade-repository";
+import { coberturaDeNovoPerfilLocked } from "@/features/grupo/cobertura-nova-repository";
 import { assertAllowed } from "@/lib/errors";
 import type { EdicaoDoPerfil, NovoPerfil } from "./regras";
 
@@ -159,6 +160,7 @@ export async function criarPerfilDaConta(
       "Este grupo já tem quatro perfis. Gerencie os perfis existentes para continuar.",
     );
     await contexto.conferirPrazo();
+    const coberturaLigada = await coberturaDeNovoPerfilLocked(tx, grupo.id);
     const [criado] = await tx
       .insert(profiles)
       .values({
@@ -167,6 +169,7 @@ export async function criarPerfilDaConta(
         kind: "adult",
         nickname: dados.apelido,
         avatar: dados.avatar,
+        coverageEnabled: coberturaLigada,
       })
       .returning(campos);
     assertAllowed(criado, "PERFIL", "Não foi possível criar o perfil. Tente de novo.");

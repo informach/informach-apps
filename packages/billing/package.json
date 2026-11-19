@@ -9,6 +9,8 @@
     ".": "./src/index.ts",
     "./access": "./src/access.ts",
     "./checkout": "./src/checkout.ts",
+    "./checkout-authorizations": "./src/checkout-authorizations.ts",
+    "./destinations": "./src/destinations.ts",
     "./credits": "./src/credits/index.ts",
     "./credit-migration": "./src/credits/wallet-migration.ts",
     "./compasso": "./src/compasso.ts",
@@ -26,6 +28,7 @@
     "./collection-jobs": "./src/collection-jobs.ts",
     "./providers/stripe": "./src/providers/stripe.ts",
     "./providers/stripe-plans": "./src/providers/stripe-plans.ts",
+    "./providers/stripe-recreio-upgrades": "./src/providers/stripe-recreio-upgrades.ts",
     "./providers/stripe-future-contract": "./src/providers/stripe-future-contract.ts",
     "./providers/stripe-legacy-deferral": "./src/providers/stripe-legacy-deferral.ts",
     "./collection-accounts": "./src/collection-accounts.ts",
@@ -35,7 +38,9 @@
     "./subscriptions": "./src/subscriptions.ts",
     "./sweepers": "./src/sweepers.ts",
     "./webhooks": "./src/webhooks/index.ts",
-    "./payment-facts": "./src/payment-facts.ts"
+    "./payment-facts": "./src/payment-facts.ts",
+    "./user-payment-snapshots": "./src/user-payment-snapshots.ts",
+    "./user-provider-events": "./src/user-provider-events.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

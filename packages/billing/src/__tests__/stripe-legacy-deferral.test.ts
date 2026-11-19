@@ -34,8 +34,10 @@ function fixture() {
     trial_end: noTrial(),
     metadata,
     items: {
+      has_more: false,
       data: [
         {
+          quantity: 1,
           price: { id: input.priceId },
           current_period_start: now - 60,
           current_period_end: input.expectedPeriodEnd,

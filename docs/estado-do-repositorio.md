@@ -30,9 +30,64 @@ temporários removidos, 34 serviços. D3–D8 e F6–F11 continuam separados.
 
 **18/11 — F6–F11 restantes:** os quatro preços foram confirmados; o teste sem
 cartão da proposta compara 48 h e sete dias, começando na primeira sessão
-autorizada. Candidatas separadas `4a46a3dd`/`f81c2c95` levam período financeiro
-finito à admissão/ingresso e registram variáveis de preço no catálogo; em
-qualificação, não implantadas nem cobrança habilitada. [Levantamento
+autorizada. A candidata `a57da736` concluiu os dezesseis gates `44339836958`,
+incluindo prova financeira obrigatória na admissão/renovação, webhook nativo,
+job autenticado e gestão financeira do próprio pagante. Catálogo/preços/portal
+de teste foram conferidos no Stripe real, com replay idempotente; isso não é
+pagamento. A jornada hospedada `44337220466` chegou ao desafio hCaptcha,
+encerrou sua sessão aberta e não criou assinatura: falta homologação humana
+do Checkout. A fundação seguinte `e9433c97` concluiu os dezesseis gates
+`44344445323`: agendas nativas, recibos, revisão comercial atual e seleção que
+não restaura revogações. 0209/0210 foram geradas em duas etapas e adotadas
+intactas; a primeira geração foi recusada por ordenar FKs antes da chave.
+A API externa de agenda/renovação/cancelamento/estorno passou em
+`44346637491`/`63bebd25`, com recursos sintéticos e limpeza confirmada. Essa
+prova não conclui Checkout ou aceite nativo. Compra com seleção inicial e trocas
+nativas avançaram: `03fa9ee6` concluiu os dezesseis gates `44396550083`, incluindo
+94 testes financeiros. APIs reais mensal/anual do adapter próprio passaram em
+`44394357376` e `44391555451`, com limpeza confirmada; não são Checkout nativo.
+0211–0217 permanecem candidatas, geradas e adotadas intactas. O CI compartilhado
+`44401856120`/`afcdbd0d` aprovou a correção da fixture Cozya sem quantidade,
+sem afrouxar o leitor; a composição posterior exige sua rodada própria.
+A origem dos créditos avançou para composição por cliente,
+provas nativas e leitura obrigatória no acesso: financeiro `44416128033` aprovou
+108 casos, com corte de SID por eventos adversos na origem e crédito anual.
+Consulta/actions de trocas em `8d0e7f46`: quality `44416858086` e 112 casos em
+`44416863303` aprovados. API de teste entre dois contratos comprovada com limpeza
+em `44409975899`. Rodada integral `44415248464`: quinze gates aprovados, uma
+fixture de retenção recusada e corrigida; falta rodada integral da fonte final.
+Telas de cotação/aceite/envio passaram em `44424191368`/`7eb50298` (quatro
+jornadas de compra e duas de troca, capturas mobile inspecionadas); quality
+`44424195557` aprovado. Matriz de APIs reais de teste `44424201569`: doze
+direções aprovadas, incluindo crédito/estorno, limpeza de todos os recursos
+confirmada. Não é Checkout ou webhook nativos. Rodada integral `44426286901`: dezesseis gates aprovados.
+CI compartilhado `44424819941` aprovado. A fonte `38b544fe` também
+concluiu os dezesseis gates `44433292118`; seu CI compartilhado
+`44433295619` aprovado. Preparação de F7 no
+[levantamento de direitos](recreio/direitos-implementacao-2026-11-18.md); recorte pessoal de progresso com quinze integrações PostgreSQL aprovadas
+em `44427172908`/`8647b310`. Inventário/cadastro e kernel de direitos passaram em quality
+`44428544763` e integração `44428548764`/`0e735ff4` (vinte cenários de direitos,
+1155 integrações e cinco HTTP). F7 não está concluído. Nenhum exportador ou exclusão
+foi implantado em produção. Base de cifragem autenticada para objetos em
+candidata, com SDK S3 e 26 testes fechados aprovados. Bucket isolado de
+homologação provisionado; após autorização explícita da credencial restrita,
+prova externa `44433527147` aprovada com recusa de sobrescrita/acesso anônimo
+e limpeza confirmada. 0216/0217 de conteúdo/entregas foram geradas e
+adotadas intactas, ainda sem aplicação ou escritores de objetos em produção;
+dezoito cenários SQL aprovados em `44437017538` (1173 integrações e cinco HTTP),
+quality `44437014121` aprovado. Leitor nativo em duas etapas aprovado em
+quality `44439533813` e integração `44439538487` (17 cenários novos, 1190
+integrações e cinco HTTP). Checkpoint/retenção, recuperação histórica e preparação cifrada/auditada
+aprovados em `44442018626` e `44442022199`/`d4b77c2a` (41 cenários de fotografia,
+1214 integrações e cinco HTTP). Executor de entrega aprovado em quality `44443402920` e integração
+`44443406913`/`b8894978` (53 cenários, 1226 integrações e cinco HTTP). Prova
+nativa `44444276302`/`12459f31` no bucket real e PostgreSQL descartável aprovada,
+incluindo espera persistida de cinco minutos, leitura/revogação e limpeza
+confirmada. Coleta e backup permanecem pendentes, sem migração habilitada. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
+[Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
+Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
+endpoint público,
+agendamento operacional e homologação comercial seguem abertos. [Levantamento
 comercial](recreio/comercial-levantamento-2026-11-18.md). Cobrança, privacidade,
 objetos/backup agendado com restauração do objeto, catálogo/acessibilidade,
 custo/carga remota e homologação final permanecem abertos no
@@ -44,6 +99,55 @@ lógica atual comparada, migrations 0184–0190 aplicadas sem seed, 191 recibos 
 hashes conferidos. Prontidão e manutenção 200; comandos sem credencial 403.
 Social/famílias/checkpoint `off`, jogo interno `0`; Morada permanece em `644b3841`.
 F5 e F6–F11 continuam abertos. [Evidência e limites](recreio/social-e-moderacao-2026-11-17.md).
+
+**19/11 — F8 candidato:** transporte de arquivos passou em `44450866756`
+(66 testes e tipos), quality `44450870353` aprovado. Prova no bucket restrito
+`44453304274` validou arquivo sintético de 64 MiB, escrita condicional, replay,
+recuperação sem cópia local, acesso privado e limpeza; perfil offline de 384 MiB
+`44453287884` também aprovado. Reservas de captura 0218 foram geradas/adotadas
+intactas (219 recibos candidatos), sem implantação. Primeiro writer de captura
+e reservas passou em `44455214243`: 1.242 integrações, dez provas de captura,
+cinco HTTP e upgrades com dados preservados. Referências impossíveis passaram
+a ser recusadas antes da rede (`44456149519`, 71 testes). A revisão de
+encerramento revelou exceção no driver postgres após queda real da conexão
+(`44456802954`/`39e362f0`); correção reproduzível do escopo em patch pnpm,
+mantendo versões. Instalação congelada e prova ESM/CommonJS/captura passaram
+em `44459074435`; dezesseis gates completos `44459423949`/`4952ae0b` aprovados,
+com CI compartilhado `44459423698` também aprovado. Montador/conferidor do
+composto/capacidades/índice avançaram até `4e6d9b2b`: quality e integração aprovados,
+481 unitários do app, 1.242 integrações, cinco HTTP, 146 testes de objetos e
+16 provas de captura/restauração. A fonte `23b29660` passou a composição no
+bucket real em `44470950325`: SQL e fotografia recuperados pelo arquivo/índice,
+replay, retirada, anonimato negado e quatro objetos sintéticos removidos com
+NoSuchKey/LIST vazio confirmados. [Recibo externo](recreio/evidencias/captura-provider-44470950325.json).
+A prova posterior `44484289365`/`1893b6f4` recuperou a captura no bucket real
+em cluster PostgreSQL novo e privado, sem credenciais do banco de origem:
+conteúdo, estrutura, metadados globais, fotografia e vínculo SQL conferidos;
+limpeza de cluster/arquivos/quatro objetos e negativa anônima confirmadas.
+[Recibo de cluster novo](recreio/evidencias/captura-provider-44484289365.json).
+Não normaliza autoridades/destinos para tráfego nem qualifica produção.
+A 0219 acrescenta controle de publicação, destino independente, tentativa e bytes
+assinados duráveis; geração `44486780124` adotada intacta, ainda em candidata.
+Publicação durável e coleta restrita passaram em `44489934715` (1.289 casos
+PostgreSQL, dezesseis nativos, cinco HTTP); a composição no bucket real passou
+em `44491770523`/`44281736`, com retomada, liberação de reservas, coleta da foto,
+recuperação em cluster novo e limpeza. 0220 amplia lease para tombstone e
+acrescenta índice parcial; sem implantação. Os dezesseis gates dessa fonte
+passaram em `44492285054`; o CI compartilhado `44492289805` também passou. Incrementos posteriores exigem seus próprios gates.
+0219–0223 totalizam 224 recibos candidatos. Retirada durável/abandono e FK
+restritiva 0221/0222 passaram em `44496294753` (1.309 PostgreSQL, dezesseis
+nativos e cinco HTTP), e no bucket real em `44497283983`/`2fb385a6`, com
+limpeza confirmada. Quarentena 0223 e normalização offline das fotos passaram
+em `44501616990`/`f9b6727b`, sem credencial da origem e sem referência bucket
+restante. A comparação integral precede essa transformação. A injeção posterior
+revelou reutilização da conexão encerrada e perda de identidade do erro do
+consumidor no decoder. A regressão reproduziu a perda de causa; o corretivo
+`bf6fa706` passou em `44507816907`, com rollback integral após queda, recusa
+de manifesto/foto corrompida e limpeza confirmada. A integração anterior
+`44506197051` concluiu 1.313 PostgreSQL, dezesseis nativos e cinco HTTP.
+Dezesseis gates/CI compartilhado da fonte corrigida ainda em execução. Custódia, normalização de autoridades, replay F7, agenda e RPO/RTO
+continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
+e [publicação durável](recreio/publicacao-duravel-2026-11-19.md).
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de

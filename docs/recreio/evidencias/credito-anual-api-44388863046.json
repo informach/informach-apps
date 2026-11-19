@@ -1,0 +1,36 @@
+{
+  "source": "ace8a1d8b34ca89eeb0b58e869d6b72b00819c74",
+  "runId": "44388863046",
+  "artifactId": "14466554355",
+  "sizeBytes": 1773,
+  "sha256": "41017d769bc57b1faff8d875e396ca95ae5e46c3de4833b5d5e41efe49105c6d",
+  "boundary": "provider_api_test_clock",
+  "scenario": "annual_credit",
+  "status": "passed",
+  "mode": "dev",
+  "annualCaptureCents": 59900,
+  "creditInvoice": {
+    "subtotalCents": 12790,
+    "creditCents": -59900,
+    "totalCents": -47110,
+    "amountPaidCents": 0,
+    "endingBalanceCents": -47110
+  },
+  "renewal": {
+    "totalCents": 12790,
+    "amountPaidCents": 0,
+    "startingBalanceCents": -47110,
+    "endingBalanceCents": -34320
+  },
+  "creditedItemsReferenceOriginalInvoice": true,
+  "balanceLedgerInspected": true,
+  "sameSubscriptionAndOriginPreserved": true,
+  "sourceRefundDetected": true,
+  "untracedCreditCoverageWithheld": true,
+  "cleanupConfirmed": true,
+  "nativeAnnualCreditFundingImplemented": false,
+  "nativeCheckoutCompleted": false,
+  "nativePlanChangeAccepted": false,
+  "nativeGameAccessProven": false,
+  "providerWebhookDeliveryProven": false
+}

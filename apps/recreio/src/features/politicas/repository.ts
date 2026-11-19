@@ -39,7 +39,7 @@ function mesEAno(agora: Date) {
   return { ano: Number(ano), mes: Number(mes) };
 }
 
-function configuracaoDaLinha(linha: typeof policies.$inferSelect): Supervisao {
+export function configuracaoDaLinha(linha: typeof policies.$inferSelect): Supervisao {
   return SupervisaoSchema.parse({
     limiteDeConteudo: linha.contentLimit,
     multiplayer: linha.multiplayerEnabled,

@@ -1,0 +1,50 @@
+{
+  "workflowRunId": 44326443256,
+  "jobId": 134878891013,
+  "artifactId": 14437032810,
+  "archiveBytes": 645,
+  "archiveSha256": "be75b55e6a2cefb5d6d8998a343e344900b22ba6a616db311fc2127dddbe19c9",
+  "receipt": {
+    "source": "85a42bad1c0297ab4dfd7511c904faeba1f82bdf",
+    "verifiedAt": "2026-11-18T14:38:53.747Z",
+    "accountId": "acct_1LnO7zCvOctqao30",
+    "mode": "dev",
+    "apply": true,
+    "origin": "https://recreio.informach.com.br",
+    "verified": true,
+    "proposed": [],
+    "variables": {
+      "RECREIO_INDIVIDUAL_MONTHLY_PRICE": "price_1UdA0eCvOctqao30rk2KvcOX",
+      "RECREIO_INDIVIDUAL_ANNUAL_PRICE": "price_1UdA0eCvOctqao30QZSMhgNh",
+      "RECREIO_FAMILY_MONTHLY_PRICE": "price_1UdA0eCvOctqao30lY8vgaZT",
+      "RECREIO_FAMILY_ANNUAL_PRICE": "price_1UdA0eCvOctqao30mKmktUqX",
+      "STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UdA0fCvOctqao30h7PWQvaJ"
+    },
+    "offers": [
+      {
+        "id": "recreio_individual_monthly",
+        "amountCents": 5990,
+        "currency": "BRL",
+        "interval": "month"
+      },
+      {
+        "id": "recreio_individual_annual",
+        "amountCents": 59900,
+        "currency": "BRL",
+        "interval": "year"
+      },
+      {
+        "id": "recreio_family_monthly",
+        "amountCents": 12790,
+        "currency": "BRL",
+        "interval": "month"
+      },
+      {
+        "id": "recreio_family_annual",
+        "amountCents": 127900,
+        "currency": "BRL",
+        "interval": "year"
+      }
+    ]
+  }
+}

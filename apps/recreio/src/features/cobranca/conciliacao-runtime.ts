@@ -1,0 +1,22 @@
+import type { BillingProviderClient } from "@informach/billing";
+import type {
+  createStripePaymentFactReader,
+  PaymentReadBudget,
+} from "@informach/billing/payment-facts";
+import type { RecreioPlanScheduleProvider } from "@informach/billing/providers/stripe-plans";
+import type { RecreioUpgradeProvider } from "@informach/billing/providers/stripe-recreio-upgrades";
+import type { Product, StripeMode } from "@informach/config";
+import type { criarConferenciaDeFinanciamento } from "./financiamento-stripe";
+
+/** Financial reads plus an optional capability for previously admitted native
+ * reductions. No customer creation, Checkout or arbitrary subscription update. */
+export type RuntimeDeConciliacao = {
+  modo: StripeMode;
+  produtos: readonly Product[];
+  conferirCatalogo: (budget?: PaymentReadBudget) => Promise<void>;
+  leitor: Pick<ReturnType<typeof createStripePaymentFactReader>, "listSubscriptionIds">;
+  financiamento: Pick<ReturnType<typeof criarConferenciaDeFinanciamento>, "conferirCliente">;
+  lerCheckout: NonNullable<BillingProviderClient["findCheckoutSession"]>;
+  agendasAdmitidas?: RecreioPlanScheduleProvider;
+  aumentosAdmitidos?: RecreioUpgradeProvider;
+};

@@ -2,6 +2,7 @@ import "server-only";
 import { db, sql } from "@informach/db";
 import { ErroDoRecreio } from "@informach/recreio";
 import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
+import { comPreparacaoDeMundo } from "@/features/teste/admissao-repository";
 import type { Transacao } from "@/lib/repository";
 import {
   admitirAparelhoDeJogo,
@@ -11,6 +12,22 @@ import {
 import { type Admissao, comSessaoDeJogoAutoritativa } from "./repository";
 
 export type AutorDeMundos = ReferenciaDeJogador | SessaoDeJogoAtiva;
+
+/** Somente preparar/criar/listar o próprio mundo antes da primeira SID de teste.
+ * A sessão do SDK nunca recebe essa exceção; permanece no kernel completo.
+ */
+export function comAutorDaPreparacaoDeMundo<T>(
+  autor: AutorDeMundos,
+  jogo: string,
+  antesDoPerfil: (tx: Transacao) => Promise<void>,
+  executar: (
+    tx: Transacao,
+    contexto: Pick<Admissao, "perfil" | "politica" | "contaId" | "conferirPrazo">,
+  ) => Promise<T>,
+): Promise<T> {
+  if ("sid" in autor) return comAutorDeMundos(autor, jogo, antesDoPerfil, executar);
+  return comPreparacaoDeMundo({ ...autor, jogo, expiraEm: null }, antesDoPerfil, executar);
+}
 
 /** A mesma transação admite a autoridade e executa a operação de domínio. */
 export async function comAutorDeMundos<T>(

@@ -30,6 +30,10 @@ import {
 import { emitirPermissaoDeSalvamento } from "@/features/salvamento/emissao-repository";
 import { aguardarSalvamentoAnterior } from "@/features/salvamento/reconexao-repository";
 import {
+  comIngressoParaTeste,
+  comPrimeiraSessaoDoTeste,
+} from "@/features/teste/admissao-repository";
+import {
   finalidadeDaSessao,
   prazoDaIntencaoDeVisita,
   prepararFinalidadeDeVisita,
@@ -140,31 +144,47 @@ function respostaDaSessao(
 export async function registrarIngresso(
   entrada: ReferenciaDeJogador & { jogo: string; emissor: Emissor },
 ): Promise<TokenEmitido> {
-  const resultado = await db.transaction(async (tx) => {
-    await limites(tx);
-    const contexto = await admitir(tx, { ...entrada, expiraEm: null });
-    if (!contexto.admitida) return contexto;
-    const agora = await contexto.conferirPrazo();
-    const jti = crypto.randomUUID();
-    const emitido = await entrada.emissor.ingresso({
-      jogo: entrada.jogo,
-      perfilId: entrada.perfilId,
-      sessaoDeAparelhoId: entrada.sessaoDeAparelhoId,
-      versaoDaPolitica: contexto.versaoDaPolitica,
-      jti,
-      agora,
-    });
-    await tx.insert(tickets).values({
-      jti,
-      profileId: entrada.perfilId,
-      deviceSessionId: entrada.sessaoDeAparelhoId,
-      gameId: entrada.jogo,
-      issuedAt: agora,
-      expiresAt: emitido.expiraEm,
-    });
-    await contexto.conferirPrazo();
-    return { admitida: true as const, valor: emitido };
-  });
+  const resultado = await comIngressoParaTeste<TokenEmitido>(
+    { ...entrada, expiraEm: null },
+    async (tx, provisoria) => {
+      await limites(tx);
+      const contexto = provisoria ?? (await admitir(tx, { ...entrada, expiraEm: null }));
+      if (!contexto.admitida) return contexto;
+      const agora = await contexto.conferirPrazo();
+      const jti = crypto.randomUUID();
+      const validoAte = new Date(
+        Math.min(
+          "limiteDoIngresso" in contexto
+            ? contexto.limiteDoIngresso.getTime()
+            : (contexto.decisao.validoAte?.getTime() ?? Infinity),
+          contexto.aparelho.expiresAt.getTime(),
+        ),
+      );
+      if (Math.floor(validoAte.getTime() / 1000) <= Math.floor(agora.getTime() / 1000))
+        throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "expired" });
+      const emitido = await entrada.emissor.ingresso({
+        jogo: entrada.jogo,
+        perfilId: entrada.perfilId,
+        sessaoDeAparelhoId: entrada.sessaoDeAparelhoId,
+        versaoDaPolitica: contexto.versaoDaPolitica,
+        jti,
+        agora,
+        validoAte,
+      });
+      if (emitido.expiraEm > validoAte || emitido.expiraEm <= agora)
+        throw new ErroDoRecreio("INDISPONIVEL");
+      await tx.insert(tickets).values({
+        jti,
+        profileId: entrada.perfilId,
+        deviceSessionId: entrada.sessaoDeAparelhoId,
+        gameId: entrada.jogo,
+        issuedAt: agora,
+        expiresAt: emitido.expiraEm,
+      });
+      await contexto.conferirPrazo();
+      return { admitida: true as const, valor: emitido };
+    },
+  );
   if (!resultado.admitida) throw comoRecusaDeEntrada(resultado.erro);
   return resultado.valor;
 }
@@ -183,82 +203,303 @@ export async function abrirSessaoComIngresso(entrada: {
   visitaId?: string;
 }): Promise<SessaoAberta> {
   try {
-    const resultado = await db.transaction(async (tx) => {
-      await limites(tx);
-      const contexto = await admitir(tx, entrada.ingresso);
-      if (!contexto.admitida) return contexto;
-      if (entrada.ingresso.versaoDaPolitica !== contexto.versaoDaPolitica)
-        return recusarAutoridade(new ErroDoRecreio("INGRESSO_INVALIDO"));
-      const [recibo] = await tx
-        .select()
-        .from(tickets)
-        .where(
-          and(
-            eq(tickets.jti, entrada.ingresso.jti),
-            eq(tickets.profileId, entrada.ingresso.perfilId),
-            eq(tickets.deviceSessionId, entrada.ingresso.sessaoDeAparelhoId),
-            eq(tickets.gameId, entrada.ingresso.jogo),
-            sql`${tickets.expiresAt}>${AGORA}`,
-          ),
-        )
-        .for("update");
-      if (!recibo) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-      const hashDaTroca = entrada.chaveDeTroca ? hashDaChaveDeTroca(entrada.chaveDeTroca) : null;
-      if (recibo.consumedAt !== null) {
-        if (
-          !hashDaTroca ||
-          !recibo.exchangeKeyHash ||
-          !recibo.openedSessionId ||
-          !timingSafeEqual(
-            Buffer.from(hashDaTroca, "hex"),
-            Buffer.from(recibo.exchangeKeyHash, "hex"),
+    const resultado = await comPrimeiraSessaoDoTeste<SessaoAberta>(
+      { ...entrada.ingresso, sid: entrada.sid },
+      async (tx) => {
+        await limites(tx);
+        const contexto = await admitir(tx, entrada.ingresso);
+        if (!contexto.admitida) return contexto;
+        if (entrada.ingresso.versaoDaPolitica !== contexto.versaoDaPolitica)
+          return recusarAutoridade(new ErroDoRecreio("INGRESSO_INVALIDO"));
+        const [recibo] = await tx
+          .select()
+          .from(tickets)
+          .where(
+            and(
+              eq(tickets.jti, entrada.ingresso.jti),
+              eq(tickets.profileId, entrada.ingresso.perfilId),
+              eq(tickets.deviceSessionId, entrada.ingresso.sessaoDeAparelhoId),
+              eq(tickets.gameId, entrada.ingresso.jogo),
+              sql`${tickets.expiresAt}>${AGORA}`,
+            ),
           )
-        )
-          throw new ErroDoRecreio("INGRESSO_INVALIDO");
-        const conferida = await conferirSessaoAdmitida(
-          tx,
-          { ...entrada.ingresso, sid: SessaoDeJogoIdSchema.parse(recibo.openedSessionId) },
-          contexto,
-        );
-        if (!conferida.admitida) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-        const finalidade = await finalidadeDaSessao(tx, conferida.jogo.id);
-        if (
-          (finalidade?.visitId ?? undefined) !== entrada.visitaId ||
-          (finalidade &&
-            (finalidade.state === "closed" ||
-              entrada.suportaVisitas !== true ||
-              !conferida.jogo.supportsVisits))
-        )
-          throw new ErroDoRecreio("INGRESSO_INVALIDO");
-        if (finalidade)
-          await prazoDaIntencaoDeVisita(tx, {
-            visitaId: finalidade.visitId,
-            perfilId: entrada.ingresso.perfilId,
+          .for("update");
+        if (!recibo) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        const hashDaTroca = entrada.chaveDeTroca ? hashDaChaveDeTroca(entrada.chaveDeTroca) : null;
+        if (recibo.consumedAt !== null) {
+          if (
+            !hashDaTroca ||
+            !recibo.exchangeKeyHash ||
+            !recibo.openedSessionId ||
+            !timingSafeEqual(
+              Buffer.from(hashDaTroca, "hex"),
+              Buffer.from(recibo.exchangeKeyHash, "hex"),
+            )
+          )
+            throw new ErroDoRecreio("INGRESSO_INVALIDO");
+          const conferida = await conferirSessaoAdmitida(
+            tx,
+            { ...entrada.ingresso, sid: SessaoDeJogoIdSchema.parse(recibo.openedSessionId) },
+            contexto,
+          );
+          if (!conferida.admitida) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+          const finalidade = await finalidadeDaSessao(tx, conferida.jogo.id);
+          if (
+            (finalidade?.visitId ?? undefined) !== entrada.visitaId ||
+            (finalidade &&
+              (finalidade.state === "closed" ||
+                entrada.suportaVisitas !== true ||
+                !conferida.jogo.supportsVisits))
+          )
+            throw new ErroDoRecreio("INGRESSO_INVALIDO");
+          if (finalidade)
+            await prazoDaIntencaoDeVisita(tx, {
+              visitaId: finalidade.visitId,
+              perfilId: entrada.ingresso.perfilId,
+              jogo: entrada.ingresso.jogo,
+              agora: await contexto.conferirPrazo(),
+            });
+          const { token } = await assinarSessao(
+            contexto,
+            entrada.emissor,
+            { jogo: entrada.ingresso.jogo, sid: SessaoDeJogoIdSchema.parse(conferida.jogo.id) },
+            conferida.jogo.expiresAt,
+          );
+          const salvamento = await emitirPermissaoDeSalvamento(tx, contexto, {
+            sid: SessaoDeJogoIdSchema.parse(conferida.jogo.id),
             jogo: entrada.ingresso.jogo,
-            agora: await contexto.conferirPrazo(),
+            emissor: entrada.emissor,
+            token,
+            operacao: "recuperar",
           });
-        const { token } = await assinarSessao(
+          const fim = await contexto.conferirPrazo();
+          if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+          if (finalidade)
+            await prazoDaIntencaoDeVisita(tx, {
+              visitaId: finalidade.visitId,
+              perfilId: entrada.ingresso.perfilId,
+              jogo: entrada.ingresso.jogo,
+              agora: fim,
+            });
+          return {
+            admitida: true as const,
+            valor: {
+              ...respostaDaSessao(
+                contexto,
+                entrada.ingresso,
+                token,
+                entrada.suportaSocial,
+                entrada.suportaConvitesDirigidos,
+                entrada.suportaVisitas === true && conferida.jogo.supportsVisits,
+                finalidade?.visitId,
+              ),
+              ...(salvamento ? { salvamento } : {}),
+            },
+          };
+        }
+        const intencao = entrada.visitaId
+          ? await prazoDaIntencaoDeVisita(tx, {
+              visitaId: entrada.visitaId,
+              perfilId: entrada.ingresso.perfilId,
+              jogo: entrada.ingresso.jogo,
+              agora: await contexto.conferirPrazo(),
+            })
+          : null;
+        if (intencao && entrada.suportaVisitas !== true)
+          throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        const [aberta] = await tx
+          .select({
+            id: games.id,
+            jogo: games.gameId,
+            mundoId: games.spaceId,
+            expiraEm: games.expiresAt,
+            congeladaEm: games.checkpointFrozenAt,
+          })
+          .from(games)
+          .where(and(eq(games.profileId, entrada.ingresso.perfilId), isNull(games.endedAt)));
+        const agora = await contexto.conferirPrazo();
+        let trocaConfirmada: string | null = null;
+        let trocaExpiraEm: Date | null = null;
+        if (
+          aberta &&
+          aberta.expiraEm > agora &&
+          entrada.continuarAqui &&
+          env.RECREIO_CHECKPOINT_MODE !== "on"
+        )
+          return recusarAutoridade(new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }));
+        if (
+          aberta &&
+          entrada.continuarAqui &&
+          env.RECREIO_CHECKPOINT_MODE === "on" &&
+          (aberta.expiraEm > agora || aberta.congeladaEm !== null)
+        ) {
+          if (!hashDaTroca)
+            return recusarAutoridade(
+              new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }),
+            );
+          const troca = await prepararTrocaDeAparelho(tx, contexto, entrada.ingresso, aberta);
+          if (!troca.pronta) return recusarAutoridade(troca.erro);
+          trocaConfirmada = troca.id;
+          trocaExpiraEm = troca.expiraEm;
+        }
+        // Leitor anterior aos escritores de troca: uma barreira nunca é aceite implícito.
+        if (aberta && aberta.congeladaEm !== null && !trocaConfirmada)
+          throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+        if (aberta && aberta.expiraEm > agora && !entrada.continuarAqui)
+          throw new ErroDoRecreio("JA_ABERTO");
+        await aguardarSalvamentoAnterior(tx, {
+          perfilId: entrada.ingresso.perfilId,
+          versaoDaPolitica: contexto.versaoDaPolitica,
+          agora: await contexto.conferirPrazo(),
+        });
+        const tempo = contexto.politica
+          ? await prepararConcessaoDeTempo(
+              tx,
+              entrada.ingresso.perfilId,
+              contexto.politica.configuracao,
+              agora,
+            )
+          : null;
+        if (tempo && !tempo.permitido) {
+          await encerrarSessoesAbertas(
+            tx,
+            sql`${games.profileId}=${entrada.ingresso.perfilId}`,
+            "expired",
+            { porQuem: "recreio" },
+          );
+          return recusarAutoridade(new ErroDoRecreio("ACESSO_NEGADO", { motivo: tempo.motivo }));
+        }
+        const [consumido] = await tx
+          .update(tickets)
+          .set({ consumedAt: AGORA })
+          .where(
+            and(
+              eq(tickets.jti, entrada.ingresso.jti),
+              eq(tickets.profileId, entrada.ingresso.perfilId),
+              eq(tickets.deviceSessionId, entrada.ingresso.sessaoDeAparelhoId),
+              eq(tickets.gameId, entrada.ingresso.jogo),
+              isNull(tickets.consumedAt),
+              sql`${tickets.expiresAt}>${AGORA}`,
+            ),
+          )
+          .returning({ id: tickets.jti });
+        if (!consumido) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        let substituida: SessaoDeJogoId | null = null;
+        if (aberta) {
+          const [encerrada] = await encerrarSessoesAbertas(
+            tx,
+            sql`${games.id}=${aberta.id}`,
+            aberta.expiraEm <= agora ? "expired" : "replaced",
+            { porQuem: aberta.expiraEm <= agora ? "recreio" : "conta" },
+          );
+          substituida = encerrada?.sid ?? null;
+        }
+        const { token, agora: emitidaEm } = await assinarSessao(
           contexto,
           entrada.emissor,
-          { jogo: entrada.ingresso.jogo, sid: SessaoDeJogoIdSchema.parse(conferida.jogo.id) },
-          conferida.jogo.expiresAt,
+          { jogo: entrada.ingresso.jogo, sid: entrada.sid },
+          intencao || tempo?.permitido
+            ? new Date(
+                Math.min(
+                  intencao?.expiraEm.getTime() ?? Infinity,
+                  tempo?.permitido ? tempo.expiraEm.getTime() : Infinity,
+                ),
+              )
+            : null,
         );
+        const suportaVisitas =
+          entrada.suportaVisitas === true &&
+          env.RECREIO_VISITS_MODE === "on" &&
+          jogoQueAbre(entrada.ingresso.jogo).capacidades.visitas === true;
+        await tx.insert(games).values({
+          id: entrada.sid,
+          profileId: entrada.ingresso.perfilId,
+          deviceSessionId: entrada.ingresso.sessaoDeAparelhoId,
+          gameId: entrada.ingresso.jogo,
+          startedAt: emitidaEm,
+          lastRenewedAt: emitidaEm,
+          expiresAt: token.expiraEm,
+          supportsVisits: suportaVisitas,
+        });
+        if (intencao)
+          await prepararFinalidadeDeVisita(tx, {
+            sid: entrada.sid,
+            perfilId: entrada.ingresso.perfilId,
+            visitaId: intencao.visitaId,
+            mundoId: intencao.mundoId,
+            agora: emitidaEm,
+          });
+        await tx
+          .update(tickets)
+          .set({ openedSessionId: entrada.sid, exchangeKeyHash: hashDaTroca })
+          .where(eq(tickets.jti, recibo.jti));
+        if (trocaConfirmada) {
+          const concluidaEm = await contexto.conferirPrazo();
+          const [concluida] = await tx
+            .update(handoffs)
+            .set({ status: "completed", finishedAt: concluidaEm })
+            .where(
+              and(
+                eq(handoffs.id, trocaConfirmada),
+                eq(handoffs.status, "confirmed"),
+                sql`${handoffs.expiresAt}>${AGORA}`,
+              ),
+            )
+            .returning({ id: handoffs.id });
+          if (!concluida) throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+          await logAuditEventStrict(
+            "recreio.session_handoff_completed",
+            contexto.contaId,
+            {
+              app: "recreio",
+              profileId: entrada.ingresso.perfilId,
+              sessionId: entrada.sid,
+              handoffId: trocaConfirmada,
+              targetId: contexto.contaId,
+            },
+            { writer: tx },
+          );
+        }
+        if (tempo?.permitido)
+          await registrarConcessaoDeTempo(
+            tx,
+            entrada.ingresso.perfilId,
+            entrada.sid,
+            tempo,
+            token.expiraEm,
+          );
         const salvamento = await emitirPermissaoDeSalvamento(tx, contexto, {
-          sid: SessaoDeJogoIdSchema.parse(conferida.jogo.id),
+          sid: entrada.sid,
           jogo: entrada.ingresso.jogo,
           emissor: entrada.emissor,
           token,
-          operacao: "recuperar",
+          operacao: "abrir",
+          suportaSalvamento: entrada.suportaSalvamento,
         });
+        await logAuditEventStrict(
+          "recreio.game_session_started",
+          contexto.contaId,
+          {
+            app: "recreio",
+            sessionId: entrada.sid,
+            profileId: entrada.ingresso.perfilId,
+            gameId: entrada.ingresso.jogo,
+            replacedSessionId: substituida,
+            targetId: contexto.contaId,
+          },
+          { writer: tx },
+        );
         const fim = await contexto.conferirPrazo();
         if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-        if (finalidade)
+        if (intencao)
           await prazoDaIntencaoDeVisita(tx, {
-            visitaId: finalidade.visitId,
+            visitaId: intencao.visitaId,
             perfilId: entrada.ingresso.perfilId,
             jogo: entrada.ingresso.jogo,
             agora: fim,
           });
+        if (trocaExpiraEm && trocaExpiraEm <= fim)
+          throw new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "expired" });
         return {
           admitida: true as const,
           valor: {
@@ -268,229 +509,14 @@ export async function abrirSessaoComIngresso(entrada: {
               token,
               entrada.suportaSocial,
               entrada.suportaConvitesDirigidos,
-              entrada.suportaVisitas === true && conferida.jogo.supportsVisits,
-              finalidade?.visitId,
+              suportaVisitas,
+              intencao?.visitaId,
             ),
             ...(salvamento ? { salvamento } : {}),
           },
         };
-      }
-      const intencao = entrada.visitaId
-        ? await prazoDaIntencaoDeVisita(tx, {
-            visitaId: entrada.visitaId,
-            perfilId: entrada.ingresso.perfilId,
-            jogo: entrada.ingresso.jogo,
-            agora: await contexto.conferirPrazo(),
-          })
-        : null;
-      if (intencao && entrada.suportaVisitas !== true) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-      const [aberta] = await tx
-        .select({
-          id: games.id,
-          jogo: games.gameId,
-          mundoId: games.spaceId,
-          expiraEm: games.expiresAt,
-          congeladaEm: games.checkpointFrozenAt,
-        })
-        .from(games)
-        .where(and(eq(games.profileId, entrada.ingresso.perfilId), isNull(games.endedAt)));
-      const agora = await contexto.conferirPrazo();
-      let trocaConfirmada: string | null = null;
-      let trocaExpiraEm: Date | null = null;
-      if (
-        aberta &&
-        aberta.expiraEm > agora &&
-        entrada.continuarAqui &&
-        env.RECREIO_CHECKPOINT_MODE !== "on"
-      )
-        return recusarAutoridade(new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }));
-      if (
-        aberta &&
-        entrada.continuarAqui &&
-        env.RECREIO_CHECKPOINT_MODE === "on" &&
-        (aberta.expiraEm > agora || aberta.congeladaEm !== null)
-      ) {
-        if (!hashDaTroca)
-          return recusarAutoridade(new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }));
-        const troca = await prepararTrocaDeAparelho(tx, contexto, entrada.ingresso, aberta);
-        if (!troca.pronta) return recusarAutoridade(troca.erro);
-        trocaConfirmada = troca.id;
-        trocaExpiraEm = troca.expiraEm;
-      }
-      // Leitor anterior aos escritores de troca: uma barreira nunca é aceite implícito.
-      if (aberta && aberta.congeladaEm !== null && !trocaConfirmada)
-        throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
-      if (aberta && aberta.expiraEm > agora && !entrada.continuarAqui)
-        throw new ErroDoRecreio("JA_ABERTO");
-      await aguardarSalvamentoAnterior(tx, {
-        perfilId: entrada.ingresso.perfilId,
-        versaoDaPolitica: contexto.versaoDaPolitica,
-        agora: await contexto.conferirPrazo(),
-      });
-      const tempo = contexto.politica
-        ? await prepararConcessaoDeTempo(
-            tx,
-            entrada.ingresso.perfilId,
-            contexto.politica.configuracao,
-            agora,
-          )
-        : null;
-      if (tempo && !tempo.permitido) {
-        await encerrarSessoesAbertas(
-          tx,
-          sql`${games.profileId}=${entrada.ingresso.perfilId}`,
-          "expired",
-          { porQuem: "recreio" },
-        );
-        return recusarAutoridade(new ErroDoRecreio("ACESSO_NEGADO", { motivo: tempo.motivo }));
-      }
-      const [consumido] = await tx
-        .update(tickets)
-        .set({ consumedAt: AGORA })
-        .where(
-          and(
-            eq(tickets.jti, entrada.ingresso.jti),
-            eq(tickets.profileId, entrada.ingresso.perfilId),
-            eq(tickets.deviceSessionId, entrada.ingresso.sessaoDeAparelhoId),
-            eq(tickets.gameId, entrada.ingresso.jogo),
-            isNull(tickets.consumedAt),
-            sql`${tickets.expiresAt}>${AGORA}`,
-          ),
-        )
-        .returning({ id: tickets.jti });
-      if (!consumido) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-      let substituida: SessaoDeJogoId | null = null;
-      if (aberta) {
-        const [encerrada] = await encerrarSessoesAbertas(
-          tx,
-          sql`${games.id}=${aberta.id}`,
-          aberta.expiraEm <= agora ? "expired" : "replaced",
-          { porQuem: aberta.expiraEm <= agora ? "recreio" : "conta" },
-        );
-        substituida = encerrada?.sid ?? null;
-      }
-      const { token, agora: emitidaEm } = await assinarSessao(
-        contexto,
-        entrada.emissor,
-        { jogo: entrada.ingresso.jogo, sid: entrada.sid },
-        intencao || tempo?.permitido
-          ? new Date(
-              Math.min(
-                intencao?.expiraEm.getTime() ?? Infinity,
-                tempo?.permitido ? tempo.expiraEm.getTime() : Infinity,
-              ),
-            )
-          : null,
-      );
-      const suportaVisitas =
-        entrada.suportaVisitas === true &&
-        env.RECREIO_VISITS_MODE === "on" &&
-        jogoQueAbre(entrada.ingresso.jogo).capacidades.visitas === true;
-      await tx.insert(games).values({
-        id: entrada.sid,
-        profileId: entrada.ingresso.perfilId,
-        deviceSessionId: entrada.ingresso.sessaoDeAparelhoId,
-        gameId: entrada.ingresso.jogo,
-        startedAt: emitidaEm,
-        lastRenewedAt: emitidaEm,
-        expiresAt: token.expiraEm,
-        supportsVisits: suportaVisitas,
-      });
-      if (intencao)
-        await prepararFinalidadeDeVisita(tx, {
-          sid: entrada.sid,
-          perfilId: entrada.ingresso.perfilId,
-          visitaId: intencao.visitaId,
-          mundoId: intencao.mundoId,
-          agora: emitidaEm,
-        });
-      await tx
-        .update(tickets)
-        .set({ openedSessionId: entrada.sid, exchangeKeyHash: hashDaTroca })
-        .where(eq(tickets.jti, recibo.jti));
-      if (trocaConfirmada) {
-        const concluidaEm = await contexto.conferirPrazo();
-        const [concluida] = await tx
-          .update(handoffs)
-          .set({ status: "completed", finishedAt: concluidaEm })
-          .where(
-            and(
-              eq(handoffs.id, trocaConfirmada),
-              eq(handoffs.status, "confirmed"),
-              sql`${handoffs.expiresAt}>${AGORA}`,
-            ),
-          )
-          .returning({ id: handoffs.id });
-        if (!concluida) throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
-        await logAuditEventStrict(
-          "recreio.session_handoff_completed",
-          contexto.contaId,
-          {
-            app: "recreio",
-            profileId: entrada.ingresso.perfilId,
-            sessionId: entrada.sid,
-            handoffId: trocaConfirmada,
-            targetId: contexto.contaId,
-          },
-          { writer: tx },
-        );
-      }
-      if (tempo?.permitido)
-        await registrarConcessaoDeTempo(
-          tx,
-          entrada.ingresso.perfilId,
-          entrada.sid,
-          tempo,
-          token.expiraEm,
-        );
-      const salvamento = await emitirPermissaoDeSalvamento(tx, contexto, {
-        sid: entrada.sid,
-        jogo: entrada.ingresso.jogo,
-        emissor: entrada.emissor,
-        token,
-        operacao: "abrir",
-        suportaSalvamento: entrada.suportaSalvamento,
-      });
-      await logAuditEventStrict(
-        "recreio.game_session_started",
-        contexto.contaId,
-        {
-          app: "recreio",
-          sessionId: entrada.sid,
-          profileId: entrada.ingresso.perfilId,
-          gameId: entrada.ingresso.jogo,
-          replacedSessionId: substituida,
-          targetId: contexto.contaId,
-        },
-        { writer: tx },
-      );
-      const fim = await contexto.conferirPrazo();
-      if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-      if (intencao)
-        await prazoDaIntencaoDeVisita(tx, {
-          visitaId: intencao.visitaId,
-          perfilId: entrada.ingresso.perfilId,
-          jogo: entrada.ingresso.jogo,
-          agora: fim,
-        });
-      if (trocaExpiraEm && trocaExpiraEm <= fim)
-        throw new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "expired" });
-      return {
-        admitida: true as const,
-        valor: {
-          ...respostaDaSessao(
-            contexto,
-            entrada.ingresso,
-            token,
-            entrada.suportaSocial,
-            entrada.suportaConvitesDirigidos,
-            suportaVisitas,
-            intencao?.visitaId,
-          ),
-          ...(salvamento ? { salvamento } : {}),
-        },
-      };
-    });
+      },
+    );
     if (!resultado.admitida) throw comoRecusaDeEntrada(resultado.erro);
     return resultado.valor;
   } catch (erro) {

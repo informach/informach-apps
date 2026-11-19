@@ -5,15 +5,42 @@ import {
   type DecisaoDoPlano,
   decidirPlanoDoGrupo,
   ErroDoRecreio,
+  limiteDoPagamentoConciliado,
 } from "@informach/recreio";
 import { decidirComCobertura, tierDoProduto } from "./cobertura";
 import type { AssinaturaLida, FatosDoGrupo, FatosLidos } from "./repository";
 
-function assinaturaDoGrupo(lida: AssinaturaLida | null): AssinaturaDoGrupo | null {
+/** Financial proof independent of courtesy coverage or the existence of a player. */
+export function limiteFinanceiroDaAssinatura(lida: AssinaturaLida, agora: Date) {
+  return limiteDoPagamentoConciliado(
+    {
+      ...lida.financeiro,
+      status: lida.status,
+      inicioDoPeriodo: lida.inicioDoPeriodo,
+      fimDoPeriodo: lida.fimDoPeriodo,
+      fimDoTeste: lida.fimDoTeste,
+      cancelaEm: lida.cancelaEm,
+    },
+    agora,
+  );
+}
+
+function assinaturaDoGrupo(lida: AssinaturaLida | null, agora: Date): AssinaturaDoGrupo | null {
   if (!lida) return null;
   const produto = PRODUCTS.find((item) => item.app === "recreio" && item.id === lida.productId);
   const tier = tierDoProduto(produto?.tier);
-  return tier && { id: lida.id, status: lida.status, tier, cancelaEm: lida.cancelaEm };
+  return (
+    tier && {
+      id: lida.id,
+      status: lida.status,
+      tier,
+      inicioDoPeriodo: lida.inicioDoPeriodo,
+      fimDoPeriodo: lida.fimDoPeriodo,
+      pagamentoConfirmadoAte: limiteFinanceiroDaAssinatura(lida, agora),
+      fimDoTeste: lida.fimDoTeste,
+      cancelaEm: lida.cancelaEm,
+    }
+  );
 }
 
 /** Capacidade atual do contrato; o chamador ainda admite titular e composição. */
@@ -21,7 +48,7 @@ export function decidirPlanoLido(grupo: FatosDoGrupo, agora: Date): DecisaoDoPla
   const lida = grupo.assinaturaAtiva ?? grupo.assinaturaInativa;
   return decidirPlanoDoGrupo({
     agora,
-    assinatura: assinaturaDoGrupo(lida),
+    assinatura: assinaturaDoGrupo(lida, agora),
     teveAssinatura: lida !== null,
     concessoes: grupo.concessoes,
   });
@@ -41,7 +68,7 @@ export function decidirFatosLidos(fatos: FatosLidos | null, agora: Date): Decisa
         grupoId: grupo?.id ?? null,
         versaoDaPolitica: perfil.versaoDaPolitica,
       },
-      assinatura: assinaturaDoGrupo(lida),
+      assinatura: assinaturaDoGrupo(lida, agora),
       teveAssinatura: lida !== null,
       concessoes: grupo?.concessoes ?? [],
     },

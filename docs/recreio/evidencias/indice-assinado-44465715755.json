@@ -1,0 +1,13 @@
+{
+  "runId": 44465715755,
+  "jobId": 135362902554,
+  "source": "0a23189061059158eb4391d9de1cc90e3ea6f4bd",
+  "conclusion": "success",
+  "objectTests": 128,
+  "indexTests": 26,
+  "objectFiles": 7,
+  "frozenInstallVerified": true,
+  "appTypesVerified": true,
+  "productionApplied": false,
+  "scopeLimit": "Canonical signed recovery index and existing object/file primitives only; no S3 index publication, SQL restore, durable control, custody or production qualification."
+}

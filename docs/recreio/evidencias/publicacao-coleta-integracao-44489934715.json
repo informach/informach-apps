@@ -1,0 +1,14 @@
+{
+  "source": "8154725f8d2c4ead66e07131f11e6953c67f8ad2",
+  "runId": 44489934715,
+  "jobId": 135442698273,
+  "status": "passed",
+  "postgresTests": 1289,
+  "postgresFiles": 101,
+  "publicationTests": 17,
+  "collectionTests": 13,
+  "nativeCaptureTests": 16,
+  "httpTests": 5,
+  "productionApplied": false,
+  "scopeLimit": "PostgreSQL, upgrades, closed HTTP and native capture; before native collection was added to full capture composition"
+}

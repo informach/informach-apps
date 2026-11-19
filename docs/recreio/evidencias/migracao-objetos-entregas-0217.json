@@ -1,0 +1,29 @@
+{
+  "source": "ce8ac9f6bad90f08adb0665a8bb7aed76522854b",
+  "runId": "44436222649",
+  "artifactId": "14488263881",
+  "zipBytes": 72449,
+  "zipSha256": "be9ec6a8cead421c45ec11319181d1fa08003d4fc9eaa9fed619ea9a7ab6e7ca",
+  "snapshotId": "7435a538-2030-4ab4-819c-01f81e6f0e01",
+  "previousSnapshotId": "c286592c-448d-4292-9804-2499431af717",
+  "previousMigrationCount": 217,
+  "migrationCount": 218,
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0217_recreio_objetos_entregas.sql",
+      "bytes": 8369,
+      "sha256": "b0c9c722da3322fa5515f265988996609bc69e1e31cc255371ac00a7f6d16966"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0217_snapshot.json",
+      "bytes": 1021942,
+      "sha256": "0785f2eff651ee7c42b82bfb02a3d7c20f21f29c1c366f0eb23cc66c1bc8b391"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 32881,
+      "sha256": "503722546f7ffcf8593f96974b9c9d098fe72b8268e594ca183cc659584eeb6e"
+    }
+  ],
+  "productionApplied": false
+}

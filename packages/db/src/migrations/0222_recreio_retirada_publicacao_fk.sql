@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."backup_retirements" ADD CONSTRAINT "recreio_backup_retirement_publication" FOREIGN KEY ("capture_id") REFERENCES "recreio"."backup_publications"("capture_id") ON DELETE restrict ON UPDATE no action;

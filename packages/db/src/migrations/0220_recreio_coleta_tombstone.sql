@@ -1,0 +1,5 @@
+ALTER TABLE "recreio"."snapshot_object_deliveries" DROP CONSTRAINT "recreio_snapshot_object_lease";--> statement-breakpoint
+CREATE INDEX "recreio_snapshot_object_collection" ON "recreio"."snapshot_object_deliveries" USING btree ("bucket_id","storage_scope","state","next_attempt_at","id") WHERE "recreio"."snapshot_object_deliveries"."state" in ('retiring','retired');--> statement-breakpoint
+ALTER TABLE "recreio"."snapshot_object_deliveries" ADD CONSTRAINT "recreio_snapshot_object_lease" CHECK (("recreio"."snapshot_object_deliveries"."lease_token" is null and "recreio"."snapshot_object_deliveries"."lease_until" is null) or
+      ("recreio"."snapshot_object_deliveries"."lease_token" is not null and "recreio"."snapshot_object_deliveries"."lease_until" is not null and "recreio"."snapshot_object_deliveries"."last_attempt_at" is not null and
+      "recreio"."snapshot_object_deliveries"."lease_until">"recreio"."snapshot_object_deliveries"."last_attempt_at" and "recreio"."snapshot_object_deliveries"."state" in ('prepared','retiring','retired')));

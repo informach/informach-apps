@@ -1,0 +1,24 @@
+{
+  "source": "27ee2ecf67e6a3a102e9e2f0d909fa2f552bc89b",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0223_recreio_recuperacao_quarentena.sql",
+      "bytes": 4779,
+      "sha256": "e2ccd2a74be6bb49310a7d7973c2ff51a7a75bc54edd7ad2a82473c5d508319c"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0223_snapshot.json",
+      "bytes": 1056743,
+      "sha256": "dac52602746063a9833c0694f7f8c9d95d8e911a62552697fc195baa67902a3c"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 33816,
+      "sha256": "1b61c8ade7686524ae710c0cd4114e6f99c83b12f998225e94973f03179f838b"
+    }
+  ],
+  "runId": 44499055247,
+  "artifactId": 14515799357,
+  "artifactZipSha256": "27bb02c780a7302219b2f6230fb166b071efd5380a17abfa674bf00196e7b7af",
+  "productionApplied": false
+}

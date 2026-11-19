@@ -27,7 +27,9 @@ export function CoberturaDoGrupo({
       p.cobrir &&
       grupo.perfis.some((anterior) => anterior.perfilId === p.perfilId && !anterior.selecionado),
   );
-  const excede = aumenta && escolhas.filter((p) => p.cobrir).length > grupo.limite;
+  const excede =
+    (aumenta || grupo.revisaoDaSelecao !== null) &&
+    escolhas.filter((p) => p.cobrir).length > grupo.limite;
   const mudou = escolhas.some((p) =>
     grupo.perfis.some(
       (anterior) => anterior.perfilId === p.perfilId && anterior.selecionado !== p.cobrir,
@@ -42,12 +44,15 @@ export function CoberturaDoGrupo({
         e.preventDefault();
         definirErro("");
         definirRecente(false);
-        if (!reconheco || excede || !mudou) return;
+        if (!reconheco || excede || (!mudou && grupo.revisaoDaSelecao === null)) return;
         iniciar(async () => {
           try {
             const resultado = await salvarCoberturaAction({
               grupoId: grupo.grupoId,
               perfis: escolhas,
+              ...(grupo.revisaoDaSelecao !== null
+                ? { revisaoDoContrato: grupo.revisaoDaSelecao }
+                : {}),
             });
             if (resultado.ok) window.location.assign(resultado.data.destination);
             else {
@@ -64,6 +69,13 @@ export function CoberturaDoGrupo({
     >
       <fieldset disabled={!hidratado || pendente}>
         <legend className="font-display text-xl font-bold">Quem fica na cobertura</legend>
+        {grupo.revisaoDaSelecao !== null && (
+          <p role="status" className="painel mt-4 p-4 text-sm text-tinta-suave">
+            A seleção precisa ser conferida: os perfis foram alterados desde a escolha anterior.
+            Confira até {grupo.limite} {grupo.limite === 1 ? "perfil" : "perfis"} para continuar. O
+            progresso permanece guardado. O acesso também depende do pagamento confirmado.
+          </p>
+        )}
         <div className="mt-4 grid gap-3">
           {grupo.perfis.map((p) => (
             <label
@@ -122,7 +134,11 @@ export function CoberturaDoGrupo({
             Conferi a seleção e entendo que as partidas dos perfis alterados serão encerradas.
           </span>
         </label>
-        <button type="submit" className="rb rb-sol mt-4" disabled={!reconheco || excede || !mudou}>
+        <button
+          type="submit"
+          className="rb rb-sol mt-4"
+          disabled={!reconheco || excede || (!mudou && grupo.revisaoDaSelecao === null)}
+        >
           {pendente ? "Confirmando…" : "Salvar cobertura"}
         </button>
       </fieldset>

@@ -1,0 +1,9 @@
+{
+  "source": "68fd5653af64859db32a683a2fdb29dff5d3d9ff",
+  "runId": 44491175912,
+  "jobId": 135446880658,
+  "status": "passed",
+  "nativeCaptureTests": 16,
+  "productionApplied": false,
+  "scopeLimit": "Native full capture includes durable index/hold release and actual SDK redundant-photo collection against closed HTTP; no external provider"
+}

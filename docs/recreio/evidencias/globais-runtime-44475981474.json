@@ -1,0 +1,64 @@
+{
+  "runId": 44475981474,
+  "source": "6c9e47cc84027580f0054ceeb5d528b7cf4cd319",
+  "conclusion": "success",
+  "cases": [
+    {
+      "operator": "ci",
+      "jobId": 135396522964,
+      "artifactId": 14506077881,
+      "artifactZipBytes": 415,
+      "artifactZipSha256": "945762f1f2a11310342430ddd8dc2771da141a1878ce1dda266742204dba9bab",
+      "nativeResult": {
+        "operacao": "23f0cafa-8bda-4d82-b4bd-4bcd96931bad",
+        "ok": true,
+        "snapshotEm": "2026-11-19 06:58:37.162447+00",
+        "backupMs": 92,
+        "restauracaoMs": 999,
+        "bytes": 8117,
+        "tabelas": 2,
+        "linhas": 2,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 3,
+        "participacoesEmPapeis": 4,
+        "temporariosRemovidos": true,
+        "totalMs": 1310
+      }
+    },
+    {
+      "operator": "postgres",
+      "jobId": 135396523362,
+      "artifactId": 14506009450,
+      "artifactZipBytes": 417,
+      "artifactZipSha256": "c64505ebf9a715a6ad3b66db5577f0099279c0934c4f6a7d0072e59a74fb48f0",
+      "nativeResult": {
+        "operacao": "5af499fe-6eeb-42e3-82ba-b945658edcd7",
+        "ok": true,
+        "snapshotEm": "2026-11-19 06:58:39.074146+00",
+        "backupMs": 93,
+        "restauracaoMs": 1107,
+        "bytes": 8273,
+        "tabelas": 2,
+        "linhas": 2,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 3,
+        "participacoesEmPapeis": 4,
+        "temporariosRemovidos": true,
+        "totalMs": 1523
+      }
+    }
+  ],
+  "integrationRunId": 44475973608,
+  "integrationJobId": 135396496687,
+  "integrationConclusion": "success",
+  "objectRunId": 44475977919,
+  "objectConclusion": "failure_binary_test_timeout_5000ms",
+  "productionApplied": false,
+  "scopeLimit": "Fresh immutable PostgreSQL 18.6 clusters for postgres/ci bootstrap; persisted role attributes/settings/memberships and new operator credential. Does not prove later LOGIN password-absence addition, stored composite fresh-cluster recovery, traffic normalization, custody or production qualification."
+}

@@ -122,6 +122,36 @@ export default async function Conta() {
             </section>
           ))}
 
+        <section aria-labelledby="conta-assinatura" className="painel p-5 sm:p-6">
+          <h2 id="conta-assinatura" className="font-display text-xl font-bold">
+            Assinatura
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Confira a disponibilidade e acompanhe seus pedidos.
+          </p>
+          <Link
+            href="/conta/assinatura"
+            className="mt-4 inline-flex min-h-11 items-center font-bold text-ceu underline"
+          >
+            Gerenciar assinatura
+          </Link>
+        </section>
+
+        <section aria-labelledby="conta-teste" className="painel p-5 sm:p-6">
+          <h2 id="conta-teste" className="font-display text-xl font-bold">
+            Teste gratuito
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Confira a disponibilidade, sua autorização e o período do teste.
+          </p>
+          <Link
+            href="/conta/teste"
+            className="mt-4 inline-flex min-h-11 items-center font-bold text-ceu underline"
+          >
+            Gerenciar teste gratuito
+          </Link>
+        </section>
+
         <section aria-labelledby="conta-cobertura" className="painel p-5 sm:p-6">
           <h2 id="conta-cobertura" className="font-display text-xl font-bold">
             Cobertura do grupo

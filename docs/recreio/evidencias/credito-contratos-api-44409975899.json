@@ -1,0 +1,20 @@
+{
+  "source": "b53f6a25303f55c3d644d4bdfd8588863d78ec7e",
+  "runId": "44409975899",
+  "artifactId": "14476268153",
+  "zipBytes": 2071,
+  "zipSha256": "2bcb50212b6424e2bd8733eb0a514e2052aaad4952fa1b0db708bde5e69719fa",
+  "boundary": "provider_api_test_clock",
+  "mode": "dev",
+  "creditFundingGraphApiVerified": true,
+  "sourceRefundPropagationVerified": true,
+  "originalCreditedPeriodLimited": true,
+  "creditAcrossContractsApiVerified": true,
+  "dependentPeriodsRevoked": 4,
+  "cleanupConfirmed": true,
+  "nativeAnnualCreditFundingImplemented": false,
+  "nativeCheckoutCompleted": false,
+  "nativePlanChangeAccepted": false,
+  "nativeGameAccessProven": false,
+  "providerWebhookDeliveryProven": false
+}

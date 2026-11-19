@@ -5,7 +5,13 @@ type Subscription = {
   customer: string;
   status: string;
   items: {
-    data: { price: { id: string }; current_period_start: number; current_period_end: number }[];
+    has_more: boolean;
+    data: {
+      quantity: number;
+      price: { id: string };
+      current_period_start: number;
+      current_period_end: number;
+    }[];
   };
 };
 type Invoice = { id: string; customer: string; amount_paid: number; currency: string };

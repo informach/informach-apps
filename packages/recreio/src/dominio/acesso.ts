@@ -40,7 +40,7 @@ export type StatusDaAssinatura =
   | "canceled"
   | "paused";
 
-/** O mesmo conjunto de `PRO_STATUSES` do billing: só estes dão acesso. */
+/** Situações elegíveis do billing, sempre com comprovação financeira e prazo. */
 export const STATUS_QUE_JOGAM: readonly StatusDaAssinatura[] = ["active", "trialing"];
 
 /** Cobrança em aberto: sem acesso enquanto pendente, como nos outros apps. */
@@ -50,6 +50,12 @@ export type AssinaturaDoGrupo = {
   id: string;
   status: StatusDaAssinatura;
   tier: TierDoPlano;
+  inicioDoPeriodo: Date;
+  fimDoPeriodo: Date;
+  /** Limite conciliado da fatura e da conferência atual; status sozinho não autoriza. */
+  pagamentoConfirmadoAte: Date | null;
+  /** Obrigatório para um status trialing conceder acesso. */
+  fimDoTeste: Date | null;
   /** Data em que o acesso termina por cancelamento agendado, se houver. */
   cancelaEm: Date | null;
 };
@@ -139,6 +145,21 @@ function maisRecente(concessoes: readonly Concessao[]): Concessao | null {
   return ultima;
 }
 
+/** Um status espelhado não estende o período quando o próximo evento atrasa. */
+function prazoDaAssinatura(assinatura: AssinaturaDoGrupo, agora: Date): Date | null {
+  const inicio = assinatura.inicioDoPeriodo.getTime();
+  const fim = assinatura.fimDoPeriodo.getTime();
+  if (!Number.isFinite(inicio) || !Number.isFinite(fim) || inicio > agora.getTime()) return null;
+  const limites = [fim];
+  if (assinatura.cancelaEm !== null) limites.push(assinatura.cancelaEm.getTime());
+  if (assinatura.status === "trialing") {
+    if (assinatura.fimDoTeste === null) return null;
+    limites.push(assinatura.fimDoTeste.getTime());
+  }
+  const limite = Math.min(...limites);
+  return Number.isFinite(limite) && agora.getTime() < limite ? new Date(limite) : null;
+}
+
 export function decidirAcesso(fatos: FatosDeAcesso): DecisaoDeAcesso {
   const versaoDaPolitica = fatos.perfil.versaoDaPolitica;
   const recusa = (estado: EstadoDeAcesso, motivo: MotivoDeRecusa): DecisaoDeAcesso => ({
@@ -173,7 +194,16 @@ export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
   });
 
   const assinatura = fatos.assinatura;
-  if (assinatura !== null && STATUS_QUE_JOGAM.includes(assinatura.status)) {
+  const prazoContratual = assinatura !== null ? prazoDaAssinatura(assinatura, fatos.agora) : null;
+  const pagamentoAte = assinatura?.pagamentoConfirmadoAte?.getTime();
+  const prazo =
+    prazoContratual !== null &&
+    pagamentoAte !== undefined &&
+    Number.isFinite(pagamentoAte) &&
+    pagamentoAte > fatos.agora.getTime()
+      ? new Date(Math.min(prazoContratual.getTime(), pagamentoAte))
+      : null;
+  if (assinatura !== null && STATUS_QUE_JOGAM.includes(assinatura.status) && prazo !== null) {
     return {
       estado: assinatura.cancelaEm === null ? "ATIVO" : "CANCELAMENTO_AGENDADO",
       podeJogar: true,
@@ -181,7 +211,7 @@ export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
       origem: "assinatura",
       origemId: assinatura.id,
       limiteDePerfis: limiteDePerfisDoTier(assinatura.tier),
-      validoAte: assinatura.cancelaEm,
+      validoAte: prazo,
     };
   }
 
@@ -198,7 +228,11 @@ export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
     };
   }
 
-  if (assinatura !== null && STATUS_PENDENTES.includes(assinatura.status)) {
+  if (
+    assinatura !== null &&
+    (STATUS_PENDENTES.includes(assinatura.status) ||
+      (STATUS_QUE_JOGAM.includes(assinatura.status) && prazoContratual !== null && prazo === null))
+  ) {
     return recusa("PAGAMENTO_PENDENTE", "pagamento_pendente");
   }
 

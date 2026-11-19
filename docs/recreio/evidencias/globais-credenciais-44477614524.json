@@ -1,0 +1,67 @@
+{
+  "source": "e7909d43b5d48f299383c1d6de1ebbe616550868",
+  "conclusion": "success",
+  "runtimeRunId": 44477614524,
+  "cases": [
+    {
+      "operator": "postgres",
+      "jobId": 135401860042,
+      "artifactId": 14507117042,
+      "artifactZipBytes": 415,
+      "artifactZipSha256": "3b788e26f872408a7dc433da6df48b6953db0b79f7d3ed39675a85dd44aafd57",
+      "nativeResult": {
+        "operacao": "68c735dd-550f-4417-a1df-485c0b3dc116",
+        "ok": true,
+        "snapshotEm": "2026-11-19 07:12:07.400381+00",
+        "backupMs": 76,
+        "restauracaoMs": 2248,
+        "bytes": 8273,
+        "tabelas": 2,
+        "linhas": 2,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 4,
+        "participacoesEmPapeis": 4,
+        "temporariosRemovidos": true,
+        "totalMs": 2737
+      }
+    },
+    {
+      "operator": "ci",
+      "jobId": 135401860322,
+      "artifactId": 14506224796,
+      "artifactZipBytes": 414,
+      "artifactZipSha256": "6523366e0ef2bf1f1108d71cf30aaedc6627b3e991069cf862b95a8f572fcc5f",
+      "nativeResult": {
+        "operacao": "c1a118a2-8e7d-4a87-b494-4a6b6335c243",
+        "ok": true,
+        "snapshotEm": "2026-11-19 07:11:46.118995+00",
+        "backupMs": 59,
+        "restauracaoMs": 690,
+        "bytes": 8117,
+        "tabelas": 2,
+        "linhas": 2,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 4,
+        "participacoesEmPapeis": 4,
+        "temporariosRemovidos": true,
+        "totalMs": 916
+      }
+    }
+  ],
+  "objectsRunId": 44477610703,
+  "objectsJobId": 135401847639,
+  "objectTests": 154,
+  "objectFiles": 9,
+  "fileS3Tests": 15,
+  "fileS3TestFileMs": 1277,
+  "appTypesVerified": true,
+  "nonOperatorPasswordsAbsentVerified": true,
+  "productionApplied": false,
+  "scopeLimit": "Fresh immutable PostgreSQL 18.6 logical restore with captured role metadata, LOGIN fixture password excluded and complete byte comparisons. Not later shared cluster helper, stored-composite fresh-cluster recovery, custody, traffic normalization or production qualification."
+}

@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-11-19T00:57:00Z",
+  "source": "df2845fca0c1fdad1ba5d1376286bbaf4d835d27",
+  "projectId": "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+  "environmentId": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+  "bucketId": "14cbada1-04eb-45cd-be30-94e10e4ba333",
+  "bucketDisplayName": "recreio-homologacao",
+  "bucketS3Name": "recreio-homologacao-c0xyqx",
+  "region": "sjc",
+  "signingRegion": "auto",
+  "urlStyle": "virtual-host",
+  "qualityRunId": "44431685752",
+  "qualificationRunId": "44432492043",
+  "cryptoTests": 16,
+  "sdkClosedHttpTests": 10,
+  "providerProbeExecuted": true,
+  "providerCleanupVerified": true,
+  "productionDataMoved": false,
+  "actionsCredentialsConfigured": true,
+  "credentialRegistrationReview": "blocked by policy",
+  "credentialRegistrationAuthorizedByOwner": true,
+  "providerProbeRunId": "44433527147"
+}

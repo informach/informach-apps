@@ -303,6 +303,7 @@ export const subscriptionPaymentPeriods = billing.table(
       t.providerInvoiceId,
       t.providerLineId,
     ),
+    uniqueIndex("subscription_payment_period_funding_scope").on(t.id, t.subscriptionId, t.provider),
     index("subscription_payment_period_subscription_idx").on(t.subscriptionId, t.periodEnd),
     index("subscription_payment_period_invoice_idx").on(t.provider, t.providerInvoiceId),
     check("subscription_payment_period_range_chk", sql`${t.periodEnd} > ${t.periodStart}`),

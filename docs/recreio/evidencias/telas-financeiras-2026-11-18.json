@@ -1,0 +1,41 @@
+{
+  "source": "1ffc175846b1bb0c0e202f0e1d5a644c9fc16793",
+  "workflowRunId": 44326976575,
+  "jobId": 134880904283,
+  "artifactId": 14436899243,
+  "archiveBytes": 327181,
+  "archiveSha256": "de1c6e0b2f006c88629c4e14793289c83dc4564d8cac2d35b4e52f6664e09dc0",
+  "visualReview": "inspected",
+  "syntheticFinancialFactsOnly": true,
+  "files": [
+    {
+      "name": "compra-conferencia-mobile.png",
+      "sha256": "c7a31e8044bf7e0ece1ae8891ca81358a846d66914ee420c629ff6c09fbc1ae8",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "compra-ofertas-mobile.png",
+      "sha256": "b1266578887dc9993ec4a899caf7ba6368f2a15c3e1f62538b11eb4f0965fe52",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "compra-paga-mobile.png",
+      "sha256": "70eef9e4fe5cb512fbd98da9f0b48d846ee50fee8046e9547c34b76d74e63407",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "compra-recibo-mobile.png",
+      "sha256": "c8ad926c89cca6cf2edf6f33d07d36674ceb936cb34d36d38a662fd55cf298d7",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "visualReviewNotes": [
+    "Quatro capturas sintéticas de 390 x 844 inspecionadas: ofertas, recibo, pagamento confirmado e pagamento em conferência.",
+    "Texto, valores, estados e controles legíveis, com rolagem vertical e sem transbordamento horizontal; o gate também conferiu a largura do documento.",
+    "Nenhum pagamento externo é representado por essas capturas; situação financeira preparada explicitamente por SQL no banco descartável."
+  ]
+}

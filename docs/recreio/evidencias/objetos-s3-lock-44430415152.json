@@ -1,0 +1,20 @@
+{
+  "source": "8b1ff3f282a3bae9c5ea86676700c4dec8d58cbd",
+  "node": "v24.15.0",
+  "pnpm": "9.15.0",
+  "originalLockSha256": "437c3a74e1965d6e5ba945b32143f0a5235d2fd259608ff24d2447e906857a26",
+  "recreioManifestSha256": "a8232d780c949e852cdfeb4d3042c282ac2bb109f707523a07e850415750c299",
+  "file": {
+    "path": "pnpm-lock.yaml",
+    "bytes": 575690,
+    "sha256": "a0824f11da2252c0ccc4d8f8ff9f14e1768dde9bf3154ed37a780c215cd4c715"
+  },
+  "runId": "44430415152",
+  "artifactId": "14486166583",
+  "zipBytes": 157125,
+  "zipSha256": "cbf12b52ab40c4390922b2ad3ff713b2bde2286b07b22983ee56ad3360859f9e",
+  "existingImportersUnchanged": true,
+  "existingPackagesUnchanged": true,
+  "existingSnapshotsUnchanged": true,
+  "addedPackages": 25
+}

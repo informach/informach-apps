@@ -30,7 +30,19 @@ export type StripeProviderConfig = {
   appName: string;
   /** Inject a Stripe client (used by tests). When omitted, a real client is built. */
   client?: Stripe;
+  timeoutMs?: number;
+  maxNetworkRetries?: number;
 };
+
+function validateProrationDate(value: number | undefined) {
+  if (
+    value !== undefined &&
+    (!Number.isSafeInteger(value) ||
+      value <= 0 ||
+      !Number.isFinite(new Date(value * 1000).getTime()))
+  )
+    throw new BillingError("Proration date must be a valid positive Unix second");
+}
 
 export function createStripeProvider(config: StripeProviderConfig): BillingProviderClient {
   // Pin API version so behavior is reproducible across stripe-node patch upgrades.
@@ -43,8 +55,8 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     config.client ??
     new Stripe(config.secretKey, {
       apiVersion: "2026-04-22.dahlia",
-      timeout: 30_000,
-      maxNetworkRetries: 2,
+      timeout: config.timeoutMs ?? 30_000,
+      maxNetworkRetries: config.maxNetworkRetries ?? 2,
       appInfo: {
         name: `informach-platform/${config.appName}`,
       },
@@ -147,9 +159,20 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       return { id: session.id, url: session.url };
     },
 
-    async findCheckoutSession(customerId, intentId, sessionId) {
+    async findCheckoutSession(customerId, intentId, sessionId, budget) {
+      const options = (): Stripe.RequestOptions | undefined => {
+        if (!budget) return undefined;
+        const remaining = budget.deadlineMs - Date.now();
+        if (!Number.isFinite(remaining) || remaining <= 0)
+          throw new Error("Checkout inspection read deadline exceeded");
+        return {
+          timeout: Math.max(1, Math.min(config.timeoutMs ?? 30_000, remaining)),
+          maxNetworkRetries: 0,
+        };
+      };
       if (sessionId) {
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const session = await stripe.checkout.sessions.retrieve(sessionId, {}, options());
+        options();
         const owner =
           typeof session.customer === "string" ? session.customer : session.customer?.id;
         if (owner !== customerId || session.metadata?.checkout_intent_id !== intentId)
@@ -157,12 +180,17 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
         return checkoutState(session);
       }
       // Search history too: an unknown response may have completed before a retry.
-      for await (const session of stripe.checkout.sessions.list({
-        customer: customerId,
-        limit: 100,
-      })) {
+      for await (const session of stripe.checkout.sessions.list(
+        {
+          customer: customerId,
+          limit: 100,
+        },
+        options(),
+      )) {
+        options();
         if (session.metadata?.checkout_intent_id === intentId) return checkoutState(session);
       }
+      options();
       return null;
     },
 
@@ -435,6 +463,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     async updateSubscription(
       input: ProviderUpdateSubscriptionInput,
     ): Promise<ProviderSubscriptionSummary> {
+      validateProrationDate(input.prorationDate);
       // Stripe requires the existing item id to swap its price. Fetch first to get it.
       const current = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
       const firstItem = current.items.data[0];
@@ -454,7 +483,12 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       if (input.paymentBehavior) {
         params.payment_behavior = input.paymentBehavior;
       }
-      const updated = await stripe.subscriptions.update(input.providerSubscriptionId, params);
+      if (input.prorationDate !== undefined) params.proration_date = input.prorationDate;
+      const updated = await stripe.subscriptions.update(
+        input.providerSubscriptionId,
+        params,
+        input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined,
+      );
       return summarizeSubscription(updated);
     },
 
@@ -489,6 +523,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     },
 
     async previewInvoice(input: ProviderPreviewInvoiceInput): Promise<ProviderInvoicePreview> {
+      validateProrationDate(input.prorationDate);
       // Dahlia/Basil migrated retrieveUpcoming → createPreview. Caller passes the
       // existing subscription id and the new price; Stripe returns the invoice
       // that would be generated as if we had called updateSubscription.
@@ -505,6 +540,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
         subscription_details: {
           items: [{ id: firstItem.id, price: input.newPriceId }],
           proration_behavior: input.prorationBehavior ?? "always_invoice",
+          ...(input.prorationDate === undefined ? {} : { proration_date: input.prorationDate }),
         },
       });
       const lines = preview.lines?.data ?? [];
@@ -523,6 +559,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
           : null;
       return {
         subtotalCents,
+        totalCents: preview.total,
         prorationCreditCents,
         amountDueCents: typeof preview.amount_due === "number" ? preview.amount_due : 0,
         currency: (preview.currency ?? "brl").toUpperCase(),

@@ -172,6 +172,33 @@ describe("sessão de jogo", () => {
 });
 
 describe("ingresso", () => {
+  it("conserva o prazo menor de acesso e recusa um limite vencido ou inválido", async () => {
+    const recreio = await criarEmissorDeTeste();
+    const dados = {
+      jogo: "morada",
+      perfilId,
+      sessaoDeAparelhoId: aparelho,
+      versaoDaPolitica: 1,
+      jti: crypto.randomUUID(),
+      agora,
+    };
+    const validoAte = new Date(agora.getTime() + 15_999);
+    const { token, expiraEm } = await recreio.emissor.ingresso({ ...dados, validoAte });
+    expect(expiraEm.getTime()).toBe(agora.getTime() + 15_000);
+    expect(
+      await verificarIngresso(token, {
+        chaves: chavesLocais(recreio.jwks),
+        emissor: recreio.emissor.emissor,
+        agora: mais(1),
+      }),
+    ).toMatchObject({ expiraEm: expiraEm.getTime() });
+    for (const limite of [agora, new Date(Number.NaN)]) {
+      await expect(recreio.emissor.ingresso({ ...dados, validoAte: limite })).rejects.toThrow(
+        "não há ingresso a emitir",
+      );
+    }
+  });
+
   it("vale 60 s e identifica perfil, aparelho e jogo", async () => {
     const recreio = await criarEmissorDeTeste();
     const jti = crypto.randomUUID();

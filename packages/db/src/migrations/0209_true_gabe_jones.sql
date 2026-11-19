@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."purchase_authorizations" ADD CONSTRAINT "recreio_purchase_authorization_scope" UNIQUE("id","group_id","payer_user_id","provider_mode","product_id");

@@ -45,8 +45,10 @@ describe("Stripe Portal scheduled cancellation", () => {
       cancel_at_period_end: flag,
       canceled_at: periodStart + 100,
       items: {
+        has_more: false,
         data: [
           {
+            quantity: 1,
             price: { id: "price_edi_month" },
             current_period_start: periodStart,
             current_period_end: periodEnd,

@@ -1,0 +1,243 @@
+# Recreio — execução nativa das trocas
+
+Próximo incremento de F6. A fundação e as provas da API não concluem este fluxo.
+O [registro de trocas](trocas-plano-2026-11-18.md) conserva os gates e a DDL.
+
+## Ordem de implementação
+
+1. Preparar cotação e seleção sob identidade nativa recente do próprio pagante,
+   ciclo financeiro antes das travas de conta/grupo/perfis e contrato atual.
+   Payer sem jogador continua válido. Cotação não cria recurso no provedor.
+2. Persistir aceite dos termos exatos e seleção, com auditoria na transação.
+   Repetição devolve o recibo; não muda valores, prazo ou instante do aceite.
+   Cotação/aceite vencidos sem tentativa podem ser encerrados como não enviados.
+3. Antes de qualquer efeito externo, persistir a tentativa sobre o mesmo
+   contrato/compra/modo/revisão. O runtime valida catálogo e corpo imutável.
+   Upgrade usa a data do proporcional e chave fixa; redução usa agenda no mesmo
+   contrato. Nenhuma URL/resultado financeiro volta sem reautorizar após a rede.
+4. Recuperação técnica trata somente tentativas já admitidas. Logout não apaga
+   fatos nem autoriza novo pedido. Resposta perdida é procurada pela correlação
+   exata; janela vencida não autoriza outra cobrança. Cancelamento de operação
+   enviada exige prova remota; falha desconhecida continua em conferência.
+5. A conciliação observa a operação aceita e a oferta efetiva. Oferta atual,
+   recibo aplicado, observação completa de pagamento, revisão/seleção e corte
+   das sessões devem ser capturados juntos, sem uma janela que interrompa um
+   jogador durante upgrade já quitado. Metadata da compra inicial permanece.
+6. Se os perfis mudaram, conservar o fato financeiro e marcar revisão da seleção
+   no contrato atual. O leitor recusa acesso até confirmação nativa. Uma escolha
+   antiga somente conserva/reduz cobertura ainda ligada; nunca reativa perfil.
+   Confirmação posterior usa a capacidade da oferta atual, com autoridade,
+   versões e auditoria próprias; não edita o aceite antigo.
+7. Compor recuperação/cron/webhook e telas, executar jornadas completas, conferir
+   todos os consumidores compartilhados e só depois integrar/implantar.
+
+## Fronteiras operacionais
+
+O worker financeiro atual possui portas de leitura. A recuperação de uma troca
+admitida precisa de uma capacidade explícita adicional, delimitada pelo recibo;
+não transformar qualquer observação do Stripe em autorização de POST. Sem essa
+capacidade, tentativa existente é falha operacional, nunca ausência de trabalho.
+Continuar a atender os outros pagantes e reportar falhas parciais no HTTP.
+
+A recuperação conserva a tentativa anterior ao I/O e o orçamento temporal;
+nenhuma rede fica em transação PostgreSQL. Desligar novas vendas não elimina
+gestão/reconciliação de contratos ou operações anteriormente admitidos. As
+configurações de produção continuam desligadas nesta implementação.
+
+O registro da oferta atual precede a conferência dos fatos novos na mesma
+transação. Uma oferta diferente da compra inicial só é admitida pelo recibo
+atual aplicado, com escopo/destino/revisão exatos. Não aceitar qualquer troca
+histórica nem deixar a inicialização da revisão um sobrescrever outra revisão.
+
+## Gates obrigatórios
+
+- PostgreSQL/SDK fechado: escopo, sessão infantil, login vencido, logout, corrida
+  de seleção, expiração, replay divergente, auditoria recusada e rollback.
+- Tentativas/recuperação: efeito admitido e resposta perdida, cancelamento,
+  ausência de configuração, TTL e correlação sem recriar/debitar novamente.
+- Aplicação: upgrade pendente conserva oferta anterior; quitado exige a própria
+  fatura. Redução exige a fase efetiva e preserva dados dos demais perfis.
+- Crédito anual: comprovar origem/liquidação dos créditos e eventos adversos
+  antes de admitir fatura sem débito novo; valor zero isolado não basta.
+- Navegador remoto: aceite completo e perfis guardados, acesso com/sem jogador,
+  retorno, gestão e recuperação com reautorização. Checkout hospedado conserva
+  a pendência humana por CAPTCHA; provas da API não o substituem.
+
+Testes, builds, E2E e cargas somente no GitHub. Adotar DDL gerada intacta e
+cumprir a condição de tabela vazia da 0211 antes de qualquer implantação.
+
+## Candidata de preparação da redução
+
+`troca-cotacao-service`/`troca-cotacao-repository` implementam apenas a preparação
+da redução. Exigem contrato nativo com pagamento confirmado recente, sem
+cancelamento/revisão pendentes, mesma oferta/revisão, seleção completa atual e
+login recente do pagante. Guardam renovação, data do fim pago e seleção sem
+alterar cobertura, assinatura, aceite ou provedor. Repetição conserva o recibo;
+cotação vencida sem tentativa pode ser encerrada para preparar outra.
+
+Ainda não há Server Action, tela, aceite persistido, execução externa ou cron
+ligados a esse preparo naquela candidata inicial. A fábrica recebe catálogo exclusivamente da composição
+servidor. A prova em PostgreSQL/SDK fechado cobre pagante sem jogador,
+isolamento, revisão, seleção, vencimento e rollback por auditoria recusada;
+precisa concluir no GitHub antes de anunciar aprovação.
+
+Primeira candidata `29c549f1`/`44354321188`: o gate de tipos apontou a captura
+de uma origem opcional pela closure da fixture; a origem admitida passa a ter
+uma referência constante. A fixture também precisava verificar o estado
+durável do próprio pagante, pois a fila compartilhada conserva falhas
+intencionais de outros cenários. Nenhuma validação de produção foi relaxada.
+A fundação anterior `9ee466fa` concluiu os dezesseis gates `44351670813`,
+incluindo 0211 e os termos puros do aceite.
+
+## Candidata de aceite e encerramento sem envio
+
+`troca-aceite-service`/`troca-aceite-repository` registram aceite dos termos
+persistidos sob o mesmo ciclo financeiro e autoridade nativa recente. Relêem
+período, oferta, revisão e seleção atuais. Replay conserva o instante e o estado
+do recibo, inclusive se já encerrado; não reabre uma operação. Auditoria e aceite
+são atômicos. Nenhuma assinatura, cobertura ou recurso externo é alterado.
+
+O encerramento local fica disponível independentemente da abertura de novas
+vendas, somente para cotação sem tentativa admitida. Tentativa sem ID remoto
+continua incerta e não é declarada cancelada. Operação enviada precisa do fluxo
+de confirmação do provedor, ainda pendente. Os testes remotos acrescentam
+aceite, replay, isolamento, termos/perfil alterados, encerramento, tentativa
+incerta e rollback de auditoria. Não há Server Action ou tela ligada ainda.
+
+As fontes `13b31497` e `63b69792` concluíram, respectivamente, os dezesseis
+gates `44371478415` e `44372327644`. A segunda inclui aceite e encerramento,
+com os testes PostgreSQL/SDK fechado; não prova pagamento externo ou implantação.
+
+## Candidata de envio e recuperação da redução
+
+O executor persiste tentativa, correlação e auditoria antes de qualquer POST.
+Confere os valores/preço/intervalo aceitos contra o catálogo servidor novamente
+na admissão, revalida seleção e período e conserva a chave da operação.
+Criação/configuração com resposta perdida mantém revisão; recuperar usa o
+mesmo recibo, sem aceitar termos novos ou criar outra autorização. Recuperação
+de tentativa admitida independe de novas vendas e da disponibilidade do catálogo.
+
+Cada chamada do adapter nativo e cada página de recuperação recebe o orçamento
+restante, sem repetição automática do SDK. Há teto de histórico e recusa de cursor
+repetido. O contrato comum mantém a política anterior quando não há orçamento.
+O adapter também confere a identidade da assinatura retornada, além do cliente
+e dos metadados de compra. Referências: documentação oficial do
+[stripe-node](https://github.com/stripe/stripe-node/blob/master/README.md) e
+[opções por chamada](https://github.com/stripe/stripe-node/wiki/Passing-Options).
+
+A captura posterior usa a autoridade técnica da tentativa; logout não apaga
+fatos externos e a devolução do recibo exige nova admissão nativa. O executor
+ainda não aplica oferta/cobertura: observar a fase efetiva deixa revisão até
+a captura financeira atômica do próximo incremento. Não há telas ou cron de
+recuperação ligados, nem execução em produção. Os novos casos PostgreSQL/SDK
+fechado precisam concluir os gates remotos desta candidata antes de qualquer
+declaração de aprovação.
+
+A candidata seguinte separa a inicialização da revisão um da conferência da
+oferta observada. A conciliação conserva os metadados da compra original e exige
+que preço/produto atuais correspondam à única autoridade comercial corrente,
+na mesma transação dos fatos financeiros. Oferta diferente sem autoridade
+atual aplicada recusa e reverte a captura; nunca reinicializa a origem. Isso
+prepara a integração da aplicação atômica, sem acrescentar por si só um writer
+de aplicação ou conceder acesso. Os novos cenários de PostgreSQL ainda precisam
+de verificação remota.
+
+## Candidata de aplicação pela conciliação
+
+`674108a4`/`44375962598` e `d3be3e81`/`44376709321` encontraram a mesma
+violação da fronteira de leitura: o repository do envio importava a tabela
+comum de assinaturas. O gate financeiro da primeira fonte passou, mas isso
+não qualifica a fonte inteira. A consulta foi movida para a porta centralizada
+`features/acesso/repository`, com escopo explícito por contrato e pagante;
+nenhuma exceção foi acrescentada ao teste da fronteira.
+
+A nova candidata compõe uma capacidade de recuperação no worker financeiro.
+Somente tentativas de redução anteriormente admitidas podem chamar o adapter;
+cotação ou aceite sem envio não autorizam POST. Sem a capacidade configurada,
+uma tentativa pendente continua sendo falha operacional. A identidade do pagante
+vem da reserva/lease, sem fabricar uma sessão de navegador.
+
+Uma agenda observada como aplicada ainda precisa corresponder à assinatura,
+compra original, modo, revisão e fase presentes na leitura financeira completa.
+A transação captura o recibo aplicado, oferta atual, seleção/revisão e todos os
+fatos financeiros; o mesmo commit confirma a fila e revalida as sessões usando
+os perfis após a captura. Uma renovação não paga altera o contrato comercial,
+mas continua sem acesso pago. Perfil alterado conserva os dados e os fatos,
+mantendo `coverageReviewRequired` até uma nova seleção nativa.
+
+Os novos casos PostgreSQL/SDK fechado atravessam o fim real do período usando
+o relógio do próprio PostgreSQL no GitHub. Não alteram termos aceitos nem datas
+de faturas já persistidas para simular a aplicação. Cobrem seleção válida,
+seleção divergente, renovação sem pagamento e rollback integral por auditoria
+ou histórico financeiro divergente. São provas em transporte fechado, ainda
+pendentes dos gates; não comprovam uma jornada nativa no Stripe externo.
+
+Resolução nativa da revisão da seleção, cancelamento após envio, upgrades,
+créditos anuais, telas e homologação comercial integral continuam pendentes.
+Nenhum serviço ou fluxo comercial foi ativado em produção.
+
+## Candidata de confirmação da seleção atual
+
+O gate financeiro de `75622649`/`44378474167` concluiu 64 testes em quatro
+arquivos, incluindo 28 casos da cotação/aceite/envio/aplicação. O gate inteiro
+concluiu os dezesseis gates, sem falhas; não equivale a implantação ou pagamento externo.
+
+A gestão existente da cobertura passa a apresentar a revisão pendente da
+seleção. O limite apresentado para essa confirmação vem da oferta comercial
+atual admitida, independentemente da cobertura de jogo temporariamente recusada.
+O servidor exige a revisão do contrato vista pelo adulto, a composição e as
+versões atuais, login recente e o teto inteiro da seleção, inclusive quando
+nenhuma vaga está sendo acrescentada. Não altera o recibo de aceite antigo.
+
+Seleção, políticas/revogação e encerramento da revisão entram com auditoria
+na mesma transação. Confirmar uma seleção não quita fatura nem transforma uma
+renovação não paga em acesso. O adulto sem jogador continua podendo confirmar;
+um grupo sem perfis também pode concluir a confirmação vazia. A interface
+conserva os estilos do portal, com aviso de revisão, confirmação explícita e
+recusa visível acima da capacidade.
+
+A candidata acrescenta prova PostgreSQL de revisão ausente/divergente e excesso
+de perfis, confirmação válida e manutenção da negativa de pagamento. A jornada
+de navegador de 390 px usa uma fixture SQL explicitamente de apresentação;
+capturas antes/depois, recarga e seleção persistida não são prova de Stripe.
+Precisa dos gates remotos e inspeção das capturas antes de qualificar.
+
+`245a727a`/`44379726161`: o gate financeiro concluiu os casos novos, mas o
+E2E encontrou dois elementos `role=alert`: o aviso de capacidade e o anunciador
+de rotas do Next. O seletor passa a identificar o aviso pelo texto do contrato,
+como a jornada já existente da cobertura. Nenhum alerta do produto ou do
+framework foi removido; a jornada precisa ser executada novamente.
+
+## Candidata de cancelamento após envio
+
+O pedido nativo de cancelamento exige login recente do próprio pagante e
+registra intenção/auditoria antes de liberar a agenda. Independe de jogador,
+catálogo disponível, novas vendas ou pagamento atual. Repetição terminal apenas
+relê o recibo. A recuperação técnica usa a intenção persistida; logout retém
+a devolução, preservando o fato externo confirmado.
+
+Sem ID remoto local, a porta `find` busca somente a correlação exata por GET.
+Se não identificar a operação, conserva a revisão sem criar uma agenda para
+depois cancelá-la. A porta legada do Compasso mantém o contrato anterior.
+Após liberar, o adapter nativo relê a assinatura: uma fase que se efetivou
+durante a chamada é tratada como aplicada, nunca falsamente cancelada. A fase
+futura também não pode substituir metadados do pagante/compra original.
+
+Novos cenários SDK/PG fechado cobrem pedido anterior ao POST, resposta perdida
+da liberação, criação anterior perdida recuperada por GET, ausência incerta,
+isolamento, vendas desligadas, logout, auditoria e corrida na fronteira da fase.
+Esses cenários e a correção do seletor E2E ainda precisam dos gates remotos.
+Não há Server Actions/telas das trocas ligadas nem ativação comercial em produção.
+
+`d71fb1c1` concluiu os dezesseis gates `44380976374`, sem falhas. O gate
+financeiro tem 73 casos em quatro arquivos, incluindo 37 de cotação, aceite,
+envio, cancelamento e aplicação. A jornada de seleção passou no navegador;
+as duas capturas de 390 px foram inspecionadas após conferir o ZIP/arquivos.
+[Registro da inspeção](evidencias/troca-selecao-telas-44380976374.json).
+Essa prova usa SDK/HTTP fechado e fixture SQL de apresentação, não Stripe real.
+
+O próximo achado é a [seleção da primeira compra](compras-selecao-2026-11-18.md),
+incluindo a passagem do teste para Individual. A tabela/checagem da nova candidata
+preparam o recibo explícito; ainda não implementam o novo aceite nem mudam o
+comportamento de compra. Exigem geração/adopção de DDL e novos gates antes de
+qualquer integração ou ativação.
