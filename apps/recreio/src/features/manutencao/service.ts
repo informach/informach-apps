@@ -1,4 +1,5 @@
 import "server-only";
+import { expurgarCopiasPessoaisVencidas } from "@/features/direitos/exportacao-repository";
 import { limparConvitesDeGrupo } from "@/features/grupo/convites-retencao-repository";
 import {
   exigirFilaDeSegurancaEmDia,
@@ -71,8 +72,11 @@ export async function executarManutencao(): Promise<{
   recursosDeRestricaoAtrasados: number;
   comandosDeModeracaoApagados: number;
   restricoesLiberadasApagadas: number;
+  copiasPessoaisVencidas: number;
+  recibosDeCopiaPessoalApagados: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
+  const copias = await expurgarCopiasPessoaisVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
   const ingressosApagados = await apagarIngressosAntigos();
   const sessoesExpiradas = await encerrarSessoesVencidas();
@@ -91,6 +95,8 @@ export async function executarManutencao(): Promise<{
   exigirFilaDeSegurancaEmDia(denuncias);
   return {
     possesVencidas,
+    copiasPessoaisVencidas: copias.expiradas,
+    recibosDeCopiaPessoalApagados: copias.removidas,
     instanciasSumidas,
     ingressosApagados,
     sessoesExpiradas,

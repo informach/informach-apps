@@ -576,3 +576,25 @@ Esta captura ainda não equivale à exportação integral da conta: faltam os
 domínios pessoais de conta/cobrança e a composição de artefato privado,
 expiração/revogação/download. Também não transforma responsabilidade por
 perfil em autorização de exportar os bytes completos de um mundo.
+
+
+## Artefato temporário pessoal — candidata 0233
+
+0233 foi gerada no GitHub em 44589919804, fonte 8f6d2f62, e copiada
+intacta após conferir ZIP, proveniência, predecessor, prefixo de 234 recibos
+e igualdade integral de todas as tabelas anteriores. Acrescenta somente
+`personal_exports`: envelope AES-GCM privado de até 32 MiB no PostgreSQL,
+sem chave no banco, uma cópia pronta por conta e validade de dez minutos.
+Login/aparelho/perfil/generação da política e responsabilidade original são
+revalidados antes de publicar, ler bytes e admitir a resposta após abrir.
+
+Modo `RECREIO_EXPORT_MODE=native`, chave ativa e keyring em pares próprios
+(`RECREIO_EXPORT_ACTIVE_KEY`, `RECREIO_EXPORT_KEYRING`) são composição privada;
+o padrão é off. Não reutilizar chaves de login, livro de retirada ou backup.
+POST de download exige origem do portal e sessão nativa; não publica URL
+portadora. Revogar ou substituir retira o corpo atomicamente. A manutenção
+existente expira até cem envelopes e remove até cem recibos já sem conteúdo
+há 24 h por rodada; o prazo nega download mesmo antes da manutenção. A
+remoção da sessão/perfil/aparelho elimina o artefato pela FK. Novos testes
+remotos de publicação/repetição/concorrência de revogação/política/auditoria e
+expiração ainda precisam passar. Nada aplicado em produção.

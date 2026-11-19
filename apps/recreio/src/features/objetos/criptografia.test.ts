@@ -10,6 +10,16 @@ const contexto = { tipo: "fotografia", id: randomUUID() } as const;
 const corpo = Buffer.from("CONTEUDO_PRIVADO_NAO_PUBLICAR\u0000\u00ff", "utf8");
 
 describe("envelope privado AES-256-GCM", () => {
+  it("encerra a cópia de chaves e impede novas operações sem alterar os buffers do chamador", () => {
+    const c = configurar(),
+      a = c.cifrar(contexto, corpo),
+      antes = Buffer.from(chave);
+    c.encerrar();
+    c.encerrar();
+    expect(chave).toEqual(antes);
+    expect(() => c.cifrar(contexto, corpo)).toThrow(FalhaDoObjetoPrivado);
+    expect(() => c.abrir(a.referencia, a.bytes)).toThrow(FalhaDoObjetoPrivado);
+  });
   it("reabre bytes exatos, sem conteúdo/chave no objeto, e usa IV novo por gravação", () => {
     const c = configurar();
     const a = c.cifrar(contexto, corpo),

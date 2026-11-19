@@ -84,7 +84,6 @@ export function criarCifradorDeObjetos(config: {
     config.chaves.size > 16
   )
     throw new FalhaDoObjetoPrivado("CONFIGURACAO");
-  const chaves = new Map<string, Buffer>();
   for (const [id, chave] of config.chaves) {
     if (
       !ChaveIdSchema.safeParse(id).success ||
@@ -92,8 +91,10 @@ export function criarCifradorDeObjetos(config: {
       chave.byteLength !== 32
     )
       throw new FalhaDoObjetoPrivado("CONFIGURACAO");
-    chaves.set(id, Buffer.from(chave));
   }
+  if (!config.chaves.has(config.chaveAtiva)) throw new FalhaDoObjetoPrivado("CONFIGURACAO");
+  const chaves = new Map([...config.chaves].map(([id, chave]) => [id, Buffer.from(chave)]));
+  let encerrado = false;
   const ativa = (() => {
     const chave = chaves.get(config.chaveAtiva);
     if (!chave) throw new FalhaDoObjetoPrivado("CONFIGURACAO");
@@ -103,6 +104,7 @@ export function criarCifradorDeObjetos(config: {
   const chaveAtiva = config.chaveAtiva;
 
   function cifrar(contextoBruto: ContextoDoObjeto, conteudo: Uint8Array) {
+    if (encerrado) throw new FalhaDoObjetoPrivado("CONFIGURACAO");
     const contexto = ContextoSchema.safeParse(contextoBruto);
     if (!contexto.success) throw new FalhaDoObjetoPrivado("CONFIGURACAO");
     if (!(conteudo instanceof Uint8Array) || conteudo.byteLength > limiteBytes)
@@ -149,6 +151,7 @@ export function criarCifradorDeObjetos(config: {
   /** A referência deve vir do recibo autoritativo; nunca dos metadados do bucket.
    * Nenhum byte aberto é devolvido antes de validar tag, tamanho e checksum. */
   function abrir(referenciaBruta: unknown, conteudo: Uint8Array): Buffer {
+    if (encerrado) throw new FalhaDoObjetoPrivado("CONFIGURACAO");
     const referencia = conferirReferenciaDoObjeto(referenciaBruta);
     if (
       referencia.bytes > limiteBytes ||
@@ -216,6 +219,11 @@ export function criarCifradorDeObjetos(config: {
   return Object.freeze({
     cifrar,
     abrir,
+    encerrar() {
+      encerrado = true;
+      for (const chave of chaves.values()) chave.fill(0);
+      chaves.clear();
+    },
     maxBytesAbertos: limiteBytes,
     maxBytesCifrados: limiteBytes + MAGIA.length + 2 + CABECALHO_MAX + IV_BYTES + TAG_BYTES,
   });

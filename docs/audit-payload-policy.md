@@ -361,3 +361,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.rights_world_recovered`: `{ app, operationId, worldCount, journalEntryCount }`. Nova fotografia confirma o sufixo já durável de um mundo em drenagem, sem descartar fatos. Sem nomes, IDs de mundo/perfil, hashes, bytes ou conteúdo. Fotografia, contadores e evento são atômicos; não substitui a conclusão da retirada.
 
 - `recreio.profile_personal_capture_prepared`: `{ app, profileId, gameCount }`. Captura consistente de cadastro, dados pessoais dos jogos e vínculos próprios. Sem nome, contato, nascimento, horários, credenciais, IDs de terceiros ou conteúdo. Evento atômico com a leitura; não comprova artefato publicado ou download.
+
+- `recreio.personal_export_published`, `recreio.personal_export_download_admitted` e `recreio.personal_export_revoked`: `{ app, exportId }`. Publicação, admissão da resposta autenticada e revogação do artefato temporário pessoal. Sem perfil/mundo de terceiros, bytes, chave, referência cifrada, nome ou contato. Admitir não comprova recepção completa pelo navegador. O recibo temporário não é autorização portadora.

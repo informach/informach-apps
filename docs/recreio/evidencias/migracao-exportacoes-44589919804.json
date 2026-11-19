@@ -1,0 +1,29 @@
+{
+  "source": "8f6d2f626f6cc1a695d72a99ff1d809a042cda99",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0233_recreio_exportacoes_temporarias.sql",
+      "bytes": 4197,
+      "sha256": "11a23aed9ca6e13332e2ae5bdb178d6c7a9d7808c92faf288830b94aa1ce4884"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0233_snapshot.json",
+      "bytes": 1104119,
+      "sha256": "de4527e7216bc5aa9cdef7c956be5eaa351efe6ac4fe17c69e80be6e0ed0726d"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 35385,
+      "sha256": "4495397e5fc3ea429ee664499e899a0ba8230c5f75709bcb8f4787d3a14b1e23"
+    }
+  ],
+  "runId": 44589919804,
+  "artifactId": 14563896139,
+  "artifactZipBytes": 78725,
+  "artifactZipSha256": "60251f4714fdc2eb0046f46809d780e6888131ea32b7f5f20fcae95c8cd5e769",
+  "productionApplied": false,
+  "unchangedAllPreviousTables": true,
+  "addedTables": [
+    "recreio.personal_exports"
+  ]
+}

@@ -35,6 +35,11 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
       perfilId,
       null,
       async (tx, perfil, conferirPrazo) => {
+        assertAllowed(
+          perfil.rightsOperationId === null,
+          "DIREITOS",
+          "A retirada deste perfil está em andamento.",
+        );
         const [responsavel] = await tx
           .select({ id: guardians.id })
           .from(guardians)
@@ -287,6 +292,7 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
         await conferirPrazo();
         return {
           perfilId: PerfilIdSchema.parse(perfil.id),
+          tipo: perfil.kind,
           versaoDaPolitica: perfil.policyVersion,
           responsabilidadeId: responsavel?.id ?? null,
           capturadaEm: cadastro.conferidoEm,
