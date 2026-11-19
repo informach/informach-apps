@@ -171,3 +171,26 @@ sem persistir uma segunda cópia aberta. Isso permite validar o arquivo após
 readback do bucket sem gravar novo dump em claro. Referência, tamanho e presença
 da chave são admitidos antes de um download grande. Mantém a mesma decifragem
 verificada, os handles emprestados e os limites; ainda precisa de gates próprios.
+
+
+A conferência sem saída aberta `87d74f37` passou em `44449528585`, incluindo
+os tipos do app e os testes de objetos. O transporte de arquivos seguinte
+(`arquivo-s3.ts`) usa SDK S3 real e FileHandles privados. Deriva a chave somente
+da referência da captura, valida chave/limites antes da rede, recusa clientes
+com repetição automática e só confirma PUT/412 depois de GET integral e
+conferência de hash/tag/conteúdo. A recuperação não exige a cópia cifrada local.
+
+O upload produz blocos cifrados com armazenamento independente e backpressure;
+o HTTP pode reter um chunk depois de pedir o próximo. Não reutilizar/zerar esse
+buffer como se o socket já tivesse terminado. Encerrar o iterador não fecha o
+FileHandle emprestado. O readback guarda somente ciphertext, limpa estágio
+parcial na falha e não sobrescreve arquivo preexistente. Cabeçalhos/parciais,
+comprimento/corpo reais e prazo do stream são conferidos. O adapter limita PUT
+único a 4 GiB cifrados por operação, com teto menor por composição; é limite
+operacional do adapter, não capacidade/RTO certificados do Railway.
+
+Os cenários de FileHandle + SDK + HTTP fechado verificam blocos, replay 412,
+resposta perdida sem nova escrita, corpo adulterado/parcial/sem comprimento,
+objeto ausente, limite/chave antes da rede, preservação dos originais e timeout
+durante o corpo. Ainda precisam passar no GitHub desta fonte. Não executam
+captura de banco nem implementam a barreira/reservas/GC ou backup agendado.
