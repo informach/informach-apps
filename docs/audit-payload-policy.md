@@ -334,3 +334,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.backup_retirement_claimed`: `{ app, captureId }`, ator técnico nulo; retomada após prazo, com os mesmos bytes; nunca inclui token.
 - `recreio.backup_retirement_marked`: `{ app, captureId }`, ator técnico nulo; adapter confirmou tombstone idêntico, sem comprovar ainda a ausência do payload.
 - `recreio.backup_retired`: `{ app, captureId, reasonCode, lateObject }`, ator técnico nulo; ausência do payload confirmada, mantendo primeira data e tombstone. `lateObject` indica arquivo reencontrado na reconferência. Todos os eventos são estritos na mesma transação dos seus fatos.
+
+- `recreio.backup_retirement_deferred`: `{ app, captureId }`, ator técnico nulo; tentativa inconclusiva encerrada para repetição limitada; não muda motivo, bytes ou fatos históricos. Estrito na mesma transação, sem erro externo/token.

@@ -53,3 +53,11 @@ conserva o destino independente. A FK só para captura deixaria apagar os
 metadados necessários à retomada. A constraint adicional é aditiva e não exige
 backfill de produção: essa tabela só existe em candidata e todos os escritores
 nativos criam a publicação antes da retirada; não houve implantação.
+
+O executor combina marcador condicional com leitura integral antes do DELETE
+restrito ao payload. Resposta perdida do marcador mantém o arquivo; repetição
+usa os mesmos bytes. Resposta perdida do DELETE exige GET NoSuchKey. Falha
+encerra só o próprio token e agenda repetição em cinco minutos. O scanner
+read-only traz no máximo vinte IDs do destino e revalida cada tentativa.
+Reconferência preserva datas diretamente em SQL, sem regravar Date truncado.
+As 0221/0222 foram geradas no GitHub e adotadas intactas; ainda sem implantação.

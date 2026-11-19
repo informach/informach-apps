@@ -2,9 +2,11 @@ import { db, eq, sql } from "@informach/db";
 import {
   recreioBackupCaptures as captures,
   recreioBackupObjectHolds as holds,
+  recreioBackupPublications as publications,
   recreioBackupRetirements as retirements,
 } from "@informach/db/schema";
 import { afterEach, describe, expect, it } from "vitest";
+import { codigoDoPostgres } from "@/lib/repository";
 import {
   abandonarCapturaSemArquivo,
   liberarReservasSemArquivo,
@@ -23,7 +25,9 @@ import {
   confirmarMarcadorGuardado,
   lerRetirada,
   liberarReservasRetiradas,
+  listarRetiradasDevidas,
   prepararRetirada,
+  reagendarRetirada,
 } from "../scripts/backup/retirada-repository";
 import { criarRetiradaDoBackupS3 } from "../scripts/backup/retirada-s3";
 import { retirarCapturaGuardada } from "../scripts/backup/retirar-captura";
@@ -288,6 +292,70 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     expect(f.b.pedidos.slice(antes).some((p) => p.metodo === "DELETE")).toBe(false);
     expect(await totalAtivas(f.id)).toBe(1);
   });
+  it("resposta do PUT do marcador perdida mantém payload e permite retomada exata", async () => {
+    const f = await comS3(),
+      t = await prepararRetirada(f.id, "retencao", f.indice);
+    f.b.estado.perderPut = true;
+    const antes = f.b.pedidos.length;
+    await expect(
+      retirarCapturaGuardada({
+        tentativa: t,
+        indice: f.indice,
+        indices: f.indices,
+        transporte: f.transporte,
+      }),
+    ).rejects.toMatchObject({ codigo: "INCONCLUSIVO" });
+    expect(f.b.objetos.has(f.path)).toBe(true);
+    expect(f.b.pedidos.slice(antes).some((p) => p.metodo === "DELETE")).toBe(false);
+    f.b.estado.perderPut = false;
+    await expirar(f.id);
+    const nova = await assumirRetirada(f.id);
+    await retirarCapturaGuardada({
+      tentativa: nova,
+      indice: f.indice,
+      indices: f.indices,
+      transporte: f.transporte,
+    });
+    expect(f.b.objetos.has(f.path)).toBe(false);
+  });
+  it("reagendamento e scanner respeitam prazo, destino e nova tentativa", async () => {
+    const f = await selada(),
+      t = await prepararRetirada(f.id, "abandonado", f.indice);
+    expect(await listarRetiradasDevidas(f.destino)).toEqual([]);
+    await reagendarRetirada(t);
+    expect(await listarRetiradasDevidas(f.destino)).toEqual([]);
+    await expirar(f.id);
+    expect(await listarRetiradasDevidas(f.destino)).toEqual([{ id: f.id }]);
+    expect(await listarRetiradasDevidas({ ...f.destino, bucketName: "outro-backup" })).toEqual([]);
+    const nova = await assumirRetirada(f.id);
+    await expect(reagendarRetirada(t)).rejects.toMatchObject({ codigo: "TENTATIVA" });
+    expect((await lerRetirada(nova, f.indice)).estado).toBe("prepared");
+    expect(await listarRetiradasDevidas(f.destino)).toEqual([]);
+  });
+  it("FK impede apagar a publicação necessária à retomada", async () => {
+    const f = await selada();
+    await prepararRetirada(f.id, "abandonado", f.indice);
+    const erro = await db
+      .delete(publications)
+      .where(eq(publications.captureId, f.id))
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
+    expect(codigoDoPostgres(erro)).toBe("23001");
+  });
+  it("falha de auditoria da liberação conserva a reserva abandonada", async () => {
+    const f = await fixture("qualification", 1);
+    limpezas.push(async () => f.indice.encerrar());
+    await abandonarCapturaSemArquivo(f.id);
+    await recusarAudit("recreio.backup_abandoned_holds_released", async () => {
+      await expect(liberarReservasSemArquivo(f.id)).rejects.toMatchObject({
+        name: "AuditPersistenceError",
+      });
+    });
+    expect(await totalAtivas(f.id)).toBe(1);
+    expect(await liberarReservasSemArquivo(f.id)).toBe(1);
+  });
   it.each([
     "recreio.backup_retirement_prepared",
     "recreio.backup_retirement_marked",
@@ -320,8 +388,10 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
       (await db.select().from(retirements).where(eq(retirements.captureId, f.id)))[0]?.state,
     ).toBe(evento.endsWith("marked") ? "prepared" : "marked");
     expect(await totalAtivas(f.id)).toBe(1);
+    await expirar(f.id);
+    const nova = await assumirRetirada(f.id);
     await retirarCapturaGuardada({
-      tentativa: t,
+      tentativa: nova,
       indice: f.indice,
       indices: f.indices,
       transporte: f.transporte,

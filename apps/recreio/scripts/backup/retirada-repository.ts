@@ -10,8 +10,9 @@ import {
   recreioBackupRetirements as retirements,
 } from "@informach/db/schema";
 import { z } from "zod";
+import { type DestinoDeCaptura, DestinoDeCapturaSchema } from "@/features/backup/contrato";
 import { AGORA, type Transacao } from "@/lib/repository";
-import { travarCapturaDeBackup } from "./controle-repository";
+import { limitarControleDoBackup, travarCapturaDeBackup } from "./controle-repository";
 import { FalhaDaPublicacao } from "./falha-controle";
 import type { criarIndiceDeRecuperacao, RetiradaDoBackup } from "./indice-recuperacao";
 
@@ -99,13 +100,16 @@ export async function prepararRetirada(id: string, motivo: z.infer<typeof Motivo
       .where(eq(retirements.captureId, id));
     exigir(!existente, "ESTADO");
     exigir(m.data !== "retencao" || (c.state === "verified" && p.state === "published"), "ESTADO");
-    const [relogio] = await tx
-      .select({ agora: sql<Date>`clock_timestamp()`.mapWith((v) => new Date(String(v))) })
-      .from(captures)
-      .where(eq(captures.id, id));
-    exigir(relogio && Number.isFinite(relogio.agora.getTime()), "INTEGRIDADE");
-    const criada = relogio.agora,
-      bytes = indice.assinar({
+    const [relogio] = await tx.execute<{ agora: string }>(
+      sql`select to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as agora`,
+    );
+    exigir(relogio, "INTEGRIDADE");
+    const criada = new Date(relogio.agora);
+    exigir(
+      Number.isFinite(criada.getTime()) && criada.toISOString() === relogio.agora,
+      "INTEGRIDADE",
+    );
+    const bytes = indice.assinar({
         tipo: "retirado",
         capturaId: id,
         destino: { bucketId: p.bucketId, bucketName: p.bucketName, escopo: p.storageScope },
@@ -305,5 +309,47 @@ export async function liberarReservasRetiradas(id: string, indice: Indice) {
       { writer: tx },
     );
     return lote.length;
+  });
+}
+
+/** I/O já terminou sem prova suficiente. Só o mesmo token pode reagendar;
+ * não renova autoridade vencida nem altera o marcador/motivo. */
+export async function reagendarRetirada(bruto: TentativaDeRetirada) {
+  const t = token(bruto);
+  await db.transaction(async (tx) => {
+    const b = await travarRetirada(tx, t.capturaId);
+    exigir(b.r.attempt === t.tentativa, "TENTATIVA");
+    await tx
+      .update(retirements)
+      .set({
+        leaseUntil: sql`greatest(${retirements.createdAt}+interval '1 microsecond',clock_timestamp())`,
+        nextAttemptAt: sql`${AGORA}+interval '5 minutes'`,
+      })
+      .where(eq(retirements.captureId, b.c.id));
+    await logAuditEventStrict(
+      "recreio.backup_retirement_deferred",
+      null,
+      { app: "recreio", captureId: b.c.id },
+      { writer: tx },
+    );
+  });
+}
+/** Pista limitada por destino; cada tentativa torna a conferir sob travas.
+ * Nem o payload nem os bytes do marcador são carregados pelo scanner. */
+export async function listarRetiradasDevidas(destino: DestinoDeCaptura) {
+  const alvo = DestinoDeCapturaSchema.safeParse(destino);
+  exigir(alvo.success, "CONFIGURACAO");
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set transaction read only`);
+    await limitarControleDoBackup(tx);
+    return tx
+      .select({ id: retirements.captureId })
+      .from(retirements)
+      .innerJoin(publications, eq(publications.captureId, retirements.captureId))
+      .where(sql`${publications.bucketId}=${alvo.data.bucketId} and ${publications.bucketName}=${alvo.data.bucketName}
+        and ${publications.storageScope}=${alvo.data.escopo} and ${retirements.leaseUntil}<=clock_timestamp()
+        and ${retirements.nextAttemptAt}<=clock_timestamp()`)
+      .orderBy(asc(retirements.nextAttemptAt), asc(retirements.captureId))
+      .limit(20);
   });
 }

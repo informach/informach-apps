@@ -238,6 +238,7 @@ export type AuditEventType =
   | "recreio.backup_retirement_claimed"
   | "recreio.backup_retirement_marked"
   | "recreio.backup_retired"
+  | "recreio.backup_retirement_deferred"
   | "recreio.snapshot_collection_admitted"
   | "recreio.snapshot_object_retired"
   | "recreio.snapshot_collection_deferred"

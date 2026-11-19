@@ -1,0 +1,24 @@
+{
+  "source": "957192126fbf4da66c1bcc0a736211520b92f0bf",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0222_recreio_retirada_publicacao_fk.sql",
+      "bytes": 221,
+      "sha256": "9fd8e5313f8b6f090a8b5a7a9a0947d155a71f967bb9c75e1deec2d66763bfc5"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0222_snapshot.json",
+      "bytes": 1054050,
+      "sha256": "f7113b3b389bdd4782da8419f162c27f81403c46cca7693e67fb0cb48590f7c3"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 33656,
+      "sha256": "64c2ec09d5e6e289bb33f3a6cba5370600d56a5b039d8b4a1cdc771b3a4f25d5"
+    }
+  ],
+  "runId": 44495326643,
+  "artifactId": 14514926071,
+  "artifactZipSha256": "89441fafc4a9c59b680140716c8bc7779e55e23ecc1364c29bb410598df008a9",
+  "productionApplied": false
+}
