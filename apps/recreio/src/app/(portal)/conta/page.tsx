@@ -229,6 +229,12 @@ export default async function Conta() {
             </a>
             .
           </p>
+          <Link
+            href="/conta/dados"
+            className="mt-4 inline-flex min-h-11 items-center font-bold text-ceu underline underline-offset-4"
+          >
+            Conferir meus dados e preparar uma prévia
+          </Link>
         </section>
 
         <p className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-tinta-suave">

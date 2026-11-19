@@ -1,5 +1,8 @@
 import "server-only";
-import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import type {
+  AutorNativoRecente,
+  IdentidadeNativa,
+} from "@/features/account/autoridade-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { copiarCadastroPessoalNoBanco } from "./cadastro-repository";
 import {
@@ -9,11 +12,21 @@ import {
 } from "./contrato";
 import { copiarDadosPessoaisDoJogo } from "./dados-repository";
 import { listarJogosPessoaisNoBanco } from "./inventario-repository";
+import { consultarPainelDeDireitosNoBanco } from "./painel-repository";
 import {
   PedidoDePreparacaoDeDireitosSchema,
   ReferenciaDaPreparacaoSchema,
 } from "./preparacao-contrato";
 import { cancelarPreparacaoNoBanco, prepararDireitosNoBanco } from "./preparacao-repository";
+
+export async function consultarMeusDireitos(autor: IdentidadeNativa) {
+  await limitarTentativas({
+    chave: `painel-direitos:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 60,
+  });
+  return consultarPainelDeDireitosNoBanco(autor);
+}
 
 export async function prepararPedidoDeDireitos(autor: AutorNativoRecente, entrada: unknown) {
   const pedido = PedidoDePreparacaoDeDireitosSchema.parse(entrada);

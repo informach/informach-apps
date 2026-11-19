@@ -10,6 +10,7 @@ const idsOrdenados = z
   );
 export const PedidoDePreparacaoDeDireitosSchema = z
   .strictObject({
+    pedidoId: z.uuid(),
     tipo: z.enum(["retirar_perfil", "encerrar_conta"]),
     perfis: idsOrdenados,
   })

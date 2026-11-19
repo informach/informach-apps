@@ -21,7 +21,10 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 Na candidata F7, `features/direitos` prepara recortes pessoais de cadastro e de
 progresso/versões/conflitos/conquistas por perfil/jogo, com inventário histórico
 paginado dos jogos persistidos. Não é exportação completa
-ou download publicado. Usa autoridade nativa recente própria ou responsabilidade
+ou download publicado. A candidata posterior acrescenta prévia persistida,
+idempotência por pedido e `/conta/dados`, sem consentimento ou execução destrutiva;
+[contrato e gates pendentes](../../docs/recreio/preparacao-direitos-2026-11-19.md).
+Usa autoridade nativa recente própria ou responsabilidade
 explícita, independente de assinatura e gameplay; mutex dos dados antes do
 aparelho, integridade e auditoria estritas. [Escopo e pendências](../../docs/recreio/direitos-implementacao-2026-11-18.md).
 

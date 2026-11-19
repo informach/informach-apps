@@ -8,15 +8,22 @@ const a = "00000000-0000-4000-8000-000000000001";
 const b = "00000000-0000-4000-8000-000000000002";
 describe("direitos: escopo explícito e canônico da prévia", () => {
   it("conta sem jogador admite somente encerramento de escopo vazio", () => {
-    expect(Pedido.safeParse({ tipo: "encerrar_conta", perfis: [] }).success).toBe(true);
-    expect(Pedido.safeParse({ tipo: "retirar_perfil", perfis: [] }).success).toBe(false);
-    expect(Pedido.safeParse({ tipo: "retirar_perfil", perfis: [a, b] }).success).toBe(false);
+    expect(Pedido.safeParse({ pedidoId: a, tipo: "encerrar_conta", perfis: [] }).success).toBe(
+      true,
+    );
+    expect(Pedido.safeParse({ pedidoId: a, tipo: "retirar_perfil", perfis: [] }).success).toBe(
+      false,
+    );
+    expect(Pedido.safeParse({ pedidoId: a, tipo: "retirar_perfil", perfis: [a, b] }).success).toBe(
+      false,
+    );
   });
   it("recusa perfis repetidos, desordenados, excesso e autoridade fornecida pelo cliente", () => {
     for (const perfis of [[a, a], [b, a], Array.from({ length: 257 }, () => a)])
-      expect(Pedido.safeParse({ tipo: "encerrar_conta", perfis }).success).toBe(false);
+      expect(Pedido.safeParse({ pedidoId: a, tipo: "encerrar_conta", perfis }).success).toBe(false);
     expect(
-      Pedido.safeParse({ tipo: "retirar_perfil", perfis: [a], contaId: "outra" }).success,
+      Pedido.safeParse({ pedidoId: a, tipo: "retirar_perfil", perfis: [a], contaId: "outra" })
+        .success,
     ).toBe(false);
   });
   it("plano não mistura adulto próprio com concessão parental e não oculta identidade global", () => {

@@ -6,7 +6,9 @@ https://recreio-homologacao-checkout-production.up.railway.app
 
 O portal respondeu 200 em `/api/ready`, `/entrar` e `/` em 19/11. Isso não
 comprova login, Checkout, webhook recebido, assinatura ou cancelamento. A etapa
-humana de login/Checkout foi apresentada ao titular; resultado ainda pendente.
+humana de login/Checkout foi apresentada ao titular. Ele determinou em 19/11
+que todas as validações manuais sejam reunidas somente ao final da implementação.
+Não repetir pedidos intermediários de teste; resultado permanece pendente.
 
 Recursos separados no projeto Railway existente: `recreio-homologacao-checkout`,
 `recreio-homologacao-pg`, `recreio-homologacao-redis` e
@@ -41,3 +43,10 @@ teste, autenticação do próprio adulto e desafio do provedor sem bypass.
 Após o ensaio: conferir recibos/assinatura/acesso, cancelar pelo fluxo próprio,
 resolver os recursos Stripe sintéticos, medir custo separado e retirar somente
 os recursos temporários desta homologação. Resultado não libera venda.
+
+
+A implantação posterior `c9bed7d3` habilitou a conciliação neste ambiente.
+Leitura operacional: prontidão 200, chamada sem credencial ao job recusada 401
+e chamada autenticada 200 com `habilitada=true`, sem reservas, falhas ou contratos.
+O cron `ad1dc820`/deploy `bc79950c` concluiu com sucesso por rede privada. Isso
+comprova execução sem contratos, não compra, webhook recebido ou conciliação paga.

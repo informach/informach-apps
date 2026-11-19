@@ -28,3 +28,26 @@ predecessor e igualdade de todas as tabelas anteriores. São 69 tabelas/148 FKs
 Recreio e 225 recibos. Nenhum SQL/snapshot/journal foi escrito manualmente. Gates PostgreSQL e qualidade
 precisam comprovar autoridade, conta sem jogador, preservação de terceiros,
 limite, contexto infantil e rollback de auditoria.
+
+
+## Rodada inicial e ampliação nativa
+
+Quality `44526944134`/`c9ea06d7` concluiu com sucesso. A integração
+`44527978489`/`2aea9b3f` executou 1324 cenários PostgreSQL: 1323 passaram
+e um revelou contagem incorreta de outros participantes. SQL interpolado no
+campo de seleção de tabela única teve a referência externa desqualificada
+pelo builder. O contador correlacionado nativo `$count` substitui essa expressão;
+o teste que exige preservar o outro participante foi mantido sem afrouxamento.
+A nova fonte ainda requer verificação.
+
+A ampliação usa `pedidoId` estável e revalida autoridade antes de recuperar a
+mesma prévia: replay não cria outra linha/evento, não renova prazo e não reabre
+cancelamento. Plano antigo permanece imutável; alteração de versão/dependência
+é mostrada como desatualizada. Identificador alheio ou seleção divergente recusa.
+
+`/conta/dados` apresenta os perfis pessoais atuais e prévias recentes da própria
+conta, sem exigir assinatura ou jogador. Preparar/cancelar usa ações nativas com
+login recente. Conta sem jogador, menor sob responsabilidade atual e negativa de
+contexto pareado têm jornadas de navegador preparadas para GitHub Actions. A
+tela informa explicitamente que não existe execução de exclusão neste incremento;
+nenhuma intenção externa ou consentimento destrutivo foi exposto.

@@ -30,6 +30,37 @@ function ausente(valor: unknown): asserts valor {
   assertAllowed(valor, "DIREITOS", "Preparação não disponível. Faça uma nova prévia.");
 }
 
+function lerPlano(linha: typeof preparations.$inferSelect, contaId: string) {
+  const plano = PlanoDeDireitosSchema.parse(linha.plan);
+  ausente(
+    linha.requesterUserId === contaId &&
+      plano.contaId === contaId &&
+      plano.tipo === linha.kind &&
+      SHA(plano) === linha.planSha256,
+  );
+  return plano;
+}
+
+function recibo(
+  linha: typeof preparations.$inferSelect,
+  plano: PlanoDeDireitos,
+  agora: Date,
+  planoAtualSha: string,
+) {
+  return {
+    preparacaoId: linha.id,
+    planoSha256: linha.planSha256,
+    expiraEm: linha.expiresAt.toISOString(),
+    plano,
+    situacao: linha.cancelledAt
+      ? ("cancelada" as const)
+      : linha.expiresAt <= agora
+        ? ("expirada" as const)
+        : ("preparada" as const),
+    desatualizada: planoAtualSha !== linha.planSha256,
+  };
+}
+
 /** Só uma prévia. Não toma posse de mundos, não congela writers, não publica
  * intenção e não consome consentimento. A confirmação terá de reconstruir e
  * comparar este plano sob as travas de execução antes de produzir efeitos. */
@@ -97,12 +128,19 @@ async function montarPlano(
           gestao: spaces.managementRevision,
           cerca: spaces.leaseEpoch,
           estado: spaces.status,
-          outrosParticipantes: sql<number>`(select count(*) from ${members} as outros
-      where outros.space_id=${spaces.id} and outros.profile_id is not null
-      and outros.profile_id not in (${sql.join(
-        pedido.perfis.map((id) => sql`${id}::uuid`),
-        sql`, `,
-      )}))`.mapWith(Number),
+          // O contador mantém a subconsulta/correlação como uma expressão
+          // própria. SQL interpolado no campo de uma seleção de tabela única
+          // perde a qualificação das colunas no builder do Drizzle.
+          outrosParticipantes: tx.$count(
+            members,
+            and(
+              eq(members.spaceId, spaces.id),
+              sql`${members.profileId} not in (${sql.join(
+                pedido.perfis.map((id) => sql`${id}::uuid`),
+                sql`, `,
+              )})`,
+            ),
+          ),
         })
         .from(spaces)
         .where(
@@ -149,6 +187,24 @@ export function prepararDireitosNoBanco(
   return db.transaction(async (tx) => {
     await limitarTransacao(tx);
     const plano = await montarPlano(tx, autor, pedido);
+    const planoSha256 = SHA(plano);
+    const [existente] = await tx
+      .select()
+      .from(preparations)
+      .where(eq(preparations.id, pedido.pedidoId))
+      .for("update");
+    if (existente) {
+      const anterior = lerPlano(existente, autor.contaId);
+      assertAllowed(
+        anterior.tipo === pedido.tipo &&
+          JSON.stringify(anterior.perfis.map((p) => p.id)) === JSON.stringify(pedido.perfis),
+        "CONFLITO",
+        "Este pedido já foi usado com outra seleção. Prepare uma nova prévia.",
+      );
+      const nativa = await autorizarContaNativa(tx, autor);
+      const agora = await nativa.conferirPrazo(autor.login);
+      return recibo(existente, anterior, agora, planoSha256);
+    }
     const [{ quantidade } = { quantidade: 3 }] = await tx
       .select({ quantidade: sql<number>`count(*)`.mapWith(Number) })
       .from(preparations)
@@ -166,7 +222,6 @@ export function prepararDireitosNoBanco(
       .where(eq(users.id, autor.contaId));
     ausente(relogio);
     const criadoEm = new Date(relogio.instante);
-    const planoSha256 = SHA(plano);
     assertAllowed(
       Buffer.byteLength(JSON.stringify(plano)) <= 200_000,
       "LIMITE",
@@ -175,6 +230,7 @@ export function prepararDireitosNoBanco(
     const [linha] = await tx
       .insert(preparations)
       .values({
+        id: pedido.pedidoId,
         requesterUserId: autor.contaId,
         kind: pedido.tipo,
         plan: plano,
@@ -182,7 +238,7 @@ export function prepararDireitosNoBanco(
         createdAt: criadoEm,
         expiresAt: new Date(criadoEm.getTime() + 30 * 60_000),
       })
-      .returning({ id: preparations.id, expiresAt: preparations.expiresAt });
+      .returning();
     ausente(linha);
     await logAuditEventStrict(
       "recreio.rights_prepared",
@@ -197,13 +253,8 @@ export function prepararDireitosNoBanco(
       { writer: tx },
     );
     const nativa = await autorizarContaNativa(tx, autor);
-    await nativa.conferirPrazo(autor.login);
-    return {
-      preparacaoId: linha.id,
-      planoSha256,
-      expiraEm: linha.expiresAt.toISOString(),
-      plano,
-    };
+    const conferidoEm = await nativa.conferirPrazo(autor.login);
+    return recibo(linha, plano, conferidoEm, planoSha256);
   });
 }
 
@@ -228,12 +279,7 @@ export function cancelarPreparacaoNoBanco(
       )
       .for("update");
     ausente(linha);
-    const plano = PlanoDeDireitosSchema.parse(linha.plan);
-    ausente(
-      plano.contaId === autor.contaId &&
-        plano.tipo === linha.kind &&
-        SHA(plano) === linha.planSha256,
-    );
+    lerPlano(linha, autor.contaId);
     const nativa = await autorizarContaNativa(tx, autor);
     const agora = await nativa.conferirPrazo(autor.login);
     if (linha.cancelledAt !== null) return { cancelada: true as const };

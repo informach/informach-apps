@@ -22,15 +22,21 @@ import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import {
   cancelarPreviaDeDireitos,
+  consultarMeusDireitos,
   listarJogosComDadosPessoais,
   prepararCopiaDoCadastroPessoal,
   prepararCopiaPessoalDoJogo,
-  prepararPedidoDeDireitos,
+  prepararPedidoDeDireitos as prepararDireitosComId,
 } from "@/features/direitos/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { eventosCom, loginReal, novaConta, sinal } from "./apoio";
+
+/** Identificador estável pertence à operação, não ao perfil ou ao login. */
+function prepararPedidoDeDireitos(autor: AutorNativoRecente, pedido: Record<string, unknown>) {
+  return prepararDireitosComId(autor, { pedidoId: crypto.randomUUID(), ...pedido });
+}
 
 const JOGO = "titulo-historico-privacidade";
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -720,5 +726,127 @@ describe("direitos: preparação persistida anterior ao consentimento", () => {
       await db.execute(sql`drop trigger recusar_previa_teste on audit.events`);
       await db.execute(sql`drop function audit.recusar_previa_teste()`);
     }
+  });
+});
+
+describe("direitos: recuperar a mesma prévia sem consentimento implícito", () => {
+  it("replay concorrente tem um recibo e um evento, preservando o plano original", async () => {
+    const a = await adulto();
+    const pedido = { pedidoId: crypto.randomUUID(), tipo: "retirar_perfil", perfis: [proprio(a)] };
+    const [primeira, repetida] = await Promise.all([
+      prepararPedidoDeDireitos(a.autor, pedido),
+      prepararPedidoDeDireitos(a.autor, pedido),
+    ]);
+    expect(repetida).toEqual(primeira);
+    expect(primeira).toMatchObject({
+      preparacaoId: pedido.pedidoId,
+      situacao: "preparada",
+      desatualizada: false,
+    });
+    expect(
+      await db.select().from(preparations).where(eq(preparations.requesterUserId, a.conta.id)),
+    ).toHaveLength(1);
+    expect(
+      (await eventosCom("preparationId", pedido.pedidoId)).filter(
+        (e) => e.eventType === "recreio.rights_prepared",
+      ),
+    ).toHaveLength(1);
+    await db
+      .update(profiles)
+      .set({ policyVersion: 2 })
+      .where(eq(profiles.id, proprio(a)));
+    const desatualizada = await prepararPedidoDeDireitos(a.autor, pedido);
+    expect(desatualizada.planoSha256).toBe(primeira.planoSha256);
+    expect(desatualizada.plano).toEqual(primeira.plano);
+    expect(desatualizada.desatualizada).toBe(true);
+  });
+
+  it("identificador não aceita outra seleção ou outra conta", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    const pedido = { pedidoId: crypto.randomUUID(), tipo: "retirar_perfil", perfis: [proprio(a)] };
+    await prepararPedidoDeDireitos(a.autor, pedido);
+    await expect(
+      prepararPedidoDeDireitos(a.autor, { ...pedido, tipo: "encerrar_conta" }),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+    await expect(
+      prepararPedidoDeDireitos(b.autor, { ...pedido, perfis: [proprio(b)] }),
+    ).rejects.toMatchObject({ code: "DIREITOS" });
+  });
+
+  it("repetir uma prévia cancelada ou vencida não a renova", async () => {
+    const a = await adulto(false);
+    const pedido = { pedidoId: crypto.randomUUID(), tipo: "encerrar_conta", perfis: [] };
+    const primeira = await prepararPedidoDeDireitos(a.autor, pedido);
+    await cancelarPreviaDeDireitos(a.autor, {
+      preparacaoId: primeira.preparacaoId,
+      planoSha256: primeira.planoSha256,
+    });
+    expect(await prepararPedidoDeDireitos(a.autor, pedido)).toMatchObject({
+      preparacaoId: primeira.preparacaoId,
+      expiraEm: primeira.expiraEm,
+      situacao: "cancelada",
+    });
+    const outro = { ...pedido, pedidoId: crypto.randomUUID() };
+    const anterior = await prepararPedidoDeDireitos(a.autor, outro);
+    await db
+      .update(preparations)
+      .set({ createdAt: new Date(Date.now() - 120_000), expiresAt: new Date(Date.now() - 60_000) })
+      .where(eq(preparations.id, anterior.preparacaoId));
+    expect(await prepararPedidoDeDireitos(a.autor, outro)).toMatchObject({
+      preparacaoId: anterior.preparacaoId,
+      situacao: "expirada",
+    });
+  });
+});
+
+describe("direitos: painel pessoal com autoridade atual", () => {
+  it("mostra próprio adulto e menor de outro grupo; pagante não recebe a lista parental", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    const p = await menor(a.autor);
+    const [grupo] = await db.select().from(groups).where(eq(groups.ownerUserId, b.conta.id));
+    if (!grupo) throw new Error("Payer group absent");
+    await db
+      .update(profiles)
+      .set({ groupId: grupo.id, status: "suspended", coverageEnabled: false })
+      .where(eq(profiles.id, p.id));
+    const painel = await consultarMeusDireitos(a.autor);
+    expect(painel.perfis.map((v) => v.id).sort()).toEqual([proprio(a), p.id].sort());
+    expect((await consultarMeusDireitos(b.autor)).perfis.map((v) => v.id)).toEqual([proprio(b)]);
+    expect(painel.preparacoes).toEqual([]);
+  });
+
+  it("lista só prévias próprias com situação atual e sem plano, bytes ou dados de outros adultos", async () => {
+    const a = await adulto(false),
+      b = await adulto(false);
+    const previa = await prepararPedidoDeDireitos(a.autor, { tipo: "encerrar_conta", perfis: [] });
+    expect((await consultarMeusDireitos(b.autor)).preparacoes).toEqual([]);
+    const painel = await consultarMeusDireitos(a.autor);
+    expect(painel.preparacoes).toEqual([
+      {
+        preparacaoId: previa.preparacaoId,
+        planoSha256: previa.planoSha256,
+        tipo: "encerrar_conta",
+        criadaEm: expect.any(String),
+        expiraEm: previa.expiraEm,
+        situacao: "preparada",
+      },
+    ]);
+    expect(painel.preparacoes[0]).not.toHaveProperty("plan");
+    await cancelarPreviaDeDireitos(a.autor, {
+      preparacaoId: previa.preparacaoId,
+      planoSha256: previa.planoSha256,
+    });
+    expect((await consultarMeusDireitos(a.autor)).preparacoes[0]?.situacao).toBe("cancelada");
+  });
+
+  it("não deixa um contexto infantil abrir o painel por chamada direta", async () => {
+    const a = await adulto(false);
+    await db
+      .update(devices)
+      .set({ minorContextGeneration: crypto.randomUUID() })
+      .where(eq(devices.id, a.autor.sessaoDeAparelhoId));
+    await expect(consultarMeusDireitos(a.autor)).rejects.toMatchObject({ code: "AUTH" });
   });
 });
