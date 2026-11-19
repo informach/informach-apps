@@ -677,3 +677,13 @@ conta/pagante não está incluída nessa prova: dab8a881 passou o gate nativo
 conta e perfis sem exigir jogador, com nomes/escopos de arquivo distintos e
 nova jornada real de download da conta. Ainda requer sua própria prova de
 navegador/rodada completa e conferência de upgrade de artefatos preexistentes.
+
+
+O ensaio de upgrade recebe o perfil `--copias`: aplica o prefixo histórico
+exato até 0233 da fonte 0cdbe71b em outro banco descartável do runner, cria dois
+artefatos estruturais com corpos opacos e aplica o DDL atual. Compara todos os
+campos/bytes anteriores, exige default `profile`, recusa escopo parcial e repete
+as migrations sem efeito. A fixture opaca não afirma validade criptográfica;
+cifragem e download reais têm provas separadas. O workflow busca a fonte
+histórica fixa antes dos gates rights/integration. Nada roda localmente ou em
+banco Railway por esse ensaio; a prova remota deste incremento está pendente.

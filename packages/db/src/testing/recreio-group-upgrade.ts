@@ -12,10 +12,14 @@ import postgres from "postgres";
 import journal from "../migrations/meta/_journal.json" with { type: "json" };
 
 const COM_MUNDOS = process.argv.includes("--mundos");
-const BASE = COM_MUNDOS
-  ? "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a"
-  : "338236d041d3c7be0d4fb1fbbe0373a7101f8e07";
-const ULTIMA_ANTERIOR = COM_MUNDOS ? 190 : 178;
+const COM_COPIAS = process.argv.includes("--copias");
+assert.ok(!(COM_MUNDOS && COM_COPIAS), "Escolha um único perfil de upgrade.");
+const BASE = COM_COPIAS
+  ? "0cdbe71b2368e9905e815a843bd53d3d7a54ce1a"
+  : COM_MUNDOS
+    ? "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a"
+    : "338236d041d3c7be0d4fb1fbbe0373a7101f8e07";
+const ULTIMA_ANTERIOR = COM_COPIAS ? 233 : COM_MUNDOS ? 190 : 178;
 const MIGRATIONS = "packages/db/src/migrations";
 const baseFile = (path: string) => execFileSync("git", ["show", `${BASE}:${path}`]);
 
@@ -28,6 +32,13 @@ async function memoria(sql: postgres.Sql) {
     'conquistas',(select jsonb_agg(to_jsonb(a) order by a.id) from recreio.profile_achievements a)
   ) as conteudo`;
   assert.ok(linha);
+  if (COM_COPIAS) {
+    const [copias] = await sql<
+      { conteudo: unknown }[]
+    >`select jsonb_agg(to_jsonb(c)-'scope' order by id) as conteudo from recreio.personal_exports c`;
+    assert.ok(copias);
+    return { perfis: linha.conteudo, copias: copias.conteudo };
+  }
   if (!COM_MUNDOS) return linha.conteudo;
   const [mundos] = await sql<{ conteudo: unknown }[]>`select jsonb_build_object(
     'mundos',(select jsonb_agg(to_jsonb(s)-array['management_revision','archived_at','rights_operation_id','rights_frozen_state','rights_draining'] order by s.id) from recreio.spaces s),
@@ -100,6 +111,23 @@ async function main() {
       await sql`insert into recreio.profile_data_keys(id,profile_id,game_id,key,revision) values(${chave},${perfilId},'prova-upgrade','marco',1)`;
       await sql`insert into recreio.profile_data_versions(data_id,profile_id,game_id,base_revision,revision,kind,bytes,digest) values(${chave},${perfilId},'prova-upgrade',0,1,'accepted',${bytes},${digest})`;
       await sql`insert into recreio.profile_achievements(profile_id,game_id,achievement_id,key_hash) values(${perfilId},'prova-upgrade','marca',${digest})`;
+      if (COM_COPIAS) {
+        const loginId = randomUUID(),
+          aparelhoId = randomUUID(),
+          copiaId = randomUUID();
+        await sql`insert into core.sessions(id,user_id,token,expires_at) values(${loginId},${contaId},${randomUUID()},clock_timestamp()+interval '1 hour')`;
+        await sql`insert into recreio.device_sessions(id,kind,user_id,auth_session_id,expires_at) values(${aparelhoId},'account',${contaId},${loginId},clock_timestamp()+interval '1 hour')`;
+        // A migração trata corpos como bytes opacos. Esta fixture de 128 bytes
+        // não afirma validade criptográfica; cifragem/download têm gates próprios.
+        const corpo = Buffer.alloc(128, n + 1),
+          ref = {
+            formato: "recreio-objeto-cifrado-v1",
+            contexto: { tipo: "exportacao", id: copiaId },
+          };
+        const instante = new Date();
+        await sql`insert into recreio.personal_exports(id,requester_user_id,profile_id,device_session_id,auth_session_id,profile_kind,policy_version,state,reference,encrypted_bytes,captured_at,created_at,expires_at)
+          values(${copiaId},${contaId},${perfilId},${aparelhoId},${loginId},'adult',1,'ready',${sql.json(ref)},${corpo},${instante},${instante},${new Date(instante.getTime() + 600_000)})`;
+      }
       if (COM_MUNDOS) {
         const mundoId = randomUUID(),
           membroId = randomUUID();
@@ -130,6 +158,24 @@ async function main() {
       antes,
       "Atualização mudou IDs, composição ou progresso existente.",
     );
+    if (COM_COPIAS) {
+      const linhas = await sql<
+        { scope: string; profile_id: string | null }[]
+      >`select scope,profile_id from recreio.personal_exports`;
+      assert.equal(linhas.length, 2);
+      assert.ok(linhas.every((linha) => linha.scope === "profile" && linha.profile_id !== null));
+      await assert.rejects(
+        async () => {
+          await sql`update recreio.personal_exports set scope='account'`;
+        },
+        (e: unknown) => typeof e === "object" && e !== null && "code" in e && e.code === "23514",
+      );
+      assert.deepEqual(
+        await memoria(sql),
+        antes,
+        "Recusa do escopo parcial não pode alterar o artefato.",
+      );
+    }
     const [perfisCongelados] = await sql<
       { total: number }[]
     >`select count(*)::integer as total from recreio.profiles where rights_operation_id is not null or rights_frozen_state is not null`;
@@ -200,6 +246,14 @@ async function main() {
         progressoPreservado: true,
         conquistasPreservadas: true,
         repeticaoSemMudanca: true,
+        ...(COM_COPIAS
+          ? {
+              artefatosPreservados: 2,
+              escopoPerfilAplicado: true,
+              corpoOpacoPreservado: true,
+              escopoParcialRecusado: true,
+            }
+          : {}),
         ...(COM_MUNDOS
           ? {
               mundosPreservados: 2,

@@ -239,6 +239,11 @@ jobs:
           pnpm compasso:test:infrastructure
           pnpm --workspace-concurrency=1 --filter @informach/config --filter @informach/billing --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
           pnpm --workspace-concurrency=1 --filter @informach/config --filter @informach/billing --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
+      - name: Conferir upgrade dos artefatos pessoais a partir do schema anterior
+        if: matrix.gate == 'rights' || matrix.gate == 'integration'
+        run: |
+          git fetch --no-tags --depth=1 origin 0cdbe71b2368e9905e815a843bd53d3d7a54ce1a
+          pnpm --filter @informach/db exec tsx src/testing/recreio-group-upgrade.ts --copias
       - name: Conferir somente os direitos nativos (nao qualifica a rodada completa)
         if: matrix.gate == 'rights'
         run: |
