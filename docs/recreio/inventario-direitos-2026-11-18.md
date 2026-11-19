@@ -193,3 +193,18 @@ consentimento ou exclusão implícita nesta tabela.
 [Proveniência intacta](evidencias/migracao-direitos-preparacao-44526938362.json):
 SQL, snapshot e journal gerados no GitHub, predecessor 0223 e todas as tabelas
 anteriores conferidos. Nenhuma aplicação em produção.
+
+
+## Incremento candidato 0225
+
+Acrescenta somente `profile_world_traces`: 70 tabelas Recreio e 150 FKs.
+PK perfil/mundo, FK CASCADE do perfil e RESTRICT do mundo. É índice privado
+para localizar referências de membros/visitantes, sem conceder acesso ou
+expor presença. A data indica quando o índice registrou a ligação; não é prova
+da primeira visita histórica. SID/convite vencido não o elimina.
+
+[Proveniência intacta](evidencias/migracao-rastros-mundos-44539426302.json),
+predecessor 0224 e igualdade das tabelas anteriores conferidos. O DDL não faz
+backfill ou alegação de cobertura histórica. Qualificar escritores e comparar
+autoria legada antes de ativar; o índice também deve ser retirado na exclusão.
+Nenhuma aplicação em produção.

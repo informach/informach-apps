@@ -1,0 +1,27 @@
+{
+  "source": "4248265a2029a12300b6fa5901f3e458747220d6",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0225_recreio_rastros_mundos.sql",
+      "bytes": 865,
+      "sha256": "14d2520f9516427b73518693b71d21976a1aacd2c2642c7e999d81b0e4b7bb21"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0225_snapshot.json",
+      "bytes": 1063948,
+      "sha256": "7abff2b63e3234a896a54112370188a65a5e5444ddb2d0952fb63b734e0c3a40"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 34125,
+      "sha256": "d6ab894efc97f6735d69c0657cdb41246f3254c8669cd68d80ab5c71a4ea80bd"
+    }
+  ],
+  "runId": 44539426302,
+  "jobId": 135613465362,
+  "artifactId": 14537955871,
+  "artifactZipBytes": 74701,
+  "artifactZipSha256": "e62d85e4dff0ac4790b98acea38fe3ecbb74d7b361c85ef41d3343fa33fed907",
+  "productionApplied": false,
+  "unchangedPreviousTables": true
+}

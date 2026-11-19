@@ -76,3 +76,16 @@ Checkpoint, diário e troca de posse não invalidam consentimento sobre a mesma
 participação: o executor precisará recapturá-los sob trava. Mudança de perfis,
 responsabilidade, mundo, gestão ou outros participantes exige nova prévia.
 O índice de mundos visitados amplia a descoberta sem conceder acesso.
+
+
+A ampliação `4248265a` gerou 0225 pelo workflow `44539426302`: tabela de
+rastros, 226 recibos candidatos, 70 tabelas/150 FKs Recreio. Arquivos adotados
+intactos após ZIP/SHA e comparação estrutural. Quality `44539426635` parou na
+formatação do recibo JSON derivado da rodada anterior; correção de formatação
+aplicada ao recibo público, sem alterar o artefato original nem migrations.
+Os testes da ampliação ainda precisam executar; não há nova promoção.
+
+O CI compartilhado da fonte anterior `e33c2d30` (`44531301414`) falhou no
+E2E fidelity do EdiFoto, após default/safety aprovados, por ausência do resultado
+antes do limite. Não foi tratado como aprovação do repositório ou atribuído ao
+Recreio sem evidência; o CI da fonte corrigida `aa95fb7b` segue separado.

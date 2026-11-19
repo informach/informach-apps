@@ -61,3 +61,33 @@ demais domínios; cobrança, auditoria/retencões e identidade global são separ
 Restauração permanece sem tráfego até verificar livro congelado, aplicar todas
 as intenções admitidas, comprovar efeitos nativos e renovar autoridades/chaves
 atuais. Recibo do consumidor sintético e SHA de uma cerca não autorizam o corte.
+
+
+## Sequência restante da execução nativa
+
+A operação deve guardar ID/revisão da prévia, conta/tipo/SHA, consentimento e
+autenticação, livro/época/kid/fonte e bytes assinados exatos antes de I/O.
+Estados de publicação/admissão/execução/conclusão/revisão e lease/tentativas
+permitem retomar resposta perdida sem repetir consentimento ou efeitos.
+Perfis e mundos conservam referências históricas por operação, com recibos de
+etapa; nomes, projeções e bytes privados não entram na auditoria.
+
+As projeções congeladas abrangem campos de conteúdo e autoridade, incluindo
+status, versões, titulares/vínculos, nome/resumo e revisões/cerca. Timestamps
+técnicos ficam fora para evitar dependência de timezone e atualizações sem
+efeito de permissão. O CHECK também exige suspenso/arquivado e par consistente
+entre operação/projeção, com FK RESTRICT. Testar alteração direta por writer
+antigo, unarchive/reativação, novos vínculos durante espera e rollback de
+auditoria; o executor muda a projeção atomicamente com o próprio passo.
+
+Admissão de visitante e de membro ocorre nos dois gateways que ligam o SID
+ao mundo; criar um SID ainda sem mundo não cria rastro. O índice é gravado
+no mesmo commit e conflito somente do par perfil/mundo preserva o registro
+original. Qualificar sucesso, repetição, recusa, saída e falha de auditoria.
+
+Depois das barreiras: publicar/admitir no livro, materializar estado e diário,
+preparar/validar fotos e efeitos, retirar ponteiros/capacidades antigas e limpar
+as dependências nativas antes de remover o perfil. Retenções justificadas de
+financeiro/auditoria/backup devem ser explícitas no plano/recibo, com política
+e prazo próprios; não chamá-las de anonimização. Arquivo legado ambíguo ou
+adapter indisponível mantém pendência, sem conclusão fictícia.
