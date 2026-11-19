@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       headers: {
         ...headers,
         "Content-Type": "application/x-ndjson; charset=utf-8",
-        "Content-Disposition": 'attachment; filename="recreio-perfil.jsonl"',
+        "Content-Disposition": 'attachment; filename="recreio-dados.jsonl"',
       },
     });
   } finally {

@@ -668,3 +668,12 @@ revalidados antes da publicação e após a abertura. Repetir um UUID com outro
 escopo/alvo é recusado. Novos testes usam conta sem jogador, outro pagante,
 outro app da mesma pessoa e contexto infantil. Backend ainda precisa passar
 novos gates; interface de escolha conta/perfil segue em implementação.
+
+
+A fonte 59b75ea4 concluiu os dezesseis gates 44592552895, com o artefato
+pessoal, auditoria de expurgo e interface de perfil. A ampliação posterior da
+conta/pagante não está incluída nessa prova: dab8a881 passou o gate nativo
+44595911500; qualidade segue em curso. A interface seguinte passa a oferecer
+conta e perfis sem exigir jogador, com nomes/escopos de arquivo distintos e
+nova jornada real de download da conta. Ainda requer sua própria prova de
+navegador/rodada completa e conferência de upgrade de artefatos preexistentes.

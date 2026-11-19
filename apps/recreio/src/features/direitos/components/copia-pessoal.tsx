@@ -14,7 +14,9 @@ export function CopiaPessoal({
   const hidratado = useHydrated(),
     [pendente, iniciar] = useTransition();
   const [perfilId, escolher] = useState("");
-  const [pedido, definirPedido] = useState<{ copiaId: string; perfilId: string } | null>(null);
+  const [pedido, definirPedido] = useState<
+    { copiaId: string; perfilId: string } | { copiaId: string; escopo: "account" } | null
+  >(null);
   const [copia, definirCopia] = useState<Awaited<ReturnType<typeof prepararArquivoPessoal>> | null>(
     null,
   );
@@ -40,89 +42,85 @@ export function CopiaPessoal({
   return (
     <section aria-labelledby="copia-pessoal" className="painel mt-8 space-y-4 p-5 sm:p-6">
       <h2 id="copia-pessoal" className="font-display text-2xl font-bold">
-        Uma cópia dos dados do perfil
+        Uma cópia dos seus dados
       </h2>
       <p className="text-tinta-suave">
-        Prepare um arquivo com cadastro, proteção, supervisão, progresso pessoal, versões,
-        conflitos, conquistas e vínculos do perfil. O arquivo não inclui o conteúdo compartilhado
-        dos mundos, contratos financeiros ou sua conta Informach.
+        Escolha os dados da sua conta no Recreio (identificação, aparelhos e histórico comercial) ou
+        os dados de um perfil (cadastro, proteção, supervisão, progresso, versões, conflitos,
+        conquistas e vínculos). Cada arquivo informa seu escopo. Conteúdo compartilhado dos mundos e
+        dados dos outros adultos não são incluídos.
       </p>
       <p className="text-sm text-tinta-suave">
         A cópia fica disponível por dez minutos neste login e aparelho. Preparar outra cópia
         substitui a anterior. Você também pode revogá-la antes do prazo.
       </p>
-      {!perfis.length ? (
-        <p>Você não tem perfil próprio ou sob sua responsabilidade para esta cópia.</p>
-      ) : (
-        <form
-          className="space-y-3"
-          onSubmit={(evento) => {
-            evento.preventDefault();
-            if (bloqueado || !perfilId) return;
-            const atual = pedido ?? { copiaId: crypto.randomUUID(), perfilId };
-            definirPedido(atual);
-            definirErro("");
-            definirRecente(false);
-            informar("");
-            iniciar(async () => {
-              try {
-                const r = await prepararArquivoPessoalAction(atual);
-                if (r.ok) definirCopia(r.data);
-                else tratar(r);
-              } catch {
-                definirErro(
-                  "A resposta não chegou. Confira a mesma cópia antes de preparar outra.",
-                );
-              }
-            });
-          }}
+      <form
+        className="space-y-3"
+        onSubmit={(evento) => {
+          evento.preventDefault();
+          if (bloqueado || !perfilId) return;
+          const atual: NonNullable<typeof pedido> =
+            pedido ??
+            (perfilId === "account"
+              ? { copiaId: crypto.randomUUID(), escopo: "account" }
+              : { copiaId: crypto.randomUUID(), perfilId });
+          definirPedido(atual);
+          definirErro("");
+          definirRecente(false);
+          informar("");
+          iniciar(async () => {
+            try {
+              const r = await prepararArquivoPessoalAction(atual);
+              if (r.ok) definirCopia(r.data);
+              else tratar(r);
+            } catch {
+              definirErro("A resposta não chegou. Confira a mesma cópia antes de preparar outra.");
+            }
+          });
+        }}
+      >
+        <label htmlFor="perfil-copia-pessoal" className="block font-semibold">
+          Dados da cópia
+        </label>
+        <select
+          id="perfil-copia-pessoal"
+          value={perfilId}
+          disabled={bloqueado || pedido !== null}
+          required
+          onChange={(e) => escolher(e.target.value)}
+          className="h-12 w-full rounded-controle border border-linha-forte bg-fundo px-3 text-tinta"
         >
-          <label htmlFor="perfil-copia-pessoal" className="block font-semibold">
-            Perfil da cópia
-          </label>
-          <select
-            id="perfil-copia-pessoal"
-            value={perfilId}
-            disabled={bloqueado || pedido !== null}
-            required
-            onChange={(e) => escolher(e.target.value)}
-            className="h-12 w-full rounded-controle border border-linha-forte bg-fundo px-3 text-tinta"
-          >
-            <option value="">Escolha um perfil</option>
-            {perfis.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.apelido}
-                {p.tipo === "minor" ? " — sob minha responsabilidade" : " — meu perfil"}
-              </option>
-            ))}
-          </select>
-          <div className="flex flex-wrap gap-3">
-            <button className="rb rb-sol" type="submit" disabled={bloqueado || !perfilId}>
-              {pendente
-                ? "Conferindo…"
-                : pedido
-                  ? "Conferir esta cópia"
-                  : "Preparar cópia do perfil"}
+          <option value="">Escolha os dados</option>
+          <option value="account">Dados da minha conta no Recreio</option>
+          {perfis.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.apelido}
+              {p.tipo === "minor" ? " — sob minha responsabilidade" : " — meu perfil"}
+            </option>
+          ))}
+        </select>
+        <div className="flex flex-wrap gap-3">
+          <button className="rb rb-sol" type="submit" disabled={bloqueado || !perfilId}>
+            {pendente ? "Conferindo…" : pedido ? "Conferir esta cópia" : "Preparar cópia"}
+          </button>
+          {pedido && (
+            <button
+              className="rb rb-vazado"
+              type="button"
+              disabled={bloqueado}
+              onClick={() => {
+                definirPedido(null);
+                liberarArquivo();
+                definirCopia(null);
+                definirErro("");
+                informar("");
+              }}
+            >
+              Escolher outra cópia
             </button>
-            {pedido && (
-              <button
-                className="rb rb-vazado"
-                type="button"
-                disabled={bloqueado}
-                onClick={() => {
-                  definirPedido(null);
-                  liberarArquivo();
-                  definirCopia(null);
-                  definirErro("");
-                  informar("");
-                }}
-              >
-                Escolher outra cópia
-              </button>
-            )}
-          </div>
-        </form>
-      )}
+          )}
+        </div>
+      </form>
       {copia && (
         <div className="space-y-3 border-t border-linha-forte pt-4">
           <p className="font-semibold">Cópia preparada</p>
@@ -172,7 +170,8 @@ export function CopiaPessoal({
                     url.current = URL.createObjectURL(arquivo);
                     const a = document.createElement("a");
                     a.href = url.current;
-                    a.download = "recreio-perfil.jsonl";
+                    a.download =
+                      copia.escopo === "account" ? "recreio-conta.jsonl" : "recreio-perfil.jsonl";
                     document.body.append(a);
                     a.click();
                     a.remove();
@@ -185,7 +184,7 @@ export function CopiaPessoal({
                 });
               }}
             >
-              Baixar cópia do perfil
+              {copia.escopo === "account" ? "Baixar cópia da conta" : "Baixar cópia do perfil"}
             </button>
             <button
               type="button"

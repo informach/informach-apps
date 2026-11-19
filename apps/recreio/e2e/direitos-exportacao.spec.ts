@@ -3,6 +3,41 @@ import { expect, test } from "@playwright/test";
 import { z } from "zod";
 import { hidratado, novaPessoa, tela } from "./apoio";
 
+test("conta sem jogador baixa seus dados sem criar perfil", async ({ browser }) => {
+  const a = await novaPessoa(browser, "Conta para copiar", { semPerfil: true });
+  try {
+    await a.page.setViewportSize({ width: 390, height: 844 });
+    await a.page.goto("/conta/dados");
+    const regiao = a.page.getByRole("region", { name: "Uma cópia dos seus dados", exact: true });
+    const preparar = regiao.getByRole("button", { name: "Preparar cópia", exact: true });
+    await hidratado(preparar);
+    await regiao.getByLabel("Dados da cópia", { exact: true }).selectOption("account");
+    await preparar.click();
+    await expect(regiao.getByText("Cópia preparada", { exact: true })).toBeVisible();
+    expect(
+      await a.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await tela(a.page, "direitos-copia-conta-sem-jogador-390", { paginaInteira: true });
+    const descarga = a.page.waitForEvent("download");
+    await regiao.getByRole("button", { name: "Baixar cópia da conta", exact: true }).click();
+    const download = await descarga,
+      caminho = await download.path();
+    if (!caminho) throw new Error("Download absent");
+    expect(download.suggestedFilename()).toBe("recreio-conta.jsonl");
+    const conteudo = await readFile(caminho, "utf8");
+    expect(conteudo).toContain(a.email);
+    expect(conteudo).toContain("recreio-copia-pessoal-conta-v1");
+    for (const privado of ['"authSessionId"', '"pinHash"', '"generation"', '"token"'])
+      expect(conteudo).not.toContain(privado);
+    await a.page.getByRole("link", { name: "Voltar à conta", exact: true }).click();
+    await expect(
+      a.page.getByRole("link", { name: "Criar meu perfil para jogar", exact: true }),
+    ).toBeVisible();
+  } finally {
+    await a.contexto.close();
+  }
+});
+
 test("cópia pessoal real em 390 px: prepara, baixa e revoga sem URL pública", async ({
   browser,
 }) => {
@@ -12,11 +47,11 @@ test("cópia pessoal real em 390 px: prepara, baixa e revoga sem URL pública", 
     const page = a.page;
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/conta/dados");
-    const regiao = page.getByRole("region", { name: "Uma cópia dos dados do perfil", exact: true });
-    const preparar = regiao.getByRole("button", { name: "Preparar cópia do perfil", exact: true });
+    const regiao = page.getByRole("region", { name: "Uma cópia dos seus dados", exact: true });
+    const preparar = regiao.getByRole("button", { name: "Preparar cópia", exact: true });
     await hidratado(preparar);
     await regiao
-      .getByLabel("Perfil da cópia", { exact: true })
+      .getByLabel("Dados da cópia", { exact: true })
       .selectOption({ label: "Perfil da cópia — meu perfil" });
     await preparar.click();
     await expect(regiao.getByText("Cópia preparada", { exact: true })).toBeVisible();
