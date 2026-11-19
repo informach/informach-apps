@@ -1,18 +1,19 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { chmod, type FileHandle, mkdtemp, open, realpath, rm, writeFile } from "node:fs/promises";
+import { randomBytes, randomUUID } from "node:crypto";
+import { chmod, type FileHandle, mkdtemp, open, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { criarCifradorDeArquivos, FalhaDoArquivoCifrado } from "./arquivo-cifrado";
+import {
+  exigir,
+  FalhaDaProva,
+  gravarSintetico,
+  limparDiretorioDeProva,
+  resumoDoArquivo,
+} from "./provas-arquivos";
 
 const TAMANHO = 384 * 1024 * 1024,
-  TETO_RSS = 192 * 1024 * 1024,
-  BLOCO = 64 * 1024;
-class FalhaDaProva extends Error {
-  constructor(readonly codigo: string) {
-    super(codigo);
-  }
-}
+  TETO_RSS = 192 * 1024 * 1024;
 type ReciboDoPerfil = {
   source: string;
   runId: string;
@@ -31,57 +32,10 @@ type ReciboDoPerfil = {
   cleanupFailure: string | null;
   productionDataTouched: false;
 };
-function exigir(sim: unknown, codigo: string): asserts sim {
-  if (!sim) throw new FalhaDaProva(codigo);
-}
 const codigo = (e: unknown) =>
   e instanceof FalhaDaProva || e instanceof FalhaDoArquivoCifrado
     ? e.codigo
     : "PERFIL_INCONCLUSIVO";
-async function gravarSintetico(h: FileHandle) {
-  const bloco = randomBytes(BLOCO),
-    hash = createHash("sha256");
-  for (let pos = 0; pos < TAMANHO; pos += bloco.length) {
-    let escrito = 0;
-    while (escrito < bloco.length) {
-      const r = await h.write(bloco, escrito, bloco.length - escrito, pos + escrito);
-      exigir(r.bytesWritten > 0, "ESCRITA_INTERROMPIDA");
-      escrito += r.bytesWritten;
-    }
-    hash.update(bloco);
-  }
-  bloco.fill(0);
-  await h.sync();
-  return hash.digest("hex");
-}
-async function resumoDoArquivo(h: FileHandle) {
-  const bloco = Buffer.alloc(BLOCO),
-    hash = createHash("sha256");
-  let pos = 0;
-  try {
-    for (;;) {
-      const { bytesRead } = await h.read(bloco, 0, bloco.length, pos);
-      if (bytesRead === 0) return { bytes: pos, sha256: hash.digest("hex") };
-      hash.update(bloco.subarray(0, bytesRead));
-      pos += bytesRead;
-    }
-  } finally {
-    bloco.fill(0);
-  }
-}
-async function limpar(root: string, handles: FileHandle[]) {
-  const fechamentos = await Promise.allSettled(handles.map((h) => h.close()));
-  if (fechamentos.some((r) => r.status === "rejected"))
-    throw new FalhaDaProva("HANDLE_NAO_FECHADO");
-  if (!root) return;
-  const alvo = await realpath(root),
-    pai = await realpath(tmpdir());
-  exigir(
-    dirname(alvo) === pai && basename(alvo).startsWith("recreio-backup-arquivo-"),
-    "LIMPEZA_FORA_DO_ESCOPO",
-  );
-  await rm(alvo, { recursive: true, force: true });
-}
 async function main() {
   const source = process.env.GITHUB_SHA,
     runId = process.env.GITHUB_RUN_ID;
@@ -129,7 +83,7 @@ async function main() {
     const origem = await arquivo("origem.bin"),
       cifrado = await arquivo("cifrado.bin"),
       aberto = await arquivo("aberto.bin");
-    const esperado = await gravarSintetico(origem);
+    const esperado = await gravarSintetico(origem, TAMANHO);
     const chave = randomBytes(32);
     const codec = criarCifradorDeArquivos({
       chaveAtiva: "prova-descartavel",
@@ -159,7 +113,7 @@ async function main() {
     recibo.failure = codigo(e);
   } finally {
     try {
-      await limpar(root, handles);
+      await limparDiretorioDeProva(root, handles, "recreio-backup-arquivo-");
       recibo.cleanupConfirmed = true;
     } catch (e) {
       recibo.cleanupFailure = codigo(e);

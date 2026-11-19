@@ -192,5 +192,16 @@ operacional do adapter, não capacidade/RTO certificados do Railway.
 Os cenários de FileHandle + SDK + HTTP fechado verificam blocos, replay 412,
 resposta perdida sem nova escrita, corpo adulterado/parcial/sem comprimento,
 objeto ausente, limite/chave antes da rede, preservação dos originais e timeout
-durante o corpo. Ainda precisam passar no GitHub desta fonte. Não executam
+durante o corpo. A fonte `f36c944e` passou em `44450866756`: tipos e 66 testes
+de objetos, incluindo 26 de arquivos e 13 de transporte; quality completo do
+Recreio `44450870353` também aprovado. Não executam
 captura de banco nem implementam a barreira/reservas/GC ou backup agendado.
+
+A prova externa seguinte usa somente 64 MiB sintéticos, as seis credenciais já
+restritas ao bucket de homologação e nenhuma conexão de banco. Exige PUT e
+readback completos, recusa de sobrescrita, replay, recuperação depois de apagar
+a cópia cifrada local, abertura idêntica, acesso anônimo negado e limpeza remota
+e local comprovadas. O prefixo próprio deve estar vazio antes; apenas a chave
+própria é removida. Recibo técnico registra tempos e pico de memória. A chave
+descartável vive só no executor: não demonstra custódia de chaves nem reinício
+do backup em produção. A execução e seus gates ainda estão pendentes.

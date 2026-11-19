@@ -11,6 +11,10 @@ on:
         description: Provar executor nativo com Postgres descartavel e bucket de homologacao
         type: boolean
         default: false
+      file_probe:
+        description: Provar arquivo cifrado sintetico sem banco no bucket de homologacao
+        type: boolean
+        default: false
       expected_bucket:
         description: Nome S3 exato do bucket recreio-homologacao provisionado
         type: string
@@ -22,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: recreio-objetos-${{ github.ref }}-${{ inputs.native_probe && 'native' || inputs.provider_probe && 'provider' || 'qualification' }}
+  group: recreio-objetos-${{ github.ref }}-${{ inputs.file_probe && 'file' || inputs.native_probe && 'native' || inputs.provider_probe && 'provider' || 'qualification' }}
   # Uma prova externa deve terminar sua limpeza, inclusive quando chega outro push.
   cancel-in-progress: false
 
@@ -72,6 +76,37 @@ jobs:
         with:
           name: recreio-objetos-provider-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/recreio-objetos-provider.json
+          if-no-files-found: warn
+          retention-days: 7
+  file-provider:
+    needs: qualify
+    if: github.event_name == 'workflow_dispatch' && inputs.file_probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+      RECREIO_S3_EXPECTED_BUCKET: ${{ inputs.expected_bucket }}
+      RECREIO_S3_TEST_BUCKET: ${{ secrets.RECREIO_S3_TEST_BUCKET }}
+      RECREIO_S3_TEST_ENDPOINT: ${{ secrets.RECREIO_S3_TEST_ENDPOINT }}
+      RECREIO_S3_TEST_REGION: ${{ secrets.RECREIO_S3_TEST_REGION }}
+      RECREIO_S3_TEST_PATH_STYLE: ${{ secrets.RECREIO_S3_TEST_PATH_STYLE }}
+      RECREIO_S3_TEST_ACCESS_KEY: ${{ secrets.RECREIO_S3_TEST_ACCESS_KEY }}
+      RECREIO_S3_TEST_SECRET_KEY: ${{ secrets.RECREIO_S3_TEST_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Provar arquivo, replay, recuperacao e limpeza sem dados reais
+        run: pnpm --filter @informach/recreio-app exec node --import tsx scripts/backup/provar-arquivo-s3.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recreio-arquivo-provider-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recreio-arquivo-provider.json
           if-no-files-found: warn
           retention-days: 7
   native-provider:
