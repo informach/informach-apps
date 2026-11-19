@@ -1,0 +1,12 @@
+{
+  "source": "ee75594980b24c6821545bed9a5cd81029c4042e",
+  "runId": 44506197051,
+  "jobId": 135498380270,
+  "status": "passed",
+  "postgresTests": 1313,
+  "postgresFiles": 103,
+  "nativeCaptureTests": 16,
+  "httpTests": 5,
+  "productionApplied": false,
+  "scopeLimit": "Includes quarantine schema upgrade, private-target rejection and control admission fences. Closed native composition; before the subsequent composite consumer-error identity correction and its new external fault proof."
+}

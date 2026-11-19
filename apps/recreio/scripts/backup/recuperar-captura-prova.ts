@@ -333,7 +333,8 @@ async function main() {
               [fotografiaId],
             );
             try {
-              exigir(recusou && mantida?.data.equals(ruim), "CORRUPCAO_SOBRESCRITA");
+              exigir(recusou, "CORRUPCAO_NAO_CLASSIFICADA");
+              exigir(mantida?.data.equals(ruim), "CORRUPCAO_SOBRESCRITA");
             } finally {
               mantida?.data.fill(0);
             }

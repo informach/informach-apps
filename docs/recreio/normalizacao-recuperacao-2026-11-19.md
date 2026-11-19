@@ -54,3 +54,12 @@ cliente atingido pelo FATAL antes de inspecionar o rollback por conexão nova,
 restrita ao mesmo socket/banco privado e encerrada antes da remoção do cluster.
 Não repete escritas desconhecidas nem altera a API operacional para ensaios.
 A correção ainda depende de nova execução remota.
+
+A rodada com etapas fixas `44507142482`/`e77978b9` localizou a falha no
+reconhecimento da recusa de foto corrompida, após o rollback já conferido.
+O decoder do composto convertia a exceção do callback em I/O genérico. A
+regressão `44507438172`/`7e23e873` reproduziu exatamente essa perda de
+identidade: 166 casos passaram e um falhou. O callback agora conserva sua
+exceção, enquanto a limpeza das chaves continua em `finally`; I/O do próprio
+decoder conserva sua classificação. A prova separa recusa não classificada de
+sobrescrita real da foto. Nova execução remota ainda obrigatória.

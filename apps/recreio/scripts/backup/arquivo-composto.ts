@@ -74,6 +74,14 @@ const Cabecalho = z.discriminatedUnion("tipo", [
   z.strictObject({ tipo: z.literal("fim"), capturaId: z.uuid(), inventario: Inventario }),
 ]);
 export type ReferenciaDoArquivoComposto = z.infer<typeof Referencia>;
+/** Marca apenas a fronteira do callback interno. Seu erro pertence ao
+ * chamador, não ao transporte/decoder, e precisa conservar identidade/causa. */
+class FalhaDoConsumidor extends Error {
+  constructor(readonly original: unknown) {
+    super("recreio.backup_composite.consumer_failed");
+  }
+}
+
 export class FalhaDoArquivoComposto extends Error {
   constructor(
     readonly codigo:
@@ -221,6 +229,7 @@ export function criarArquivoComposto(config: {
       exigir(!c.signal.aborted, "INTERROMPIDO");
       return await fn(c.signal);
     } catch (e) {
+      if (e instanceof FalhaDoConsumidor) throw e.original;
       if (e instanceof FalhaDoArquivoComposto) throw e;
       if (e instanceof FalhaDaCaptura || e instanceof FalhaDoObjetoPrivado)
         throw new FalhaDoArquivoComposto("INTEGRIDADE");
@@ -662,7 +671,14 @@ export function criarArquivoComposto(config: {
             try {
               for (const [i, id] of v.trechos.idsChaves.entries())
                 chaves.set(id, Buffer.from(material.subarray(i * 32, i * 32 + 32)));
-              const resultado = await fn(chaves, signal);
+              let resultado: T;
+              try {
+                resultado = await fn(chaves, signal);
+              } catch (erro) {
+                // comPrazo classifica I/O próprio, sem reclassificar a decisão
+                // transacional/de integridade tomada pelo consumidor.
+                throw new FalhaDoConsumidor(erro);
+              }
               exigir(!signal.aborted, "INTERROMPIDO");
               return resultado;
             } finally {
