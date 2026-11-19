@@ -126,16 +126,19 @@ PostgreSQL, dezesseis nativos, cinco HTTP); a composição no bucket real passou
 em `44491770523`/`44281736`, com retomada, liberação de reservas, coleta da foto,
 recuperação em cluster novo e limpeza. 0220 amplia lease para tombstone e
 acrescenta índice parcial; sem implantação. Os dezesseis gates dessa fonte
-passaram em `44492285054`; o CI compartilhado `44492289805` ainda estava em
-execução na última leitura. Incrementos posteriores exigem seus próprios gates.
+passaram em `44492285054`; o CI compartilhado `44492289805` também passou. Incrementos posteriores exigem seus próprios gates.
 0219–0223 totalizam 224 recibos candidatos. Retirada durável/abandono e FK
 restritiva 0221/0222 passaram em `44496294753` (1.309 PostgreSQL, dezesseis
 nativos e cinco HTTP), e no bucket real em `44497283983`/`2fb385a6`, com
 limpeza confirmada. Quarentena 0223 e normalização offline das fotos passaram
 em `44501616990`/`f9b6727b`, sem credencial da origem e sem referência bucket
 restante. A comparação integral precede essa transformação. A injeção posterior
-de queda de conexão falhou com `SQL_57P01`; correção da prova em verificação
-remota. Custódia, normalização de autoridades, replay F7, agenda e RPO/RTO
+revelou reutilização da conexão encerrada e perda de identidade do erro do
+consumidor no decoder. A regressão reproduziu a perda de causa; o corretivo
+`bf6fa706` passou em `44507816907`, com rollback integral após queda, recusa
+de manifesto/foto corrompida e limpeza confirmada. A integração anterior
+`44506197051` concluiu 1.313 PostgreSQL, dezesseis nativos e cinco HTTP.
+Dezesseis gates/CI compartilhado da fonte corrigida ainda em execução. Custódia, normalização de autoridades, replay F7, agenda e RPO/RTO
 continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
 e [publicação durável](recreio/publicacao-duravel-2026-11-19.md).
 

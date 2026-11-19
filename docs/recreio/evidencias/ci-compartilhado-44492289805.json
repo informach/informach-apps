@@ -1,0 +1,17 @@
+{
+  "source": "44281736085166cb9395a0abb1230178850e15b4",
+  "runId": 44492289805,
+  "status": "passed",
+  "jobs": [
+    {
+      "jobId": 135450712677,
+      "name": "alteracao"
+    },
+    {
+      "jobId": 135450820818,
+      "name": "ci"
+    }
+  ],
+  "productionApplied": false,
+  "scopeLimit": "Shared full CI of the publication/collection source. Before subsequent retirement/quarantine/consumer-error corrections and before integration with current public main; not production qualification."
+}

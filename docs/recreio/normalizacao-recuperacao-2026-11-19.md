@@ -63,3 +63,15 @@ identidade: 166 casos passaram e um falhou. O callback agora conserva sua
 exceção, enquanto a limpeza das chaves continua em `finally`; I/O do próprio
 decoder conserva sua classificação. A prova separa recusa não classificada de
 sobrescrita real da foto. Nova execução remota ainda obrigatória.
+
+A correção passou em `44507816907`/`bf6fa706`: 167 testes de objetos e tipos,
+seguidos da composição no bucket real com queda de backend, inventário integral
+após rollback, manifesto divergente, recusa da foto PG corrompida e repetição
+idêntica. O recibo original confirmou quinze condições, três GETs restritos ao
+prefixo do backup e limpeza dos quatro objetos/cluster/arquivos. ZIP de 1.052
+bytes conferido pelo SHA-256 registrado em
+[evidência](evidencias/captura-provider-44507816907.json).
+A integração anterior `44506197051`/`ee755949` concluiu 1.313 PostgreSQL,
+dezesseis nativos e cinco HTTP. Os dezesseis gates e o CI compartilhado da
+fonte corrigida estão em execução; nenhum desses resultados autoriza tráfego
+restaurado ou aplicação das migrations candidatas.
