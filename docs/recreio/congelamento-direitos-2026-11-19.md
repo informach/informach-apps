@@ -264,3 +264,17 @@ com cerca nova. Enquanto drena, preservar escritas finais do host autorizado;
 não arquivar/congelar contadores antes de seu checkpoint. Estado inconsistente
 ou host perdido com diário pendente permanece recuperável, sem descartar
 progresso. Isso é contrato da plataforma/host; não exige publicar o jogo D3.
+
+## Minimização e expurgo são etapas distintas
+
+O recibo de sujeito acrescenta purging para a referência já minimizada sem
+retenção futura, aguardando somente expurgo mecânico. Minimized continua
+exigindo prazo futuro original: não inventar um prazo novo para satisfazer
+constraint ou reiniciar os 30 dias. Removed mantém a prova da eliminação
+física, com hora posterior ao prazo quando houver. Esta ampliação não modifica
+linhas anteriores, conserva os CHECKs dos estados existentes e deve ter DDL
+gerado/qualificado antes da adoção.
+
+A fonte 812a861c passou integração 44558447327: 1359 cenários/107 arquivos,
+16 captura, cinco HTTP e upgrades 179/191→230 preservados. Qualidade de
+762718cd também concluída. Minimização, expurgo e drenagem continuam pendentes.

@@ -47,7 +47,7 @@ export const recreioRightsSubjects = recreio.table(
     policyVersion: integer("policy_version").notNull(),
     guardianReference: uuid("guardian_reference"),
     phase: text("phase")
-      .$type<"selected" | "minimized" | "removed">()
+      .$type<"selected" | "minimized" | "purging" | "removed">()
       .notNull()
       .default("selected"),
     minimizedAt: timestamp("minimized_at", { withTimezone: true }),
@@ -68,6 +68,7 @@ export const recreioRightsSubjects = recreio.table(
       sql`
       (${t.phase}='selected' and ${t.minimizedAt} is null and ${t.retainedUntil} is null and ${t.completedAt} is null and ${t.retentionPolicyVersion} is null) or
       (${t.phase}='minimized' and ${t.minimizedAt} is not null and ${t.retainedUntil} is not null and ${t.retainedUntil}>${t.minimizedAt} and ${t.liveProfileId} is not null and ${t.completedAt} is null and ${t.retentionPolicyVersion} is not null and ${t.retentionPolicyVersion}='perfil-2026-11-19') or
+      (${t.phase}='purging' and ${t.minimizedAt} is not null and ${t.retainedUntil} is null and ${t.liveProfileId} is not null and ${t.completedAt} is null and ${t.retentionPolicyVersion} is not null and ${t.retentionPolicyVersion}='perfil-2026-11-19') or
       (${t.phase}='removed' and ${t.minimizedAt} is not null and ${t.completedAt} is not null and ${t.completedAt}>=${t.minimizedAt} and ${t.liveProfileId} is null and (${t.retainedUntil} is null or ${t.completedAt}>=${t.retainedUntil}) and ${t.retentionPolicyVersion} is not null and ${t.retentionPolicyVersion}='perfil-2026-11-19')`,
     ),
   ],
