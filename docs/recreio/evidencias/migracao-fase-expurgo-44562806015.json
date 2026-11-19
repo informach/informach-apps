@@ -1,0 +1,29 @@
+{
+  "source": "7c7aea5b2ea8d85989a5eccf898539a7effcad38",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0230_recreio_rights_purging_phase.sql",
+      "bytes": 2099,
+      "sha256": "4a0f61cf8095f3818fe5669c744e64ead2491a85b0fffb16e7ed411c161ee829"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0230_snapshot.json",
+      "bytes": 1090799,
+      "sha256": "c540a7dd21768d979ec53414aef279fce084e71c234bd4ba1af8b3065fa5b84f"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 34914,
+      "sha256": "c90ebecae3621171ff4cde6e962ae31af6c9c5d44ba50b595188c9ab23f2bbb1"
+    }
+  ],
+  "runId": 44562806015,
+  "artifactId": 14548324482,
+  "artifactZipBytes": 77105,
+  "artifactZipSha256": "02294be8245b66f95edfade8331be7df3f6517a2ff8e19c1d076704964f5fe5b",
+  "productionApplied": false,
+  "unchangedPreviousColumnsAndOtherConstraints": true,
+  "changedConstraints": [
+    ["recreio.rights_subjects", "checkConstraints", "recreio_rights_subject_phase"]
+  ]
+}

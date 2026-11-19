@@ -353,4 +353,41 @@ describe("barreiras persistidas de direitos (PostgreSQL real)", () => {
       ),
     ).toBe("23514");
   });
+  it("expurgo pendente não inventa retenção futura e mantém a referência viva até a remoção", async () => {
+    const c = await cenario(),
+      agora = new Date();
+    await db.insert(subjects).values({
+      operationId: c.id,
+      profileReference: c.perfilId,
+      liveProfileId: c.perfilId,
+      policyVersion: 1,
+    });
+    expect(
+      await codigoDoBanco(
+        db
+          .update(subjects)
+          .set({
+            phase: "purging",
+            minimizedAt: agora,
+            retainedUntil: new Date(agora.getTime() + 30_000),
+            retentionPolicyVersion: "perfil-2026-11-19",
+          })
+          .where(eq(subjects.operationId, c.id)),
+      ),
+    ).toBe("23514");
+    await db
+      .update(subjects)
+      .set({
+        phase: "purging",
+        minimizedAt: agora,
+        retainedUntil: null,
+        retentionPolicyVersion: "perfil-2026-11-19",
+      })
+      .where(eq(subjects.operationId, c.id));
+    expect(
+      await codigoDoBanco(
+        db.update(subjects).set({ liveProfileId: null }).where(eq(subjects.operationId, c.id)),
+      ),
+    ).toBe("23514");
+  });
 });

@@ -6,6 +6,7 @@ import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
   recreioSpaceLeases as leases,
+  recreioSpaceMembers as members,
   recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
@@ -159,13 +160,19 @@ export function consentirRetiradaNoBanco(
         "MUNDO_EM_USO",
         "Saia do jogo e aguarde o salvamento antes de confirmar.",
       );
-      assertAllowed(
-        !atual.mundos.some(
-          (m) =>
-            m.id === mundo.id &&
-            m.outrosParticipantes > 0 &&
-            ids.some((id) => id === mundo.stewardProfileId),
+      const outrosAtuais = await tx.$count(
+        members,
+        and(
+          eq(members.spaceId, mundo.id),
+          sql`${members.profileId} is not null and ${members.profileId} not in (${sql.join(
+            ids.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )})`,
+          sql`${members.state}<>'former'`,
         ),
+      );
+      assertAllowed(
+        outrosAtuais === 0 || !ids.some((id) => id === mundo.stewardProfileId),
         "RESPONSABILIDADE",
         "Transfira a responsabilidade pelo mundo compartilhado antes de retirar este perfil.",
       );

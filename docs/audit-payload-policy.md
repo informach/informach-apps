@@ -349,3 +349,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 
 - `recreio.rights_processing_blocked`: `{ app, operationId, kind, reasonCode }`. Bloqueio automático por integridade; não é revisão humana concluída. Códigos fixos, sem mensagens do provedor, conteúdo ou identificadores pessoais adicionais.
 - `recreio.rights_profile_data_removed`: `{ app, operationId, domain, count }`. Lote de até 100 versões/chaves/conquistas pessoais; rollback estrito com a auditoria. Sem IDs dos itens/perfil/jogo, hashes ou bytes. Não representa remoção final do perfil.
+
+- `recreio.rights_profile_minimized`: `{ app, operationId, kind, profileCount, worldCount, retained }`. Retirada atômica de cadastro e vínculos pessoais com referências técnicas discriminadas. Não é exclusão da identidade global nem cancelamento financeiro. Nenhum nome, data de nascimento, ID de perfil/mundo ou prazo no payload; os detalhes privados pertencem ao recibo nativo.

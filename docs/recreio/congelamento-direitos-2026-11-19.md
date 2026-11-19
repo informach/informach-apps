@@ -278,3 +278,26 @@ gerado/qualificado antes da adoção.
 A fonte 812a861c passou integração 44558447327: 1359 cenários/107 arquivos,
 16 captura, cinco HTTP e upgrades 179/191→230 preservados. Qualidade de
 762718cd também concluída. Minimização, expurgo e drenagem continuam pendentes.
+
+## Minimizador candidato
+
+Após fotos/diário/dados pessoais, a etapa nativa elimina cadastro, nascimento e
+responsabilidade do menor, retira associação comercial do jogador e conserva
+uma referência suspensa sem login/nome/avatar. A conta continua acessível ao
+adulto, inclusive com zero jogadores. Não limpar minorContextGeneration de
+outro aparelho que ficou em contexto infantil. Recibos de convite familiar
+são desvinculados antes de retirar o user_id, preservando seu fato de aceite.
+
+Convites pendentes do perfil são revogados antes de qualquer SET NULL do alvo;
+participações e rótulos atribuídos ao perfil são retirados. Membros que já
+saíram conservam leftAt e não exigem transferência impossível; suspensos/away
+ainda têm direitos e exigem responsável aceito. Mundos dos demais conservam
+estado, responsável e posse cercada; rótulo do mundo criado pelo perfil é
+substituído. Mundo com outro responsável/criador não vira excluído só porque
+a contagem de membros está vazia. A liberação acontece no mesmo commit dos
+recibos, após o tratamento dos bytes. Nenhum ingresso antigo volta a valer.
+
+O prazo técnico é o máximo original de presenças e convites, calculado com
+precisão PG; não é agora + 30 dias. Sem prazo futuro, purging distingue
+expurgo mecânico. A etapa e os CHECKs novos ainda precisam de gates remotos,
+seguida do purgador/finalizador, drenagem de mundo ativo e tela de execução.

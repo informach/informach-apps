@@ -157,6 +157,7 @@ export type AuditEventType =
   | "recreio.rights_journal_compacted"
   | "recreio.rights_processing_blocked"
   | "recreio.rights_profile_data_removed"
+  | "recreio.rights_profile_minimized"
   | "recreio.achievement_unlocked"
   | "recreio.device_session_revoked"
   | "recreio.device_paired"
