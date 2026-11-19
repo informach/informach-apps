@@ -60,7 +60,7 @@ export async function resumoDoArquivo(h: FileHandle, teto = 512 * 1024 * 1024) {
 export async function limparDiretorioDeProva(
   root: string,
   handles: FileHandle[],
-  prefixo: "recreio-backup-arquivo-" | "recreio-backup-provider-",
+  prefixo: "recreio-backup-arquivo-" | "recreio-backup-provider-" | "recreio-dump-prova-",
 ) {
   const resultados = await Promise.allSettled(handles.map((h) => h.close()));
   exigir(

@@ -57,6 +57,7 @@ async function restaurar(url: URL, entrada: FileHandle) {
     ["--no-password", "--exit-on-error", "--dbname", url.pathname.slice(1)],
     {
       env: {
+        NODE_ENV: "production",
         PATH: process.env.PATH,
         PGHOST: url.hostname,
         PGPORT: url.port || "5432",

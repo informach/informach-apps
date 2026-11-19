@@ -359,6 +359,5 @@ do driver validada; não foram suprimidos erros ou verificações.
 O patch completo passou na instalação congelada, tipos DB, cinco quedas ESM,
 cinco CommonJS e dez provas de captura em `44459074435`/`4952ae0b`, sem exceção
 global não tratada e com conexões encerradas. [Recibo](evidencias/postgres-captura-44459074435.json).
-Rodada completa do Recreio `44459423949` e CI compartilhado `44459423698` estão
-em execução nessa fonte. O formato composto segue em incremento separado;
+Rodada completa do Recreio `44459423949` (dezesseis gates) e CI compartilhado `44459423698` passaram nessa fonte. O [recibo do CI](evidencias/postgres-ci-compartilhado-44459423698.json) limita a evidência ao patch/captura `4952ae0b`. O formato composto segue em incremento separado;
 nenhuma rotina de backup, migração ou venda foi ativada por esses gates.

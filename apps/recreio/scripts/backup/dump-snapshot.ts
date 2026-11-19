@@ -53,6 +53,7 @@ export function criarGravadorDeDump(config: {
   const ssl = url.searchParams.get("sslmode");
   exigir(ssl === "require" || ssl === "disable", "CONFIGURACAO");
   const ambiente: NodeJS.ProcessEnv = {
+    NODE_ENV: "production",
     PATH: process.env.PATH,
     LANG: "C",
     TZ: "UTC",

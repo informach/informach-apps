@@ -256,6 +256,7 @@ jobs:
         if: matrix.gate == 'integration' || matrix.gate == 'backup-capture'
         run: |
           pnpm --filter @informach/db typecheck
+          pnpm --filter @informach/recreio-app typecheck
           pnpm --filter @informach/db exec tsx src/testing/postgres-connection-loss.ts
           pnpm --filter @informach/morada-server exec esbuild ../../packages/db/src/testing/postgres-connection-loss.ts --platform=node --format=cjs --bundle --external:postgres --outfile=../../packages/db/node_modules/.cache/postgres-connection-loss.cjs
           node packages/db/node_modules/.cache/postgres-connection-loss.cjs

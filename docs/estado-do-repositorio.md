@@ -106,7 +106,7 @@ encerramento revelou exceção no driver postgres após queda real da conexão
 (`44456802954`/`39e362f0`); correção reproduzível do escopo em patch pnpm,
 mantendo versões. Instalação congelada e prova ESM/CommonJS/captura passaram
 em `44459074435`; dezesseis gates completos `44459423949`/`4952ae0b` aprovados,
-com CI compartilhado `44459423698` ainda em execução. Montador/conferidor do
+com CI compartilhado `44459423698` também aprovado. Montador/conferidor do
 composto passou em `44461354124` (22 casos, 93 testes de objetos); capacidades
 de cópia/restauração por trechos ainda estão em candidata.
 [Recibos, plano de captura e limites](recreio/backup-e-retirada-2026-11-19.md).

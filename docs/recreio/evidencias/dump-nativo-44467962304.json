@@ -1,0 +1,14 @@
+{
+  "runId": 44467962304,
+  "jobId": 135370223423,
+  "source": "3a65f1c9870107c42ab43951e304b91517ae1afe",
+  "conclusion": "success",
+  "captureTests": 10,
+  "nativeDumpTests": 5,
+  "captureFiles": 2,
+  "client": "pg_dump (PostgreSQL) 18.6 (Ubuntu 18.6-1.pgdg26.04+2)",
+  "productionApplied": false,
+  "typecheckQualification": false,
+  "companionTypecheckFailedRun": 44467968690,
+  "scopeLimit": "Real exported snapshot, compound encryption, destruction of local sources and native restore with inventory comparison; no S3 photos/provider, durable publish control or production qualification. App typecheck found environment/prefix types and must pass after correction."
+}

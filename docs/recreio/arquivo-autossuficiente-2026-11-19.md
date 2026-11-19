@@ -128,3 +128,12 @@ Esta prova ainda aguarda o gate remoto `backup-capture`. Não contém fotos em
 bucket, upload real, controle durável de publicação, custódia recuperável de
 chaves nem normalização de autoridades depois da restauração. Não habilita
 tráfego, cron ou backup em produção.
+
+Primeira prova nativa aprovada em `44467962304`/`3a65f1c9`: quinze testes em
+dois arquivos, sendo cinco de dump/restauração, com cliente PostgreSQL 18.6.
+[Recibo com limites](evidencias/dump-nativo-44467962304.json). O gate de tipos
+paralelo `44467968690` recusou o ambiente do processo sem `NODE_ENV` obrigatório
+no Next e o novo prefixo de temporários fora da união permitida. A correção
+explicita o ambiente e acrescenta somente esse prefixo à lista fechada, sem
+casts ou supressões. A candidata corrigida exige nova execução de ambos os
+gates e agora verifica os tipos do app antes das provas nativas.
