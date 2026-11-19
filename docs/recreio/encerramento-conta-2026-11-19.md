@@ -15,8 +15,8 @@ A conta sem cliente terá evidência explícita `no_customer`, após conferir qu
 nenhuma tentativa admitida existe. Conta com cliente exige inventário do
 provedor, origem/namespace e conciliação de todos os contratos/Checkouts antes
 da confirmação. Agendas ou origens desconhecidas permanecem em conferência.
-Schema candidato; geração pelo GitHub e testes de integridade ainda pendentes.
-Não há escritor desse recibo, aceite público ou conclusão de encerramento.
+A geração e o escritor privado estão documentados abaixo. Aceite público e
+conclusão integral do encerramento continuam pendentes.
 
 A revisão do schema 5667c421 encontrou a semântica SQL de NULL no contador
 de tentativas: o segundo ramo precisa exigir `request_started_at is not null`.
@@ -106,6 +106,22 @@ billing, com escopo próprio e teto de 600, sem dar ausência por truncamento.
 A cópia da conta inclui o estado/datas/resultado do acompanhamento financeiro
 do encerramento; não expõe referências Stripe, SHA de provas, lease ou intenção
 assinada. Novo caso nativo cobre a cópia durante `closing`, ainda sem gate.
+
+59629943 passou direitos 44629272879 e quality 44629280631: cópia do estado
+financeiro e reader SQL completo/limitado qualificados. Coordenador privado
+agora em candidata: lease individual, original assinado e barreira relidos,
+inventário fora de TX/ciclo antes de TX, releitura do escopo e confirmação
+estrita. Ausência de cliente só admite `no_customer` sem qualquer tentativa
+histórica; cliente existente sempre exige Stripe, mesmo com zero contratos.
+
+Só contratos ainda sem parada geram cancelamentos vinculados à operação,
+com as datas/fonte originais do aceite; os terminais históricos não criam
+trabalho financeiro novo. Recibos pendentes são aguardados; reativação ou
+adiamento depois de confirmação falha. O resultado real do adapter é vinculado
+em memória ao escopo/observação: cópia JSON, outro cliente/operação ou alteração
+do resultado não são prova. Rodadas sem financeiro devido evitam leitura extra
+do livro externo. Configuração real/capacidade pública continuam desligadas.
+Testes deste coordenador e qualificação remota ainda pendentes.
 
 ## Exportação
 

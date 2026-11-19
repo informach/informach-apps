@@ -32,6 +32,60 @@ const identifier = (value: string | { id: string } | null) =>
 function reject(code: ConstructorParameters<typeof RecreioRenewalReviewError>[0]): never {
   throw new RecreioRenewalReviewError(code);
 }
+const verified = new WeakMap<RecreioClosureInventory, { scope: string; observation: string }>();
+const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+function scopeFields(input: RecreioClosureInventoryScope, mode: "dev" | "prod") {
+  return {
+    mode,
+    operationId: input.operationId,
+    customerId: input.customerId,
+    payerId: input.payerId,
+    origins: input.contracts
+      .map((p) => ({
+        id: p.subscriptionId,
+        authorizationId: p.authorizationId,
+        productId: p.productId,
+      }))
+      .sort(byId),
+    purchases: input.purchases
+      .map((p) => ({ id: p.authorizationId, productId: p.productId }))
+      .sort(byId),
+  };
+}
+function hash(value: unknown) {
+  const serialized = JSON.stringify(value);
+  if (typeof serialized !== "string") reject("invalid_evidence");
+  return createHash("sha256").update(serialized).digest("hex");
+}
+function observationHash(
+  input: RecreioClosureInventoryScope,
+  mode: "dev" | "prod",
+  observation: Pick<RecreioClosureInventory, "subscriptions" | "checkouts">,
+) {
+  return hash({
+    format: "recreio-closure-inventory-v1",
+    ...scopeFields(input, mode),
+    subscriptions: observation.subscriptions,
+    checkouts: observation.checkouts,
+  });
+}
+/** Only the unchanged result actually read by this adapter for this native
+ * scope can authorize a writer. A JSON copy/another account's observation is
+ * not provider evidence; retries require a new complete read. */
+export function assertRecreioClosureInventory(
+  observation: RecreioClosureInventory,
+  input: RecreioClosureInventoryScope,
+  mode: "dev" | "prod",
+) {
+  const proof = verified.get(observation);
+  if (
+    !proof ||
+    proof.scope !== hash(scopeFields(input, mode)) ||
+    proof.observation !== observation.sha256 ||
+    proof.observation !== observationHash(input, mode, observation)
+  )
+    reject("invalid_evidence");
+}
 
 /** Read-only, complete bounded inventory of an exclusive native customer.
  * Unknown origin, missing pages/contracts or unsettled Checkout never become
@@ -62,8 +116,25 @@ export function createStripeRecreioClosureInventory(config: {
     return { timeout: Math.max(1, Math.min(10_000, remaining)), maxNetworkRetries: 0 };
   }
   return {
-    async inspect(input) {
+    async inspect(request) {
       try {
+        if (request.contracts.length > MAX_OBJECTS || request.purchases.length > MAX_OBJECTS)
+          reject("invalid_evidence");
+        const input: RecreioClosureInventoryScope = {
+          operationId: request.operationId,
+          customerId: request.customerId,
+          payerId: request.payerId,
+          purchases: request.purchases.map((p) => ({
+            authorizationId: p.authorizationId,
+            productId: p.productId,
+          })),
+          contracts: request.contracts.map((p) => ({
+            subscriptionId: p.subscriptionId,
+            authorizationId: p.authorizationId,
+            productId: p.productId,
+          })),
+          budget: { deadlineMs: request.budget.deadlineMs },
+        };
         if (
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
             input.operationId,
@@ -237,34 +308,12 @@ export function createStripeRecreioClosureInventory(config: {
           if (!page.has_more) break;
           cursor = page.data.at(-1)?.id;
         }
-        const byId = (a: { id: string }, b: { id: string }) =>
-          a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
         subscriptions.sort(byId);
         checkouts.sort(byId);
-        const sha256 = createHash("sha256")
-          .update(
-            JSON.stringify({
-              format: "recreio-closure-inventory-v1",
-              mode: config.mode,
-              operationId: input.operationId,
-              customerId: input.customerId,
-              payerId: input.payerId,
-              origins: input.contracts
-                .map((p) => ({
-                  id: p.subscriptionId,
-                  authorizationId: p.authorizationId,
-                  productId: p.productId,
-                }))
-                .sort(byId),
-              purchases: input.purchases
-                .map((p) => ({ id: p.authorizationId, productId: p.productId }))
-                .sort(byId),
-              subscriptions,
-              checkouts,
-            }),
-          )
-          .digest("hex");
-        return { subscriptions, checkouts, sha256 };
+        const sha256 = observationHash(input, config.mode, { subscriptions, checkouts });
+        const result = { subscriptions, checkouts, sha256 };
+        verified.set(result, { scope: hash(scopeFields(input, config.mode)), observation: sha256 });
+        return result;
       } catch (error) {
         if (error instanceof RecreioRenewalReviewError) throw error;
         throw new RecreioRenewalReviewError("provider_unavailable");

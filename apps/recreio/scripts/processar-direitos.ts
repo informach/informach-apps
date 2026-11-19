@@ -24,6 +24,7 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDosDir
     { processarRodadaDeDireitos },
     { leitorDeFotografias },
     { recordJobRun },
+    { getRuntimeFinanceiroDoEncerramento },
   ] = await Promise.all([
     import("@aws-sdk/client-s3"),
     import("../src/features/direitos/livro/assinatura"),
@@ -31,6 +32,7 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDosDir
     import("./direitos/rodada"),
     import("../src/features/objetos/runtime"),
     import("@informach/db"),
+    import("../src/lib/billing"),
   ]);
   const cliente = new S3Client({
     endpoint: config.endpoint,
@@ -58,6 +60,7 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDosDir
       storage,
       leitor: leitorDeFotografias(),
       politica: { retirarTextosDaFundacao: true },
+      obterFinanceiro: getRuntimeFinanceiroDoEncerramento,
     };
     const resultado = await recordJobRun({ app: "recreio", job: "direitos" }, () =>
       processarRodadaDeDireitos(coordenacao),

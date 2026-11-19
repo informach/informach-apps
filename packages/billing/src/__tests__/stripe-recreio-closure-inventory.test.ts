@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 import {
+  assertRecreioClosureInventory,
   createStripeRecreioClosureInventory,
   type RecreioClosureInventoryScope,
 } from "../providers/stripe-recreio-closure-inventory";
@@ -161,6 +162,33 @@ function fixture() {
 }
 
 describe("complete Recreio closure inventory over the actual SDK", () => {
+  it("binds the actual read to its original operation/customer and rejects copies or changed facts", async () => {
+    const f = fixture();
+    const observed = await f.reader.inspect(f.input);
+    expect(() => assertRecreioClosureInventory(observed, f.input, "dev")).not.toThrow();
+    expect(() =>
+      assertRecreioClosureInventory(structuredClone(observed), f.input, "dev"),
+    ).toThrow();
+    expect(() =>
+      assertRecreioClosureInventory(
+        observed,
+        { ...f.input, operationId: "66e34918-5d55-46b3-baad-571223a8c818" },
+        "dev",
+      ),
+    ).toThrow();
+    expect(() =>
+      assertRecreioClosureInventory(
+        observed,
+        { ...f.input, customerId: "cus_another_owner" },
+        "dev",
+      ),
+    ).toThrow();
+    expect(() => assertRecreioClosureInventory(observed, f.input, "prod")).toThrow();
+    const sub = observed.subscriptions[0];
+    if (!sub) throw new Error("Closed observed subscription absent");
+    sub.stopsAt = new Date("2027-01-01T12:00:00Z");
+    expect(() => assertRecreioClosureInventory(observed, f.input, "dev")).toThrow();
+  });
   it("uses only customer-scoped GETs and returns bounded private verified facts", async () => {
     const f = fixture();
     const observed = await f.reader.inspect(f.input);

@@ -1,6 +1,10 @@
 import { concluirProximaRetirada } from "../../src/features/direitos/conclusao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
 import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
+import {
+  criarProcessadorFinanceiroDoEncerramento,
+  type RuntimeFinanceiroDoEncerramento,
+} from "../../src/features/direitos/encerramento-financeiro-execucao-service";
 import { resumoDaFilaDeDireitos } from "../../src/features/direitos/fila-repository";
 import type { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
@@ -17,6 +21,7 @@ type Config = {
   storage: ReturnType<typeof criarArmazenamentoDoLivro>;
   leitor: LeitorDeFotografiasPrivadas | null;
   politica: { retirarTextosDaFundacao: boolean };
+  obterFinanceiro?: () => RuntimeFinanceiroDoEncerramento;
 };
 /** Uma passagem por etapa, não um daemon ou loop até esvaziar. Cada efeito
  * confere o livro atual, usa sua fila justa e deixa pendências discriminadas.
@@ -35,6 +40,18 @@ export async function processarRodadaDeDireitos(config: Config) {
   });
   const etapas = [
     { nome: "publicacao", executar: () => publicarProximoConsentimento(config) },
+    {
+      nome: "financeiro",
+      executar: criarProcessadorFinanceiroDoEncerramento({
+        livroId: config.assinatura.livroId,
+        obterCoordenacao: efeito,
+        obterRuntime:
+          config.obterFinanceiro ??
+          (() => {
+            throw new Error("Closure financial provider is not configured");
+          }),
+      }),
+    },
     { nome: "recuperacao", executar: () => recuperarProximoDiarioDeDireitos(config) },
     { nome: "drenagem", executar: async () => concluirProximaDrenagem(await efeito()) },
     { nome: "fotografias", executar: () => processarProximaFotografiaDeDireitos(config) },
