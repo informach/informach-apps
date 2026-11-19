@@ -118,8 +118,9 @@ inventário completo vazio e GET ausente; limpeza e sucesso são fatos separados
 O workflow não cancela uma execução em andamento para preservar essa limpeza.
 
 Prova preparada não é prova executada. O bucket dedicado foi provisionado;
-a credencial do runner e a evidência do provedor continuam pendentes, conforme
-o registro operacional abaixo.
+a credencial do runner foi autorizada e a evidência externa foi concluída,
+conforme o registro operacional abaixo. A integração com fotos/exportações e
+backup permanece pendente.
 
 
 ## Gates e estado operacional
@@ -136,9 +137,16 @@ Nome S3 `recreio-homologacao-c0xyqx`, endpoint oficial `t3.storageapi.dev`, regi
 de assinatura `auto` e estilo virtual-host conferidos pela CLI autenticada.
 É somente homologação; nenhuma credencial do Postgres foi lida por essa etapa.
 
-A revisão automática bloqueou a configuração das seis credenciais/valores
-restritos no GitHub Actions, com a única razão `blocked by policy`; a chamada
-não executou. A lista de segredos foi relida e conserva somente os três
-anteriores. A prova real não foi iniciada nem houve upload por este ensaio.
-O titular recebeu uma pergunta sobre autorizar essa configuração restrita;
-não foi solicitado que envie segredos no chat. Trabalho independente continua.
+A primeira revisão automática bloqueou a configuração restrita no GitHub
+Actions (`blocked by policy`), sem executar a chamada. O titular depois
+autorizou explicitamente os seis segredos exclusivos do bucket de homologação;
+foram registrados sem imprimir ou salvar os valores. Nenhuma credencial do
+banco, do portal ou do jogo foi incluída.
+
+A prova real `44433527147`/`df2845fc` concluiu tipos, 26 testes fechados e o job
+externo. Foram comprovados leitura íntegra do envelope, replay, recusa 412 ao
+tentar sobrescrever o próprio objeto, negativa de acesso anônimo e limpeza
+confirmada por inventário completo e GET ausente. O
+[recibo e hash do artefato](evidencias/objetos-provider-44433527147.json) separam
+essa prova de migração de fotos, exportação nativa ou restauração de backup.
+Somente bytes sintéticos foram usados; o objeto de teste foi removido.

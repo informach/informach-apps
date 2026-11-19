@@ -13,9 +13,11 @@
   "qualificationRunId": "44432492043",
   "cryptoTests": 16,
   "sdkClosedHttpTests": 10,
-  "providerProbeExecuted": false,
-  "providerCleanupVerified": false,
+  "providerProbeExecuted": true,
+  "providerCleanupVerified": true,
   "productionDataMoved": false,
-  "actionsCredentialsConfigured": false,
-  "credentialRegistrationReview": "blocked by policy"
+  "actionsCredentialsConfigured": true,
+  "credentialRegistrationReview": "blocked by policy",
+  "credentialRegistrationAuthorizedByOwner": true,
+  "providerProbeRunId": "44433527147"
 }

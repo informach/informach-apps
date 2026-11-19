@@ -68,8 +68,9 @@ em `44427172908`/`8647b310`. Inventário/cadastro e kernel de direitos passaram 
 1155 integrações e cinco HTTP). F7 não está concluído. Nenhum exportador ou exclusão
 foi implantado em produção. Base de cifragem autenticada para objetos em
 candidata, com SDK S3 e 26 testes fechados aprovados. Bucket isolado de
-homologação provisionado; prova externa pendente da credencial do runner,
-cuja configuração foi bloqueada pela revisão automática: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
+homologação provisionado; após autorização explícita da credencial restrita,
+prova externa `44433527147` aprovada com recusa de sobrescrita/acesso anônimo
+e limpeza confirmada. Migração, downloads e backup continuam pendentes: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,

@@ -30,7 +30,8 @@ AES-256-GCM limitado em memória, com contexto autenticado, rotação de chaves 
 referência de integridade. `features/objetos/s3.ts` transporta e relê o envelope
 com prazo/corpo limitados e recuperação separada. Os 26 testes fechados passaram;
 não é armazenamento integrado/implantado nem concede autorização de conteúdo.
-Bucket isolado de homologação provisionado, prova externa ainda pendente.
+Bucket isolado de homologação provisionado; prova externa `44433527147`
+aprovada com escrita condicionada, negativa anônima e limpeza confirmada.
 [Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
 
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;

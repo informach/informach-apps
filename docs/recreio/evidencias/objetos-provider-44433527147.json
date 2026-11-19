@@ -1,0 +1,23 @@
+{
+  "source": "df2845fca0c1fdad1ba5d1376286bbaf4d835d27",
+  "runId": "44433527147",
+  "boundary": "isolated_provider_object",
+  "status": "passed",
+  "bucket": "recreio-homologacao-c0xyqx",
+  "objectKey": "recreio/v1/exportacao/225204bc-ea14-4ac4-ad82-257f6d74f015/0fe7cece067335a86afbb119a346a0489c9f9e15ce45ff63756b1f34aba7284d",
+  "conditionalWriteVerified": true,
+  "cipherIntegrityVerified": true,
+  "replayVerified": true,
+  "anonymousReadDenied": true,
+  "cleanupConfirmed": true,
+  "failure": null,
+  "cleanupFailure": null,
+  "productionDataTouched": false,
+  "artifactId": "14486804553",
+  "zipBytes": 510,
+  "zipSha256": "1b7a7eed1652ed11a2c2ca0e40a2ee23234036d192c6f82e7a2afb9530a6cc3b",
+  "bucketId": "14cbada1-04eb-45cd-be30-94e10e4ba333",
+  "nativeSnapshotMigrationProven": false,
+  "personalExportDownloadProven": false,
+  "scheduledBackupRestoreProven": false
+}
