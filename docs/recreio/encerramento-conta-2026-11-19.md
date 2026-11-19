@@ -72,11 +72,20 @@ canônicos v1 continuam iguais e suas prévias não ganham autoridade financeira
 O registro de preparação e a intenção mantêm seu próprio formato v1, separado
 da versão do conteúdo do plano. Não há alteração de DDL neste codec.
 
-A composição nativa ainda produz v1; este incremento não confirma encerramento,
-não chama Stripe e não muda participação. Seguem leitor financeiro próprio,
-preparação completa sob ciclo, confirmação/outbox e executor financeiro com
-recibos recuperáveis. Tentativa já admitida ou fato desconhecido não pode ser
-tratado como autorização nunca enviada ou ausência de cobrança.
+A composição pública ainda produz v1. O preparador privado v2 conserva ciclo
+financeiro antes da TX e login nativo recente, usa a mesma seleção de perfis/
+mundos e limita as autorizações não enviadas. Cliente e Checkout vêm do reader
+`@informach/billing/recreio-account-closure`, escopado por app/pagante. Namespace
+diferente, tentativa iniciada, revisão pendente ou Checkout sem origem nativa
+correspondente exigem conciliação. Nada disso é interpretado como ausência de
+efeito remoto. O plano privado é persistido uma vez; mudança posterior marca
+a prévia desatualizada e exige outra, sem reescrever os bytes anteriores.
+
+Esse incremento não confirma encerramento, não chama Stripe e não muda
+participação. Seguem confirmação/outbox, tratamento recuperável das pendências
+e executor financeiro com recibos. A interrupção da renovação precisa também
+impedir que uma capacidade antiga do portal financeiro a reative; esse caminho
+deve ser qualificado antes de compor a confirmação pública.
 
 ### Barreira de participação em implementação
 

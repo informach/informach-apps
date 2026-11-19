@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
+import type { StripeMode } from "@informach/config";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioGuardianLinks as guardians,
@@ -14,18 +15,23 @@ import {
 } from "@informach/db/schema";
 import {
   type AutorNativoRecente,
+  autorizarContaNativa,
   autorizarContaNativaParaDireitos,
   lerContaNativa,
 } from "@/features/account/autoridade-repository";
 import { exigirParticipacaoAtivaLocked } from "@/features/account/participacao-repository";
+import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import { lerFinanceiroDoEncerramentoLocked } from "./encerramento-financeiro-repository";
 import { mesmoEscopoDeDireitos } from "./escopo";
 import {
   apresentarPlanoDeDireitos,
   type PedidoDePreparacaoDeDireitos,
   type PlanoDeDireitos,
   PlanoDeDireitosSchema,
+  PlanoDeDireitosV1Schema,
+  PlanoDeEncerramentoSchema,
   type ReferenciaDaPreparacao,
 } from "./preparacao-contrato";
 
@@ -73,6 +79,7 @@ export async function montarPlanoDeDireitos(
   tx: Transacao,
   autor: AutorNativoRecente,
   pedido: PedidoDePreparacaoDeDireitos,
+  financeiro?: StripeMode,
 ): Promise<PlanoDeDireitos> {
   await lerContaNativa(tx, autor.contaId);
   // Ordem comum da autoridade: conta → adulto próprio → alvos → responsáveis → aparelho.
@@ -164,7 +171,7 @@ export async function montarPlanoDeDireitos(
   assertAllowed(linhas.length <= 512, "LIMITE", "Este pedido exige preparação pelo suporte.");
   const nativa = await autorizarContaNativaParaDireitos(tx, autor);
   await nativa.conferirPrazo(autor.login);
-  return PlanoDeDireitosSchema.parse({
+  const base = PlanoDeDireitosV1Schema.parse({
     formato: "recreio-previa-direitos-v1",
     tipo: pedido.tipo,
     contaId: autor.contaId,
@@ -179,6 +186,25 @@ export async function montarPlanoDeDireitos(
     identidadeGlobalPreservada: true,
     financeiroSeparado: true,
   });
+  if (financeiro === undefined) return base;
+  assertAllowed(
+    pedido.tipo === "encerrar_conta",
+    "ESCOPO",
+    "O plano financeiro é exclusivo do encerramento.",
+  );
+  const ativa = await autorizarContaNativa(tx, autor);
+  await ativa.conferirPrazo(autor.login);
+  const escopoFinanceiro = await lerFinanceiroDoEncerramentoLocked(tx, autor, financeiro);
+  return PlanoDeEncerramentoSchema.parse({
+    formato: "recreio-previa-encerramento-v2",
+    tipo: "encerrar_conta",
+    contaId: base.contaId,
+    perfis: base.perfis,
+    mundos: base.mundos,
+    identidadeGlobalPreservada: true,
+    revisaoDaParticipacao: ativa.participacao.revisao,
+    financeiro: escopoFinanceiro,
+  });
 }
 
 async function limitarTransacao(tx: Transacao) {
@@ -187,13 +213,14 @@ async function limitarTransacao(tx: Transacao) {
   await tx.execute(sql`set local transaction_timeout='15s'`);
 }
 
-export function prepararDireitosNoBanco(
+function prepararDireitosComModoNoBanco(
   autor: AutorNativoRecente,
   pedido: PedidoDePreparacaoDeDireitos,
+  financeiro?: StripeMode,
 ) {
   return db.transaction(async (tx) => {
     await limitarTransacao(tx);
-    const plano = await montarPlanoDeDireitos(tx, autor, pedido);
+    const plano = await montarPlanoDeDireitos(tx, autor, pedido, financeiro);
     const planoSha256 = SHA(plano);
     const [existente] = await tx
       .select()
@@ -265,6 +292,31 @@ export function prepararDireitosNoBanco(
     const conferidoEm = await nativa.conferirPrazo(autor.login);
     return recibo(linha, plano, conferidoEm, false);
   });
+}
+
+/** API legada: retirada e prévia de encerramento sem efeitos financeiros. */
+export function prepararDireitosNoBanco(
+  autor: AutorNativoRecente,
+  pedido: PedidoDePreparacaoDeDireitos,
+) {
+  return prepararDireitosComModoNoBanco(autor, pedido);
+}
+
+/** Composição privada v2. O modo vem do servidor, nunca do pedido; nenhuma
+ * action pública usa este protocolo antes da confirmação/executor completos. */
+export function prepararEncerramentoNoBanco(
+  autor: AutorNativoRecente,
+  pedido: PedidoDePreparacaoDeDireitos,
+  modo: StripeMode,
+) {
+  assertAllowed(
+    pedido.tipo === "encerrar_conta",
+    "ESCOPO",
+    "Selecione o encerramento da participação.",
+  );
+  return comCicloDeCobranca(autor.contaId, () =>
+    prepararDireitosComModoNoBanco(autor, pedido, modo),
+  );
 }
 
 /** Cancelamento só da prévia. Nenhuma intenção externa ou exclusão é produzida

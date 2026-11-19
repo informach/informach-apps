@@ -24,6 +24,7 @@
     "./legacy-contracts": "./src/legacy-contracts.ts",
     "./privacy": "./src/privacy.ts",
     "./recreio-personal-records": "./src/recreio-personal-records.ts",
+    "./recreio-account-closure": "./src/recreio-account-closure.ts",
     "./departure": "./src/departure.ts",
     "./closure": "./src/closure.ts",
     "./collection-jobs": "./src/collection-jobs.ts",

@@ -4,6 +4,14 @@
 
 ## Recreio: dados pessoais financeiros em candidata (19/11/2026)
 
+`recreio-account-closure` fornece somente a origem comercial privada do próprio
+pagante `user` do app `recreio`: cliente Stripe e referência mínima de Checkout.
+Não retorna email, payload, URLs ou metadados; exige que o chamador conserve o
+ciclo financeiro e a identidade nativa. Um Checkout atribuído a outro usuário
+exige conferência. Único consumidor: preparador de encerramento do Recreio,
+ainda candidato. Não cancela, não decide acesso e não prova ausência de efeitos
+no provedor. Os consumidores existentes não são alterados por esse subpath.
+
 `recreio-personal-records` projeta páginas de assinaturas/períodos do próprio
 cliente `user` do app `recreio`, em transação fornecida pelo coordenador nativo.
 Não é decisão de acesso, não consulta por grupo familiar e não inclui metadados
