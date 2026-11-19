@@ -331,3 +331,27 @@ recorrente contra PUT tardio, proteção de capturas de backup, prova nativa no
 bucket real, migração aditiva e rollback com devolução explícita dos bytes a PG.
 Depois de mover bytes, desligar o leitor ou voltar para a fonte antiga não é
 rollback válido. Nenhum dado de produção foi movido.
+
+
+## Prova nativa no provedor preparada
+
+O workflow de objetos ganha uma entrada manual separada para combinar o executor
+nativo e o bucket real já autorizado com um PostgreSQL 18 descartável no GitHub.
+As seis credenciais existentes continuam restritas ao mesmo bucket; não há
+credencial de banco ou jogo de produção. O script só admite GitHub Actions,
+banco `recreio_object_probe` em `127.0.0.1:5432` e o ID/nome/endpoint exatos da
+homologação conferida. Não usa seeds, família ou perfil real.
+
+O mundo e a posse são fixtures técnicas explícitas. A preparação e a entrega
+usam funções nativas, bytes sintéticos e chave AES descartável. A prova simula
+perda da resposta entre o upload/leitura real e a confirmação no banco; conserva
+PG/envelope, aguarda os cinco minutos persistidos sem alterar o relógio e repete
+a mesma entrega. Depois confere ponteiro/recibo, usa o leitor da composição
+servidora real e comprova a negativa da posse revogada. A limpeza é admitida por
+recibo técnico antes do PUT e remove somente a chave sintética própria, exigindo
+inventário vazio e GET ausente. Cancelamento automático permanece desativado.
+
+A prova ainda precisa executar; não é backup, jornada familiar, compra nem
+homologação de um jogo. Não migra ou restaura dados de produção. O inventário
+Railway foi relido: 34 serviços, um bucket de homologação e nenhuma alteração
+operacional pendente nesta preparação.
