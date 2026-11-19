@@ -240,7 +240,9 @@ export async function provarClusterFrio(
     }
     const falha = FalhaDaRecuperacaoSchema.safeParse(diagnostico);
     throw new FalhaDaProva(
-      falha.success ? `CLUSTER_FRIO_${falha.data.codigo}` : "CLUSTER_FRIO_NAO_CONFIRMADO",
+      falha.success
+        ? `CLUSTER_FRIO_${falha.data.etapa}_${falha.data.codigo}`
+        : "CLUSTER_FRIO_NAO_CONFIRMADO",
     );
   }
   const recibo = Recibo.parse(JSON.parse(saida.trim()));

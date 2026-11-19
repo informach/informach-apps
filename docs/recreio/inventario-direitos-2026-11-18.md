@@ -162,3 +162,20 @@ parcial da coleta por destino/estado/prazo. Não acrescenta tabela nem apaga
 recibos. Encerramento/ledger F7 precisam coordenar retirada de arquivos,
 índices/tombstones e bytes privados sem apagar esses fatos técnicos por cascata.
 A geração das duas migrations ocorreu no GitHub; nenhuma foi implantada.
+
+## Incrementos candidatos 0221–0223
+
+O snapshot 0223 `973b0917-1962-44ab-b959-c5e5d24cd013` contém 68 tabelas
+Recreio e 147 FKs. 0221 acrescenta `backup_retirements` e o controle de
+admissão `backup_captures.protocol_version`; 0222 conserva a publicação por
+FK RESTRICT na retirada. A tabela de retirada retém motivo, destino, bytes
+assinados do marcador, tentativa e datas de confirmação/rechecagem. Não pode
+ser apagada para fazer parecer que não houve arquivo ou intenção restritiva.
+
+0223 acrescenta quarentena com data/estado anterior às entregas restauradas.
+A transformação offline devolve fotos autenticadas a PG, destaca os recibos de
+origem e desabilita admissão dos controles antigos; preserva evidências em vez
+de operar o bucket vivo. Não normaliza autoridades, não reaplica exclusões e
+não torna o banco apto ao tráfego. Ledger F7 e retenção precisam compor todas
+as capturas, publicações e retiradas; UUIDs/hashes continuam dados vinculáveis.
+Nenhuma dessas migrations foi aplicada em produção.

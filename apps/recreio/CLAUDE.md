@@ -37,8 +37,13 @@ aprovada com escrita condicionada, negativa anônima e limpeza confirmada.
 A prova nativa `44444276302` combinou o executor, PostgreSQL descartável e o
 bucket real, com espera persistida de cinco minutos, leitura pela composição
 servidora, revogação e limpeza confirmadas. `RECREIO_OBJECTS_MODE` nasce `off`
-e só admite `read`; nenhum job ou modo de migração foi habilitado. Faltam coleta,
-backup cifrado/guardado/restaurado, proteção de captura e corte.
+e só admite `read`; nenhum job ou modo de migração foi habilitado. Em candidatas
+posteriores, captura protegida, publicação durável, coleta e retirada restritas
+passaram em banco descartável e no bucket de homologação. A recuperação em
+cluster novo e a normalização offline de fotos também têm prova sintética.
+Custódia real, autoridades, replay de direitos, agenda, RPO/RTO e corte continuam
+abertos. Confira fontes e limites no [protocolo F8](../../docs/recreio/backup-e-retirada-2026-11-19.md)
+e na [normalização offline](../../docs/recreio/normalizacao-recuperacao-2026-11-19.md).
 [Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
 
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;

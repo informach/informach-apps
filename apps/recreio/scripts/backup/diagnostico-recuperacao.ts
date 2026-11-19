@@ -3,8 +3,34 @@ import { z } from "zod";
  * nomes de arquivo, parâmetros, conteúdo ou chaves através deste recibo. */
 export const FalhaDaRecuperacaoSchema = z.strictObject({
   ok: z.literal(false),
+  etapa: z.enum([
+    "LEITURA",
+    "CONEXAO_DE_INSPECAO",
+    "MANIFESTO",
+    "INJETAR_QUEDA",
+    "ENCERRAR_CLIENTE",
+    "REMOVER_SONDA",
+    "CONFERIR_ROLLBACK",
+    "NORMALIZAR",
+    "CORROMPER_FOTO",
+    "RECUSAR_CORRUPCAO",
+    "REPETIR",
+    "LIMPEZA",
+  ]),
   codigo: z.enum([
     "EXECUTOR",
+    "CONFIGURACAO_INVALIDA",
+    "PROVA_MANIFESTO_DIVERGENTE_ADMITIDO",
+    "PROVA_QUEDA_DE_CONEXAO_NAO_EXERCITADA",
+    "PROVA_SEM_FOTOGRAFIA",
+    "PROVA_FOTOGRAFIA_NORMALIZADA_AUSENTE",
+    "PROVA_CORRUPCAO_SOBRESCRITA",
+    "PROVA_NORMALIZACAO_NAO_REPETIVEL",
+    "INVENTARIO_FORMATO_DIVERGENTE",
+    "INVENTARIO_VERSAO_DIVERGENTE",
+    "INVENTARIO_ESTRUTURA_DIVERGENTE",
+    "INVENTARIO_DADOS_DIVERGENTES",
+    "INVENTARIO_CATALOGO_NAO_SUPORTADO",
     "LIMPEZA",
     "NORMAL_DESTINO_NAO_PRIVADO",
     "NORMAL_PERFIL_NAO_SUPORTADO",
@@ -26,3 +52,4 @@ export const FalhaDaRecuperacaoSchema = z.strictObject({
   clusterCleanupConfirmed: z.boolean(),
 });
 export type CodigoDaRecuperacao = z.infer<typeof FalhaDaRecuperacaoSchema>["codigo"];
+export type EtapaDaRecuperacao = z.infer<typeof FalhaDaRecuperacaoSchema>["etapa"];

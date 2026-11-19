@@ -61,3 +61,11 @@ encerra só o próprio token e agenda repetição em cinco minutos. O scanner
 read-only traz no máximo vinte IDs do destino e revalida cada tentativa.
 Reconferência preserva datas diretamente em SQL, sem regravar Date truncado.
 As 0221/0222 foram geradas no GitHub e adotadas intactas; ainda sem implantação.
+
+A integração `44496294753`/`28be0753` passou: 1.309 casos PostgreSQL,
+dezesseis nativos e cinco HTTP, além dos upgrades. A composição externa
+`44497283983`/`2fb385a6` confirmou retirada durável do arquivo, recusa de
+leitura anônima antes de retirá-lo, restauração em cluster novo e limpeza
+dos quatro objetos sintéticos. ZIP conferido por tamanho/SHA; recibo em
+[evidência](evidencias/captura-provider-44497283983.json). Não qualifica
+retenção/agenda operacional de produção nem normaliza autoridades.

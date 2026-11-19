@@ -1,0 +1,73 @@
+{
+  "source": "44281736085166cb9395a0abb1230178850e15b4",
+  "runId": 44492285054,
+  "status": "passed",
+  "jobs": [
+    {
+      "jobId": 135450697247,
+      "name": "Recreio / trial-experiment"
+    },
+    {
+      "jobId": 135450697599,
+      "name": "Recreio / checkpoint"
+    },
+    {
+      "jobId": 135450697620,
+      "name": "Recreio / integration"
+    },
+    {
+      "jobId": 135450697659,
+      "name": "Recreio / trial-play"
+    },
+    {
+      "jobId": 135450697702,
+      "name": "Recreio / equipe"
+    },
+    {
+      "jobId": 135450697716,
+      "name": "Recreio / trial-setup"
+    },
+    {
+      "jobId": 135450697731,
+      "name": "Recreio / quality"
+    },
+    {
+      "jobId": 135450697750,
+      "name": "Recreio / e2e"
+    },
+    {
+      "jobId": 135450697751,
+      "name": "Recreio / versoes"
+    },
+    {
+      "jobId": 135450697762,
+      "name": "Recreio / cliente"
+    },
+    {
+      "jobId": 135450697879,
+      "name": "Recreio / commercial-setup"
+    },
+    {
+      "jobId": 135450697930,
+      "name": "Recreio / commercial-checkout"
+    },
+    {
+      "jobId": 135450697948,
+      "name": "Recreio / longa"
+    },
+    {
+      "jobId": 135450697949,
+      "name": "Recreio / commercial-ui"
+    },
+    {
+      "jobId": 135450697955,
+      "name": "Recreio / trial-ui"
+    },
+    {
+      "jobId": 135450697983,
+      "name": "Recreio / commercial-reconciliation"
+    }
+  ],
+  "productionApplied": false,
+  "scopeLimit": "Sixteen platform gates for publication, native collection and fresh recovery before subsequent retirement/quarantine changes. Not commercial external Checkout, production qualification or later sources."
+}

@@ -125,9 +125,18 @@ Publicação durável e coleta restrita passaram em `44489934715` (1.289 casos
 PostgreSQL, dezesseis nativos, cinco HTTP); a composição no bucket real passou
 em `44491770523`/`44281736`, com retomada, liberação de reservas, coleta da foto,
 recuperação em cluster novo e limpeza. 0220 amplia lease para tombstone e
-acrescenta índice parcial; 221 recibos candidatos, sem implantação. Dezesseis
-gates e CI compartilhado dessa fonte estão em execução. Abandono conciliado,
-retirada durável do arquivo, custódia, replay F7, agenda e RPO/RTO continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
+acrescenta índice parcial; sem implantação. Os dezesseis gates dessa fonte
+passaram em `44492285054`; o CI compartilhado `44492289805` ainda estava em
+execução na última leitura. Incrementos posteriores exigem seus próprios gates.
+0219–0223 totalizam 224 recibos candidatos. Retirada durável/abandono e FK
+restritiva 0221/0222 passaram em `44496294753` (1.309 PostgreSQL, dezesseis
+nativos e cinco HTTP), e no bucket real em `44497283983`/`2fb385a6`, com
+limpeza confirmada. Quarentena 0223 e normalização offline das fotos passaram
+em `44501616990`/`f9b6727b`, sem credencial da origem e sem referência bucket
+restante. A comparação integral precede essa transformação. A injeção posterior
+de queda de conexão falhou com `SQL_57P01`; correção da prova em verificação
+remota. Custódia, normalização de autoridades, replay F7, agenda e RPO/RTO
+continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
 e [publicação durável](recreio/publicacao-duravel-2026-11-19.md).
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
