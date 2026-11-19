@@ -117,3 +117,27 @@ concorrência captura/retenção/coleta, reinício após cada etapa, objeto ause
 PUT tardio, arquivo truncado/corrompido, chave indisponível e restauração do
 objeto guardado. O ensaio lógico manual já concluído continua como evidência
 própria; não substitui essas entregas.
+
+
+## Primeiro incremento em qualificação
+
+`arquivo-cifrado.ts` introduz um formato próprio de arquivo (distinto do
+envelope em memória das fotografias): AES-256-GCM, IV de 96 bits, tag de 128,
+cabeçalho de até 768 bytes com contexto da captura e referência estrita de
+integridade. A capacidade técnica aceita até 64 GiB, com teto menor por
+composição e prazo por operação. Esse teto não demonstra capacidade ou RTO
+medidos no executor.
+
+Cifragem faz inventário prévio e uma segunda leitura por blocos de 64 KiB,
+verificando que a origem permaneceu igual. Abertura confere ciphertext antes e
+durante a decifragem, tag, SHA/tamanho abertos e identidade do arquivo. Os
+handles não são fechados pelo codec. Destino preexistente/alias/hardlink é
+recusado; saída parcial admitida é truncada e sincronizada na falha. Cancelamento
+não publica arquivo, e erros não incluem caminhos/chaves/conteúdo.
+
+Os testes com arquivos reais incluem vazios/binários, rotação, adulteração com
+hash externo recalculado, chave/contexto divergentes, truncamento, preservação
+dos originais e alteração/cancelamento durante a escrita. Só o GitHub executa
+esses testes, inclusive o caso sintético de 32 MiB. Faltam seus gates, perfil de
+memória/desempenho, transporte de arquivo, reservas de captura e o restante do
+fluxo. Nenhum backup ou objeto de produção usa esse formato nesta etapa.
