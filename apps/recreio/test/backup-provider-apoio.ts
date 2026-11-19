@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Readable } from "node:stream";
+import { finished } from "node:stream/promises";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -102,6 +103,8 @@ export async function criarBucketDaMontagem() {
     authoritiesNormalizedForTraffic: false,
     durableCaptureFinalized: false,
     nativeCollectionVerified: false,
+    durableArchiveRetirementVerified: false,
+    archiveAnonymousReadDenied: false,
   };
   let frio: ReciboDoClusterFrio | undefined;
   const guardar = async () => {
@@ -204,27 +207,62 @@ export async function criarBucketDaMontagem() {
     recibo.durableCaptureFinalized = true;
     await guardar();
   }
+  function arquivoDaCaptura(id: string) {
+    exigir(z.uuid().safeParse(id).success, "CAPTURA_INVALIDA");
+    const lista = [...chaves].filter(
+      (k) =>
+        k.startsWith(`recreio/v1/backup/${id}/`) &&
+        /^[a-f0-9]{64}$/.test(k.split("/").at(-1) ?? ""),
+    );
+    exigir(lista.length === 1 && lista[0], "ARQUIVO_FORA_DO_ESCOPO");
+    return lista[0];
+  }
+  async function negativaAnonima(key: string) {
+    exigir(chaves.has(key), "CHAVE_FORA_DO_ESCOPO");
+    if (!externa || !endpoint) return;
+    const url = new URL(endpoint.origin);
+    if (estilo) url.pathname = `/${destino.bucketName}/${key}`;
+    else {
+      url.hostname = `${destino.bucketName}.${endpoint.hostname}`;
+      url.pathname = `/${key}`;
+    }
+    const r = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(15000) });
+    try {
+      exigir([401, 403, 404].includes(r.status), "LEITURA_ANONIMA_PERMITIDA");
+    } finally {
+      await r.body?.cancel();
+    }
+  }
+  async function confirmarArquivoPrivado(id: string) {
+    const key = arquivoDaCaptura(id),
+      r = await cliente.send(new GetObjectCommand({ Bucket: destino.bucketName, Key: key }), {
+        abortSignal: AbortSignal.timeout(15000),
+      }),
+      body = r.Body;
+    exigir(body instanceof Readable, "ARQUIVO_SEM_CORPO");
+    const fim = finished(body).catch(() => undefined);
+    body.destroy();
+    await fim;
+    exigir(r.$metadata.httpStatusCode === 200, "ARQUIVO_NAO_PRESENTE");
+    await negativaAnonima(key);
+    recibo.archiveAnonymousReadDenied = externa;
+    await guardar();
+  }
+  async function confirmarRetiradaDuravel(id: string) {
+    await ausencia(arquivoDaCaptura(id));
+    recibo.durableArchiveRetirementVerified = true;
+    await guardar();
+  }
   async function concluir() {
     exigir(recibo.durableCaptureFinalized, "PUBLICACAO_DURAVEL_AUSENTE");
     exigir(recibo.nativeCollectionVerified, "COLETA_NATIVA_AUSENTE");
+    exigir(recibo.durableArchiveRetirementVerified, "RETIRADA_DURAVEL_AUSENTE");
+    exigir(!externa || recibo.archiveAnonymousReadDenied, "PRIVACIDADE_DO_ARQUIVO_AUSENTE");
     exigir(process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE !== "1" || frio, "CLUSTER_FRIO_AUSENTE");
     exigir(chaves.size === 4 && prefixos.size === 2, "INVENTARIO_DA_PROVA_DIVERGENTE");
-    if (externa && endpoint) {
-      for (const key of chaves) {
-        if (!key.startsWith("recreio/v1/backup/")) continue;
-        const url = new URL(endpoint.origin);
-        if (estilo) url.pathname = `/${destino.bucketName}/${key}`;
-        else {
-          url.hostname = `${destino.bucketName}.${endpoint.hostname}`;
-          url.pathname = `/${key}`;
-        }
-        const r = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(15_000) });
-        try {
-          exigir([401, 403, 404].includes(r.status), "LEITURA_ANONIMA_PERMITIDA");
-        } finally {
-          await r.body?.cancel();
-        }
-      }
+    if (externa) {
+      for (const key of chaves)
+        if (key.startsWith("recreio/v1/backup/")) await negativaAnonima(key);
       recibo.anonymousReadDenied = true;
     }
     recibo.nativeRecoveryVerified = true;
@@ -289,6 +327,8 @@ export async function criarBucketDaMontagem() {
     confirmarAusenciaDaFoto,
     confirmarClusterFrio,
     confirmarPublicacaoDuravel,
+    confirmarArquivoPrivado,
+    confirmarRetiradaDuravel,
     concluir,
     fechar,
   };

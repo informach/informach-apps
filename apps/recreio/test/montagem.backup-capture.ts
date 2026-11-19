@@ -19,6 +19,9 @@ import {
   prepararPublicacao,
 } from "../scripts/backup/publicacao-repository";
 import { publicarCapturaGuardada } from "../scripts/backup/publicar-captura";
+import { prepararRetirada } from "../scripts/backup/retirada-repository";
+import { criarRetiradaDoBackupS3 } from "../scripts/backup/retirada-s3";
+import { retirarCapturaGuardada } from "../scripts/backup/retirar-captura";
 import { novoJogador } from "./apoio";
 import { conexao, restaurar, temporarios } from "./backup-arquivos-apoio";
 import { provarClusterFrio } from "./backup-cluster-frio-apoio";
@@ -207,6 +210,7 @@ it(
           from recreio.backup_captures c join recreio.backup_publications p on p.capture_id=c.id where c.id=${ref.contexto.id}`;
         expect(controle).toEqual({ captura: "verified", publicacao: "published", ativas: 0 });
         await s3.confirmarPublicacaoDuravel(ref.contexto.id);
+        await s3.confirmarArquivoPrivado(ref.contexto.id);
         const republicacao = await indices.recuperar(ref.contexto.id);
         await indices.publicar(republicacao.bytes, ref.contexto.id); // Replay pelo 412.
         for (const h of [conferido, abertoPublicacao]) {
@@ -281,16 +285,30 @@ it(
           ).toBe(true);
           const frio = await provarClusterFrio(ref.contexto.id, mestre, "backup-v2");
           await s3.confirmarClusterFrio(frio);
-          const retirada = indice.assinar({
-            tipo: "retirado",
-            capturaId: ref.contexto.id,
-            destino,
-            source: process.env.GITHUB_SHA,
-            registradaEm: "2026-11-19T00:02:00.000Z",
-            arquivoSha256Cifrado: ref.sha256Cifrado,
-            motivo: "retencao",
+          const retirada = await prepararRetirada(ref.contexto.id, "retencao", indice),
+            transporteDaRetirada = criarRetiradaDoBackupS3({
+              cliente: s3.cliente,
+              destino,
+              indice,
+              tempoLimiteMs: 10000,
+            });
+          await retirarCapturaGuardada({
+            tentativa: retirada,
+            indice,
+            indices,
+            transporte: transporteDaRetirada,
           });
-          await indices.registrarRetirada(retirada, ref.contexto.id);
+          const [controleRetirado] =
+            await fonte`select r.state as retirada,r.first_absence_at is not null as ausente,
+            c.state as captura,c.verified_at is not null as verificada from recreio.backup_retirements r
+            join recreio.backup_captures c on c.id=r.capture_id where c.id=${ref.contexto.id}`;
+          expect(controleRetirado).toEqual({
+            retirada: "absent",
+            ausente: true,
+            captura: "verified",
+            verificada: true,
+          });
+          await s3.confirmarRetiradaDuravel(ref.contexto.id);
           await expect(indices.recuperar(ref.contexto.id)).rejects.toMatchObject({
             codigo: "RETIRADO",
           });
