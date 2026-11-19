@@ -52,3 +52,22 @@ Primeira candidata `c91d481d`/`44423417693`: recusada no typecheck, antes de
 criar recursos. O ensaio usava `null` onde o adapter recebe ID opcional e
 omitia `mode` na fábrica de agendas; corrigido o chamador, sem afrouxar os
 tipos do provider. A prova de API ainda precisa executar.
+
+## Resultado da matriz externa
+
+A fonte `7eb50298b6c7801155319a26d301de38bb14db25` passou em
+[44424201569](https://github.com/informach/informach-apps/actions/runs/44424201569):
+as doze direções foram comprovadas e os doze conjuntos de recursos tiveram
+limpeza confirmada. Aumentos conservaram replay da fatura e propagação do estorno
+à prova dependente; reduções conservaram a oferta até a fronteira e financiaram
+a renovação por captura própria, apesar do estorno anterior. O
+[recibo e hash do artefato](evidencias/matriz-trocas-api-44424201569.json) registram
+a fronteira de API de teste, sem reivindicar Checkout ou webhook nativos.
+
+Na mesma fonte, quality `44424195557` e navegador comercial `44424191368`
+passaram. São quatro jornadas anteriores de compra e duas de troca; as capturas
+390 px de cotação, autorização e crédito foram inspecionadas. O ajuste que
+recarrega recibos após uma mutação corrigiu a navegação na mesma âncora; CSP
+permanece sem `unsafe-eval`. Fixtures SQL das telas não constituem pagamento.
+Rodada integral `44426286901` iniciada; CI compartilhado `44424819941` ainda
+precisa concluir. Nada desta etapa foi implantado ou ativado em produção.

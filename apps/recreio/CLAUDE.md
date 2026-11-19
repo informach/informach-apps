@@ -18,6 +18,12 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 
 ## Camadas
 
+Na candidata F7, `features/direitos` prepara somente o recorte pessoal de
+progresso/versões/conflitos/conquistas por perfil/jogo. Não é exportação completa
+ou download publicado. Usa autoridade nativa recente própria ou responsabilidade
+explícita, independente de assinatura e gameplay; mutex dos dados antes do
+aparelho, integridade e auditoria estritas. [Escopo e pendências](../../docs/recreio/direitos-implementacao-2026-11-18.md).
+
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
 o layout não exige jogador. Estante e mundos adultos conferem `paginaDoPortal`
 por página; a página do jogo usa `paginaDoJogador`, com referência restrita

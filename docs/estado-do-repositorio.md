@@ -56,7 +56,14 @@ Consulta/actions de trocas em `8d0e7f46`: quality `44416858086` e 112 casos em
 `44416863303` aprovados. API de teste entre dois contratos comprovada com limpeza
 em `44409975899`. Rodada integral `44415248464`: quinze gates aprovados, uma
 fixture de retenção recusada e corrigida; falta rodada integral da fonte final.
-Telas de cotação/aceite/envio em candidata para prova de navegador.
+Telas de cotação/aceite/envio passaram em `44424191368`/`7eb50298` (quatro
+jornadas de compra e duas de troca, capturas mobile inspecionadas); quality
+`44424195557` aprovado. Matriz de APIs reais de teste `44424201569`: doze
+direções aprovadas, incluindo crédito/estorno, limpeza de todos os recursos
+confirmada. Não é Checkout ou webhook nativos. Rodada integral `44426286901`
+e CI compartilhado `44424819941` em curso. Preparação de F7 no
+[levantamento de direitos](recreio/direitos-implementacao-2026-11-18.md); nenhum
+exportador ou exclusão foi implantado por esse documento.
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,

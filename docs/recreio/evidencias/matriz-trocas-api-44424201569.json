@@ -1,0 +1,113 @@
+{
+  "source": "7eb50298b6c7801155319a26d301de38bb14db25",
+  "boundary": "provider_api_test_clock",
+  "mode": "dev",
+  "directionsVerified": 12,
+  "cleanupConfirmed": true,
+  "nativeCheckoutCompleted": false,
+  "nativePlanChangeAccepted": false,
+  "nativeGameAccessProven": false,
+  "providerWebhookDeliveryProven": false,
+  "runId": "44424201569",
+  "artifactId": "14484680269",
+  "zipBytes": 2168,
+  "zipSha256": "955f0f2d9247678066dd1f42e8c3be676fc34df40f52257140226901c88e81b8",
+  "directions": [
+    {
+      "fromProductId": "recreio_individual_monthly",
+      "toProductId": "recreio_individual_annual",
+      "kind": "upgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": true,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_individual_monthly",
+      "toProductId": "recreio_family_monthly",
+      "kind": "upgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": true,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_individual_monthly",
+      "toProductId": "recreio_family_annual",
+      "kind": "upgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": true,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_individual_annual",
+      "toProductId": "recreio_individual_monthly",
+      "kind": "downgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": false,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_individual_annual",
+      "toProductId": "recreio_family_monthly",
+      "kind": "upgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": true,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_individual_annual",
+      "toProductId": "recreio_family_annual",
+      "kind": "upgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": true,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_family_monthly",
+      "toProductId": "recreio_individual_monthly",
+      "kind": "downgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": false,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_family_monthly",
+      "toProductId": "recreio_individual_annual",
+      "kind": "downgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": false,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_family_monthly",
+      "toProductId": "recreio_family_annual",
+      "kind": "upgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": true,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_family_annual",
+      "toProductId": "recreio_individual_monthly",
+      "kind": "downgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": false,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_family_annual",
+      "toProductId": "recreio_individual_annual",
+      "kind": "downgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": false,
+      "cleanupConfirmed": true
+    },
+    {
+      "fromProductId": "recreio_family_annual",
+      "toProductId": "recreio_family_monthly",
+      "kind": "downgrade",
+      "targetFundingVerified": true,
+      "sourceRefundRevokesTarget": false,
+      "cleanupConfirmed": true
+    }
+  ]
+}
