@@ -15,6 +15,11 @@ somente `cancel_at_period_end`. Data anterior é preservada; agenda/troca ainda
 pendente requer conciliação original. Observação não concede acesso. Casos HTTP
 novos ainda aguardam gate. Não há action, tela ou worker compostos.
 
+44619419508/37bec465 apontou falhas de estreitamento TypeScript no provider:
+o helper que lança erro precisava de declaração de função explícita para que
+o compilador reconhecesse os ramos inalcançáveis. Corrigido sem assertions,
+casts ou redução das conferências; a rodada original permanece reprovada.
+
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
 todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já

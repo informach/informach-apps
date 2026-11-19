@@ -34,9 +34,9 @@ export type RecreioRenewalProvider = {
 export const recreioRenewalKey = (intentId: string) => `recreio:renewal:${intentId}:stop`;
 const resourceId = (value: string | { id: string } | null) =>
   typeof value === "string" ? value : value?.id;
-const review = (code: RecreioRenewalReviewCode): never => {
+function review(code: RecreioRenewalReviewCode): never {
   throw new RecreioRenewalReviewError(code);
-};
+}
 const opaque = (value: string, prefix: string) =>
   new RegExp(`^${prefix}_[A-Za-z0-9_]{3,124}$`).test(value);
 
