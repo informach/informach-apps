@@ -78,6 +78,24 @@ function fixture() {
 type Fixture = ReturnType<typeof fixture>;
 
 describe("native plan management portal boundary", () => {
+  it("restricts the portal to invoices/payment when native renewal cancellation is explicitly selected", async () => {
+    const f = fixture();
+    const native = { ...policy, renewalCancellation: "application" as const };
+    await expect(f.reader.verifyCatalog(f.products, "dev", "bpc_recreio", native)).rejects.toThrow(
+      "native plan",
+    );
+    f.portal.features.subscription_cancel.enabled = false;
+    await expect(
+      f.reader.verifyCatalog(f.products, "dev", "bpc_recreio", native),
+    ).resolves.toBeUndefined();
+    await expect(f.reader.verifyCatalog(f.products, "dev", "bpc_recreio", policy)).rejects.toThrow(
+      "native plan",
+    );
+    f.portal.features.subscription_update.enabled = true;
+    await expect(f.reader.verifyCatalog(f.products, "dev", "bpc_recreio", native)).rejects.toThrow(
+      "native plan",
+    );
+  });
   it("accepts four approved prices in two products with plan changes kept in the app", async () => {
     const f = fixture();
     await expect(

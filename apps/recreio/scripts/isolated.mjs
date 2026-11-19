@@ -148,6 +148,9 @@ const testEnv = {
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
   RECREIO_FINANCIAL_JOBS_MODE: "off",
+  RECREIO_RENEWAL_JOBS_MODE: jornadaDasTrocas ? "on" : "off",
+  RECREIO_PORTAL_RENEWAL_MODE: jornadaDasTrocas ? "native" : "legacy",
+  NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA: process.env.GITHUB_SHA ?? "0".repeat(40),
   RECREIO_TRIAL_MODE:
     trialExperiment || jornadaDoInicio || commercialSetup || commercialCheckout
       ? "experiment"

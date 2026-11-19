@@ -13,6 +13,88 @@ test.afterEach(async () => {
 });
 test.afterAll(() => banco.end());
 
+test("cancelamento nativo sem jogador exige aceite e distingue recebimento de confirmação", async ({
+  browser,
+}) => {
+  const a = await novaPessoa(browser, "Ana", { semPerfil: true });
+  await a.page.goto("/conta/assinatura");
+  await expect(a.page.getByRole("region", { name: "Cancelar renovação", exact: true })).toHaveCount(
+    0,
+  );
+  const origem = await prepararContrato(a.page, a.email);
+  await a.page.setViewportSize({ width: 390, height: 844 });
+  const regiao = a.page.getByRole("region", { name: "Cancelar renovação", exact: true });
+  const confirmar = regiao.getByRole("button", {
+    name: "Confirmar cancelamento da renovação",
+    exact: true,
+  });
+  await hidratado(confirmar);
+  await expect(confirmar).toBeDisabled();
+  await regiao
+    .getByRole("checkbox", { name: /Quero cancelar a renovação desta assinatura/ })
+    .check();
+  await expect(confirmar).toBeEnabled();
+  await regiao.scrollIntoViewIfNeeded();
+  await tela(a.page, "renovacao-aceite-mobile", { paginaInteira: true });
+  await confirmar.click();
+  await expect(
+    regiao.getByText("Pedido recebido. A interrupção da renovação ainda aguarda confirmação.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(confirmar).toHaveCount(0);
+  const [recibo] =
+    await banco`select id,state,attempts,request_started_at,confirmed_at,accepted_at from recreio.renewal_cancellations where payer_user_id=${origem.payer_user_id}`;
+  if (!recibo) throw new Error("Native UI renewal receipt absent");
+  expect(recibo).toMatchObject({
+    state: "accepted",
+    attempts: 0,
+    request_started_at: null,
+    confirmed_at: null,
+  });
+  await Promise.all([
+    a.page.waitForEvent("load"),
+    regiao.getByRole("button", { name: "Conferir pedido de cancelamento", exact: true }).click(),
+  ]);
+  await expect(regiao.getByText(/Pedido recebido/)).toBeVisible();
+  const [auditoria] =
+    await banco`select count(*)::integer as total from audit.events where event_type='recreio.renewal_cancellation_accepted' and payload->>'cancellationId'=${recibo.id}`;
+  expect(auditoria?.total).toBe(1);
+  // Structural rendering fixtures only. Provider confirmation is exercised by
+  // the separate native PostgreSQL/SDK suite; no HTTP payment occurs here.
+  await banco`update recreio.renewal_cancellations set state='attempted',attempts=1,request_started_at=statement_timestamp(),updated_at=statement_timestamp() where id=${recibo.id}`;
+  await a.page.reload();
+  await expect(regiao.getByText(/Cancelamento em processamento/)).toBeVisible();
+  await banco`update recreio.renewal_cancellations set state='review',review_code='provider_unavailable',updated_at=statement_timestamp() where id=${recibo.id}`;
+  await a.page.reload();
+  await expect(regiao.getByText(/precisa de conferência/)).toBeVisible();
+  await regiao.scrollIntoViewIfNeeded();
+  await tela(a.page, "renovacao-conferencia-mobile", { paginaInteira: true });
+  await banco`update recreio.renewal_cancellations set state='confirmed',review_code=null,provider_result='scheduled',provider_stop_at=expected_period_end,observation_sha256=${"0".repeat(64)},observed_at=statement_timestamp(),confirmed_at=statement_timestamp(),updated_at=statement_timestamp() where id=${recibo.id}`;
+  await a.page.reload();
+  await expect(
+    regiao.getByText("Interrupção da renovação confirmada.", { exact: true }),
+  ).toBeVisible();
+  await regiao.scrollIntoViewIfNeeded();
+  await tela(a.page, "renovacao-confirmada-mobile", { paginaInteira: true });
+  const [contrato] =
+    await banco`select current_product_id,revision from recreio.billing_contracts where purchase_id=${origem.id}`;
+  expect(contrato).toMatchObject({ current_product_id: "recreio_family_monthly", revision: 1 });
+  const [perfis] =
+    await banco`select count(*)::integer as total from recreio.profiles where group_id=${origem.group_id}`;
+  expect(perfis?.total).toBe(0);
+  const largura = await a.page.evaluate(() => ({
+    tela: innerWidth,
+    pagina: document.documentElement.scrollWidth,
+  }));
+  expect(largura.pagina).toBeLessThanOrEqual(largura.tela);
+  const b = await novaPessoa(browser, "Beto", { semPerfil: true });
+  await b.page.goto("/conta/assinatura");
+  await expect(b.page.getByRole("region", { name: "Cancelar renovação", exact: true })).toHaveCount(
+    0,
+  );
+});
+
 async function cadastrarMenores(page: Page) {
   await page.goto("/conta/perfis");
   for (const nome of ["Luar", "Maré"]) {

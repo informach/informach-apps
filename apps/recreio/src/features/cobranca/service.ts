@@ -11,6 +11,7 @@ import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { AceiteDaCompraSchema, ofertasParaOAdulto } from "./regras";
+import { cancelamentoDaRenovacaoDisponivel } from "./renovacao-service";
 import {
   consultarMinhaCompraNoBanco,
   consultarSituacaoFinanceiraNoBanco,
@@ -65,6 +66,8 @@ export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
     perfis: grupo?.perfis ?? [],
     conferenciaDisponivel: configuracaoDeGestao,
     portalDisponivel: financeiro.temCliente && configuracaoDeGestao,
+    cancelamentoDaRenovacaoDisponivel: cancelamentoDaRenovacaoDisponivel(),
+    renovacaoNoPortal: env.RECREIO_PORTAL_RENEWAL_MODE === "legacy",
   };
 }
 export async function encerrarCompraNaoEnviada(autor: IdentidadeNativa, entrada: unknown) {

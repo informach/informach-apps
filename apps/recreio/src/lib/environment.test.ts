@@ -88,6 +88,9 @@ describe("deployment environment", () => {
   });
   it("interrompe renovação com chave própria sem depender de catálogo novo ou portal", () => {
     expect(validateEnvironment(base).RECREIO_RENEWAL_JOBS_MODE).toBe("off");
+    expect(() => validateEnvironment({ ...base, RECREIO_PORTAL_RENEWAL_MODE: "native" })).toThrow(
+      "Native renewal management requires RECREIO_RENEWAL_JOBS_MODE=on",
+    );
     for (const [modo, chave] of [
       ["dev", "rk_test_isolated"],
       ["prod", "rk_live_isolated"],

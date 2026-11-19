@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GerirCompra } from "@/features/cobranca/components/gerir-compra";
+import { GerirRenovacao } from "@/features/cobranca/components/gerir-renovacao";
 import { GerirTroca } from "@/features/cobranca/components/gerir-troca";
 import { consultarMinhaCobranca } from "@/features/cobranca/service";
 import { paginaDaGestao } from "@/features/sessao/ator";
@@ -20,6 +21,7 @@ export default async function AssinaturaDaConta() {
       <p className="mt-3 text-tinta-suave">Confira sua oferta e acompanhe seu pedido.</p>
       <GerirCompra estado={estado} pedidoId={crypto.randomUUID()} />
       <GerirTroca estado={estado} pedidoId={crypto.randomUUID()} />
+      <GerirRenovacao estado={estado} pedidoId={crypto.randomUUID()} />
       <Link
         href="/conta"
         className="mt-8 inline-flex min-h-11 items-center font-bold text-ceu underline"

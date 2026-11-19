@@ -115,6 +115,7 @@ function criarComposicao() {
         variaveis: env,
         portalId,
         urlDoApp: env.NEXT_PUBLIC_APP_URL,
+        renovacao: env.RECREIO_PORTAL_RENEWAL_MODE,
         budget,
       });
     },

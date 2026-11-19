@@ -21,6 +21,7 @@ export async function conferirCatalogoDoRecreio(entrada: {
   variaveis: Readonly<Record<string, unknown>>;
   portalId: string;
   urlDoApp: string;
+  renovacao?: "legacy" | "native";
   budget?: PaymentReadBudget;
 }) {
   const produtos = produtosDoRecreio(entrada.modo, entrada.variaveis);
@@ -36,6 +37,7 @@ export async function conferirCatalogoDoRecreio(entrada: {
     entrada.portalId,
     {
       planUpdates: "application",
+      ...(entrada.renovacao === "native" ? { renewalCancellation: "application" } : {}),
       app: "recreio",
       returnUrl: `${origem}/conta/assinatura`,
       termsUrl: `${origem}/termos`,

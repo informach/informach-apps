@@ -30,9 +30,9 @@ function criarOperacao(obterRuntime: () => RuntimeDeEnvioDaTroca, somenteRecuper
     return comCicloDeCobranca(autor.contaId, async () => {
       const runtime = obterRuntime();
       assertAllowed(
-        runtime.modo === "dev",
-        "INDISPONIVEL",
-        "Envio disponível somente no ambiente de teste.",
+        runtime.modo === env.STRIPE_MODE,
+        "ORIGEM_FINANCEIRA",
+        "O ambiente financeiro exige conferência.",
       );
       const { jaAdmitida } = await conferirTrocaParaEnvioLocked(autor, id, runtime.modo);
       assertAllowed(

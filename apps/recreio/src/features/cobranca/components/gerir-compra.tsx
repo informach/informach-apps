@@ -171,13 +171,14 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
         </section>
       )}
       {estado.portalDisponivel && (
-        <section aria-labelledby="pagamento-e-cancelamento" className="painel mt-6 p-5 sm:p-6">
-          <h2 id="pagamento-e-cancelamento" className="font-display text-xl font-bold">
-            Pagamento e cancelamento
+        <section aria-labelledby="pagamento-e-faturas" className="painel mt-6 p-5 sm:p-6">
+          <h2 id="pagamento-e-faturas" className="font-display text-xl font-bold">
+            Pagamento e faturas
           </h2>
           <p className="mt-3 text-tinta-suave">
-            Consulte suas faturas, atualize o pagamento ou cancele a renovação. O cancelamento
-            mantém o período já pago e o progresso dos jogadores.
+            {estado.renovacaoNoPortal
+              ? "Consulte suas faturas, atualize o pagamento ou cancele a renovação. O cancelamento mantém o período já pago e o progresso dos jogadores."
+              : "Consulte suas faturas e atualize o pagamento. O pedido de cancelamento da renovação fica nesta página."}
           </p>
           <button
             type="button"

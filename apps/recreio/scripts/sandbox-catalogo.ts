@@ -11,6 +11,8 @@ async function main() {
   const expectedAccount = process.env.STRIPE_EXPECTED_ACCOUNT;
   const appUrl = new URL(process.env.RECREIO_SANDBOX_APP_URL ?? "");
   const apply = process.env.RECREIO_SANDBOX_APPLY === "true";
+  const nativeRenewals = process.env.RECREIO_SANDBOX_NATIVE_RENEWALS === "true";
+  const portalPolicy = nativeRenewals ? "native-v2" : "native-v1";
   const output = process.env.RECREIO_SANDBOX_RECEIPT_PATH;
   if (
     !isStripeTestSecret(key) ||
@@ -118,7 +120,7 @@ async function main() {
   const candidates = portals.filter(
     (p) =>
       p.metadata?.app === "recreio" &&
-      p.metadata.policy_version === "native-v1" &&
+      p.metadata.policy_version === portalPolicy &&
       p.metadata.origin === origin,
   );
   if (candidates.length > 1) throw new Error("Ambiguous native sandbox portal");
@@ -126,7 +128,7 @@ async function main() {
   if (!portal && apply)
     portal = await stripe.billingPortal.configurations.create(
       {
-        metadata: { app: "recreio", policy_version: "native-v1", origin },
+        metadata: { app: "recreio", policy_version: portalPolicy, origin },
         default_return_url: `${origin}/conta/assinatura`,
         business_profile: {
           headline: "Sua assinatura Recreio",
@@ -142,11 +144,15 @@ async function main() {
           invoice_history: { enabled: true },
           payment_method_update: { enabled: true },
           subscription_update: { enabled: false },
-          subscription_cancel: { enabled: true, mode: "at_period_end", proration_behavior: "none" },
+          subscription_cancel: {
+            enabled: !nativeRenewals,
+            mode: "at_period_end",
+            proration_behavior: "none",
+          },
         },
       },
       {
-        idempotencyKey: `recreio:sandbox:portal:native-v1:${createHash("sha256").update(origin).digest("hex")}`,
+        idempotencyKey: `recreio:sandbox:portal:${portalPolicy}:${createHash("sha256").update(origin).digest("hex")}`,
       },
     );
   if (!portal) proposed.push("portal_configuration");
@@ -168,6 +174,7 @@ async function main() {
       portal.id,
       {
         planUpdates: "application",
+        ...(nativeRenewals ? { renewalCancellation: "application" } : {}),
         app: "recreio",
         returnUrl: `${origin}/conta/assinatura`,
         termsUrl: `${origin}/termos`,
@@ -181,6 +188,7 @@ async function main() {
     accountId: account.id,
     mode: "dev",
     apply,
+    portalPolicy,
     origin,
     verified: proposed.length === 0,
     proposed,

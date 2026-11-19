@@ -29,6 +29,10 @@ on:
         description: Criar somente produtos/preços/portal Sandbox ausentes
         type: boolean
         default: false
+      sandbox_native_renewals:
+        description: Preparar/conferir portal Sandbox separado com renovação gerida no Recreio
+        type: boolean
+        default: false
       sandbox_account:
         description: ID da conta Stripe de teste esperada
         type: string
@@ -77,6 +81,7 @@ jobs:
       STRIPE_EXPECTED_ACCOUNT: ${{ inputs.sandbox_account }}
       RECREIO_SANDBOX_APP_URL: ${{ inputs.sandbox_app_url }}
       RECREIO_SANDBOX_APPLY: ${{ inputs.sandbox_apply }}
+      RECREIO_SANDBOX_NATIVE_RENEWALS: ${{ inputs.sandbox_native_renewals }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -492,6 +497,9 @@ jobs:
             apps/recreio/tmp/telas/troca-cotacao-mobile.png
             apps/recreio/tmp/telas/troca-autorizada-mobile.png
             apps/recreio/tmp/telas/troca-credito-mobile.png
+            apps/recreio/tmp/telas/renovacao-aceite-mobile.png
+            apps/recreio/tmp/telas/renovacao-conferencia-mobile.png
+            apps/recreio/tmp/telas/renovacao-confirmada-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic first-session screens

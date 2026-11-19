@@ -71,6 +71,8 @@ export const schema = z.object({
   RECREIO_FINANCIAL_JOBS_MODE: z.enum(["off", "on"]).default("off"),
   /** Stops only previously accepted renewals, independent from a new-sale catalog. */
   RECREIO_RENEWAL_JOBS_MODE: z.enum(["off", "on"]).default("off"),
+  /** Cut to native cancellation only after inventorying old portal capabilities. */
+  RECREIO_PORTAL_RENEWAL_MODE: z.enum(["legacy", "native"]).default("legacy"),
   STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -168,6 +170,8 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
     );
   const value = parsed.data;
   configuracaoDosObjetos(value);
+  if (value.RECREIO_PORTAL_RENEWAL_MODE === "native" && value.RECREIO_RENEWAL_JOBS_MODE !== "on")
+    throw new Error("Native renewal management requires RECREIO_RENEWAL_JOBS_MODE=on");
   if (
     value.RECREIO_RENEWAL_JOBS_MODE === "on" &&
     !segredoStripeCompativel(value.STRIPE_MODE, value.STRIPE_SECRET_KEY)

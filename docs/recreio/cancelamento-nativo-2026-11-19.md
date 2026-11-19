@@ -13,7 +13,10 @@ Sete casos nativos e quatro de entrada qualificados em 44617521395 e quality
 fixado, confere cliente/origem/namespace, lê antes de repetir e depois de alterar
 somente `cancel_at_period_end`. Data anterior é preservada; agenda/troca ainda
 pendente requer conciliação original. Observação não concede acesso. Casos HTTP
-novos ainda aguardam gate. Não há action, tela ou worker compostos.
+novos passaram quality 44620033752/8af11a7c. O worker f89b6ac5 passou
+commercial-reconciliation 44620899730 e quality 44620905768. Integração geral
+44620911792 segue em curso na última consulta. Actions e tela estão em
+candidata posterior, ainda sem qualificação.
 
 44619419508/37bec465 apontou falhas de estreitamento TypeScript no provider:
 o helper que lança erro precisava de declaração de função explícita para que
@@ -34,6 +37,26 @@ novas vendas e da conciliação geral. Para interromper contratos existentes,
 bastam modo/chave Stripe compatíveis (inclusive chave restrita), sem exigir
 preços, portal ou webhook. Agenda/alertas e configuração do serviço continuam
 pendentes; nada foi habilitado por esta candidata.
+
+A tela candidata apresenta os quatro estados, exige checkbox separado e permite
+consultar o mesmo UUID após resposta perdida. O aceite não envia Stripe. Pedidos
+e dados financeiros próprios permanecem acessíveis durante o encerramento.
+`RECREIO_PORTAL_RENEWAL_MODE=native` seleciona a política de portal somente para
+faturas/pagamento; o padrão `legacy` e os demais consumidores não mudam. O aceite
+público também exige worker habilitado e SHA de build válido. Homologação precisa
+conferir a configuração real e o inventário de capacidades antigas antes do corte.
+
+O provisionador Sandbox pode preparar um portal separado `native-v2`, sem alterar
+o `native-v1` existente, via `sandbox_native_renewals=true`; isso não configura o
+app nem desativa sessões antigas. A nova jornada usa apenas pré-condições SQL
+sintéticas e prova o aceite/browser e a apresentação dos estados, sem afirmar
+pagamento ou confirmação remota. Capturas móveis aguardam qualificação/inspeção.
+
+A revisão encontrou três guardas `modo===dev` restantes no envio/recuperação de
+aumentos, reduções e cancelamento de agenda. Foram substituídas pela conferência
+contra `env.STRIPE_MODE`; as travas, origem/namespace, catálogo e limite de novos
+envios permanecem. A composição Live anterior não comprovava esses três fluxos.
+Nova qualificação está pendente; não houve ativação Live.
 
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,

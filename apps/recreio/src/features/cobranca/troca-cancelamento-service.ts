@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { env } from "@/lib/env";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { comCicloDeCobranca } from "./lifecycle";
@@ -22,9 +23,9 @@ export function criarCancelamentoDeReducao(obterRuntime: () => RuntimeDeEnvioDaT
     return comCicloDeCobranca(autor.contaId, async () => {
       const runtime = obterRuntime();
       assertAllowed(
-        runtime.modo === "dev",
-        "INDISPONIVEL",
-        "Gestão comercial disponível somente no ambiente de teste.",
+        runtime.modo === env.STRIPE_MODE,
+        "ORIGEM_FINANCEIRA",
+        "O ambiente financeiro exige conferência.",
       );
       const prova = await admitirCancelamentoDaTrocaLocked(autor, id, runtime.modo);
       const resultado = prova

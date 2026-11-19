@@ -53,6 +53,8 @@ const MAX_HISTORY = 600;
  */
 export type NativePlanPortalPolicy = {
   planUpdates: "application";
+  /** Explicit opt-in; other consumers retain their existing cancellation flow. */
+  renewalCancellation?: "application";
   app: string;
   returnUrl: string;
   termsUrl: string;
@@ -529,9 +531,11 @@ export function createStripePaymentFactReader(config: {
           portal.business_profile.privacy_policy_url !== nativePolicy.privacyUrl ||
           portal.login_page.enabled ||
           updates.enabled ||
-          !cancellation.enabled ||
-          cancellation.mode !== "at_period_end" ||
-          cancellation.proration_behavior !== "none" ||
+          (nativePolicy.renewalCancellation === "application"
+            ? cancellation.enabled
+            : !cancellation.enabled ||
+              cancellation.mode !== "at_period_end" ||
+              cancellation.proration_behavior !== "none") ||
           !portal.features.payment_method_update.enabled ||
           !portal.features.invoice_history.enabled ||
           (customerUpdates.enabled &&
