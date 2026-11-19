@@ -89,28 +89,30 @@ async function* partes(
 ): AsyncGenerator<Buffer> {
   conferirPrazo(signal);
   if (quantidade === 0) return;
-  const stream = arquivo.createReadStream({
-    start: inicio,
-    end: inicio + quantidade - 1,
-    autoClose: false,
-    highWaterMark: BLOCO,
-    signal,
-  });
+  // Leitura posicional empresta o handle sem criar um stream que possa tomar
+  // posse do descritor ao ser destruído, inclusive no cancelamento.
+  const buffer = Buffer.alloc(Math.min(BLOCO, quantidade));
   let lidos = 0;
   try {
-    for await (const parte of stream) {
+    while (lidos < quantidade) {
       conferirPrazo(signal);
-      if (!(parte instanceof Buffer) || lidos + parte.length > quantidade) falhar("INTEGRIDADE");
-      lidos += parte.length;
+      const { bytesRead } = await arquivo.read(
+        buffer,
+        0,
+        Math.min(buffer.length, quantidade - lidos),
+        inicio + lidos,
+      );
+      conferirPrazo(signal);
+      if (bytesRead === 0) falhar("ARQUIVO_ALTERADO");
+      lidos += bytesRead;
       try {
-        yield parte;
+        yield buffer.subarray(0, bytesRead);
       } finally {
-        parte.fill(0);
+        buffer.fill(0);
       }
     }
-    if (lidos !== quantidade) falhar("ARQUIVO_ALTERADO");
   } finally {
-    stream.destroy();
+    buffer.fill(0);
   }
 }
 async function inventariar(arquivo: FileHandle, info: BigIntStats, signal: AbortSignal) {
