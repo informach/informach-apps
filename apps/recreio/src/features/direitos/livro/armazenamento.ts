@@ -15,6 +15,7 @@ import {
   ReferenciaDaIntencaoSchema,
   ShaDoLivroSchema,
 } from "./contrato";
+import { lerPlanoExterno, MAX_PLANO_EXTERNO } from "./plano-externo";
 
 export interface CabecalhoLido {
   readonly documento: Readonly<CabecalhoDeDireitos>;
@@ -87,7 +88,7 @@ export function criarArmazenamentoDoLivro(config: {
       c.abort();
     }
   }
-  async function get(key: string, signal: AbortSignal) {
+  async function get(key: string, signal: AbortSignal, limite = MAX_REGISTRO) {
     const r = await cliente.send(new GetObjectCommand({ Bucket: bucket, Key: key }), {
         abortSignal: signal,
       }),
@@ -102,7 +103,7 @@ export function criarArmazenamentoDoLivro(config: {
         r.ContentType !== "application/json" ||
         !Number.isSafeInteger(r.ContentLength) ||
         !r.ContentLength ||
-        r.ContentLength > MAX_REGISTRO ||
+        r.ContentLength > limite ||
         r.ContentRange ||
         r.ContentEncoding ||
         !r.ETag ||
@@ -116,8 +117,7 @@ export function criarArmazenamentoDoLivro(config: {
         if (!(b instanceof Uint8Array) || signal.aborted)
           throw new FalhaDoLivroDeDireitos("INCONCLUSIVO");
         n += b.byteLength;
-        if (n > r.ContentLength || n > MAX_REGISTRO)
-          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        if (n > r.ContentLength || n > limite) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
         partes.push(Buffer.from(b));
       }
       if (n !== r.ContentLength) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
@@ -221,6 +221,62 @@ export function criarArmazenamentoDoLivro(config: {
   }
   return {
     prefixo,
+    /** Objeto imutável endereçado pelo SHA autenticado da intenção. Não admite
+     * chaves livres, LIST/DELETE, compressão ou leitura ilimitada. */
+    publicarPlano(sha256: string, entrada: Uint8Array, signal?: AbortSignal) {
+      if (entrada.byteLength < 1 || entrada.byteLength > MAX_PLANO_EXTERNO)
+        throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+      const bytes = Buffer.from(entrada);
+      try {
+        lerPlanoExterno(bytes, sha256);
+      } catch (erro) {
+        bytes.fill(0);
+        throw erro;
+      }
+      return comPrazo(async (s) => {
+        const key = `${prefixo}planos/${sha256}.json`;
+        let escrita: unknown;
+        try {
+          await cliente.send(
+            new PutObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              Body: bytes,
+              ContentLength: bytes.length,
+              ContentType: "application/json",
+              IfNoneMatch: "*",
+            }),
+            { abortSignal: s },
+          );
+        } catch (erro) {
+          escrita = erro;
+        }
+        const lido = await get(key, s, MAX_PLANO_EXTERNO);
+        try {
+          lerPlanoExterno(lido.bytes, sha256);
+          if (!lido.bytes.equals(bytes)) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+          if (
+            escrita instanceof S3ServiceException &&
+            [401, 403].includes(escrita.$metadata.httpStatusCode ?? 0)
+          )
+            falha(escrita);
+        } finally {
+          lido.bytes.fill(0);
+        }
+      }, signal).finally(() => bytes.fill(0));
+    },
+    lerPlano(sha256: string, signal?: AbortSignal) {
+      if (!ShaDoLivroSchema.safeParse(sha256).success)
+        throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+      return comPrazo(async (s) => {
+        const r = await get(`${prefixo}planos/${sha256}.json`, s, MAX_PLANO_EXTERNO);
+        try {
+          return lerPlanoExterno(r.bytes, sha256);
+        } finally {
+          r.bytes.fill(0);
+        }
+      }, signal);
+    },
     lerCabecalho(signal?: AbortSignal) {
       return comPrazo(async (s) => {
         const r = await get(caminho, s);

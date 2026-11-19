@@ -15,6 +15,7 @@ import {
 } from "../src/features/direitos/livro/assinatura";
 import { FalhaDoLivroDeDireitos, RAIZ_VAZIA } from "../src/features/direitos/livro/contrato";
 import { reaplicarLivroCongelado } from "../src/features/direitos/livro/leitura";
+import { PlanoDeDireitosSchema } from "../src/features/direitos/preparacao-contrato";
 import { exigir, FalhaDaProva } from "./backup/provas-arquivos";
 
 interface ReciboDaProva {
@@ -35,6 +36,9 @@ interface ReciboDaProva {
   frozenChainVerified: boolean;
   admittedIntentReadbackVerified: boolean;
   consumerFailurePreserved: boolean;
+  externalPlanReadbackVerified: boolean;
+  externalPlanReplayVerified: boolean;
+  externalPlanAnonymousReadDenied: boolean;
   nativeRightsEffectsApplied: false;
   productionDataTouched: false;
   productionCredentialsPresent: false;
@@ -121,7 +125,7 @@ async function main() {
   const recibo: ReciboDaProva = {
     source: variavel("GITHUB_SHA"),
     runId: variavel("GITHUB_RUN_ID"),
-    boundary: "synthetic_external_rights_ledger_frozen_chain_epochs",
+    boundary: "synthetic_external_rights_ledger_frozen_chain_epochs_plan",
     status: "failed",
     bucket,
     objectKeys: [],
@@ -136,6 +140,9 @@ async function main() {
     frozenChainVerified: false,
     admittedIntentReadbackVerified: false,
     consumerFailurePreserved: false,
+    externalPlanReadbackVerified: false,
+    externalPlanReplayVerified: false,
+    externalPlanAnonymousReadDenied: false,
     nativeRightsEffectsApplied: false,
     productionDataTouched: false,
     productionCredentialsPresent: false,
@@ -368,7 +375,31 @@ async function main() {
     }
     exigir(recusou, "LEITOR_ANTIGO_REATIVADO");
     recibo.keyRotationVerified = true;
-    const novoDocumento = { ...assinatura.lerIntencao(intencao()), epoca: 1 },
+    const documentoDoPlano = assinatura.lerIntencao(intencao()),
+      plano = PlanoDeDireitosSchema.parse({
+        formato: "recreio-previa-direitos-v1",
+        tipo: documentoDoPlano.tipo,
+        contaId: documentoDoPlano.contaId,
+        perfis: documentoDoPlano.perfilIds.map((id) => ({
+          id,
+          tipo: "adult",
+          versao: 1,
+          responsabilidadeId: null,
+        })),
+        mundos: [],
+        identidadeGlobalPreservada: true,
+        financeiroSeparado: true,
+      }),
+      planoBytes = Buffer.from(JSON.stringify(plano)),
+      shaPlano = resumoDoRegistro(planoBytes);
+    await storageNovo.publicarPlano(shaPlano, planoBytes);
+    exigir(
+      JSON.stringify(await storageNovo.lerPlano(shaPlano)) === JSON.stringify(plano),
+      "PLANO_EXTERNO_DIVERGENTE",
+    );
+    planoBytes.fill(0);
+    recibo.externalPlanReadbackVerified = true;
+    const novoDocumento = { ...documentoDoPlano, epoca: 1, planoSha256: shaPlano },
       novoIntento = assinaturaNova.assinarIntencao(novoDocumento),
       shaNovo = resumoDoRegistro(novoIntento);
     await storageNovo.publicarIntencao(novoIntento);
@@ -408,6 +439,15 @@ async function main() {
       tempoLimiteMs: 90_000,
       aplicar: async (i, c) => {
         exigir(c.sequencia === recebidas.length + 1, "ORDEM_DE_REPLAY_DIVERGENTE");
+        if (i.operacaoId === novoDocumento.operacaoId) {
+          const recuperado = await storageNovo.lerPlano(i.planoSha256);
+          exigir(
+            recuperado.contaId === i.contaId &&
+              JSON.stringify(recuperado.perfis.map((p) => p.id)) === JSON.stringify(i.perfilIds),
+            "PLANO_DO_REPLAY_DIVERGENTE",
+          );
+          recibo.externalPlanReplayVerified = true;
+        }
         recebidas.push(i.operacaoId);
       },
     });
@@ -433,7 +473,18 @@ async function main() {
       await anonima.body?.cancel();
     }
     recibo.anonymousReadDenied = true;
-    exigir(chavesProprias.size === 12, "ESCOPO_DA_PROVA_DIVERGENTE");
+    const planoPublico = await fetch(
+      new URL(`${bucket}/${storageNovo.prefixo}planos/${shaPlano}.json`, endpoint),
+      { redirect: "manual", signal: AbortSignal.timeout(20_000) },
+    );
+    try {
+      exigir([401, 403].includes(planoPublico.status), "PLANO_ACEITA_LEITURA_ANONIMA");
+    } finally {
+      await planoPublico.body?.cancel();
+    }
+    recibo.externalPlanAnonymousReadDenied = true;
+    exigir(recibo.externalPlanReplayVerified, "PLANO_EXTERNO_NAO_REAPLICADO");
+    exigir(chavesProprias.size === 13, "ESCOPO_DA_PROVA_DIVERGENTE");
     recibo.status = "passed";
   } catch (e) {
     recibo.failure = codigo(e);

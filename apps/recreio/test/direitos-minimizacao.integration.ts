@@ -609,4 +609,24 @@ describe("minimização nativa sem reabrir autoridade", () => {
       await expect(f.rodada()).rejects.toBeInstanceOf(AggregateError);
       expect(await db.select().from(profiles).where(eq(profiles.id, p.id))).toHaveLength(1);
     }));
+  it("publicador preserva a seleção externa original antes dos efeitos nativos", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        p = await jogador(a),
+        op = await f.admitir(a.autor, p.id);
+      const [linha] = await db.select().from(operations).where(eq(operations.id, op.operacaoId));
+      if (!linha) throw new Error("Operation absent");
+      const plano = await f.storage.lerPlano(linha.planSha256);
+      expect(plano).toMatchObject({
+        tipo: "retirar_perfil",
+        contaId: a.conta.id,
+        perfis: [{ id: p.id, tipo: "adult", versao: p.versaoDaPolitica }],
+        mundos: [],
+      });
+      expect(JSON.stringify(plano)).not.toContain(a.conta.email);
+      expect(JSON.stringify(plano)).not.toContain("Pessoa privada");
+      expect((await db.select().from(profiles).where(eq(profiles.id, p.id)))[0]?.userId).toBe(
+        a.conta.id,
+      );
+    }));
 });

@@ -408,3 +408,26 @@ A fonte dbb06181 passou qualidade 44573168280. Integração 44573174515 passou
 bystander do teste novo e outro arquivo da suíte. O novo teste agora usa hash
 próprio, sem alterar a constraint ou o teste anterior. A rodada 44572112358
 registrou a mesma colisão. Não registrar essas rodadas como integralmente verdes.
+
+
+## Seleção consentida preservada fora do backup
+
+O hash assinado sozinho não permite reconstruir o plano se o banco restaurado
+for anterior à preparação. O publicador nativo passa a guardar o JSON canônico
+original em planos/<SHA>.json, privado e imutável, antes de admitir a intenção.
+A intenção continua autenticando seu SHA; o plano só tem os IDs, tipos,
+versões, contadores e declarações de escopo já aceitos, sem nomes/e-mails.
+O orçamento é separado: 256 KiB para o plano e 32 KiB para registros do livro.
+
+A escrita exige If-None-Match, releitura exata, SHA, schema estrito e JSON
+canônico. Leitura limitada recusa UTF-8 inválido, campos extras/duplicados,
+compressão, ausência, corrupção e credencial recusada. Ausência nunca vira
+plano vazio. O livro/prefixo e a chave atual são conferidos antes da escrita;
+o plano não inicializa livro nem autoriza efeito sozinho. Objetos anteriores
+são relidos na conciliação de uma publicação interrompida.
+
+A prova real de bucket foi ampliada para treze objetos sintéticos próprios,
+com plano privado vinculado à intenção da nova época, releitura no replay e
+recusa anônima. Os treze devem ser removidos e a ausência relida. Ainda não
+é reaplicação nativa num banco restaurado: o consumidor, quarentena e
+normalização da autoridade atual continuam obrigatórios antes de tráfego.

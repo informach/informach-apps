@@ -11,6 +11,7 @@ export async function admitirIntencaoNoLivro(config: {
   storage: ReturnType<typeof criarArmazenamentoDoLivro>;
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
   bytes: Uint8Array;
+  plano?: Uint8Array;
   instante: string;
   signal?: AbortSignal;
 }) {
@@ -40,6 +41,7 @@ export async function admitirIntencaoNoLivro(config: {
   if (existente) {
     if (existente.revisao !== ref.revisao || existente.sha256 !== sha256)
       throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+    if (config.plano) await storage.publicarPlano(doc.planoSha256, config.plano, signal);
     return { referencia: ref, cabecalhoSha256: head.sha256, jaAdmitida: true };
   }
   if (antes.entradas >= 100_000) throw new FalhaDoLivroDeDireitos("LIMITE");
@@ -51,6 +53,7 @@ export async function admitirIntencaoNoLivro(config: {
     throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
   if (Date.parse(instante) < Date.parse(doc.consentidaEm))
     throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+  if (config.plano) await storage.publicarPlano(doc.planoSha256, config.plano, signal);
   await storage.publicarIntencao(bytes, signal);
   const atualizadoEm =
     Date.parse(instante) >= Date.parse(antes.atualizadoEm) ? instante : antes.atualizadoEm;

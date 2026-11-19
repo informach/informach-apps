@@ -14,6 +14,7 @@ import { conferirIntencaoNativa } from "./intencao-nativa";
 import type { criarArmazenamentoDoLivro } from "./livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
+import { serializarPlanoExterno } from "./livro/plano-externo";
 import { admitirIntencaoNoLivro } from "./livro/publicacao";
 
 /** Uma operação por passagem. Lease só limita o worker; CAS e conciliação do
@@ -73,12 +74,14 @@ export async function publicarProximoConsentimento(config: {
     eq(operations.leaseToken, token),
     sql`${operations.leaseUntil}>${AGORA}`,
   );
-  let prova: Awaited<ReturnType<typeof admitirIntencaoNoLivro>>;
+  let prova: Awaited<ReturnType<typeof admitirIntencaoNoLivro>>, planoExterno: Buffer | undefined;
   try {
-    conferirIntencaoNativa(atual, preparacao, selecionados, config.assinatura);
+    const { plano } = conferirIntencaoNativa(atual, preparacao, selecionados, config.assinatura);
+    planoExterno = serializarPlanoExterno(plano, atual.planSha256);
     prova = await admitirIntencaoNoLivro({
       ...config,
       bytes: atual.signedIntent,
+      plano: planoExterno,
       instante: new Date().toISOString(),
     });
   } catch (erro) {
@@ -115,6 +118,8 @@ export async function publicarProximoConsentimento(config: {
         : ("posse_perdida" as const),
       operacaoId: atual.id,
     };
+  } finally {
+    planoExterno?.fill(0);
   }
   // Erro ou resposta perdida do commit não é convertido em falha do provedor.
   // A próxima passagem lê o estado e concilia o prefixo, sem novo consentimento.
