@@ -88,6 +88,11 @@ export class FalhaDoArquivoComposto extends Error {
 function exigir(sim: unknown, codigo: FalhaDoArquivoComposto["codigo"]): asserts sim {
   if (!sim) throw new FalhaDoArquivoComposto(codigo);
 }
+export function conferirReferenciaDoArquivoComposto(bruto: unknown): ReferenciaDoArquivoComposto {
+  const r = Referencia.safeParse(bruto);
+  exigir(r.success, "INTEGRIDADE");
+  return r.data;
+}
 const mesmoInventario = (a: z.infer<typeof Inventario>, b: z.infer<typeof Inventario>) =>
   a.quantidade === b.quantidade && a.bytesCifrados === b.bytesCifrados && a.sha256 === b.sha256;
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");

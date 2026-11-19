@@ -1,6 +1,6 @@
 # F8 — índice de recuperação independente do banco original
 
-Estado: próximo incremento; não implantado. Complementa
+Estado: primitiva em preparação; não implantada. Complementa
 [arquivo composto](arquivo-autossuficiente-2026-11-19.md) e
 [captura/retirada](backup-e-retirada-2026-11-19.md).
 
@@ -50,3 +50,21 @@ Este índice não substitui o ledger externo de direitos F7, replay de retirada
 de dados, políticas de retenção aprovadas, custódia recuperável das chaves,
 backup agendado, provas de restauração ou RPO/RTO medidos. Não anunciar essas
 entregas por existir um documento assinado.
+
+## Primeiro incremento em candidata
+
+`indice-recuperacao.ts` implementa assinatura/conferência canônica, derivação
+com domínio e versão, limite de tamanho, acoplamento dos dois formatos de
+arquivo, datas UTC, contexto e destino exatos. `iniciadaEm` representa o início
+admitido pelo controle; não pode ser trocada por data de upload para aparentar
+um RPO menor. `conferidaEm` precisa ser persistida antes da tentativa do índice.
+Chave antiga indisponível, documento adulterado, destino contraditório e
+retirada inconclusiva têm falhas explícitas. Retirada válida prevalece também
+quando anterior a um PUT tardio. Encerrar elimina as chaves HMAC derivadas,
+sem alterar os buffers do titular.
+
+Testes usam exclusivamente referências e chaves sintéticas: replay idêntico,
+adulteração, separação AES/HMAC, referências divergentes, rotação, contexto,
+campos duplicados, datas, tamanho, cópias do chaveiro e fechamento. Ainda
+precisam passar no GitHub. Não há publicação S3 do índice, ledger externo F7,
+retenção, descoberta operacional ou recuperação de chaves reais nesta etapa.

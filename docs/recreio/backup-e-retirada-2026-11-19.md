@@ -116,6 +116,10 @@ não uma garantia adicional do provedor.
     As credenciais de produção ficam no Railway; os seis segredos do GitHub
     continuam exclusivos da homologação. A prova de uma chave descartável não
     certifica recuperação de chaves reais.
+    O [índice autenticado](indice-recuperacao-2026-11-19.md) também precisa
+    sobreviver ao banco original: publicação e retirada independentes, sem
+    confiar em LastModified ou em ausência inferida de falha de rede. Ele não
+    substitui o ledger de direitos F7 nem sua aplicação antes de servir dados.
 14. Somente depois, publicar leitor/recuperação/coleta compatíveis, preparar o
     primeiro arquivo real cifrado e medir custo, cadência, RPO e RTO. Fazer a
     migração em lotes limitados, fonte PG conservada até confirmação integral.
