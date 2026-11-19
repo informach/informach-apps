@@ -1,0 +1,33 @@
+{
+  "source": "48b4fc0a6c96dc3c26f973961579a36f22c6723d",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0231_recreio_historico_expurgo.sql",
+      "bytes": 709,
+      "sha256": "0b0549e0e8ec69289e636e59c0450055b315a341984251050ed3a90f6c30b323"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0231_snapshot.json",
+      "bytes": 1093928,
+      "sha256": "4e20ca1d4b6946c1f63a77cf5de3fd7d68ec8f38c3efe326966a39672bb998b8"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 35069,
+      "sha256": "99f5456867f1d2143786407f8fde4d1c6e3fe2ffa3ac45b502aa14dc24ff1812"
+    }
+  ],
+  "runId": 44571719480,
+  "artifactId": 14555565016,
+  "artifactZipBytes": 77203,
+  "artifactZipSha256": "4208e5325cc99b25d2473391879ef9dceedc421b7a3460156e17be98a0341b09",
+  "productionApplied": false,
+  "unchangedPreviousColumnsConstraintsAndIndexes": true,
+  "addedIndexes": [
+    ["recreio.game_tickets", "recreio_game_tickets_profile_history"],
+    ["recreio.rights_subjects", "recreio_rights_subject_retention"],
+    ["recreio.friend_codes", "recreio_friend_code_profile_history"],
+    ["recreio.friend_requests", "recreio_friend_request_target_history"],
+    ["recreio.friendships", "recreio_friendship_higher_history"]
+  ]
+}

@@ -1618,6 +1618,13 @@
       "when": 1795104583058,
       "tag": "0230_recreio_rights_purging_phase",
       "breakpoints": true
+    },
+    {
+      "idx": 231,
+      "version": "7",
+      "when": 1795107437709,
+      "tag": "0231_recreio_historico_expurgo",
+      "breakpoints": true
     }
   ]
 }
