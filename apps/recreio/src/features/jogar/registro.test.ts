@@ -116,6 +116,13 @@ describe("o código dos jogos fica fora do que o servidor compila", () => {
     expect(registro).not.toMatch(/^import /m);
   });
 
+  it("o grafo web não importa scripts operacionais de processamento privado", () => {
+    const quem = arquivos().filter((arquivo) =>
+      importa(arquivo, /(?:from\s*|import\s*\(\s*)["'][^"']*\/scripts\//),
+    );
+    expect(quem).toEqual([]);
+  });
+
   it("o pacote de um jogo só é importado pelos adaptadores", () => {
     const quem = arquivos().filter((arquivo) =>
       importa(arquivo, /from\s+["']@informach\/(jogo-[a-z-]+|morada-sim)(\/[^"']*)?["']/),

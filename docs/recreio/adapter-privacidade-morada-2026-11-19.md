@@ -64,3 +64,12 @@ teto do catálogo, sem gravar ou conceder autoridade. O orçamento aberto de
 seu valor permaneceu o mesmo. Testes negativos incluem expansão excessiva,
 chaves JSON repetidas e metadados divergentes. A nova composição ainda requer
 gate remoto próprio; fonte do servidor em produção permanece fixada.
+
+
+Quality `44540431072` chegou aos testes e recusou a importação da simulação
+pelo grafo web do portal. O preparador binário foi movido para
+`apps/recreio/scripts/direitos/morada.ts`, composição do worker operacional;
+nenhum módulo web o importa. A lista de importadores de jogos permitidos
+permaneceu idêntica e uma nova regressão recusa importar scripts operacionais
+por `src`. A preparação pesada não deve executar no processo Next. O worker
+e os efeitos nativos ainda serão compostos; mover a função não os implanta.

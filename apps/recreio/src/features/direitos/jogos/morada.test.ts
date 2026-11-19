@@ -5,7 +5,7 @@ import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
 import { FOTOGRAFIA_ABERTA_MAX_BYTES } from "@informach/morada-sim/formatos";
 import { describe, expect, it } from "vitest";
 import { limitesDoJogo } from "@/features/jogos/config";
-import { prepararFotoPessoalDoMorada as preparar } from "./morada";
+import { prepararFotoPessoalDoMorada as preparar } from "../../../../scripts/direitos/morada";
 
 const mundoId = "00000000-0000-4000-8000-000000000001";
 const perfilId = "00000000-0000-4000-8000-000000000002";

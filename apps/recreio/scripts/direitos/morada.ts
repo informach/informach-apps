@@ -8,7 +8,7 @@ import {
 } from "@informach/morada-sim/formatos";
 import { MundoIdSchema, PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
-import { limitesDoJogo } from "@/features/jogos/config";
+import { limitesDoJogo } from "../../src/features/jogos/config";
 
 const Meta = z.strictObject({
   mundoId: MundoIdSchema,

@@ -36,6 +36,11 @@ inventar backfill silencioso em startup nem declarar índice completo só por DD
    cancelamento da prévia não cancela uma intenção já preparada.
 5. Perfil: suspender gameplay, incrementar versão e cortar credenciais/SIDs.
    Mundo: encerrar posse, aumentar cerca e arquivar durante a transformação.
+   Antes disso, exigir checkpoint durável com o host pausado ou mundo já
+   hibernado: retirar a posse de um mundo sujo não é prova de preservação de
+   progresso. Se o host publicado não negociar essa coordenação, implementar
+   o incremento mínimo compatível ou manter a execução em pendência; não
+   promover formato D3 nem considerar só a foto periódica como confirmação.
    Não reaproveitar suspensão como única barreira: um writer de gestão antigo
    não pode reabrir o perfil/mundo enquanto o pedido estiver em execução.
 6. Proposta de barreira de banco: operação por FK RESTRICT e projeção exata
@@ -56,7 +61,7 @@ o formato antigo. Ainda é preciso materializar diário, tratar todas as fotos,
 resumos/nome do mundo, permissões/convites e objetos/arquivos retidos. Reabrir
 para os demais só depois de impedir que uma capacidade antiga recoloque dados.
 O perfil só pode ser removido depois da limpeza de todos os mundos e de seus
-demais domínios; cobrança, auditoria/retencões e identidade global são separados.
+demais domínios; cobrança, auditoria/retenções e identidade global são separados.
 
 Restauração permanece sem tráfego até verificar livro congelado, aplicar todas
 as intenções admitidas, comprovar efeitos nativos e renovar autoridades/chaves
@@ -91,3 +96,19 @@ as dependências nativas antes de remover o perfil. Retenções justificadas de
 financeiro/auditoria/backup devem ser explícitas no plano/recibo, com política
 e prazo próprios; não chamá-las de anonimização. Arquivo legado ambíguo ou
 adapter indisponível mantém pendência, sem conclusão fictícia.
+
+
+Encerramento do Recreio requer participação nativa encerrada separada da
+identidade global: pagante sem jogador não pode parecer uma conta nova e
+reiniciar teste/histórico. A gestão financeira e os recibos de direitos devem
+continuar acessíveis pelo próprio adulto, sem reabrir gameplay ou concessões.
+Retomada é decisão explícita e não restaura credenciais/versões antigas.
+Planos financeiros ainda vigentes e cobertura dos demais perfis devem ser
+resolvidos conforme o contrato, sem apagar seus históricos ou fabricar aceite.
+
+A migração da primeira intenção destrutiva fixa uma fronteira de rollback:
+não voltar a um portal que desconheça participação encerrada e barreiras.
+Qualificar a fonte de retorno compatível antes de ativar o executor. O servidor
+do jogo pode exigir backport mínimo sobre a fonte publicada, com formato V2
+preservado e negociação desligada até o portal estar pronto; não trocar seu
+runtime implicitamente pela candidata D3 da main.
