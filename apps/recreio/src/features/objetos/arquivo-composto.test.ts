@@ -292,15 +292,24 @@ describe("arquivo composto: arquivos reais, manifesto/chaves/envelopes fechados"
     cenario(async (f) => {
       const ref = await f.codec.montar(f.pedido, f.saida),
         aberto = await f.codec.abrir(f.saida, ref);
-      const emprestadas: Uint8Array[] = [];
+      const emprestadas: Uint8Array[] = [],
+        causa = new Error("FALHA_SINTETICA_DO_CONSUMIDOR");
       await expect(
         aberto.comChaves(async (keys) => {
           emprestadas.push(...keys.values());
-          throw new Error("FALHA_SINTETICA");
+          throw causa;
         }),
-      ).rejects.toThrow();
+      ).rejects.toBe(causa);
       expect(emprestadas).toHaveLength(2);
       expect(emprestadas.every((k) => k.every((b) => b === 0))).toBe(true);
+      // Falha do consumidor não invalida a fonte nem o próximo empréstimo.
+      const relidas: Uint8Array[] = [];
+      await aberto.comChaves(async (keys) => {
+        relidas.push(...keys.values());
+        for (const [id, key] of keys) expect(key).toEqual(f.pedido.chaves.get(id));
+      });
+      expect(relidas).toHaveLength(2);
+      expect(relidas.every((k) => k.every((b) => b === 0))).toBe(true);
       aberto.encerrar();
     }));
   it("cancelamento durante cópia de 32 MiB limpa somente a saída admitida", async () =>
