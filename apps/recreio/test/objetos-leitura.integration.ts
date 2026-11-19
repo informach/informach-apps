@@ -8,7 +8,13 @@ import {
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import type { LeitorDeFotografiasPrivadas } from "@/features/posse/armazenamento";
-import { lerFotografiaDoMundo, type PedidoComPosse } from "@/features/posse/repository";
+import { armazenamentoPg } from "@/features/posse/armazenamento-repository";
+import { conferirFotografiaDeCheckpoint } from "@/features/posse/prova-fotografia";
+import {
+  conferirPosse,
+  lerFotografiaDoMundo,
+  type PedidoComPosse,
+} from "@/features/posse/repository";
 import { aposentarInstancias, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, MORADA, mundoDe, novaInstancia } from "./jogo-apoio";
 import { criarBucketS3DeTeste } from "./objetos-s3-apoio";
@@ -107,6 +113,85 @@ async function comBucket(
 }
 
 describe("leitor nativo de fotografias: limites, integridade e posse após I/O", () => {
+  it("checkpoint aceita referência confirmada somente no destino legível, sem rede sob trava", async () =>
+    comBucket(async (f) => {
+      const prova = {
+        mundoId: f.pedido.mundoId,
+        cerca: f.pedido.cerca,
+        revisao: f.foto.revision,
+        diarioSeq: 0,
+        diarioAtual: 0,
+        fotografiaMaxBytes: 4096,
+        criadaApos: sql`${f.foto.createdAt.toISOString()}::timestamptz`,
+      };
+      const conferir = (leitor: LeitorDeFotografiasPrivadas | null) =>
+        db.transaction(async (tx) => {
+          await conferirPosse(tx, f.pedido);
+          await conferirFotografiaDeCheckpoint(tx, prova, leitor);
+        });
+      const antes = f.s3.pedidos.length;
+      await expect(conferir(null)).rejects.toMatchObject({ codigo: "CHECKPOINT_NECESSARIO" });
+      await conferir(f.leitor);
+      await db
+        .update(deliveries)
+        .set({ state: "review", reviewReason: "integrity" })
+        .where(eq(deliveries.id, f.entregaId));
+      await expect(conferir(f.leitor)).rejects.toMatchObject({ codigo: "CHECKPOINT_NECESSARIO" });
+      expect(f.s3.pedidos).toHaveLength(antes);
+    }));
+  it("retenção destaca o recibo antes de apagar a fotografia, preservando o objeto para expurgo próprio", async () =>
+    comBucket(async (f) => {
+      await db.insert(snapshots).values({
+        spaceId: f.pedido.mundoId,
+        revision: 2,
+        fence: f.pedido.cerca,
+        schemaVersion: 1,
+        journalSeq: 0,
+        tick: 1,
+        kind: "checkpoint",
+        storage: "pg",
+        data: f.bytes,
+        byteSize: f.bytes.length,
+        sha256: f.foto.sha256,
+      });
+      const antes = f.s3.pedidos.length;
+      await db.transaction(async (tx) => {
+        await conferirPosse(tx, f.pedido);
+        await armazenamentoPg.apararFotografias(tx, f.pedido.mundoId, 1);
+      });
+      const [recibo] = await db
+        .select({
+          state: deliveries.state,
+          snapshotId: deliveries.snapshotId,
+          detachedAt: deliveries.detachedAt,
+          nextAttemptAt: deliveries.nextAttemptAt,
+          envelope: deliveries.envelope,
+        })
+        .from(deliveries)
+        .where(eq(deliveries.id, f.entregaId));
+      expect(recibo).toMatchObject({ state: "retiring", snapshotId: null, envelope: null });
+      expect(recibo?.detachedAt).toBeInstanceOf(Date);
+      expect(recibo?.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
+      expect(
+        await db.select({ id: snapshots.id }).from(snapshots).where(eq(snapshots.id, f.foto.id)),
+      ).toEqual([]);
+      expect(f.s3.objetos.size).toBe(1);
+      expect(f.s3.pedidos).toHaveLength(antes);
+    }));
+  it("retenção conserva fotografia fixada e seu vínculo confirmado", async () =>
+    comBucket(async (f) => {
+      await db.update(snapshots).set({ kind: "pinned" }).where(eq(snapshots.id, f.foto.id));
+      await db.transaction(async (tx) => {
+        await conferirPosse(tx, f.pedido);
+        await armazenamentoPg.apararFotografias(tx, f.pedido.mundoId, 0);
+      });
+      const [recibo] = await db
+        .select({ state: deliveries.state, snapshotId: deliveries.snapshotId })
+        .from(deliveries)
+        .where(eq(deliveries.id, f.entregaId));
+      expect(recibo).toEqual({ state: "verified", snapshotId: f.foto.id });
+      expect((await lerFotografiaDoMundo(f.pedido, f.leitor))?.meta.tipo).toBe("pinned");
+    }));
   it("conserva leitura pg sem configuração de bucket", async () => {
     const f = await preparar();
     const lida = await lerFotografiaDoMundo(f.pedido);

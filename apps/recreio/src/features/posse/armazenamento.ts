@@ -59,6 +59,7 @@ export interface ArmazenamentoDeMundos {
     tx: Transacao,
     mundoId: MundoId,
     tetoBytes: number,
+    revisao?: number,
   ): Promise<ReferenciaDeFotografia | null>;
 
   gravarFotografia(tx: Transacao, mundoId: MundoId, foto: FotografiaParaGuardar): Promise<void>;

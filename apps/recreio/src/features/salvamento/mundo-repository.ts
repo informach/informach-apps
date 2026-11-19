@@ -8,6 +8,7 @@ import {
 } from "@informach/db/schema";
 import { ErroDoRecreio, type MundoId, PerfilIdSchema } from "@informach/recreio";
 import { EstadoDeSalvamentoSchema, type SalvamentoDoHost } from "@informach/recreio/contrato";
+import { limitesDoJogo } from "@/features/jogos/config";
 import { conferirFotografiaDeCheckpoint } from "@/features/posse/prova-fotografia";
 import { conferirConteudoDoMundo, conferirPosse } from "@/features/posse/repository";
 import type { Host } from "@/features/posse/service";
@@ -100,6 +101,7 @@ export async function salvarSessaoDoMundoNoBanco(
                 revisao: entrada.revisao,
                 diarioSeq: entrada.diarioSeq,
                 diarioAtual: mundo.journalSeq,
+                fotografiaMaxBytes: limitesDoJogo(host.jogo).fotografiaMaxBytes,
                 criadaApos: sql`(select ended_at from recreio.game_sessions where id=${entrada.sid}::uuid)`,
               });
               return {

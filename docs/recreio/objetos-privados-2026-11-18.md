@@ -238,3 +238,20 @@ uma fixture explícita do teste de leitura; não é prova de worker, migração 
 backup. Tipos, regressões e integração precisam de gates remotos desta fonte.
 Checkpoint, recuperação histórica, retenção e backups ainda precisam consumir
 o mesmo contrato antes de admitir qualquer ponteiro real em produção.
+
+
+O registro/DDL `29d090c4` passou em quality `44437014121` e integração
+`44437017538`: 97 arquivos/1173 casos PostgreSQL, incluindo dezoito do registro,
+e cinco HTTP. [Recibo](evidencias/objetos-registro-44437017538.json). Nenhuma
+migration de objetos foi aplicada em produção.
+
+A candidata de checkpoint/retencão passa a resolver uma revisão específica da
+fotografia com o mesmo limite e as mesmas verificações do leitor. PG continua
+exigindo SHA/comprimento; bucket exige recibo confirmado e destino configurado
+legível. Não há rede sob trava de encerramento. A retenção destaca a entrega e
+apaga a fotografia na mesma transação; conserva recibo e lease em voo, limpa o
+envelope pendente e agenda a retirada após quinze minutos. Fotografias fixadas
+continuam protegidas. O coletor ainda precisa confirmar exclusão e revisitar
+recibos contra PUT tardio; essa espera não prova que um processo antigo parou.
+Backups precisarão de proteção própria contra GC. Os novos cenários continuam
+em qualificação remota; não habilitar migração com base apenas nesse código.

@@ -14,6 +14,7 @@ import {
   MetaDeFotografiaSchema,
 } from "@informach/recreio/contrato";
 import { conferirReferenciaDoObjeto } from "@/features/objetos/criptografia";
+import { AGORA } from "@/lib/repository";
 import type { ArmazenamentoDeMundos, EntradaGuardada } from "./armazenamento";
 
 /**
@@ -86,8 +87,10 @@ export const armazenamentoPg: ArmazenamentoDeMundos = {
     return linha ? meta(linha) : null;
   },
 
-  async prepararLeituraDaFotografia(tx, mundoId, tetoBytes) {
+  async prepararLeituraDaFotografia(tx, mundoId, tetoBytes, revisao) {
     if (!Number.isSafeInteger(tetoBytes) || tetoBytes < 1) throw new ErroDoRecreio("INDISPONIVEL");
+    if (revisao !== undefined && (!Number.isSafeInteger(revisao) || revisao < 0))
+      throw new ErroDoRecreio("INDISPONIVEL");
     const [linha] = await tx
       .select({
         ...camposDaMeta,
@@ -99,7 +102,12 @@ export const armazenamentoPg: ArmazenamentoDeMundos = {
         ),
       })
       .from(snapshots)
-      .where(eq(snapshots.spaceId, mundoId))
+      .where(
+        and(
+          eq(snapshots.spaceId, mundoId),
+          revisao === undefined ? undefined : eq(snapshots.revision, revisao),
+        ),
+      )
       .orderBy(desc(snapshots.revision))
       .limit(1);
     if (!linha) return null;
@@ -209,7 +217,23 @@ export const armazenamentoPg: ArmazenamentoDeMundos = {
       .where(and(eq(snapshots.spaceId, mundoId), ne(snapshots.kind, "pinned")))
       .orderBy(desc(snapshots.revision));
     const sobram = comuns.slice(guardar).map((linha) => linha.id);
-    if (sobram.length > 0) await tx.delete(snapshots).where(inArray(snapshots.id, sobram));
+    if (sobram.length > 0) {
+      // Retirar o vínculo e a fotografia na mesma transação, sob a trava do
+      // mundo. O recibo permanece para GC; não apagar objeto durante retenção.
+      // Lease de tentativa em voo continua visível ao futuro coletor.
+      await tx
+        .update(objects)
+        .set({
+          snapshotId: null,
+          detachedAt: AGORA,
+          state: "retiring",
+          envelope: null,
+          reviewReason: null,
+          nextAttemptAt: sql`${AGORA}+interval '15 minutes'`,
+        })
+        .where(and(eq(objects.spaceId, mundoId), inArray(objects.snapshotId, sobram)));
+      await tx.delete(snapshots).where(inArray(snapshots.id, sobram));
+    }
     const [maisAntiga] = await tx
       .select({ journalSeq: snapshots.journalSeq })
       .from(snapshots)
