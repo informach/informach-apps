@@ -250,11 +250,22 @@ describe("coleta restrita: PostgreSQL e SDK nativos com objetos sintéticos", ()
     expect(r).toMatchObject({ state: "retired", leaseToken: null, leaseUntil: null });
     expect(r?.retiredAt).toBeInstanceOf(Date);
     expect(f.b.objetos.has(f.path)).toBe(false);
+    // Precisão sub-ms existe no PostgreSQL, embora Date leia só milissegundos.
+    await db.execute(
+      sql`update recreio.snapshot_object_deliveries set retired_at=date_trunc('milliseconds',retired_at)+interval '456 microseconds' where id=${f.id}`,
+    );
+    const [original] = await db.execute<{ instante: string }>(
+      sql`select retired_at::text as instante from recreio.snapshot_object_deliveries where id=${f.id}`,
+    );
     // PUT tardio de um worker antigo; reconferência não apaga o tombstone.
     f.b.objetos.set(f.path, Buffer.from("PUT_TARDIO"));
     await devida(f.id);
     expect(await executarColeta(f.id, f.destino, f.transporte)).toBe("retirada");
     expect((await f.registro())?.retiredAt).toEqual(r?.retiredAt);
+    const [atual] = await db.execute<{ instante: string }>(
+      sql`select retired_at::text as instante from recreio.snapshot_object_deliveries where id=${f.id}`,
+    );
+    expect(atual?.instante).toBe(original?.instante);
     expect(f.b.objetos.has(f.path)).toBe(false);
     const [a] = await db.execute<{ tardia: boolean }>(
       sql`select (payload->>'lateObject')::boolean as tardia from audit.events where event_type='recreio.snapshot_object_retired' and payload->>'deliveryId'=${f.id} order by created_at desc limit 1`,

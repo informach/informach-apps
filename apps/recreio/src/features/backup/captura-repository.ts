@@ -213,6 +213,7 @@ export async function comCapturaConsistente<T>(
     const registros = await tx
       .insert(captures)
       .values({
+        protocolVersion: 1,
         storageScope: alvo.data.escopo,
         bucketId: alvo.data.bucketId,
         bucketName: alvo.data.bucketName,

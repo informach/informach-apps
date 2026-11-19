@@ -327,3 +327,10 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.snapshot_collection_admitted`: `{ app, deliveryId, spaceId, storageScope }`, ator técnico nulo; token antes de I/O, sem referência/hash/chave/bucket/conteúdo.
 - `recreio.snapshot_object_retired`: `{ app, deliveryId, spaceId, storageScope, lateObject }`, ator técnico nulo; GET confirmou ausência e autoridade foi relida. `lateObject` marca objeto encontrado em reconferência de tombstone; não altera a primeira data de retirada.
 - `recreio.snapshot_collection_deferred`: `{ app, deliveryId, spaceId, storageScope }`, ator técnico nulo; falha inconclusiva conserva recibo para nova tentativa. Sem mensagem externa. Eventos de coleta são estritos e atômicos com seus estados.
+
+- `recreio.backup_unsealed_abandoned`: `{ app, captureId }`, ator técnico nulo; abandono do protocolo atual sem arquivo admitido, após barreira exclusiva. Não conclui ausência de operação legada nem normaliza banco restaurado.
+- `recreio.backup_abandoned_holds_released`: `{ app, captureId, objectCount }`, ator técnico nulo; lote de até cem reservas após abandono sem arquivo ou retirada confirmada. Não apaga recibos.
+- `recreio.backup_retirement_prepared`: `{ app, captureId, reasonCode }`, ator técnico nulo; intenção e bytes assinados fixados antes de I/O; `abandonado`, `retencao` ou `privacidade`. Sem destino/hash/chave/índice.
+- `recreio.backup_retirement_claimed`: `{ app, captureId }`, ator técnico nulo; retomada após prazo, com os mesmos bytes; nunca inclui token.
+- `recreio.backup_retirement_marked`: `{ app, captureId }`, ator técnico nulo; adapter confirmou tombstone idêntico, sem comprovar ainda a ausência do payload.
+- `recreio.backup_retired`: `{ app, captureId, reasonCode, lateObject }`, ator técnico nulo; ausência do payload confirmada, mantendo primeira data e tombstone. `lateObject` indica arquivo reencontrado na reconferência. Todos os eventos são estritos na mesma transação dos seus fatos.

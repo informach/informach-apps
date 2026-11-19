@@ -7,10 +7,16 @@ import {
   recreioBackupCaptures as captures,
   recreioBackupObjectHolds as holds,
   recreioBackupPublications as publications,
+  recreioBackupRetirements as retirements,
 } from "@informach/db/schema";
 import { z } from "zod";
 import { type DestinoDeCaptura, DestinoDeCapturaSchema } from "@/features/backup/contrato";
 import { AGORA, type Transacao } from "@/lib/repository";
+import { travarCapturaDeBackup as travarCaptura } from "./controle-repository";
+import { FalhaDaPublicacao } from "./falha-controle";
+
+export { FalhaDaPublicacao } from "./falha-controle";
+
 import {
   conferirReferenciaDoArquivoCifrado,
   type ReferenciaDoArquivoCifrado,
@@ -21,13 +27,6 @@ import {
 } from "./arquivo-composto";
 import type { criarIndiceDeRecuperacao, PublicacaoDoBackup } from "./indice-recuperacao";
 
-export class FalhaDaPublicacao extends Error {
-  constructor(
-    readonly codigo: "CONFIGURACAO" | "INTEGRIDADE" | "ESTADO" | "OCUPADA" | "TENTATIVA",
-  ) {
-    super(`recreio.backup_publication.${codigo}`);
-  }
-}
 const Token = z.strictObject({ capturaId: z.uuid(), tentativa: z.uuid() });
 export type TentativaDePublicacao = z.infer<typeof Token>;
 type Captura = typeof captures.$inferSelect;
@@ -41,17 +40,6 @@ function token(bruto: TentativaDePublicacao) {
   exigir(v.success, "CONFIGURACAO");
   return v.data;
 }
-async function limitar(tx: Transacao) {
-  await tx.execute(sql`select set_config('lock_timeout','5000ms',true),
-    set_config('statement_timeout','15000ms',true),set_config('transaction_timeout','30000ms',true)`);
-}
-async function travarCaptura(tx: Transacao, id: string) {
-  exigir(z.uuid().safeParse(id).success, "CONFIGURACAO");
-  await limitar(tx);
-  const [c] = await tx.select().from(captures).where(eq(captures.id, id)).for("update");
-  exigir(c, "ESTADO");
-  return c;
-}
 async function travarPublicacao(tx: Transacao, c: Captura) {
   const [p] = await tx
     .select()
@@ -59,6 +47,12 @@ async function travarPublicacao(tx: Transacao, c: Captura) {
     .where(eq(publications.captureId, c.id))
     .for("update");
   exigir(p, "ESTADO");
+  const [retirada] = await tx
+    .select({ id: retirements.captureId })
+    .from(retirements)
+    .where(eq(retirements.captureId, c.id))
+    .limit(1);
+  exigir(!retirada, "ESTADO");
   exigir(c.storageScope === p.storageScope, "INTEGRIDADE");
   exigir(c.state === "sealed" || (c.state === "verified" && p.state === "published"), "ESTADO");
   return p;
@@ -148,7 +142,10 @@ export async function prepararPublicacao(config: {
   );
   return db.transaction(async (tx) => {
     const c = await travarCaptura(tx, id);
-    exigir(c.state === "captured" && c.storageScope === destino.data.escopo, "ESTADO");
+    exigir(
+      c.protocolVersion === 1 && c.state === "captured" && c.storageScope === destino.data.escopo,
+      "ESTADO",
+    );
     exigir(
       destino.data.escopo !== "production" ||
         (c.bucketId !== destino.data.bucketId && c.bucketName !== destino.data.bucketName),

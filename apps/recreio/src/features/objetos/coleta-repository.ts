@@ -167,7 +167,7 @@ export async function confirmarColeta(bruto: TrabalhoDeColeta, objetoEncontrado:
       .update(deliveries)
       .set({
         state: "retired",
-        retiredAt: e.retiredAt ?? AGORA,
+        retiredAt: sql`coalesce(${deliveries.retiredAt},${AGORA})`,
         leaseToken: null,
         leaseUntil: null,
         nextAttemptAt: sql`${AGORA}+interval '24 hours'`,
