@@ -301,3 +301,34 @@ O prazo técnico é o máximo original de presenças e convites, calculado com
 precisão PG; não é agora + 30 dias. Sem prazo futuro, purging distingue
 expurgo mecânico. A etapa e os CHECKs novos ainda precisam de gates remotos,
 seguida do purgador/finalizador, drenagem de mundo ativo e tela de execução.
+
+
+## Expurgo e conclusão candidatos
+
+O purgador retoma a referência histórica exata, confere a intenção assinada e
+seu prefixo externo e exige o cadastro canônico já minimizado. Trabalha também
+sobre operações concluídas com retenções explícitas, sem lhes atribuir lease
+ou alterar a data original de conclusão. Referências técnicas ainda vivas ou
+com prazo original futuro bloqueiam o DELETE; não há extensão automática.
+Também conservamos até o vencimento original o SID encerrado pelo cursor,
+para que retirar o cadastro não suprima prematuramente a revogação.
+
+A ordem dos lotes respeita as FKs de sessões visitantes, visitas, convites,
+presenças, amizades/pedidos/códigos e sessões de jogo. Cada passagem remove
+até cem pais/linhas de um domínio, não carrega fotos ou conteúdo e não chama
+rede sob locks SQL. Índices de histórico cobrem os caminhos que antes só
+indexavam relações pendentes/ativas. Auditoria estrita e alteração do recibo
+removed integram a mesma transação do DELETE. Falha reverte o efeito e
+reagenda só o item para dar passagem às demais operações.
+
+A conclusão da retirada exige todos os mundos liberados e cada sujeito
+removido ou minimizado com prazo original ainda vigente. Informa retenções
+em separado, conserva identidade e fatos financeiros e não alega anonimização.
+O expurgo posterior não reabre a operação nem reescreve seu recibo de conclusão.
+O índice de mundos do perfil é retirado na minimização, depois dos recibos dos
+mundos; nenhum índice novo pode surgir em perfil suspenso.
+
+Qualidade da correção de contexto infantil passou em 44570280421 (1aaa1618);
+a integração correspondente ainda está em conferência. Os novos lotes,
+conclusão, token com prazo real e índices precisam dos gates remotos da
+próxima fonte. Não há rota pública destrutiva, migração ou ativação em produção.

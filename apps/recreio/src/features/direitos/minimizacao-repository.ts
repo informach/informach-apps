@@ -14,6 +14,7 @@ import {
   recreioRightsProfileProjection,
   recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
+  recreioProfileWorldTraces as traces,
   recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { ContaIdSchema } from "@informach/recreio";
@@ -146,6 +147,7 @@ export function minimizarProximoPerfil(config: CoordenacaoDeEfeitos) {
       .update(groupInvites)
       .set({ acceptedProfileId: null, acceptedUserId: null })
       .where(eq(groupInvites.acceptedProfileId, perfil.id));
+    await tx.delete(traces).where(eq(traces.profileId, perfil.id));
     await tx.delete(creationRequests).where(eq(creationRequests.profileId, perfil.id));
     if (perfil.kind === "minor") await tx.delete(minors).where(eq(minors.profileId, perfil.id));
     if (perfil.kind === "adult")
@@ -186,6 +188,7 @@ export function minimizarProximoPerfil(config: CoordenacaoDeEfeitos) {
     const [retencao] = await tx.execute<{ phase: string }>(sql`
       with instante as materialized(select statement_timestamp() as agora), limite as materialized(
         select i.agora, greatest(i.agora,
+          coalesce((select max(g.expires_at) from recreio.game_sessions g where g.profile_id=${perfil.id}::uuid),i.agora),
           coalesce((select max(p.retain_until) from recreio.world_host_presences p where p.host_profile_id=${perfil.id}::uuid),i.agora),
           coalesce((select max(c.retain_until) from recreio.space_visit_invites c where c.origin_profile_id=${perfil.id}::uuid or c.target_profile_id=${perfil.id}::uuid),i.agora),
           coalesce((select max(c.retain_until) from recreio.directed_space_invites c where c.origin_profile_id=${perfil.id}::uuid or c.target_profile_id=${perfil.id}::uuid),i.agora)

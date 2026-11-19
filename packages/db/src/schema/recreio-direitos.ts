@@ -58,6 +58,7 @@ export const recreioRightsSubjects = recreio.table(
   (t) => [
     primaryKey({ name: "recreio_rights_subject", columns: [t.operationId, t.profileReference] }),
     index("recreio_rights_subject_live").on(t.liveProfileId),
+    index("recreio_rights_subject_retention").on(t.phase, t.retainedUntil, t.operationId),
     check(
       "recreio_rights_subject_identity",
       sql`${t.liveProfileId} is null or ${t.liveProfileId}=${t.profileReference}`,

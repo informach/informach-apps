@@ -39,6 +39,7 @@ export const recreioFriendCodes = recreio.table(
     uniqueIndex("recreio_friend_code_open")
       .on(t.profileId)
       .where(sql`${t.consumedAt} is null and ${t.revokedAt} is null`),
+    index("recreio_friend_code_profile_history").on(t.profileId, t.id),
     index("recreio_friend_code_expiry").on(t.expiresAt, t.id),
     check("recreio_friend_code_digest", sql`${t.codeHash} ~ '^[a-f0-9]{64}$'`),
     check(
@@ -81,6 +82,7 @@ export const recreioFriendRequests = recreio.table(
     finishedAt: moment("finished_at"),
   },
   (t) => [
+    index("recreio_friend_request_target_history").on(t.targetProfileId, t.id),
     uniqueIndex("recreio_friend_request_retry").on(t.originProfileId, t.clientKey),
     unique("recreio_friend_request_identity_pair_state").on(
       t.id,
@@ -220,6 +222,7 @@ export const recreioFriendships = recreio.table(
       .where(sql`${t.state}='active'`),
     index("recreio_friendship_retention").on(t.removedAt).where(sql`${t.state}='removed'`),
     index("recreio_friendship_request").on(t.requestId),
+    index("recreio_friendship_higher_history").on(t.higherProfileId, t.lowerProfileId),
     check("recreio_friendship_pair", sql`${t.lowerProfileId}<${t.higherProfileId}`),
     check("recreio_friendship_revision", sql`${t.revision} between 1 and 2147483646`),
     check(

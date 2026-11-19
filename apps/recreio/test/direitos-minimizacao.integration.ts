@@ -2,14 +2,17 @@ import { randomUUID } from "node:crypto";
 import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
+  recreioFriendCodes as codes,
   recreioDeviceSessions as devices,
   recreioDirectedSpaceInvites as directed,
+  recreioGameSessions as gameSessions,
   recreioGroupInvites as groupInvites,
   recreioGroups as groups,
   recreioGuardianLinks as guardians,
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
   recreioMinorProfiles as minors,
+  recreioRightsOperations as operations,
   recreioProfiles as profiles,
   sessions,
   recreioSpaces as spaces,
@@ -18,10 +21,12 @@ import {
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { concluirProximaRetirada } from "@/features/direitos/conclusao-repository";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { minimizarProximoPerfil } from "@/features/direitos/minimizacao-repository";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
+import { expurgarProximaReferencia } from "@/features/direitos/referencias-retidas-repository";
 import { consentirRetiradaNoBanco } from "@/features/direitos/retirada-consentimento-repository";
 import { consultarMeusDireitos, prepararPedidoDeDireitos } from "@/features/direitos/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
@@ -91,6 +96,18 @@ function compor(r: Awaited<ReturnType<typeof runtime>>) {
         politica: { retirarTextosDaFundacao: true },
       });
       return op;
+    },
+    async expurgar() {
+      return expurgarProximaReferencia({
+        assinatura,
+        prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 100, tempoLimiteMs: 2000 }),
+      });
+    },
+    async concluir() {
+      return concluirProximaRetirada({
+        assinatura,
+        prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 100, tempoLimiteMs: 2000 }),
+      });
     },
     async executar() {
       const prova = await conferirPrefixoDoLivro({
@@ -299,6 +316,18 @@ describe("minimização nativa sem reabrir autoridade", () => {
         .where(eq(subjects.operationId, op.operacaoId));
       expect(recibo?.retainedUntil?.toISOString()).toBe(prazo.toISOString());
       expect(recibo?.phase).toBe("minimized");
+      expect(await f.expurgar()).toEqual({ situacao: "ociosa" });
+      expect(await f.concluir()).toMatchObject({
+        situacao: "retirada_concluida",
+        referenciasRetidas: 1,
+      });
+      const [concluida] = await db
+        .select()
+        .from(operations)
+        .where(eq(operations.id, op.operacaoId));
+      expect(concluida).toMatchObject({ state: "completed", leaseToken: null, leaseUntil: null });
+      expect(concluida?.completedAt).toBeInstanceOf(Date);
+      expect(await f.concluir()).toEqual({ situacao: "ociosa" });
       expect((await db.select().from(invites).where(eq(invites.id, legado.id)))[0]).toMatchObject({
         state: "revoked",
         participation: null,
@@ -376,4 +405,170 @@ describe("minimização nativa sem reabrir autoridade", () => {
         { userId: a.conta.id, nickname: perfil.apelido, status: "suspended" },
       );
     }));
+  it("remove fisicamente só o perfil selecionado e conclui uma única vez", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        b = await adulto(),
+        p = await jogador(a),
+        outro = await jogador(b);
+      const op = await f.admitir(a.autor, p.id);
+      expect(await f.concluir()).toEqual({ situacao: "ociosa" });
+      await f.executar();
+      expect(await f.concluir()).toEqual({ situacao: "ociosa" });
+      expect(await f.expurgar()).toMatchObject({
+        situacao: "perfil_removido",
+        operacaoId: op.operacaoId,
+      });
+      expect(await db.select().from(profiles).where(eq(profiles.id, p.id))).toHaveLength(0);
+      expect((await db.select().from(profiles).where(eq(profiles.id, outro.id)))[0]?.nickname).toBe(
+        "Pessoa privada",
+      );
+      const [recibo] = await db
+        .select()
+        .from(subjects)
+        .where(eq(subjects.operationId, op.operacaoId));
+      expect(recibo).toMatchObject({ phase: "removed", liveProfileId: null, retainedUntil: null });
+      expect(recibo?.completedAt).toBeInstanceOf(Date);
+      expect(await f.concluir()).toMatchObject({
+        situacao: "retirada_concluida",
+        referenciasRetidas: 0,
+      });
+      expect(await f.concluir()).toEqual({ situacao: "ociosa" });
+      expect(await f.expurgar()).toEqual({ situacao: "ociosa" });
+      expect(await consultarMeusDireitos(a.autor)).toMatchObject({ perfis: [] });
+    }));
+
+  it("expurga códigos em lotes de cem e preserva os códigos de outro perfil", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        b = await adulto(),
+        p = await jogador(a),
+        outro = await jogador(b);
+      const agora = new Date(),
+        criado = new Date(agora.getTime() - 3600_000),
+        vence = new Date(criado.getTime() + 1200_000);
+      await db.insert(codes).values(
+        Array.from({ length: 103 }, () => ({
+          profileId: p.id,
+          codeHash: randomUUID().replaceAll("-", "") + randomUUID().replaceAll("-", ""),
+          createdAt: criado,
+          expiresAt: vence,
+          revokedAt: agora,
+        })),
+      );
+      await db.insert(codes).values({
+        profileId: outro.id,
+        codeHash: "c".repeat(64),
+        createdAt: criado,
+        expiresAt: vence,
+      });
+      await f.admitir(a.autor, p.id);
+      await f.executar();
+      expect(await f.expurgar()).toMatchObject({
+        situacao: "referencias_expurgadas",
+        dominio: "codigos_amizade",
+        quantidade: 100,
+      });
+      expect(await db.select().from(codes).where(eq(codes.profileId, p.id))).toHaveLength(3);
+      expect(await f.expurgar()).toMatchObject({ quantidade: 3 });
+      expect(await f.expurgar()).toMatchObject({ situacao: "perfil_removido" });
+      expect(await db.select().from(codes).where(eq(codes.profileId, outro.id))).toHaveLength(1);
+    }));
+
+  it("auditoria recusada reverte o DELETE e o recibo removed juntos", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        p = await jogador(a),
+        op = await f.admitir(a.autor, p.id);
+      await f.executar();
+      await db.execute(
+        sql`create function audit.recusar_expurgo_teste() returns trigger language plpgsql as $$ begin if new.event_type='recreio.rights_profile_removed' then raise exception 'auditoria indisponível'; end if; return new; end $$`,
+      );
+      await db.execute(
+        sql`create trigger recusar_expurgo_teste before insert on audit.events for each row execute function audit.recusar_expurgo_teste()`,
+      );
+      try {
+        await expect(f.expurgar()).rejects.toBeInstanceOf(AuditPersistenceError);
+      } finally {
+        await db.execute(sql`drop trigger recusar_expurgo_teste on audit.events`);
+        await db.execute(sql`drop function audit.recusar_expurgo_teste()`);
+      }
+      expect(await db.select().from(profiles).where(eq(profiles.id, p.id))).toHaveLength(1);
+      expect(
+        (await db.select().from(subjects).where(eq(subjects.operationId, op.operacaoId)))[0],
+      ).toMatchObject({ phase: "purging", liveProfileId: p.id, completedAt: null });
+    }));
+
+  it("intenção alterada não autoriza expurgo e não monopoliza a próxima operação", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        b = await adulto(),
+        p = await jogador(a),
+        outro = await jogador(b);
+      const op = await f.admitir(a.autor, p.id);
+      await f.executar();
+      await db.execute(
+        sql`update recreio.rights_operations set signed_intent=set_byte(signed_intent,0,0) where id=${op.operacaoId}::uuid`,
+      );
+      await expect(f.expurgar()).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+      expect(await db.select().from(profiles).where(eq(profiles.id, p.id))).toHaveLength(1);
+      await f.admitir(b.autor, outro.id);
+      await f.executar();
+      expect(await f.expurgar()).toMatchObject({ situacao: "perfil_removido" });
+    }));
+
+  it(
+    "conserva a referência até vencer o token original e expurga após concluir",
+    async () =>
+      cenario(async (f) => {
+        const a = await adulto(),
+          p = await jogador(a);
+        // SID sintético sem mundo para qualificar o prazo técnico real, não o
+        // transporte de um jogo. O consentimento o encerra pelo cursor nativo.
+        await db.insert(gameSessions).values({
+          profileId: p.id,
+          deviceSessionId: a.autor.sessaoDeAparelhoId,
+          gameId: "morada",
+          expiresAt: sql`clock_timestamp()+interval '10 seconds'`,
+        });
+        const op = await f.admitir(a.autor, p.id);
+        await f.executar();
+        const [recibo] = await db
+          .select()
+          .from(subjects)
+          .where(eq(subjects.operationId, op.operacaoId));
+        expect(recibo?.phase).toBe("minimized");
+        expect(await f.expurgar()).toEqual({ situacao: "ociosa" });
+        expect(await f.concluir()).toMatchObject({
+          situacao: "retirada_concluida",
+          referenciasRetidas: 1,
+        });
+        const [antes] = await db.select().from(operations).where(eq(operations.id, op.operacaoId));
+        // O relógio anda de verdade no runner; nenhum prazo de trinta dias é
+        // falsificado nem a data de conclusão é reescrita para provar este caso.
+        await expect
+          .poll(() => f.expurgar(), { timeout: 15000, interval: 100 })
+          .toMatchObject({
+            situacao: "referencias_expurgadas",
+            dominio: "sessoes_jogo",
+            quantidade: 1,
+          });
+        expect(await f.expurgar()).toMatchObject({ situacao: "perfil_removido" });
+        const [depois] = await db.select().from(operations).where(eq(operations.id, op.operacaoId));
+        expect(depois).toMatchObject({
+          state: "completed",
+          leaseToken: null,
+          leaseUntil: null,
+          completedAt: antes?.completedAt,
+        });
+        expect(
+          (await db.select().from(subjects).where(eq(subjects.operationId, op.operacaoId)))[0],
+        ).toMatchObject({
+          phase: "removed",
+          liveProfileId: null,
+          retainedUntil: recibo?.retainedUntil,
+        });
+      }),
+    20000,
+  );
 });

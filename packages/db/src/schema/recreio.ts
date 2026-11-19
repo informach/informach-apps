@@ -311,6 +311,7 @@ export const recreioGameTickets = recreio.table(
     openedSessionId: uuid("opened_session_id"),
   },
   (t) => [
+    index("recreio_game_tickets_profile_history").on(t.profileId, t.jti),
     index("recreio_game_tickets_expires").on(t.expiresAt),
     foreignKey({
       name: "recreio_ticket_opened_session_profile",

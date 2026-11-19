@@ -351,3 +351,7 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.rights_profile_data_removed`: `{ app, operationId, domain, count }`. Lote de até 100 versões/chaves/conquistas pessoais; rollback estrito com a auditoria. Sem IDs dos itens/perfil/jogo, hashes ou bytes. Não representa remoção final do perfil.
 
 - `recreio.rights_profile_minimized`: `{ app, operationId, kind, profileCount, worldCount, retained }`. Retirada atômica de cadastro e vínculos pessoais com referências técnicas discriminadas. Não é exclusão da identidade global nem cancelamento financeiro. Nenhum nome, data de nascimento, ID de perfil/mundo ou prazo no payload; os detalhes privados pertencem ao recibo nativo.
+
+- `recreio.rights_references_purged`: `{ app, operationId, domain, count }`. Expurgo delimitado de referências nativas após seus prazos originais. Sem IDs dos itens/perfil/mundo, nomes, hashes ou bytes; o efeito e o evento são atômicos.
+- `recreio.rights_profile_removed`: `{ app, operationId, profileCount }`. Remoção física do perfil já minimizado, após conferir retenções e vínculos; o recibo e o DELETE são atômicos. Não representa exclusão de identidade global ou fatos financeiros.
+- `recreio.rights_withdrawal_completed`: `{ app, operationId, profileCount, retainedCount }`. Conclusão da retirada consentida, discriminando referências técnicas mínimas ainda retidas. Nenhuma retenção é apresentada como anonimização; o prazo privado permanece no recibo.
