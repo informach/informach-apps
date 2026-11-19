@@ -26,6 +26,11 @@ import { consentirRetiradaNoBanco } from "@/features/direitos/retirada-consentim
 import { consultarMeusDireitos, prepararPedidoDeDireitos } from "@/features/direitos/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import { criarPerfilProprio, selecionarPerfil } from "@/features/perfis/service";
+import {
+  definirPinDaConta,
+  definirPinDoMenor,
+  trocarPerfilComPin,
+} from "@/features/protecao/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { processarProximaFotografiaDeDireitos } from "../scripts/direitos/fotografias";
 import { loginReal, novaConta } from "./apoio";
@@ -155,7 +160,12 @@ describe("minimização nativa sem reabrir autoridade", () => {
       const loginInfantil = await loginReal(a.conta),
         ctx = await resolverAtor(loginInfantil);
       if (!ctx) throw new Error("Child context absent");
-      await selecionarPerfil(ctx.ator, perfil.id);
+      await definirPinDaConta(a.autor, { pin: "593871" });
+      await definirPinDoMenor(a.autor, { perfilId: perfil.id, pin: "396175" });
+      await trocarPerfilComPin(ctx.ator, {
+        destino: { tipo: "perfil", perfilId: perfil.id },
+        pin: "396175",
+      });
       const [antes] = await db
         .select()
         .from(devices)
@@ -174,21 +184,7 @@ describe("minimização nativa sem reabrir autoridade", () => {
         .from(devices)
         .where(eq(devices.id, ctx.ator.sessaoDeAparelhoId));
       expect(depois?.minorContextGeneration).toBe(antes?.minorContextGeneration);
-      const [sessao] = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.id, loginInfantil.authSessionId));
-      if (!sessao) throw new Error("Native session absent");
-      await expect(
-        consultarMeusDireitos({
-          ...ctx.ator,
-          login: {
-            authSessionId: sessao.id,
-            criadoEm: sessao.createdAt,
-            expiraEm: sessao.expiresAt,
-          },
-        }),
-      ).rejects.toMatchObject({ code: "AUTH" });
+      await expect(consultarMeusDireitos(ctx.ator)).rejects.toMatchObject({ code: "AUTH" });
     }));
 
   it("desvincula recibo composto de convite familiar antes de remover o login do perfil", async () =>
