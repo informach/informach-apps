@@ -245,7 +245,7 @@ O registro/DDL `29d090c4` passou em quality `44437014121` e integração
 e cinco HTTP. [Recibo](evidencias/objetos-registro-44437017538.json). Nenhuma
 migration de objetos foi aplicada em produção.
 
-A candidata de checkpoint/retencão passa a resolver uma revisão específica da
+A candidata de checkpoint/retenção passa a resolver uma revisão específica da
 fotografia com o mesmo limite e as mesmas verificações do leitor. PG continua
 exigindo SHA/comprimento; bucket exige recibo confirmado e destino configurado
 legível. Não há rede sob trava de encerramento. A retenção destaca a entrega e
@@ -255,3 +255,27 @@ continuam protegidas. O coletor ainda precisa confirmar exclusão e revisitar
 recibos contra PUT tardio; essa espera não prova que um processo antigo parou.
 Backups precisarão de proteção própria contra GC. Os novos cenários continuam
 em qualificação remota; não habilitar migração com base apenas nesse código.
+
+
+O leitor `5d5df72e` passou em quality `44439533813` e integração `44439538487`:
+17 cenários novos, 98 arquivos/1190 casos PostgreSQL e cinco HTTP. A composição
+permaneceu desligada em produção. [Recibo](evidencias/objetos-leitura-44439538487.json).
+
+## Recuperação histórica em qualificação
+
+O mesmo resolvedor passa a atender uma revisão específica na recuperação
+operacional. A preparação admite mundo hibernando sem posse aberta, captura
+fonte e diário limitados, materializa o bucket fora da transação e relê mundo,
+cerca, fonte e impressão completa antes de devolver. Uma abertura ou alteração
+no intervalo invalida o material e limpa o buffer. O operador usa apenas as
+variáveis privadas dos objetos; não passa a exigir autenticação/e-mail/URLs do
+Next para restaurar PG com objetos desligados.
+
+Na aplicação, uma transação relê fonte/recibo, mundo e diário e confere os bytes
+preparados antes de inserir uma revisão nova em PG. Não apaga fonte nem diário;
+repetição da operação conserva o recibo. Não há chamada S3 sob a trava de
+aplicação. Uma referência que passou a revisão falha; armazenamento ausente,
+corrompido ou desligado é recusado sem escolher outra revisão silenciosamente.
+Os cenários sintéticos e as regressões Morada existentes precisam passar no
+GitHub desta fonte. Isso ainda não constitui backup agendado ou worker de
+migração e não autoriza mover os bytes atuais.

@@ -16,6 +16,13 @@ export const objectEnvironmentSchema = z.object({
 });
 type Variables = z.infer<typeof objectEnvironmentSchema>;
 
+/** Composição operacional usa só suas variáveis, sem exigir login/e-mail do Next. */
+export function configuracaoDosObjetosDoProcesso(input: NodeJS.ProcessEnv) {
+  const lida = objectEnvironmentSchema.safeParse(input);
+  if (!lida.success) throw new Error("Invalid RECREIO_OBJECTS configuration");
+  return configuracaoDosObjetos(lida.data);
+}
+
 const ConfigSchema = z.strictObject({
   bucketId: z.uuid(),
   bucketName: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/),

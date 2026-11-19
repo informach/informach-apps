@@ -15,6 +15,11 @@ import {
   lerFotografiaDoMundo,
   type PedidoComPosse,
 } from "@/features/posse/repository";
+import {
+  aplicarRecuperacao,
+  type PedidoDeRecuperacao,
+  prepararRecuperacao,
+} from "@/features/recuperacao/repository";
 import { aposentarInstancias, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, MORADA, mundoDe, novaInstancia } from "./jogo-apoio";
 import { criarBucketS3DeTeste } from "./objetos-s3-apoio";
@@ -53,7 +58,28 @@ async function preparar() {
     })
     .returning();
   if (!foto) throw new Error("Snapshot absent");
-  return { pedido, foto, bytes };
+  return { pedido, foto, bytes, instancia };
+}
+
+async function pararParaRecuperacao(
+  f: Awaited<ReturnType<typeof preparar>>,
+): Promise<PedidoDeRecuperacao> {
+  await f.instancia.cliente.liberarPosse({
+    mundoId: f.pedido.mundoId,
+    cerca: f.pedido.cerca,
+    motivo: "erro",
+  });
+  await db.update(spaces).set({ revision: 1 }).where(eq(spaces.id, f.pedido.mundoId));
+  return {
+    mundoId: f.pedido.mundoId,
+    jogo: f.pedido.jogo,
+    revisaoFonte: 1,
+    revisaoEsperada: 1,
+    operacaoId: randomUUID(),
+    motivo: "ensaio_bucket",
+    fotografiaMaxBytes: 4096,
+    diarioPendenteMaxBytes: 1024,
+  };
 }
 
 async function comBucket(
@@ -113,6 +139,125 @@ async function comBucket(
 }
 
 describe("leitor nativo de fotografias: limites, integridade e posse após I/O", () => {
+  it("recupera revisão histórica no bucket, publica pg e repete o recibo sem rede na aplicação", async () =>
+    comBucket(async (f) => {
+      const pedido = await pararParaRecuperacao(f);
+      await db.insert(snapshots).values({
+        spaceId: pedido.mundoId,
+        revision: 2,
+        fence: f.pedido.cerca,
+        schemaVersion: 1,
+        journalSeq: 0,
+        tick: 1,
+        kind: "checkpoint",
+        storage: "pg",
+        data: Buffer.alloc(f.bytes.length),
+        byteSize: f.bytes.length,
+        sha256: f.foto.sha256,
+      });
+      await db.update(spaces).set({ revision: 2 }).where(eq(spaces.id, pedido.mundoId));
+      pedido.revisaoEsperada = 2;
+      const material = await prepararRecuperacao(pedido, f.leitor);
+      expect(Buffer.from(material.foto.bytes)).toEqual(f.bytes);
+      expect(material.foto.revision).toBe(1);
+      const antes = f.s3.pedidos.length;
+      const nova = {
+        bytes: material.foto.bytes,
+        tick: material.foto.tick,
+        schemaVersion: material.mundo.schemaVersion,
+      };
+      const recibo = await aplicarRecuperacao(pedido, material, nova);
+      expect(recibo).toMatchObject({ sourceRevision: 1, previousRevision: 2, revision: 3 });
+      expect(await aplicarRecuperacao(pedido, material, nova)).toEqual(recibo);
+      const fotos = await db
+        .select({ revision: snapshots.revision, storage: snapshots.storage, data: snapshots.data })
+        .from(snapshots)
+        .where(eq(snapshots.spaceId, pedido.mundoId))
+        .orderBy(snapshots.revision);
+      expect(fotos).toHaveLength(3);
+      expect(fotos[0]).toMatchObject({ storage: "bucket", data: null });
+      expect(fotos[2]).toMatchObject({ storage: "pg", data: f.bytes });
+      expect(f.s3.pedidos).toHaveLength(antes);
+    }));
+  it.each(["off", "ausente", "corrompido"] as const)(
+    "restauração recusa armazenamento %s sem escolher outra fonte",
+    async (caso) =>
+      comBucket(async (f) => {
+        const pedido = await pararParaRecuperacao(f);
+        if (caso === "ausente") f.s3.objetos.clear();
+        if (caso === "corrompido") f.s3.estado.corromper = true;
+        await expect(
+          prepararRecuperacao(pedido, caso === "off" ? null : f.leitor),
+        ).rejects.toMatchObject({ codigo: "ARMAZENAMENTO_INDISPONIVEL" });
+        expect(
+          await db
+            .select({ id: snapshots.id })
+            .from(snapshots)
+            .where(eq(snapshots.spaceId, pedido.mundoId)),
+        ).toHaveLength(1);
+      }),
+  );
+  it.each(["abertura", "cerca", "fotografia"] as const)(
+    "restauração relê %s após o I/O sem travar a rede",
+    async (caso) =>
+      comBucket(async (f) => {
+        const pedido = await pararParaRecuperacao(f);
+        let aberto: Uint8Array | undefined;
+        const leitor: LeitorDeFotografiasPrivadas = {
+          ...f.leitor,
+          ler: async (ref) => {
+            await db.transaction(async (tx) => {
+              await tx.execute(sql`set local lock_timeout='1500ms'`);
+              await tx
+                .select({ id: spaces.id })
+                .from(spaces)
+                .where(eq(spaces.id, pedido.mundoId))
+                .for("update");
+              if (caso === "abertura")
+                await tx
+                  .update(spaces)
+                  .set({ status: "active" })
+                  .where(eq(spaces.id, pedido.mundoId));
+              if (caso === "cerca")
+                await tx
+                  .update(spaces)
+                  .set({ leaseEpoch: sql`${spaces.leaseEpoch}+1` })
+                  .where(eq(spaces.id, pedido.mundoId));
+              if (caso === "fotografia")
+                await tx.update(snapshots).set({ tick: 1 }).where(eq(snapshots.id, f.foto.id));
+            });
+            aberto = await f.leitor.ler(ref);
+            return aberto;
+          },
+        };
+        await expect(prepararRecuperacao(pedido, leitor)).rejects.toMatchObject({
+          codigo: caso === "abertura" ? "MUNDO_NAO_PARADO" : "MATERIAL_ALTERADO",
+        });
+        expect(aberto?.every((b) => b === 0)).toBe(true);
+      }),
+  );
+  it("recusa confirmação retirada depois da preparação e conserva a fonte anterior", async () =>
+    comBucket(async (f) => {
+      const pedido = await pararParaRecuperacao(f);
+      const material = await prepararRecuperacao(pedido, f.leitor);
+      await db
+        .update(deliveries)
+        .set({ state: "review", reviewReason: "integrity" })
+        .where(eq(deliveries.id, f.entregaId));
+      await expect(
+        aplicarRecuperacao(pedido, material, {
+          bytes: material.foto.bytes,
+          tick: material.foto.tick,
+          schemaVersion: material.mundo.schemaVersion,
+        }),
+      ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+      expect(
+        await db
+          .select({ id: snapshots.id })
+          .from(snapshots)
+          .where(eq(snapshots.spaceId, pedido.mundoId)),
+      ).toHaveLength(1);
+    }));
   it("checkpoint aceita referência confirmada somente no destino legível, sem rede sob trava", async () =>
     comBucket(async (f) => {
       const prova = {

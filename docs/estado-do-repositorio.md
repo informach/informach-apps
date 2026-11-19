@@ -75,8 +75,10 @@ prova externa `44433527147` aprovada com recusa de sobrescrita/acesso anônimo
 e limpeza confirmada. 0216/0217 de conteúdo/entregas foram geradas e
 adotadas intactas, ainda sem aplicação ou escritores de objetos em produção;
 dezoito cenários SQL aprovados em `44437017538` (1173 integrações e cinco HTTP),
-quality `44437014121` aprovado. Leitor nativo em duas etapas em qualificação;
-checkpoint e retenção em candidata, sem migração habilitada. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
+quality `44437014121` aprovado. Leitor nativo em duas etapas aprovado em
+quality `44439533813` e integração `44439538487` (17 cenários novos, 1190
+integrações e cinco HTTP). Checkpoint/retenção e recuperação histórica em
+qualificação, sem migração habilitada. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,

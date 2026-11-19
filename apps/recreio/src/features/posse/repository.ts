@@ -1,5 +1,4 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, asc, db, eq, gt, gte, isNull, lt, ne, sql } from "@informach/db";
 import {
@@ -37,6 +36,7 @@ import {
 import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { mundoCompativel } from "@/features/mundos/politica";
+import { materializarFotografia, mesmaFotografia } from "@/features/objetos/fotografia";
 import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
 import { conferirCapacidadeDeJogadores } from "@/features/visitas/capacidade-repository";
 import { exigirSessaoSemVisita } from "@/features/visitas/sessao-repository";
@@ -646,37 +646,12 @@ export async function lerFotografiaDoMundo(
   if (!fonte) return null;
   // A leitura de pg já foi limitada e conferida sob posse atual, sem I/O externo.
   if (fonte.origem.tipo === "pg") return { meta: fonte.meta, bytes: fonte.origem.bytes };
-  const origem = fonte.origem;
-  if (
-    !leitor ||
-    leitor.bucketId !== origem.bucketId ||
-    leitor.bucketName !== origem.bucketName ||
-    leitor.escopo !== origem.escopo
-  )
-    throw new ErroDoRecreio("INDISPONIVEL");
-  let bytes: Uint8Array;
+  const bytes = await materializarFotografia(fonte, leitor);
   try {
-    bytes = await leitor.ler(origem.objeto);
-  } catch {
-    throw new ErroDoRecreio("INDISPONIVEL");
-  }
-  try {
-    if (
-      bytes.length !== fonte.meta.bytes ||
-      createHash("sha256").update(bytes).digest("hex") !== fonte.meta.sha256
-    )
-      throw new ErroDoRecreio("INDISPONIVEL");
     await db.transaction(async (tx) => {
       await conferirPosse(tx, pedido);
       const atual = await armazenamento.prepararLeituraDaFotografia(tx, pedido.mundoId, teto);
-      if (
-        !atual ||
-        atual.id !== fonte.id ||
-        JSON.stringify(atual.meta) !== JSON.stringify(fonte.meta) ||
-        atual.origem.tipo !== "bucket" ||
-        JSON.stringify(atual.origem) !== JSON.stringify(origem)
-      )
-        throw new ErroDoRecreio("INDISPONIVEL");
+      if (!atual || !mesmaFotografia(atual, fonte)) throw new ErroDoRecreio("INDISPONIVEL");
       await conferirPosse(tx, pedido);
     });
     return { meta: fonte.meta, bytes };

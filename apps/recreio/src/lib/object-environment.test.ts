@@ -1,6 +1,10 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { configuracaoDosObjetos, objectEnvironmentSchema } from "./object-environment";
+import {
+  configuracaoDosObjetos,
+  configuracaoDosObjetosDoProcesso,
+  objectEnvironmentSchema,
+} from "./object-environment";
 
 const base = {
   RECREIO_OBJECTS_MODE: "read",
@@ -18,6 +22,7 @@ const base = {
 const configurar = (input: unknown) => configuracaoDosObjetos(objectEnvironmentSchema.parse(input));
 describe("composição restrita dos objetos", () => {
   it("nasce desligada; não existe autorização de migração", () => {
+    expect(configuracaoDosObjetosDoProcesso({})).toBeNull();
     expect(configurar({})).toBeNull();
     expect(configurar({ ...base, RECREIO_OBJECTS_MODE: "off" })).toBeNull();
     expect(() => configurar({ ...base, RECREIO_OBJECTS_MODE: "migrate" })).toThrow();
