@@ -105,3 +105,16 @@ sintéticas e sem serviço externo. Precisam de gate remoto próprio. Não prova
 compatibilidade real das condições S3 com o Railway, permissão de download,
 catálogo, migração ou backup. A referência do envelope agora conserva também o
 tamanho cifrado exato; o formato ainda não foi implantado.
+
+O workflow `recreio-objetos.yml` prepara a prova externa somente após tipos e
+testes fechados. É manual, exige o nome exato de um bucket dedicado cujo nome
+começa por `recreio-homologacao-`, credenciais próprias e executor GitHub do
+repositório. Não usa o bucket de jogo ou de backup. Antes do PUT, exige prefixo
+UUID vazio e grava recibo técnico. A prova usa apenas texto sintético, verifica
+replay, tenta sobrescrever o próprio objeto para exigir 412 e testa negativa
+de leitura anônima. Limpeza remove somente a chave criada pela operação, exige
+inventário completo vazio e GET ausente; limpeza e sucesso são fatos separados.
+O workflow não cancela uma execução em andamento para preservar essa limpeza.
+
+Prova preparada não é prova executada: ainda não foi provisionado seu bucket,
+configurada sua credencial ou obtida evidência do provedor nesta etapa.
