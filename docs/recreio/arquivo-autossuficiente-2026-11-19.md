@@ -256,3 +256,11 @@ padrão/schema/função/coluna/tipo/sequência, recurso fora do perfil e método
 incompatível. A candidata precisa passar integração, objetos/tipos, captura
 composta e o executor Docker de restauração, todos no GitHub. Nenhum cliente,
 dependência, imagem operacional ou serviço de produção foi atualizado.
+
+O inventário v2 `45590f3b` passou integração `44472614111` e tipos/objetos
+`44472619085`; [recibo](evidencias/catalogo-v2-44472614111.json). O Docker
+`44472623639` construiu a imagem, mas a fixture foi aberta antes de existir:
+o socket do PostgreSQL temporário do entrypoint ficou pronto antes da criação
+de `POSTGRES_DB`. A correção substitui essa prontidão por consulta autenticada
+TCP ao banco exato, sem atraso fixo. O teste de restauração não chegou a ser
+executado nessa rodada e precisa passar novamente com a prontidão corrigida.

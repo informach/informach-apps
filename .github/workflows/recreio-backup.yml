@@ -42,14 +42,16 @@ jobs:
           printf '%s\n' 'RECREIO_FIXTURE_STARTED=1' >> "$GITHUB_ENV"
           pronto=false
           for tentativa in {1..60}; do
-            if docker exec "$RECREIO_FIXTURE_CONTAINER" pg_isready -U postgres -d fixture; then
+            # O servidor temporario do entrypoint aceita socket antes de criar
+            # POSTGRES_DB. Exigir consulta autenticada no TCP do servidor final.
+            if docker exec --env PGPASSWORD=ci "$RECREIO_FIXTURE_CONTAINER" psql --host 127.0.0.1 --username postgres --dbname fixture --no-password --tuples-only --no-align --command 'select 1' | grep -qx 1; then
               pronto=true
               break
             fi
             sleep 1
           done
           test "$pronto" = true
-          docker exec -i "$RECREIO_FIXTURE_CONTAINER" psql -U postgres -d fixture -v ON_ERROR_STOP=1 < apps/recreio/test/backup-runtime-fixture.sql
+          docker exec -i --env PGPASSWORD=ci "$RECREIO_FIXTURE_CONTAINER" psql -h 127.0.0.1 -U postgres -d fixture -w -v ON_ERROR_STOP=1 < apps/recreio/test/backup-runtime-fixture.sql
       - name: Restaurar e conferir conteúdo, estrutura, ACL e limpeza
         shell: bash
         run: |
