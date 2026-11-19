@@ -262,14 +262,17 @@ export const recreioSpaces = recreio.table(
       onDelete: "restrict",
     }),
     rightsFrozenState: jsonb("rights_frozen_state").$type<unknown[]>(),
+    rightsDraining: boolean("rights_draining").notNull().default(false),
   },
   (t) => [
     check(
       "recreio_spaces_rights_freeze",
       sql`
-      (${t.rightsOperationId} is null and ${t.rightsFrozenState} is null) or
+      (${t.rightsOperationId} is null and ${t.rightsFrozenState} is null and not ${t.rightsDraining}) or
       (${t.rightsOperationId} is not null and ${t.rightsFrozenState} is not null and
-       ${t.status}='archived' and ${t.rightsFrozenState}=${recreioRightsWorldProjection(t)})`,
+       ${t.status}='archived' and not ${t.rightsDraining} and ${t.rightsFrozenState}=${recreioRightsWorldProjection(t)}) or
+      (${t.rightsOperationId} is not null and ${t.rightsFrozenState} is not null and
+       ${t.status}='archived' and ${t.rightsDraining} and ${t.rightsFrozenState}=${recreioRightsWorldDrainingProjection(t)})`,
     ),
     index("recreio_spaces_steward").on(t.stewardProfileId),
     index("recreio_spaces_creator").on(t.createdByProfileId),
@@ -730,4 +733,19 @@ export function recreioRightsWorldProjection(
     createdAt: sql`extract(epoch from ${v.createdAt}::timestamptz)`,
   } satisfies Record<Exclude<keyof typeof spaceColumns, "updatedAt">, SQLWrapper>;
   return sql`jsonb_build_array(${sql.join(Object.values(fields), sql`, `)})`;
+}
+
+/** Na drenagem só o checkpoint da posse atual pode avançar os campos
+ * de persistência. Identidade, cerca e gestão permanecem imutáveis. O status
+ * archived fecha os gateways existentes sem mudar o contrato do host. */
+export function recreioRightsWorldDrainingProjection(
+  v: Record<Exclude<keyof typeof spaceColumns, "updatedAt">, SQLWrapper>,
+) {
+  return recreioRightsWorldProjection({
+    ...v,
+    schemaVersion: sql`0`,
+    revision: sql`0`,
+    journalSeq: sql`0`,
+    summary: sql`null`,
+  });
 }

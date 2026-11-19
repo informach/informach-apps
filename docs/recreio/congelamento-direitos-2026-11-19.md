@@ -367,3 +367,25 @@ A geração 44571719480 (48b4fc0a) foi adotada intacta como 0231: cinco índices
 anterior alterado. Qualidade apontou ausência dos três eventos novos na união
 canônica de auditoria; corrigida sem casts. Integração da correção infantil
 44570289673 passou. Expurgo/executor completos ainda estão em qualificação.
+
+
+## Implementação da drenagem em curso
+
+1. Acrescentar rights_draining no mundo e draining no recibo, conservando
+   archived como barreira dos gateways atuais. A projeção de drenagem congela
+   identidade/cerca/gestão, permitindo só schema/foto/diário/resumo do host.
+2. Consentir e fechar todos os SIDs dos mundos pelo cursor nativo, sem revogar
+   a posse atual antes do checkpoint. Perfis selecionados continuam suspensos.
+3. Preservar archived na liberação da posse. A aquisição e as novas entradas
+   continuam recusadas; não mudar o contrato público do host nem implantar D3.
+4. Um passo nativo espera ausência de posse/SIDs e foto cobrindo todo o diário.
+   Só então cerca a posse, congela contadores e habilita o adapter de retirada.
+5. Testar gravação final real, preservação do progresso dos outros, recusa de
+   gestão/entrada, falha do host/diário pendente e rollback estrito. Não apagar
+   diário não coberto nem tratar expiração de lease como checkpoint.
+
+A nova coluna nasce falsa e os recibos existentes conservam seus estados.
+O upgrade compara todas as colunas antigas e prova a ausência do marcador
+novo nos registros preservados. DDL será gerado remotamente; produção segue
+inalterada. Recuperar um host perdido com diário além da foto exige caminho
+próprio antes de liberar o mundo, sem descartar progresso.

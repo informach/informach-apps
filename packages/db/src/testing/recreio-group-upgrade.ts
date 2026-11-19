@@ -30,7 +30,7 @@ async function memoria(sql: postgres.Sql) {
   assert.ok(linha);
   if (!COM_MUNDOS) return linha.conteudo;
   const [mundos] = await sql<{ conteudo: unknown }[]>`select jsonb_build_object(
-    'mundos',(select jsonb_agg(to_jsonb(s)-array['management_revision','archived_at','rights_operation_id','rights_frozen_state'] order by s.id) from recreio.spaces s),
+    'mundos',(select jsonb_agg(to_jsonb(s)-array['management_revision','archived_at','rights_operation_id','rights_frozen_state','rights_draining'] order by s.id) from recreio.spaces s),
     'membros',(select jsonb_agg(to_jsonb(m) order by m.id) from recreio.space_members m),
     'convites',(select jsonb_agg(to_jsonb(i) order by i.id) from recreio.space_invites i),
     'posses',(select jsonb_agg(to_jsonb(l) order by l.id) from recreio.space_leases l),
@@ -151,7 +151,7 @@ async function main() {
       assert.equal(mundos.length, 2);
       const [congelados] = await sql<
         { total: number }[]
-      >`select count(*)::integer as total from recreio.spaces where rights_operation_id is not null or rights_frozen_state is not null`;
+      >`select count(*)::integer as total from recreio.spaces where rights_operation_id is not null or rights_frozen_state is not null or rights_draining`;
       assert.equal(congelados?.total, 0, "DDL não pode congelar mundos.");
       assert.ok(mundos.every((m) => m.management_revision === 1 && m.archived_at === null));
       for (const tabela of [

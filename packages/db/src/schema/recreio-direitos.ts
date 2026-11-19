@@ -93,7 +93,7 @@ export const recreioRightsWorlds = recreio.table(
     sourceManagementRevision: integer("source_management_revision").notNull(),
     snapshotCursor: integer("snapshot_cursor").notNull().default(0),
     phase: text("phase")
-      .$type<"frozen" | "snapshots" | "dependencies" | "completed">()
+      .$type<"draining" | "frozen" | "snapshots" | "dependencies" | "completed">()
       .notNull()
       .default("frozen"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -111,7 +111,7 @@ export const recreioRightsWorlds = recreio.table(
     ),
     check(
       "recreio_rights_world_phase",
-      sql`${t.phase} in ('frozen','snapshots','dependencies','completed')`,
+      sql`${t.phase} in ('draining','frozen','snapshots','dependencies','completed')`,
     ),
     check(
       "recreio_rights_world_completion",
