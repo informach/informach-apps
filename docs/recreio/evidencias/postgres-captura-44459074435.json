@@ -1,0 +1,27 @@
+{
+  "source": "4952ae0b97790992065adb9d75f2130121b5f3f2",
+  "runId": 44459074435,
+  "jobId": 135341178377,
+  "conclusion": "success",
+  "frozenInstallVerified": true,
+  "dbTypesVerified": true,
+  "esmReceipt": {
+    "boundary": "disposable_ci_postgres_real_backend_termination",
+    "cases": 5,
+    "status": "passed",
+    "openVictimConnections": 0,
+    "productionDataTouched": false
+  },
+  "commonJsReceipt": {
+    "boundary": "disposable_ci_postgres_real_backend_termination",
+    "cases": 5,
+    "status": "passed",
+    "openVictimConnections": 0,
+    "productionDataTouched": false
+  },
+  "captureTests": 10,
+  "captureFiles": 1,
+  "uncaughtErrors": 0,
+  "productionApplied": false,
+  "scopeLimit": "Real disposable PostgreSQL backend loss, transaction scopes and capture reservations. Not retained database archive, restore, key custody, full consumer CI or production qualification."
+}

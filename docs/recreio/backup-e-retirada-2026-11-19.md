@@ -8,6 +8,10 @@ Objetivo: armazenar e restaurar um arquivo cifrado autossuficiente do banco e
 dos objetos referenciados, protegendo a captura contra a coleta normal. Depois,
 admitir migração aditiva e retirada verificável sem reativar dados removidos.
 
+O próximo [formato composto e sua composição](arquivo-autossuficiente-2026-11-19.md)
+fixam dump, inventário, envelopes e versões de chave no mesmo arquivo, sem
+extração genérica de caminhos. O desenho não equivale a implementação.
+
 Reutilizar Node 24.15.0/PostgreSQL 18.6 e os digests do executor operacional,
 SDK S3 3.1172.0 e Drizzle 0.45.4/kit 0.31.11 já fixados. Sem novas dependências
 para cifragem. Toda execução pesada, Docker, geração de DDL e restauração roda
@@ -347,3 +351,10 @@ nos tipos da prova independente. O cliente agora usa o tipo público `Sql`
 explicitamente, e a fila é criada por um cursor real, sem opção interna ausente
 dos tipos da versão fixada. O gate precisa repetir antes de declarar a correção
 do driver validada; não foram suprimidos erros ou verificações.
+
+O patch completo passou na instalação congelada, tipos DB, cinco quedas ESM,
+cinco CommonJS e dez provas de captura em `44459074435`/`4952ae0b`, sem exceção
+global não tratada e com conexões encerradas. [Recibo](evidencias/postgres-captura-44459074435.json).
+Rodada completa do Recreio `44459423949` e CI compartilhado `44459423698` estão
+em execução nessa fonte. O formato composto segue em incremento separado;
+nenhuma rotina de backup, migração ou venda foi ativada por esses gates.

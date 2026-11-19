@@ -1,0 +1,531 @@
+import { createHash } from "node:crypto";
+import type { BigIntStats } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
+import { z } from "zod";
+import {
+  conferirObjetoDaCaptura,
+  FalhaDaCaptura,
+  type ObjetoDaCaptura,
+  resumoDaReferencia,
+} from "../../src/features/backup/contrato";
+import {
+  criarCifradorDeObjetos,
+  FalhaDoObjetoPrivado,
+} from "../../src/features/objetos/criptografia";
+
+const MAGIA = Buffer.from("RCROBK01", "ascii"),
+  BLOCO = 64 * 1024,
+  MAX = 64 * 1024 * 1024 * 1024,
+  MAX_JSON = 512 * 1024;
+const Sha = z.string().regex(/^[a-f0-9]{64}$/),
+  ChaveId = z.string().regex(/^[A-Za-z0-9._-]{1,64}$/);
+const Bytes = z.number().int().min(0).max(MAX);
+const Inventario = z.strictObject({
+  quantidade: z.number().int().min(0).max(1_000_000),
+  bytesCifrados: Bytes,
+  sha256: Sha,
+});
+const Referencia = z.strictObject({
+  formato: z.literal("recreio-captura-composta-v1"),
+  capturaId: z.uuid(),
+  bytes: Bytes,
+  sha256: Sha,
+});
+const Resumo = z.strictObject({
+  linhas: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  sha256: Sha,
+});
+const Texto = z.string().max(256);
+const Banco = z.strictObject({
+  versao: z.number().int().min(180000).max(189999),
+  banco: z.strictObject({
+    encoding: Texto,
+    datcollate: Texto,
+    datctype: Texto,
+    datlocprovider: Texto,
+    datlocale: Texto.nullable(),
+    datcollversion: Texto.nullable(),
+  }),
+  tabelas: z
+    .array(
+      z.strictObject({
+        schema: z.string().min(1).max(63),
+        nome: z.string().min(1).max(63),
+        resumo: Resumo,
+      }),
+    )
+    .max(10000),
+  estrutura: Resumo,
+  permissoes: Resumo,
+});
+const Cabecalho = z.discriminatedUnion("tipo", [
+  z.strictObject({ tipo: z.literal("inicio"), capturaId: z.uuid(), inventario: Inventario }),
+  z.strictObject({ tipo: z.literal("chaves"), ids: z.array(ChaveId).max(16) }),
+  z.strictObject({ tipo: z.literal("dump"), bytes: Bytes, sha256: Sha }),
+  z.strictObject({
+    tipo: z.literal("banco"),
+    bytes: z.number().int().min(2).max(MAX_JSON),
+    sha256: Sha,
+  }),
+  z.strictObject({ tipo: z.literal("objeto"), objeto: z.unknown() }),
+  z.strictObject({ tipo: z.literal("fim"), capturaId: z.uuid(), inventario: Inventario }),
+]);
+export type ReferenciaDoArquivoComposto = z.infer<typeof Referencia>;
+export class FalhaDoArquivoComposto extends Error {
+  constructor(
+    readonly codigo:
+      | "CONFIGURACAO"
+      | "LIMITE"
+      | "INTEGRIDADE"
+      | "FONTE_ALTERADA"
+      | "INTERROMPIDO"
+      | "IO"
+      | "LIMPEZA",
+  ) {
+    super(`recreio.composite_file.${codigo}`);
+  }
+}
+function exigir(sim: unknown, codigo: FalhaDoArquivoComposto["codigo"]): asserts sim {
+  if (!sim) throw new FalhaDoArquivoComposto(codigo);
+}
+const mesmoInventario = (a: z.infer<typeof Inventario>, b: z.infer<typeof Inventario>) =>
+  a.quantidade === b.quantidade && a.bytesCifrados === b.bytesCifrados && a.sha256 === b.sha256;
+const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const mesma = (a: BigIntStats, b: BigIntStats) =>
+  a.dev === b.dev &&
+  a.ino === b.ino &&
+  a.size === b.size &&
+  a.mtimeNs === b.mtimeNs &&
+  a.ctimeNs === b.ctimeNs &&
+  a.nlink === b.nlink;
+async function info(h: FileHandle, teto: number) {
+  const s = await h.stat({ bigint: true });
+  exigir(s.isFile() && s.nlink === 1n, "CONFIGURACAO");
+  exigir(s.size <= BigInt(teto), "LIMITE");
+  return s;
+}
+async function ler(
+  h: FileHandle,
+  pos: number,
+  bytes: number,
+  signal: AbortSignal,
+  consumir: (b: Buffer) => Promise<void> | void,
+) {
+  const bloco = Buffer.alloc(Math.min(BLOCO, bytes));
+  let n = 0;
+  try {
+    while (n < bytes) {
+      exigir(!signal.aborted, "INTERROMPIDO");
+      const r = await h.read(bloco, 0, Math.min(bloco.length, bytes - n), pos + n);
+      exigir(!signal.aborted, "INTERROMPIDO");
+      exigir(r.bytesRead > 0, "FONTE_ALTERADA");
+      n += r.bytesRead;
+      await consumir(bloco.subarray(0, r.bytesRead));
+    }
+  } finally {
+    bloco.fill(0);
+  }
+}
+async function pequeno(h: FileHandle, pos: number, bytes: number, signal: AbortSignal) {
+  const b = Buffer.alloc(bytes);
+  let n = 0;
+  try {
+    await ler(h, pos, bytes, signal, (p) => {
+      b.set(p, n);
+      n += p.length;
+    });
+    return b;
+  } catch (e) {
+    b.fill(0);
+    throw e;
+  }
+}
+async function resumo(h: FileHandle, teto: number, signal: AbortSignal) {
+  const antes = await info(h, teto),
+    hash = createHash("sha256");
+  await ler(h, 0, Number(antes.size), signal, (b) => {
+    hash.update(b);
+  });
+  exigir(mesma(antes, await info(h, teto)), "FONTE_ALTERADA");
+  return { antes, bytes: Number(antes.size), sha256: hash.digest("hex") };
+}
+function json(bruto: Buffer): unknown {
+  try {
+    return JSON.parse(bruto.toString("utf8"));
+  } catch {
+    throw new FalhaDoArquivoComposto("INTEGRIDADE");
+  }
+}
+function bancoValido(bruto: Buffer): boolean {
+  const v = Banco.safeParse(json(bruto));
+  return v.success && Buffer.from(JSON.stringify(v.data), "utf8").equals(bruto);
+}
+async function limpar(h: FileHandle) {
+  try {
+    await h.truncate(0);
+    await h.sync();
+  } catch {
+    throw new FalhaDoArquivoComposto("LIMPEZA");
+  }
+}
+
+/** Contêiner técnico sem caminhos ou extração genérica. O composto em claro
+ * pertence a um executor privado e precisa do envelope externo antes de sair
+ * dele. Dump/objetos/segredos não são retornados na referência ou no resumo. */
+export function criarArquivoComposto(config: {
+  limiteBytes: number;
+  limiteFotografiaBytes: number;
+  tempoLimiteMs: number;
+}) {
+  exigir(
+    Number.isSafeInteger(config.limiteBytes) &&
+      config.limiteBytes > 0 &&
+      config.limiteBytes <= MAX &&
+      Number.isSafeInteger(config.limiteFotografiaBytes) &&
+      config.limiteFotografiaBytes > 0 &&
+      config.limiteFotografiaBytes <= 256 * 1024 * 1024 &&
+      Number.isSafeInteger(config.tempoLimiteMs) &&
+      config.tempoLimiteMs > 0 &&
+      config.tempoLimiteMs <= 900_000,
+    "CONFIGURACAO",
+  );
+  async function comPrazo<T>(fn: (s: AbortSignal) => Promise<T>, externo?: AbortSignal) {
+    const c = new AbortController(),
+      cancelar = () => c.abort();
+    externo?.addEventListener("abort", cancelar, { once: true });
+    if (externo?.aborted) cancelar();
+    const timer = setTimeout(cancelar, config.tempoLimiteMs);
+    timer.unref();
+    try {
+      exigir(!c.signal.aborted, "INTERROMPIDO");
+      return await fn(c.signal);
+    } catch (e) {
+      if (e instanceof FalhaDoArquivoComposto) throw e;
+      if (e instanceof FalhaDaCaptura || e instanceof FalhaDoObjetoPrivado)
+        throw new FalhaDoArquivoComposto("INTEGRIDADE");
+      throw new FalhaDoArquivoComposto("IO");
+    } finally {
+      clearTimeout(timer);
+      externo?.removeEventListener("abort", cancelar);
+      c.abort();
+    }
+  }
+  async function montar(
+    pedido: {
+      capturaId: string;
+      inventario: z.infer<typeof Inventario>;
+      dump: FileHandle;
+      inventarioBanco: FileHandle;
+      chaves: ReadonlyMap<string, Uint8Array>;
+      objetos: AsyncIterable<{ objeto: ObjetoDaCaptura; arquivo: FileHandle }>;
+    },
+    destino: FileHandle,
+    externo?: AbortSignal,
+  ): Promise<ReferenciaDoArquivoComposto> {
+    return comPrazo(async (signal) => {
+      exigir(
+        z.uuid().safeParse(pedido.capturaId).success &&
+          Inventario.safeParse(pedido.inventario).success &&
+          pedido.chaves.size <= 16,
+        "CONFIGURACAO",
+      );
+      const saida = await info(destino, 0);
+      exigir(saida.size === 0n, "CONFIGURACAO");
+      const ids = [...pedido.chaves.keys()].sort(),
+        material = Buffer.alloc(ids.length * 32);
+      let admitida = false;
+      try {
+        for (const [i, id] of ids.entries()) {
+          const k = pedido.chaves.get(id);
+          exigir(
+            ChaveId.safeParse(id).success && k instanceof Uint8Array && k.length === 32,
+            "CONFIGURACAO",
+          );
+          material.set(k, i * 32);
+        }
+        const codec = ids[0]
+          ? criarCifradorDeObjetos({
+              chaveAtiva: ids[0],
+              chaves: pedido.chaves,
+              limiteBytes: config.limiteFotografiaBytes,
+            })
+          : null;
+        const dump = await resumo(pedido.dump, config.limiteBytes, signal),
+          banco = await resumo(pedido.inventarioBanco, MAX_JSON, signal);
+        exigir(dump.antes.dev !== saida.dev || dump.antes.ino !== saida.ino, "CONFIGURACAO");
+        exigir(banco.antes.dev !== saida.dev || banco.antes.ino !== saida.ino, "CONFIGURACAO");
+        const prefixo = await pequeno(pedido.dump, 0, Math.min(5, dump.bytes), signal);
+        exigir(prefixo.toString("ascii") === "PGDMP", "INTEGRIDADE");
+        const bancoJson = await pequeno(pedido.inventarioBanco, 0, banco.bytes, signal);
+        try {
+          exigir(bancoValido(bancoJson), "INTEGRIDADE");
+        } finally {
+          bancoJson.fill(0);
+        }
+        admitida = true;
+        let pos = 0;
+        const total = createHash("sha256");
+        const escrever = async (bytes: Buffer) => {
+          exigir(!signal.aborted, "INTERROMPIDO");
+          exigir(pos + bytes.length <= config.limiteBytes, "LIMITE");
+          let n = 0;
+          while (n < bytes.length) {
+            const r = await destino.write(bytes, n, bytes.length - n, pos + n);
+            exigir(r.bytesWritten > 0, "IO");
+            n += r.bytesWritten;
+          }
+          total.update(bytes);
+          pos += bytes.length;
+        };
+        const cabecalho = async (v: z.infer<typeof Cabecalho>) => {
+          const b = Buffer.from(JSON.stringify(Cabecalho.parse(v))),
+            n = Buffer.alloc(4);
+          exigir(b.length <= 4096, "LIMITE");
+          n.writeUInt32BE(b.length);
+          await escrever(n);
+          await escrever(b);
+        };
+        const copiar = async (h: FileHandle, r: Awaited<ReturnType<typeof resumo>>) => {
+          const hash = createHash("sha256");
+          await ler(h, 0, r.bytes, signal, async (b) => {
+            hash.update(b);
+            await escrever(b);
+          });
+          exigir(
+            hash.digest("hex") === r.sha256 && mesma(r.antes, await info(h, config.limiteBytes)),
+            "FONTE_ALTERADA",
+          );
+        };
+        await escrever(MAGIA);
+        await cabecalho({
+          tipo: "inicio",
+          capturaId: pedido.capturaId,
+          inventario: pedido.inventario,
+        });
+        await cabecalho({ tipo: "chaves", ids });
+        await escrever(material);
+        material.fill(0);
+        await cabecalho({ tipo: "dump", bytes: dump.bytes, sha256: dump.sha256 });
+        await copiar(pedido.dump, dump);
+        await cabecalho({ tipo: "banco", bytes: banco.bytes, sha256: banco.sha256 });
+        await copiar(pedido.inventarioBanco, banco);
+        const hash = createHash("sha256"),
+          usadas = new Set<string>();
+        let quantidade = 0,
+          bytesCifrados = 0,
+          anterior = "";
+        for await (const item of pedido.objetos) {
+          exigir(!signal.aborted, "INTERROMPIDO");
+          const objeto = conferirObjetoDaCaptura(item.objeto),
+            r = objeto.referencia;
+          exigir(
+            objeto.fotografiaId > anterior && quantidade < pedido.inventario.quantidade,
+            "INTEGRIDADE",
+          );
+          anterior = objeto.fotografiaId;
+          exigir(codec && ids.includes(r.chaveId), "INTEGRIDADE");
+          exigir(r.bytes <= config.limiteFotografiaBytes, "LIMITE");
+          const antes = await info(item.arquivo, config.limiteFotografiaBytes + 1024);
+          exigir(Number(antes.size) === r.bytesCifrados, "INTEGRIDADE");
+          exigir(
+            Number(antes.size) === r.bytesCifrados &&
+              (antes.dev !== saida.dev || antes.ino !== saida.ino),
+            "CONFIGURACAO",
+          );
+          const envelope = await pequeno(item.arquivo, 0, r.bytesCifrados, signal);
+          try {
+            codec.abrir(r, envelope).fill(0);
+            await cabecalho({ tipo: "objeto", objeto });
+            await escrever(envelope);
+            exigir(mesma(antes, await info(item.arquivo, r.bytesCifrados)), "FONTE_ALTERADA");
+          } finally {
+            envelope.fill(0);
+          }
+          hash.update(resumoDaReferencia(objeto), "ascii");
+          quantidade++;
+          bytesCifrados += r.bytesCifrados;
+          usadas.add(r.chaveId);
+        }
+        const inventario = { quantidade, bytesCifrados, sha256: hash.digest("hex") };
+        exigir(
+          mesmoInventario(inventario, pedido.inventario) && usadas.size === ids.length,
+          "INTEGRIDADE",
+        );
+        await cabecalho({ tipo: "fim", capturaId: pedido.capturaId, inventario });
+        await destino.sync();
+        exigir(
+          mesma(dump.antes, await info(pedido.dump, config.limiteBytes)) &&
+            mesma(banco.antes, await info(pedido.inventarioBanco, MAX_JSON)),
+          "FONTE_ALTERADA",
+        );
+        exigir(!signal.aborted, "INTERROMPIDO");
+        return Referencia.parse({
+          formato: "recreio-captura-composta-v1",
+          capturaId: pedido.capturaId,
+          bytes: pos,
+          sha256: total.digest("hex"),
+        });
+      } catch (e) {
+        if (admitida) await limpar(destino);
+        throw e;
+      } finally {
+        material.fill(0);
+      }
+    }, externo);
+  }
+
+  async function conferir(origem: FileHandle, bruto: unknown, externo?: AbortSignal) {
+    return comPrazo(async (signal) => {
+      const lida = Referencia.safeParse(bruto);
+      exigir(lida.success, "INTEGRIDADE");
+      const ref = lida.data;
+      const antes = await info(origem, config.limiteBytes);
+      exigir(Number(antes.size) === ref.bytes, "INTEGRIDADE");
+      let pos = 0;
+      const total = createHash("sha256"),
+        chaves = new Map<string, Buffer>();
+      const consumir = async (bytes: number, fn: (b: Buffer) => Promise<void> | void) => {
+        exigir(
+          Number.isSafeInteger(bytes) && bytes >= 0 && pos + bytes <= ref.bytes,
+          "INTEGRIDADE",
+        );
+        await ler(origem, pos, bytes, signal, async (b) => {
+          total.update(b);
+          await fn(b);
+        });
+        pos += bytes;
+      };
+      const pequenoEm = async (bytes: number, teto: number) => {
+        exigir(bytes <= teto, "LIMITE");
+        const b = Buffer.alloc(bytes);
+        let n = 0;
+        try {
+          await consumir(bytes, (p) => {
+            b.set(p, n);
+            n += p.length;
+          });
+          return b;
+        } catch (e) {
+          b.fill(0);
+          throw e;
+        }
+      };
+      const cabecalho = async () => {
+        const n = await pequenoEm(4, 4),
+          bytes = n.readUInt32BE();
+        exigir(bytes >= 2 && bytes <= 4096, "INTEGRIDADE");
+        const b = await pequenoEm(bytes, 4096);
+        try {
+          const v = Cabecalho.safeParse(json(b));
+          exigir(v.success, "INTEGRIDADE");
+          exigir(Buffer.from(JSON.stringify(v.data), "utf8").equals(b), "INTEGRIDADE");
+          return v.data;
+        } finally {
+          b.fill(0);
+        }
+      };
+      try {
+        const magia = await pequenoEm(8, 8);
+        exigir(magia.equals(MAGIA), "INTEGRIDADE");
+        const inicio = await cabecalho();
+        exigir(inicio.tipo === "inicio" && inicio.capturaId === ref.capturaId, "INTEGRIDADE");
+        const keys = await cabecalho();
+        exigir(
+          keys.tipo === "chaves" &&
+            keys.ids.every((id, i) => i === 0 || id > (keys.ids[i - 1] ?? "")),
+          "INTEGRIDADE",
+        );
+        const material = await pequenoEm(keys.ids.length * 32, 512);
+        try {
+          for (const [i, id] of keys.ids.entries())
+            chaves.set(id, Buffer.from(material.subarray(i * 32, i * 32 + 32)));
+        } finally {
+          material.fill(0);
+        }
+        const codec = keys.ids[0]
+          ? criarCifradorDeObjetos({
+              chaveAtiva: keys.ids[0],
+              chaves,
+              limiteBytes: config.limiteFotografiaBytes,
+            })
+          : null;
+        const dump = await cabecalho();
+        exigir(dump.tipo === "dump" && dump.bytes >= 5, "INTEGRIDADE");
+        const hashDump = createHash("sha256");
+        let prefixo = Buffer.alloc(0);
+        await consumir(dump.bytes, (b) => {
+          if (prefixo.length < 5)
+            prefixo = Buffer.concat([prefixo, b.subarray(0, 5 - prefixo.length)]);
+          hashDump.update(b);
+        });
+        exigir(
+          prefixo.toString("ascii") === "PGDMP" && hashDump.digest("hex") === dump.sha256,
+          "INTEGRIDADE",
+        );
+        const banco = await cabecalho();
+        exigir(banco.tipo === "banco", "INTEGRIDADE");
+        const bancoJson = await pequenoEm(banco.bytes, MAX_JSON);
+        try {
+          exigir(sha(bancoJson) === banco.sha256 && bancoValido(bancoJson), "INTEGRIDADE");
+        } finally {
+          bancoJson.fill(0);
+        }
+        let quantidade = 0,
+          bytesCifrados = 0,
+          anterior = "";
+        const hash = createHash("sha256"),
+          usadas = new Set<string>();
+        for (;;) {
+          const frame = await cabecalho();
+          if (frame.tipo === "fim") {
+            const inventario = { quantidade, bytesCifrados, sha256: hash.digest("hex") };
+            exigir(
+              frame.capturaId === ref.capturaId &&
+                mesmoInventario(inventario, frame.inventario) &&
+                mesmoInventario(inventario, inicio.inventario) &&
+                usadas.size === chaves.size,
+              "INTEGRIDADE",
+            );
+            break;
+          }
+          exigir(
+            frame.tipo === "objeto" && quantidade < inicio.inventario.quantidade,
+            "INTEGRIDADE",
+          );
+          const objeto = conferirObjetoDaCaptura(frame.objeto),
+            r = objeto.referencia;
+          exigir(objeto.fotografiaId > anterior, "INTEGRIDADE");
+          anterior = objeto.fotografiaId;
+          exigir(codec && chaves.has(r.chaveId), "INTEGRIDADE");
+          exigir(r.bytes <= config.limiteFotografiaBytes, "LIMITE");
+          const envelope = await pequenoEm(r.bytesCifrados, config.limiteFotografiaBytes + 1024);
+          try {
+            codec.abrir(r, envelope).fill(0);
+          } finally {
+            envelope.fill(0);
+          }
+          hash.update(resumoDaReferencia(objeto), "ascii");
+          quantidade++;
+          bytesCifrados += r.bytesCifrados;
+          usadas.add(r.chaveId);
+        }
+        exigir(
+          pos === ref.bytes &&
+            total.digest("hex") === ref.sha256 &&
+            mesma(antes, await info(origem, config.limiteBytes)),
+          "INTEGRIDADE",
+        );
+        exigir(!signal.aborted, "INTERROMPIDO");
+        return {
+          capturaId: ref.capturaId,
+          inventario: inicio.inventario,
+          dump: { bytes: dump.bytes, sha256: dump.sha256 },
+          banco: { bytes: banco.bytes, sha256: banco.sha256 },
+        };
+      } finally {
+        for (const k of chaves.values()) k.fill(0);
+      }
+    }, externo);
+  }
+  return Object.freeze({ montar, conferir });
+}
