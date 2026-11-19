@@ -7,14 +7,21 @@ import {
   recreioGroups as groups,
   recreioGuardianLinks as guardians,
   recreioProfileDataKeys as keys,
+  recreioMinorPolicies as policies,
+  recreioSocialPreferences as preferences,
   recreioProfiles as profiles,
+  recreioMinorProtection as protection,
   sessions,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
-import { prepararCopiaPessoalDoJogo } from "@/features/direitos/service";
+import {
+  listarJogosComDadosPessoais,
+  prepararCopiaDoCadastroPessoal,
+  prepararCopiaPessoalDoJogo,
+} from "@/features/direitos/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
@@ -89,6 +96,183 @@ const copiar = (autor: AutorNativoRecente, perfilId: string, jogo = JOGO) =>
   prepararCopiaPessoalDoJogo(autor, { perfilId, jogo });
 
 describe("direitos: recorte pessoal por jogo sem autoridade de gameplay", () => {
+  it("copia cadastro do adulto próprio, sem credenciais ou dados do responsável comercial", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    await db
+      .insert(preferences)
+      .values({ profileId: proprio(a), presenceMode: "invisible" })
+      .onConflictDoUpdate({ target: preferences.profileId, set: { presenceMode: "invisible" } });
+    const copia = await prepararCopiaDoCadastroPessoal(a.autor, { perfilId: proprio(a) });
+    expect(copia).toMatchObject({
+      formato: "recreio-cadastro-pessoal-v1",
+      perfil: { id: proprio(a), tipo: "adult", apelido: "Pessoa privada" },
+      nascimento: null,
+      responsabilidadeDeclarada: null,
+      supervisao: null,
+      protecao: null,
+      preferenciaSocial: { presenca: "invisible" },
+    });
+    for (const privado of [
+      a.conta.id,
+      a.conta.email,
+      b.conta.id,
+      proprio(b),
+      "authSessionId",
+      "token",
+      "generation",
+    ])
+      expect(JSON.stringify(copia)).not.toContain(privado);
+    await expect(
+      prepararCopiaDoCadastroPessoal(b.autor, { perfilId: proprio(a) }),
+    ).rejects.toMatchObject({ code: "PERFIL" });
+  });
+
+  it("responsável copia nascimento/supervisão do menor sem exportar PIN ou gerações", async () => {
+    const a = await adulto(false),
+      b = await adulto();
+    const perfil = await menor(a.autor);
+    const [vinculo] = await db.select().from(guardians).where(eq(guardians.profileId, perfil.id));
+    if (!vinculo) throw new Error("Guardian absent");
+    const pinHash = `scrypt-v1$${"A".repeat(22)}$${"B".repeat(43)}`;
+    await db
+      .insert(protection)
+      .values({ profileId: perfil.id, guardianLinkId: vinculo.id, pinHash })
+      .onConflictDoUpdate({ target: protection.profileId, set: { pinHash } });
+    await db
+      .insert(policies)
+      .values({
+        profileId: perfil.id,
+        dailyMinutes: 30,
+        weeklySchedule: [{ diaDaSemana: 2, inicioMinuto: 600, fimMinuto: 660 }],
+      })
+      .onConflictDoUpdate({
+        target: policies.profileId,
+        set: {
+          dailyMinutes: 30,
+          weeklySchedule: [{ diaDaSemana: 2, inicioMinuto: 600, fimMinuto: 660 }],
+        },
+      });
+    const copia = await prepararCopiaDoCadastroPessoal(a.autor, { perfilId: perfil.id });
+    expect(copia).toMatchObject({
+      nascimento: { ano: new Date().getUTCFullYear() - 8, mes: 1 },
+      responsabilidadeDeclarada: { versao: VERSAO_DA_RESPONSABILIDADE },
+      protecao: { pinDefinido: true },
+      supervisao: {
+        configuracao: {
+          minutosPorDia: 30,
+          horarios: [{ diaDaSemana: 2, inicioMinuto: 600, fimMinuto: 660 }],
+        },
+      },
+    });
+    for (const privado of [
+      pinHash,
+      "accessGeneration",
+      "pinGeneration",
+      "guardianUserId",
+      a.conta.id,
+      b.conta.id,
+      vinculo.id,
+    ])
+      expect(JSON.stringify(copia)).not.toContain(privado);
+    await expect(
+      prepararCopiaDoCadastroPessoal(b.autor, { perfilId: perfil.id }),
+    ).rejects.toMatchObject({ code: "PERFIL" });
+    const eventos = (await eventosCom("profileId", perfil.id)).filter(
+      (e) => e.eventType === "recreio.profile_record_copy_prepared",
+    );
+    expect(eventos).toHaveLength(1);
+    for (const privado of ["Criança privada", "inicioMinuto", "birthMonth", pinHash])
+      expect(JSON.stringify(eventos)).not.toContain(privado);
+  });
+
+  it("cadastro recusa configuração inválida e não fabrica supervisão ausente", async () => {
+    const a = await adulto(false);
+    const perfil = await menor(a.autor);
+    await db.delete(policies).where(eq(policies.profileId, perfil.id));
+    expect(
+      (await prepararCopiaDoCadastroPessoal(a.autor, { perfilId: perfil.id })).supervisao,
+    ).toBeNull();
+    await db.insert(policies).values({
+      profileId: perfil.id,
+      weeklySchedule: [{ diaDaSemana: 8, inicioMinuto: 600, fimMinuto: 660 }],
+    });
+    await expect(
+      prepararCopiaDoCadastroPessoal(a.autor, { perfilId: perfil.id }),
+    ).rejects.toThrow();
+    expect(
+      (await eventosCom("profileId", perfil.id)).filter(
+        (e) => e.eventType === "recreio.profile_record_copy_prepared",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("descobre fontes históricas por páginas sem duplicar jogos ou omitir conquistas sem saves", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    const ids = Array.from({ length: 25 }, (_, i) => `historico-${String(i).padStart(2, "0")}`);
+    await db
+      .insert(keys)
+      .values(ids.map((gameId) => ({ profileId: proprio(a), gameId, key: "estado" })));
+    await db.insert(achievements).values([
+      {
+        profileId: proprio(a),
+        gameId: ids[0] ?? "historico-00",
+        achievementId: "cheguei",
+        keyHash: digest(Buffer.from("uma")),
+      },
+      {
+        profileId: proprio(a),
+        gameId: "somente-conquistas",
+        achievementId: "cheguei",
+        keyHash: digest(Buffer.from("outra")),
+      },
+      {
+        profileId: proprio(b),
+        gameId: "jogo-alheio",
+        achievementId: "cheguei",
+        keyHash: digest(Buffer.from("terceira")),
+      },
+    ]);
+    const primeira = await listarJogosComDadosPessoais(a.autor, { perfilId: proprio(a) });
+    expect(primeira.itens).toEqual(ids.slice(0, 20));
+    expect(primeira.proximo).toBe(ids[19]);
+    const segunda = await listarJogosComDadosPessoais(a.autor, {
+      perfilId: proprio(a),
+      apos: primeira.proximo,
+    });
+    expect(segunda.itens).toEqual([...ids.slice(20), "somente-conquistas"]);
+    expect(segunda.proximo).toBeNull();
+    await expect(
+      listarJogosComDadosPessoais(b.autor, { perfilId: proprio(a) }),
+    ).rejects.toMatchObject({ code: "PERFIL" });
+    const eventos = (await eventosCom("profileId", proprio(a))).filter(
+      (e) => e.eventType === "recreio.profile_game_inventory_viewed",
+    );
+    expect(eventos).toHaveLength(2);
+    expect(eventos[0]?.payload).toMatchObject({ gameCount: 20, hasMore: true });
+    expect(JSON.stringify(eventos)).not.toContain("historico-00");
+  });
+
+  it("inventário exige login recente e não oculta identificador legado incompatível", async () => {
+    const a = await adulto();
+    await db
+      .insert(keys)
+      .values({ profileId: proprio(a), gameId: "LEGADO_FORA_DO_FORMATO", key: "estado" });
+    await expect(listarJogosComDadosPessoais(a.autor, { perfilId: proprio(a) })).rejects.toThrow();
+    await expect(
+      listarJogosComDadosPessoais(
+        { ...a.autor, login: { ...a.autor.login, criadoEm: new Date(Date.now() - 11 * 60_000) } },
+        { perfilId: proprio(a) },
+      ),
+    ).rejects.toMatchObject({ code: "LOGIN_RECENTE" });
+    expect(
+      (await eventosCom("profileId", proprio(a))).filter(
+        (e) => e.eventType === "recreio.profile_game_inventory_viewed",
+      ),
+    ).toEqual([]);
+  });
+
   it("sem assinatura, preserva atuais/anteriores/conflitos e checksum, inclusive título fora do catálogo", async () => {
     const a = await adulto(),
       b = await adulto();

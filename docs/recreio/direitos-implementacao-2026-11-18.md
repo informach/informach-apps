@@ -25,6 +25,21 @@ sucesso. Os limites são as dezesseis chaves/sete versões de 64 KiB existentes,
 mais teto explícito de dez mil conquistas. Cota inconsistente ou corrupção recusa
 o recorte inteiro. A auditoria estrita guarda somente IDs e contagens.
 
+O inventário pessoal pagina vinte IDs de jogos a partir dos dados persistidos,
+incluindo título retirado e conquistas sem saves. A união elimina duplicatas e
+a ordenação/cursor usam a mesma collation; uma página é uma leitura SQL, não uma
+captura congelada de todas as páginas. Formato legado incompatível falha
+explicitamente em vez de desaparecer da exportação. O mesmo kernel nativo
+protege cópia e inventário, sem estender essa autoridade aos mundos.
+
+O recorte separado de cadastro contém nome/avatar/estado/datas, nascimento e
+declaração atual do responsável pelo menor, supervisão persistida, existência
+de PIN e preferência social. Não exporta PIN/hash, gerações, identidade de
+outro adulto, sessão ou segredo. Supervisão ausente permanece ausente, e uma
+configuração inválida não é substituída por um padrão. A configuração usa o
+mesmo decoder do escritor de supervisão. Cadastro e dados de jogo são recortes
+distintos; o coordenador consistente e o download completo continuam pendentes.
+
 As novas integrações PostgreSQL verificam separação de adultos/jogos, responsável
 sem jogador, mudança de responsabilidade, perfil suspenso sem assinatura,
 autoridades restritas, integridade/cota e logout durante espera no escritor.
@@ -111,3 +126,14 @@ próprio; financiamento guarda fontes de contratos anteriores do mesmo pagante.
 Testes pesados, builds, navegador e geração de migrations permanecem no GitHub.
 Os scripts de concessão/backup existentes e uma restauração lógica isolada não
 comprovam F7. Não ativar venda com base neste documento preparatório.
+
+
+## Verificação por incremento
+
+`8647b310` passou em quality e no gate PostgreSQL da rodada `44427172908`:
+quinze testes novos do recorte pessoal, 96 arquivos de integração aprovados.
+O inventário, kernel compartilhado e cadastro são alterações posteriores e
+exigem sua própria rodada. A opção auxiliar `verification_gate=integration`
+permite investigar esse componente no GitHub sem repetir builds de navegador
+em cada correção. `all` e os pushes de verificação conservam os dezesseis gates;
+esta opção não qualifica integração/produção por si só.

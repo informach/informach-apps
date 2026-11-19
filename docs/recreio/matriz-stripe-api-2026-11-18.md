@@ -69,5 +69,5 @@ passaram. São quatro jornadas anteriores de compra e duas de troca; as capturas
 390 px de cotação, autorização e crédito foram inspecionadas. O ajuste que
 recarrega recibos após uma mutação corrigiu a navegação na mesma âncora; CSP
 permanece sem `unsafe-eval`. Fixtures SQL das telas não constituem pagamento.
-Rodada integral `44426286901` iniciada; CI compartilhado `44424819941` ainda
-precisa concluir. Nada desta etapa foi implantado ou ativado em produção.
+Os dezesseis gates da rodada integral `44426286901` concluíram aprovados.
+CI compartilhado `44424819941` ainda precisa concluir. Nada desta etapa foi implantado ou ativado em produção.

@@ -146,6 +146,8 @@ export type AuditEventType =
   | "recreio.profile_data_conflict"
   | "recreio.profile_data_conflict_discarded"
   | "recreio.profile_game_copy_prepared"
+  | "recreio.profile_game_inventory_viewed"
+  | "recreio.profile_record_copy_prepared"
   | "recreio.achievement_unlocked"
   | "recreio.device_session_revoked"
   | "recreio.device_paired"

@@ -60,10 +60,12 @@ Telas de cotação/aceite/envio passaram em `44424191368`/`7eb50298` (quatro
 jornadas de compra e duas de troca, capturas mobile inspecionadas); quality
 `44424195557` aprovado. Matriz de APIs reais de teste `44424201569`: doze
 direções aprovadas, incluindo crédito/estorno, limpeza de todos os recursos
-confirmada. Não é Checkout ou webhook nativos. Rodada integral `44426286901`
-e CI compartilhado `44424819941` em curso. Preparação de F7 no
-[levantamento de direitos](recreio/direitos-implementacao-2026-11-18.md); nenhum
-exportador ou exclusão foi implantado por esse documento.
+confirmada. Não é Checkout ou webhook nativos. Rodada integral `44426286901`: dezesseis gates aprovados.
+CI compartilhado `44424819941` em curso. Preparação de F7 no
+[levantamento de direitos](recreio/direitos-implementacao-2026-11-18.md); recorte pessoal de progresso com quinze integrações PostgreSQL aprovadas
+em `44427172908`/`8647b310`. Inventário/cadastro e kernel de direitos em
+incremento seguinte; F7 não está concluído. Nenhum exportador ou exclusão
+foi implantado em produção.
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,
