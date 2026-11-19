@@ -29,7 +29,6 @@ export * from "./recreio-financiamento";
 export * from "./recreio-grupo";
 export * from "./recreio-moderacao";
 export * from "./recreio-objetos";
-export * from "./recreio-participacao";
 export * from "./recreio-planos";
 export * from "./recreio-politicas";
 export * from "./recreio-presencas";

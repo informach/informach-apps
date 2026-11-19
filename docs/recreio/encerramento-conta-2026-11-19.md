@@ -83,6 +83,15 @@ Schema e código seguem para geração/qualificação no GitHub; não foram migr
 ou habilitados em produção. O plano v2, coordenação financeira, consentimento,
 workers e conclusão continuam obrigatórios.
 
+A geração inicial 44604567639/1ceeea68 produziu FK antes da UNIQUE composta
+referenciada. O artefato 14568114251 (ZIP SHA-256
+`91f8856bfde21da8f0713226f196d08be7a55cea159772f2dd2bb363b8fa56d2`)
+foi recusado na leitura, sem adoção do SQL. A geração é separada: primeiro a
+UNIQUE aditiva de `rights_operations`, depois a nova tabela/FK. O schema da
+nova tabela sai temporariamente do índice apenas na fonte intermediária do
+gerador; essa fonte não é candidata a deploy ou gate do app. Arquivos gerados
+não são reordenados ou editados manualmente.
+
 Intenções externas conservam os IDs e o consentimento original. Reaplicação
 offline não pode criar usuários fictícios, atribuir ao operador o aceite do
 solicitante ausente no backup ou exigir um novo consentimento para retirar
