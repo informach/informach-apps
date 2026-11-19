@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
   recreioSnapshotObjectDeliveries as deliveries,
@@ -7,6 +8,14 @@ import {
   recreioSpaces as spaces,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
+import {
+  conferirReferenciaDoObjeto,
+  criarCifradorDeObjetos,
+} from "@/features/objetos/criptografia";
+import {
+  type DestinoDeFotografias,
+  prepararEntregaDaFotografia,
+} from "@/features/objetos/fotografias-repository";
 import type { LeitorDeFotografiasPrivadas } from "@/features/posse/armazenamento";
 import { armazenamentoPg } from "@/features/posse/armazenamento-repository";
 import { conferirFotografiaDeCheckpoint } from "@/features/posse/prova-fotografia";
@@ -20,7 +29,7 @@ import {
   type PedidoDeRecuperacao,
   prepararRecuperacao,
 } from "@/features/recuperacao/repository";
-import { aposentarInstancias, novoJogador } from "./apoio";
+import { aposentarInstancias, eventosCom, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, MORADA, mundoDe, novaInstancia } from "./jogo-apoio";
 import { criarBucketS3DeTeste } from "./objetos-s3-apoio";
 
@@ -468,4 +477,239 @@ describe("leitor nativo de fotografias: limites, integridade e posse após I/O",
         expect(aberto?.every((b) => b === 0)).toBe(true);
       }),
   );
+});
+
+async function prepararEscrow() {
+  const f = await preparar();
+  await pararParaRecuperacao(f);
+  const cifrador = criarCifradorDeObjetos({
+    chaveAtiva: "original",
+    chaves: new Map([["original", randomBytes(32)]]),
+    limiteBytes: 4096,
+  });
+  const destino: DestinoDeFotografias = {
+    bucketId: randomUUID(),
+    bucketName: "recreio-fixture",
+    escopo: "qualification",
+  };
+  const pedido = { mundoId: f.pedido.mundoId, jogo: f.pedido.jogo, revisao: 1 };
+  return { ...f, destino, cifrador, entrega: pedido };
+}
+
+describe("preparação durável e aditiva da entrega de fotografias", () => {
+  it("falha real de auditoria reverte o registro e conserva todos os bytes PG", async () => {
+    const f = await prepararEscrow();
+    await db.execute(
+      sql`create function audit.recusar_objeto_preparado_em_teste() returns trigger language plpgsql as $$ begin if new.event_type = 'recreio.snapshot_object_prepared' then raise exception 'auditoria indisponível (teste)'; end if; return new; end $$`,
+    );
+    try {
+      await db.execute(
+        sql`create trigger recusar_objeto_preparado_em_teste before insert on audit.events for each row execute function audit.recusar_objeto_preparado_em_teste()`,
+      );
+      await expect(
+        prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador),
+      ).rejects.toBeInstanceOf(AuditPersistenceError);
+      expect(
+        await db
+          .select({ id: deliveries.id })
+          .from(deliveries)
+          .where(eq(deliveries.spaceId, f.entrega.mundoId)),
+      ).toEqual([]);
+      const [foto] = await db
+        .select({
+          storage: snapshots.storage,
+          data: snapshots.data,
+          objectKey: snapshots.objectKey,
+        })
+        .from(snapshots)
+        .where(eq(snapshots.id, f.foto.id));
+      expect(foto).toEqual({ storage: "pg", data: f.bytes, objectKey: null });
+    } finally {
+      await db.execute(
+        sql`drop trigger if exists recusar_objeto_preparado_em_teste on audit.events`,
+      );
+      await db.execute(sql`drop function if exists audit.recusar_objeto_preparado_em_teste()`);
+    }
+  });
+  it("preparação repetida de objeto confirmado não envia nem refaz o recibo", async () =>
+    comBucket(async (f) => {
+      await pararParaRecuperacao(f);
+      const antes = f.s3.pedidos.length;
+      const id = await prepararEntregaDaFotografia(
+        { mundoId: f.pedido.mundoId, jogo: f.pedido.jogo, revisao: 1 },
+        { bucketId: f.leitor.bucketId, bucketName: f.leitor.bucketName, escopo: f.leitor.escopo },
+        f.s3.cifrador,
+      );
+      expect(id).toBe(f.entregaId);
+      expect(f.s3.pedidos).toHaveLength(antes);
+    }));
+  it("não prepara revisão além do topo persistido do mundo", async () => {
+    const f = await prepararEscrow();
+    await db.update(spaces).set({ revision: 0 }).where(eq(spaces.id, f.entrega.mundoId));
+    await expect(
+      prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador),
+    ).rejects.toMatchObject({ codigo: "FONTE_INDISPONIVEL" });
+    expect(
+      await db
+        .select({ id: deliveries.id })
+        .from(deliveries)
+        .where(eq(deliveries.spaceId, f.entrega.mundoId)),
+    ).toEqual([]);
+  });
+  it("conserva pg e envelope íntegro antes de qualquer envio, com auditoria mínima", async () => {
+    const f = await prepararEscrow();
+    const id = await prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador);
+    const [entrega] = await db.select().from(deliveries).where(eq(deliveries.id, id));
+    if (!entrega?.envelope) throw new Error("Durable envelope absent");
+    expect(entrega).toMatchObject({
+      state: "prepared",
+      snapshotId: f.foto.id,
+      verifiedAt: null,
+      attemptCount: 0,
+      leaseToken: null,
+    });
+    const ref = conferirReferenciaDoObjeto({
+      formato: "recreio-objeto-cifrado-v1",
+      chaveId: entrega.encryptionKeyId,
+      contexto: { tipo: "fotografia", id: f.entrega.mundoId },
+      bytes: entrega.plaintextBytes,
+      sha256: entrega.plaintextSha256,
+      sha256Cifrado: entrega.cipherSha256,
+      bytesCifrados: entrega.cipherBytes,
+    });
+    expect(f.cifrador.abrir(ref, entrega.envelope)).toEqual(f.bytes);
+    expect(entrega.envelope.includes(f.bytes)).toBe(false);
+    const [foto] = await db.select().from(snapshots).where(eq(snapshots.id, f.foto.id));
+    expect(foto).toMatchObject({ storage: "pg", data: f.bytes, objectKey: null });
+    const eventos = (await eventosCom("spaceId", f.entrega.mundoId)).filter(
+      (e) => e.eventType === "recreio.snapshot_object_prepared",
+    );
+    expect(eventos).toHaveLength(1);
+    expect(eventos[0]?.payload).toEqual({
+      app: "recreio",
+      spaceId: f.entrega.mundoId,
+      gameId: f.entrega.jogo,
+      revision: 1,
+      storageScope: "qualification",
+    });
+  });
+  it("seis preparações concorrentes conservam um IV, recibo e evento", async () => {
+    const f = await prepararEscrow();
+    const ids = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador),
+      ),
+    );
+    expect(new Set(ids).size).toBe(1);
+    const antes = await db
+      .select()
+      .from(deliveries)
+      .where(eq(deliveries.id, ids[0] ?? ""));
+    expect(antes).toHaveLength(1);
+    expect(await prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador)).toBe(ids[0]);
+    expect(
+      await db
+        .select()
+        .from(deliveries)
+        .where(eq(deliveries.id, ids[0] ?? "")),
+    ).toEqual(antes);
+    expect(
+      (await eventosCom("spaceId", f.entrega.mundoId)).filter(
+        (e) => e.eventType === "recreio.snapshot_object_prepared",
+      ),
+    ).toHaveLength(1);
+  });
+  it.each(["ativo", "posse"] as const)("recusa mundo %s sem preparar envelope", async (caso) => {
+    const f = await preparar();
+    if (caso === "posse")
+      await db.update(spaces).set({ status: "hibernating" }).where(eq(spaces.id, f.pedido.mundoId));
+    const destino: DestinoDeFotografias = {
+      bucketId: randomUUID(),
+      bucketName: "recreio-fixture",
+      escopo: "qualification",
+    };
+    const cifrador = criarCifradorDeObjetos({
+      chaveAtiva: "test",
+      chaves: new Map([["test", randomBytes(32)]]),
+      limiteBytes: 4096,
+    });
+    await expect(
+      prepararEntregaDaFotografia(
+        { mundoId: f.pedido.mundoId, jogo: f.pedido.jogo, revisao: 1 },
+        destino,
+        cifrador,
+      ),
+    ).rejects.toMatchObject({ codigo: "MUNDO_NAO_PARADO" });
+    expect(
+      await db
+        .select({ id: deliveries.id })
+        .from(deliveries)
+        .where(eq(deliveries.spaceId, f.pedido.mundoId)),
+    ).toEqual([]);
+  });
+  it.each(["bucketId", "bucketName", "escopo"] as const)(
+    "replay não muda destino %s nem gera envelope novo",
+    async (campo) => {
+      const f = await prepararEscrow();
+      const id = await prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador);
+      const antes = await db.select().from(deliveries).where(eq(deliveries.id, id));
+      const outro = { ...f.destino };
+      if (campo === "bucketId") outro.bucketId = randomUUID();
+      if (campo === "bucketName") outro.bucketName = "outro-fixture";
+      if (campo === "escopo") outro.escopo = "production";
+      await expect(prepararEntregaDaFotografia(f.entrega, outro, f.cifrador)).rejects.toMatchObject(
+        { codigo: "DESTINO_DIVERGENTE" },
+      );
+      expect(await db.select().from(deliveries).where(eq(deliveries.id, id))).toEqual(antes);
+    },
+  );
+  it("chave antiga indisponível não substitui o envelope durável", async () => {
+    const f = await prepararEscrow();
+    const id = await prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador);
+    const antes = await db.select().from(deliveries).where(eq(deliveries.id, id));
+    const novo = criarCifradorDeObjetos({
+      chaveAtiva: "nova",
+      chaves: new Map([["nova", randomBytes(32)]]),
+      limiteBytes: 4096,
+    });
+    await expect(prepararEntregaDaFotografia(f.entrega, f.destino, novo)).rejects.toMatchObject({
+      codigo: "CHAVE_INDISPONIVEL",
+    });
+    expect(await db.select().from(deliveries).where(eq(deliveries.id, id))).toEqual(antes);
+  });
+  it("envelope corrompido não é refeito nem confirmado silenciosamente", async () => {
+    const f = await prepararEscrow();
+    const id = await prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador);
+    await db
+      .update(deliveries)
+      .set({ envelope: sql`decode(repeat('00',${deliveries.cipherBytes}),'hex')` })
+      .where(eq(deliveries.id, id));
+    const antes = await db.select().from(deliveries).where(eq(deliveries.id, id));
+    await expect(
+      prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador),
+    ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+    expect(await db.select().from(deliveries).where(eq(deliveries.id, id))).toEqual(antes);
+  });
+  it("recibo destacado bloqueia reabertura da mesma identidade de fotografia", async () => {
+    const f = await prepararEscrow();
+    const id = await prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador);
+    await db
+      .update(deliveries)
+      .set({
+        snapshotId: null,
+        detachedAt: sql`clock_timestamp()`,
+        state: "retiring",
+        envelope: null,
+      })
+      .where(eq(deliveries.id, id));
+    await expect(
+      prepararEntregaDaFotografia(f.entrega, f.destino, f.cifrador),
+    ).rejects.toMatchObject({ codigo: "REVISAO_NECESSARIA" });
+    expect(
+      await db
+        .select({ id: deliveries.id })
+        .from(deliveries)
+        .where(eq(deliveries.snapshotReference, f.foto.id)),
+    ).toHaveLength(1);
+  });
 });

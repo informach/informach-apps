@@ -279,3 +279,22 @@ corrompido ou desligado é recusado sem escolher outra revisão silenciosamente.
 Os cenários sintéticos e as regressões Morada existentes precisam passar no
 GitHub desta fonte. Isso ainda não constitui backup agendado ou worker de
 migração e não autoriza mover os bytes atuais.
+
+
+## Preparação durável do futuro executor
+
+A etapa interna de preparação conserva a fotografia PG e grava uma única
+referência/envelope cifrado, junto com auditoria mínima, antes de existir PUT.
+Mundo precisa estar hibernando, sem posse aberta; revisão e diário não podem
+ultrapassar o topo persistido. Destino e contexto são fixados na preparação.
+Replay sob a trava do mundo reutiliza IV/envelope: chave antiga ausente,
+conteúdo alterado, destino diferente ou recibo destacado não criam outro objeto.
+As leituras conferem tamanhos antes de carregar bytes ou envelope. Não existe
+rota nem modo de ambiente que execute essa preparação em produção.
+
+Os cenários nativos verificam concorrência, cifragem, auditoria, permanência
+em PG, replay e negativas. Faltam ao executor reserva/tentativa durável,
+recuperação após resposta perdida, confirmação com nova admissão e publicação
+atômica do ponteiro, além do coletor de retirada. A preparação sozinha não
+comprova entrega externa nem autoriza migração. Nenhum objeto de produção foi
+preparado por esta etapa.
