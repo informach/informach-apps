@@ -341,3 +341,9 @@ três entradas e igualdade estrutural preservando todas as versões anteriores.
 instalação congelada, cinco quedas por formato Node e as dez provas da captura;
 depois, rodada aplicável do Recreio e CI de todos os consumidores. Nenhum
 `node_modules`, teste pesado ou build foi executado nesta máquina.
+
+`44458638113` confirmou a instalação congelada do patch completo, mas parou
+nos tipos da prova independente. O cliente agora usa o tipo público `Sql`
+explicitamente, e a fila é criada por um cursor real, sem opção interna ausente
+dos tipos da versão fixada. O gate precisa repetir antes de declarar a correção
+do driver validada; não foram suprimidos erros ou verificações.

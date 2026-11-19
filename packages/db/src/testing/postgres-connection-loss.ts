@@ -55,14 +55,17 @@ async function main() {
       url.pathname === "/ci" &&
       url.username === "ci" &&
       ["5432", "5433"].includes(url.port) &&
-      !url.hash,
+      !url.hash &&
+      !url.search &&
+      url.password === "ci" &&
+      ["postgres:", "postgresql:"].includes(url.protocol),
   );
-  const observador = postgres(bruto, { max: 1, prepare: false, connect_timeout: 5 });
+  const observador: postgres.Sql = postgres(bruto, { max: 1, prepare: false, connect_timeout: 5 });
   let casos = 0;
   try {
     for (const caso of ["retorno", "erro", "consulta", "savepoint"] as const) {
       console.log(JSON.stringify({ case: caso, status: "started" }));
-      const vitima = postgres(bruto, {
+      const vitima: postgres.Sql = postgres(bruto, {
         max: 1,
         prepare: false,
         connect_timeout: 5,
@@ -125,11 +128,10 @@ async function main() {
       }
     }
 
-    // max_pipeline=1 deixa consultas reais na fila do escopo. A perda da
-    // conexão deve rejeitar TODAS, inclusive as ainda não enviadas ao socket.
-    const vitima = postgres(bruto, {
+    // Um cursor real mantém o socket ocupado e deixa as outras consultas na
+    // fila do escopo. A perda deve rejeitar inclusive as ainda não enviadas.
+    const vitima: postgres.Sql = postgres(bruto, {
       max: 1,
-      max_pipeline: 1,
       prepare: false,
       connect_timeout: 5,
       connection: { application_name: "db-fault-fila" },
@@ -144,12 +146,14 @@ async function main() {
           assert(r);
           iniciou.resolver(r.pid);
           const consultas = [
-            tx`select pg_sleep(30)`,
+            tx`select pg_sleep(30)`.cursor(1, () => {
+              throw new Error("CONSULTA_NAO_FOI_TERMINADA");
+            }),
             tx`select 2 as n`,
             tx`select 3 as n`,
             tx`select 4 as n`,
           ];
-          const todas = await Promise.all(consultas.map((q) => resultado(q)));
+          const todas = await Promise.all(consultas.map((q) => resultado<unknown>(q)));
           terminou.resolver({ ok: true, valor: todas });
         }),
       );
