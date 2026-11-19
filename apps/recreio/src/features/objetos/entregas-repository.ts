@@ -168,7 +168,7 @@ export function reservarEntregaDaFotografia(
     )
       throw new FalhaDaEntregaDaFotografia("DESTINO_DIVERGENTE");
     if (e.state === "retiring" || e.state === "retired") return { tipo: "retirada" };
-    if (e.state === "review") return { tipo: "revisao" };
+    if (e.state === "review" || e.state === "quarantined") return { tipo: "revisao" };
     if (e.state === "prepared") {
       if (e.leaseVigente) return { tipo: "ocupada" };
       if (!e.devida || !(await mundoParado(tx, registro))) return { tipo: "aguardando" };

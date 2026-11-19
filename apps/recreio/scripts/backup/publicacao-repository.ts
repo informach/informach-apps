@@ -47,6 +47,7 @@ async function travarPublicacao(tx: Transacao, c: Captura) {
     .where(eq(publications.captureId, c.id))
     .for("update");
   exigir(p, "ESTADO");
+  exigir(c.protocolVersion === 1, "ESTADO");
   const [retirada] = await tx
     .select({ id: retirements.captureId })
     .from(retirements)

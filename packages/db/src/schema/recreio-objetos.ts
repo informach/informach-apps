@@ -40,9 +40,13 @@ export const recreioSnapshotObjectDeliveries = recreio.table(
     formatVersion: integer("format_version").notNull().default(1),
     envelope: bytea("envelope"),
     state: text("state")
-      .$type<"prepared" | "verified" | "retiring" | "retired" | "review">()
+      .$type<"prepared" | "verified" | "retiring" | "retired" | "review" | "quarantined">()
       .notNull()
       .default("prepared"),
+    quarantinedAt: momento("quarantined_at"),
+    quarantinedState: text("quarantined_state").$type<
+      "prepared" | "verified" | "retiring" | "retired" | "review"
+    >(),
     reviewReason: text("review_reason").$type<
       "integrity" | "missing_key" | "unconfirmed_write" | "scope_changed" | "delete_unconfirmed"
     >(),
@@ -99,12 +103,26 @@ export const recreioSnapshotObjectDeliveries = recreio.table(
       (${t.state}='verified' and ${t.snapshotId} is not null and ${t.verifiedAt} is not null and ${t.retiredAt} is null and ${t.envelope} is null) or
       (${t.state}='retiring' and ${t.snapshotId} is null and ${t.retiredAt} is null and ${t.envelope} is null) or
       (${t.state}='retired' and ${t.snapshotId} is null and ${t.retiredAt} is not null and ${t.envelope} is null) or
-      (${t.state}='review' and ${t.retiredAt} is null and (${t.verifiedAt} is not null or ${t.detachedAt} is not null or ${t.envelope} is not null))`,
+      (${t.state}='review' and ${t.retiredAt} is null and (${t.verifiedAt} is not null or ${t.detachedAt} is not null or ${t.envelope} is not null)) or
+      (${t.state}='quarantined' and ${t.snapshotId} is null and ${t.detachedAt} is not null and ${t.envelope} is null and
+        ${t.leaseToken} is null and ${t.leaseUntil} is null and
+        ((${t.quarantinedState}='prepared' and ${t.verifiedAt} is null and ${t.retiredAt} is null) or
+         (${t.quarantinedState}='verified' and ${t.verifiedAt} is not null and ${t.retiredAt} is null) or
+         (${t.quarantinedState} in ('retiring','review') and ${t.retiredAt} is null) or
+         (${t.quarantinedState}='retired' and ${t.retiredAt} is not null)))`,
     ),
     check(
       "recreio_snapshot_object_review",
-      sql`((${t.state}='review')=(${t.reviewReason} is not null)) and
+      sql`((${t.state}='review' or (${t.state}='quarantined' and ${t.quarantinedState}='review'))=(${t.reviewReason} is not null)) and
       (${t.reviewReason} is null or ${t.reviewReason} in ('integrity','missing_key','unconfirmed_write','scope_changed','delete_unconfirmed'))`,
+    ),
+    check(
+      "recreio_snapshot_object_quarantine",
+      sql`
+      (${t.state}<>'quarantined' and ${t.quarantinedAt} is null and ${t.quarantinedState} is null) or
+      (${t.state}='quarantined' and ${t.quarantinedAt} is not null and isfinite(${t.quarantinedAt}) and
+       ${t.quarantinedAt}>=${t.createdAt} and ${t.quarantinedState} is not null and
+       ${t.quarantinedState} in ('prepared','verified','retiring','retired','review'))`,
     ),
     check(
       "recreio_snapshot_object_lease",

@@ -346,7 +346,8 @@ export async function listarRetiradasDevidas(destino: DestinoDeCaptura) {
       .select({ id: retirements.captureId })
       .from(retirements)
       .innerJoin(publications, eq(publications.captureId, retirements.captureId))
-      .where(sql`${publications.bucketId}=${alvo.data.bucketId} and ${publications.bucketName}=${alvo.data.bucketName}
+      .innerJoin(captures, eq(captures.id, retirements.captureId))
+      .where(sql`${captures.protocolVersion}=1 and ${publications.bucketId}=${alvo.data.bucketId} and ${publications.bucketName}=${alvo.data.bucketName}
         and ${publications.storageScope}=${alvo.data.escopo} and ${retirements.leaseUntil}<=clock_timestamp()
         and ${retirements.nextAttemptAt}<=clock_timestamp()`)
       .orderBy(asc(retirements.nextAttemptAt), asc(retirements.captureId))
