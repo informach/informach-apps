@@ -24,6 +24,7 @@ export * from "./recreio-dados";
 export * from "./recreio-direitos";
 export * from "./recreio-direitos-exportacoes";
 export * from "./recreio-direitos-operacoes";
+export * from "./recreio-encerramento-financeiro";
 export * from "./recreio-familia";
 export * from "./recreio-financiamento";
 export * from "./recreio-grupo";

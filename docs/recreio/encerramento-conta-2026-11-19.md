@@ -4,6 +4,20 @@ Execução autorizada no fechamento F7, independente do Morada D3–D8.
 Implementação em curso; este plano não habilita exclusão, cobrança ou tráfego.
 As validações manuais ficam reunidas no final, conforme decisão do titular.
 
+Próximo incremento: recibo próprio `account_closure_finances`, vinculado à
+operação/solicitante/tipo originais. Congelamento, outbox assinada e seleção
+financeira serão uma TX; efeitos destrutivos continuarão bloqueados até prova
+do inventário completo e da parada das renovações. Nenhuma ausência local ou
+resposta HTTP isolada confirma isso. Recibos de cancelamento existentes serão
+preservados, sem substituir seu aceite, ator, fonte ou datas.
+
+A conta sem cliente terá evidência explícita `no_customer`, após conferir que
+nenhuma tentativa admitida existe. Conta com cliente exige inventário do
+provedor, origem/namespace e conciliação de todos os contratos/Checkouts antes
+da confirmação. Agendas ou origens desconhecidas permanecem em conferência.
+Schema candidato; geração pelo GitHub e testes de integridade ainda pendentes.
+Não há escritor desse recibo, aceite público ou conclusão de encerramento.
+
 ## Exportação
 
 A cópia de perfil já tem captura consistente, artefato cifrado de dez minutos,
