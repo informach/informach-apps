@@ -28,6 +28,9 @@ export const recreioPersonalExports = recreio.table(
     requesterUserId: text("requester_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** Native participation at capture. A later closure transition invalidates
+     * publication and delivery, including an account export with no player. */
+    participationRevision: integer("participation_revision").notNull().default(0),
     scope: text("scope").$type<"profile" | "account">().notNull().default("profile"),
     profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "cascade" }),
     deviceSessionId: uuid("device_session_id")
@@ -46,6 +49,7 @@ export const recreioPersonalExports = recreio.table(
     createdAt: instante("created_at").notNull(),
   },
   (t) => [
+    check("recreio_personal_export_participation", sql`${t.participationRevision} between 0 and 3`),
     foreignKey({
       name: "recreio_personal_export_native_session",
       columns: [t.authSessionId, t.requesterUserId],

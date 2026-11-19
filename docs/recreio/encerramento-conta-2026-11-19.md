@@ -340,3 +340,18 @@ vez e preserva a versão; o contrato singular continua disponível.
 Minimização conserva mundos congelados até o último perfil e adia expurgo até
 os mundos estarem concluídos. Dois novos casos PG/S3 e três casos puros foram
 preparados. Conta ainda não recebe recibo final nem ação pública neste incremento.
+
+
+### Cópias em voo na transição da participação
+
+O inventário para a limpeza encontrou uma autoridade ausente: a cópia da conta
+não conservava a revisão de participação da captura. Uma captura anterior ao
+encerramento podia terminar de cifrar e publicar depois dele. A correção adiciona
+`personal_exports.participation_revision`, com default legado zero e CHECK 0–3,
+captura a revisão na mesma fotografia SQL e a revalida ao publicar, carregar e
+admitir o download depois de abrir os bytes. Não usa comparação de datas com
+precisão perdida nem revoga a identidade global. Cópias novas dos direitos
+continuam permitidas em closing/closed; cópias anteriores não ganham nova
+autoridade. A migration será gerada no GitHub e adotada intacta após revisão.
+Dois casos nativos cobrem consentimento real durante I/O e a barreira estrutural
+closed/3 depois de abrir. A segunda fixture não prova conclusão de conta.
