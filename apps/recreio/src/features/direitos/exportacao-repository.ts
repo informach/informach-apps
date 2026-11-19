@@ -88,17 +88,22 @@ async function atual(
   indisponivel((vinculo?.id ?? null) === linha.guardianReference);
 }
 
+async function pistaDaCopia(autor: AutorNativoRecente, copiaId: string) {
+  await conferirAutorDeDireitosNoBanco(autor);
+  const [pista] = await db
+    .select({ perfilId: exports.profileId })
+    .from(exports)
+    .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)));
+  return pista;
+}
+
 /** Sem bytes antes da autorização nativa; pistas são só metadados próprios. */
 export async function consultarCopiaPessoalNoBanco(
   autor: AutorNativoRecente,
   copiaId: string,
   perfilEsperado?: string,
 ) {
-  await conferirAutorDeDireitosNoBanco(autor);
-  const [pista] = await db
-    .select({ perfilId: exports.profileId })
-    .from(exports)
-    .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)));
+  const pista = await pistaDaCopia(autor, copiaId);
   if (!pista) return null;
   indisponivel(perfilEsperado === undefined || perfilEsperado === pista.perfilId);
   return comPerfilPessoal(
@@ -210,12 +215,7 @@ export function publicarCopiaPessoalNoBanco(
  * Retirar/trocar responsabilidade, política, contexto ou login durante o
  * processamento impede a admissão da resposta. UUID não é autorização. */
 export async function carregarCopiaPessoalNoBanco(autor: AutorNativoRecente, copiaId: string) {
-  const reciboAtual = await consultarCopiaPessoalNoBanco(autor, copiaId);
-  indisponivel(reciboAtual);
-  const [pista] = await db
-    .select({ perfilId: exports.profileId })
-    .from(exports)
-    .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)));
+  const pista = await pistaDaCopia(autor, copiaId);
   indisponivel(pista);
   return comPerfilPessoal(
     autor,
@@ -223,22 +223,22 @@ export async function carregarCopiaPessoalNoBanco(autor: AutorNativoRecente, cop
     null,
     async (tx, perfil, prazo) => {
       const [linha] = await tx
-        .select({
-          ...colunas,
-          reference: exports.reference,
-          encryptedBytes: exports.encryptedBytes,
-        })
+        .select({ ...colunas, reference: exports.reference })
         .from(exports)
         .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)))
         .for("share");
       indisponivel(linha);
       await atual(tx, autor, perfil, linha, await prazo());
-      indisponivel(linha.encryptedBytes);
-      return {
-        perfilId: PerfilIdSchema.parse(perfil.id),
-        referencia: conferirReferenciaDoObjeto(linha.reference),
-        bytes: linha.encryptedBytes,
-      };
+      const referencia = conferirReferenciaDoObjeto(linha.reference);
+      indisponivel(
+        referencia.contexto.tipo === "exportacao" && referencia.contexto.id === linha.id,
+      );
+      const [corpo] = await tx
+        .select({ bytes: exports.encryptedBytes })
+        .from(exports)
+        .where(eq(exports.id, copiaId));
+      indisponivel(corpo?.bytes);
+      return { perfilId: PerfilIdSchema.parse(perfil.id), referencia, bytes: corpo.bytes };
     },
   );
 }
@@ -248,20 +248,9 @@ export async function admitirDownloadPessoalNoBanco(
   copiaId: string,
   referencia: ReferenciaDoObjeto,
 ) {
-  const reciboAtual = await consultarCopiaPessoalNoBanco(autor, copiaId);
-  indisponivel(
-    reciboAtual &&
-      reciboAtual.sha256 === referencia.sha256 &&
-      reciboAtual.bytes === referencia.bytes &&
-      referencia.contexto.tipo === "exportacao" &&
-      referencia.contexto.id === copiaId,
-  );
-  // O evento representa admissão pelo servidor, não prova de que o navegador
-  // terminou de receber o arquivo. Revalidar na mesma transação da auditoria.
-  const [pista] = await db
-    .select({ perfilId: exports.profileId })
-    .from(exports)
-    .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)));
+  indisponivel(referencia.contexto.tipo === "exportacao" && referencia.contexto.id === copiaId);
+  // Conferir o recibo na mesma transação da auditoria, depois de abrir.
+  const pista = await pistaDaCopia(autor, copiaId);
   indisponivel(pista);
   return comPerfilPessoal(
     autor,

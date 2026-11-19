@@ -6,7 +6,7 @@ on:
       verification_gate:
         description: Verificação auxiliar; somente all qualifica a rodada completa
         type: choice
-        options: [all, quality, integration, rights, backup-capture, commercial-reconciliation, commercial-ui]
+        options: [all, quality, integration, rights, rights-ui, backup-capture, commercial-reconciliation, commercial-ui]
         default: all
       sandbox_catalog:
         description: Conferir catálogo real no Stripe Sandbox (sem clientes ou cobranças)
@@ -197,7 +197,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: ${{ fromJSON(inputs.verification_gate == 'rights' && '["rights"]' || inputs.verification_gate == 'quality' && '["quality"]' || inputs.verification_gate == 'integration' && '["integration"]' || inputs.verification_gate == 'backup-capture' && '["backup-capture"]' || inputs.verification_gate == 'commercial-reconciliation' && '["commercial-reconciliation"]' || inputs.verification_gate == 'commercial-ui' && '["commercial-ui"]' || '["quality","integration","trial-setup","trial-experiment","trial-ui","trial-play","commercial-setup","commercial-checkout","commercial-ui","commercial-reconciliation","e2e","checkpoint","cliente","longa","versoes","equipe"]') }}
+        gate: ${{ fromJSON(inputs.verification_gate == 'rights-ui' && '["rights-ui"]' || inputs.verification_gate == 'rights' && '["rights"]' || inputs.verification_gate == 'quality' && '["quality"]' || inputs.verification_gate == 'integration' && '["integration"]' || inputs.verification_gate == 'backup-capture' && '["backup-capture"]' || inputs.verification_gate == 'commercial-reconciliation' && '["commercial-reconciliation"]' || inputs.verification_gate == 'commercial-ui' && '["commercial-ui"]' || '["quality","integration","trial-setup","trial-experiment","trial-ui","trial-play","commercial-setup","commercial-checkout","commercial-ui","commercial-reconciliation","e2e","checkpoint","cliente","longa","versoes","equipe"]') }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -309,6 +309,9 @@ jobs:
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
+      - name: Conferir somente a interface de direitos (nao qualifica a rodada completa)
+        if: matrix.gate == 'rights-ui'
+        run: pnpm --filter @informach/recreio-app e2e e2e/direitos-
       - if: matrix.gate == 'equipe'
         run: pnpm --filter @informach/recreio-app e2e:equipe
       - if: matrix.gate == 'trial-ui'
@@ -392,13 +395,14 @@ jobs:
           retention-days: 7
       - name: Preserve synthetic account screens
         # Somente telas sintéticas explicitadas; sem traces ou conteúdo real de famílias.
-        if: always() && matrix.gate == 'e2e'
+        if: always() && (matrix.gate == 'e2e' || matrix.gate == 'rights-ui')
         uses: actions/upload-artifact@v4
         with:
           name: recreio-conta-${{ github.run_attempt }}
           path: |
             apps/recreio/tmp/telas/aparelhos-proprios.png
             apps/recreio/tmp/telas/direitos-previa-conta-sem-jogador.png
+            apps/recreio/tmp/telas/direitos-copia-pessoal-390.png
             apps/recreio/tmp/telas/perfil-proprio-editado.png
             apps/recreio/tmp/telas/saida-mundo-confirmacao.png
             apps/recreio/tmp/telas/participacoes-sem-acesso.png

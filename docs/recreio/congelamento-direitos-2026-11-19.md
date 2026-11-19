@@ -625,3 +625,12 @@ A candidata seguinte acrescenta auditoria atômica em lote no expurgo de
 artefatos e libera o Blob do navegador ao trocar/revogar a cópia. Artefatos
 restaurados também terão de ser revogados no coordenador offline antes de
 servir tráfego; esta entrega não substitui essa pendência de F8.
+
+
+A conferência do download foi simplificada para retirar leituras redundantes:
+metadados são conferidos sob a trava do recibo antes de carregar o envelope;
+a mesma referência é relida na admissão final, após a abertura. Isso conserva
+as duas autorizações e a recusa de revogação no intervalo. Nova rodada exigida.
+O gate auxiliar `rights-ui` executa somente as três jornadas de direitos no
+standalone real com PostgreSQL descartável; não substitui os dezesseis gates.
+A captura de 390 px entra na whitelist de artefatos sintéticos para inspeção.
