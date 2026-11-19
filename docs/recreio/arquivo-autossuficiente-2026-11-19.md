@@ -137,3 +137,29 @@ no Next e o novo prefixo de temporários fora da união permitida. A correção
 explicita o ambiente e acrescenta somente esse prefixo à lista fechada, sem
 casts ou supressões. A candidata corrigida exige nova execução de ambos os
 gates e agora verifica os tipos do app antes das provas nativas.
+
+A fonte corrigida `df05a887` passou `44468536258` e `44468540610`: tipos do
+banco/app, quinze provas de captura/dump e 144 testes de objetos. O ajuste
+adicional exige a presença real do canal stderr antes de restaurar; o tipo
+não foi forçado. [Recibo conjunto](evidencias/dump-nativo-tipado-44468536258.json).
+
+## Composição do arquivo com fotografias em qualificação
+
+`montar-captura.ts` compõe inventário/dump da visão aberta e envelopes do
+destino exato. Copia somente versões de chave usadas no arquivo, lê uma foto
+por vez, confere novamente o GCM no composto e elimina dump/inventário/foto
+temporários após montar. Capacidades precisam ser privadas, vazias e distintas;
+a saída continua privada e ainda precisa ser cifrada pelo executor. Não há
+PUT ou liberação de reservas nesse montador. O leitor de envelopes S3 passou
+a receber o cancelamento da captura, além do seu próprio prazo.
+
+`montagem.backup-capture.ts` prepara fotografia e recibo SQL nativos, usa SDK
+S3/HTTP fechado, monta/cifra, guarda arquivo e índice, elimina fontes locais
+e o objeto vivo da fixture, e recupera pelo índice. Restaura o SQL em outro
+banco e confere o inventário; extrai/autentica a fotografia somente com a chave
+incluída no arquivo. A recuperação exige apenas GETs do prefixo do backup e a
+retirada assinada corta leituras posteriores. Falta evidência remota dessa
+composição; não é teste do provedor externo. Os destinos e autoridades do SQL
+restaurado ainda não foram normalizados para tráfego e nenhuma reserva é
+liberada por essa prova. Controle durável, ledger F7, custódia e cadência
+operacional continuam pendentes.

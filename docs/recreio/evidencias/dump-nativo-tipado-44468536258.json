@@ -1,0 +1,15 @@
+{
+  "source": "df05a8872abb971008c12cb73259e0796f8241ae",
+  "captureRunId": 44468536258,
+  "captureJobId": 135372086381,
+  "objectsRunId": 44468540610,
+  "objectsJobId": 135372102256,
+  "conclusion": "success",
+  "captureTests": 15,
+  "nativeDumpTests": 5,
+  "objectTests": 144,
+  "frozenInstallVerified": true,
+  "appTypesVerified": true,
+  "productionApplied": false,
+  "scopeLimit": "Real PostgreSQL snapshot/dump, encrypted composite and isolated SQL restoration. No S3 photos/provider, native durable publish control, custody, rights replay or production qualification."
+}

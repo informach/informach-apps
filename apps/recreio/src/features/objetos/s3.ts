@@ -51,16 +51,24 @@ export function criarArmazenamentoPrivadoS3(config: {
       throw new FalhaDoObjetoPrivado("LIMITE");
     return r;
   }
-  async function comPrazo<T>(executar: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  async function comPrazo<T>(
+    executar: (signal: AbortSignal) => Promise<T>,
+    externo?: AbortSignal,
+  ): Promise<T> {
     if ((await cliente.config.maxAttempts()) !== 1)
       throw new FalhaDoArmazenamentoPrivado("CONFIGURACAO");
     const controle = new AbortController();
+    const cancelar = () => controle.abort();
+    externo?.addEventListener("abort", cancelar, { once: true });
+    if (externo?.aborted) cancelar();
     const timer = setTimeout(() => controle.abort(), tempoLimiteMs);
     timer.unref();
     try {
+      if (controle.signal.aborted) throw new FalhaDoArmazenamentoPrivado("INCONCLUSIVO");
       return await executar(controle.signal);
     } finally {
       clearTimeout(timer);
+      externo?.removeEventListener("abort", cancelar);
       controle.abort();
     }
   }
@@ -131,9 +139,9 @@ export function criarArmazenamentoPrivadoS3(config: {
   }
   /** Cópia cifrada para arquivo de captura: autentica integralmente a fotografia
    * e descarta o conteúdo aberto. Uma fotografia por vez; não é porta de dump. */
-  async function recuperarEnvelope(bruto: unknown): Promise<Buffer> {
+  async function recuperarEnvelope(bruto: unknown, externo?: AbortSignal): Promise<Buffer> {
     const r = referencia(bruto);
-    return comPrazo((signal) => lerEm(signal, r, "envelope"));
+    return comPrazo((signal) => lerEm(signal, r, "envelope"), externo);
   }
   async function enviar(preparado: {
     referencia: ReferenciaDoObjeto;

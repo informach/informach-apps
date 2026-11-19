@@ -148,4 +148,34 @@ describe("objetos privados pelo SDK S3 real em HTTP fechado", () => {
       await f.fechar();
     }
   });
+  it("cancelamento externo anterior à leitura do envelope não inicia rede", async () => {
+    const f = await fixture(),
+      c = new AbortController();
+    c.abort();
+    try {
+      await expect(
+        f.storage.recuperarEnvelope(f.preparado.referencia, c.signal),
+      ).rejects.toMatchObject({ codigo: "INCONCLUSIVO" });
+      expect(f.pedidos).toHaveLength(0);
+    } finally {
+      await f.fechar();
+    }
+  });
+  it("cancelamento da captura encerra o corpo do envelope em andamento", async () => {
+    const f = await fixture(),
+      c = new AbortController();
+    try {
+      f.objetos.set(f.path, f.preparado.bytes);
+      f.estado.demorar = true;
+      const leitura = f.storage.recuperarEnvelope(f.preparado.referencia, c.signal);
+      const recusada = expect(leitura).rejects.toMatchObject({ codigo: "INCONCLUSIVO" });
+      await expect.poll(() => f.estado.leituraIniciada).toBe(true);
+      c.abort();
+      await recusada;
+      expect(f.pedidos).toHaveLength(1);
+    } finally {
+      c.abort();
+      await f.fechar();
+    }
+  });
 });
