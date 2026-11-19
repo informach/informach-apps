@@ -77,8 +77,10 @@ adotadas intactas, ainda sem aplicação ou escritores de objetos em produção;
 dezoito cenários SQL aprovados em `44437017538` (1173 integrações e cinco HTTP),
 quality `44437014121` aprovado. Leitor nativo em duas etapas aprovado em
 quality `44439533813` e integração `44439538487` (17 cenários novos, 1190
-integrações e cinco HTTP). Checkpoint/retenção e recuperação histórica em
-qualificação, sem migração habilitada. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
+integrações e cinco HTTP). Checkpoint/retenção, recuperação histórica e preparação cifrada/auditada
+aprovados em `44442018626` e `44442022199`/`d4b77c2a` (41 cenários de fotografia,
+1214 integrações e cinco HTTP). Executor de entrega em candidata; coleta e
+backup permanecem pendentes, sem migração habilitada. Migração, downloads e backup seguem abertos: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,

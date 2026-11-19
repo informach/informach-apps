@@ -151,5 +151,5 @@ export function criarArmazenamentoPrivadoS3(config: {
       return r;
     });
   }
-  return { enviar, recuperar };
+  return Object.freeze({ bucketName: bucket, enviar, recuperar });
 }

@@ -123,5 +123,16 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
     );
     expect(erros).toEqual([]);
   }
-  return { storage, cifrador, preparado, conteudo, objetos, path, estado, pedidos, fechar };
+  return {
+    storage,
+    cliente,
+    cifrador,
+    preparado,
+    conteudo,
+    objetos,
+    path,
+    estado,
+    pedidos,
+    fechar,
+  };
 }

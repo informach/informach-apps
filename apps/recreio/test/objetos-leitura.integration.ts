@@ -12,10 +12,17 @@ import {
   conferirReferenciaDoObjeto,
   criarCifradorDeObjetos,
 } from "@/features/objetos/criptografia";
+import { executarEntregaDaFotografia } from "@/features/objetos/entregas";
+import {
+  confirmarEntregaDaFotografia,
+  registrarFalhaDaEntrega,
+  reservarEntregaDaFotografia,
+} from "@/features/objetos/entregas-repository";
 import {
   type DestinoDeFotografias,
   prepararEntregaDaFotografia,
 } from "@/features/objetos/fotografias-repository";
+import { criarArmazenamentoPrivadoS3 } from "@/features/objetos/s3";
 import type { LeitorDeFotografiasPrivadas } from "@/features/posse/armazenamento";
 import { armazenamentoPg } from "@/features/posse/armazenamento-repository";
 import { conferirFotografiaDeCheckpoint } from "@/features/posse/prova-fotografia";
@@ -67,7 +74,7 @@ async function preparar() {
     })
     .returning();
   if (!foto) throw new Error("Snapshot absent");
-  return { pedido, foto, bytes, instancia };
+  return { pedido, foto, bytes, instancia, sessao };
 }
 
 async function pararParaRecuperacao(
@@ -712,4 +719,333 @@ describe("preparação durável e aditiva da entrega de fotografias", () => {
         .where(eq(deliveries.snapshotReference, f.foto.id)),
     ).toHaveLength(1);
   });
+});
+
+async function comEntrega(
+  executar: (
+    f: Awaited<ReturnType<typeof prepararEscrow>> & {
+      id: string;
+      s3: Awaited<ReturnType<typeof criarBucketS3DeTeste>>;
+    },
+  ) => Promise<void>,
+) {
+  const f = await prepararEscrow();
+  const s3 = await criarBucketS3DeTeste();
+  try {
+    const id = await prepararEntregaDaFotografia(f.entrega, f.destino, s3.cifrador);
+    await executar({ ...f, id, s3 });
+  } finally {
+    await s3.fechar();
+  }
+}
+async function entregaGuardada(id: string) {
+  const [e] = await db.select().from(deliveries).where(eq(deliveries.id, id));
+  if (!e) throw new Error("Delivery absent");
+  return e;
+}
+async function tornarEntregaDevida(id: string) {
+  await db
+    .update(deliveries)
+    .set({ nextAttemptAt: sql`clock_timestamp()` })
+    .where(eq(deliveries.id, id));
+}
+async function expirarTentativa(id: string) {
+  await db
+    .update(deliveries)
+    .set({ leaseUntil: sql`clock_timestamp()-interval '1 microsecond'` })
+    .where(eq(deliveries.id, id));
+}
+
+describe("executor nativo: tentativa durável, confirmação e publicação atômica", () => {
+  it("rotação sem chave antiga exige revisão e não inicia PUT", async () =>
+    comEntrega(async (f) => {
+      const cifrador = criarCifradorDeObjetos({
+        chaveAtiva: "nova",
+        chaves: new Map([["nova", randomBytes(32)]]),
+        limiteBytes: 4096,
+      });
+      const transporte = criarArmazenamentoPrivadoS3({
+        cliente: f.s3.cliente,
+        bucket: f.destino.bucketName,
+        cifrador,
+        tempoLimiteMs: 2000,
+      });
+      expect(await executarEntregaDaFotografia(f.id, f.destino, transporte)).toBe("revisao");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "review",
+        reviewReason: "missing_key",
+        verifiedAt: null,
+      });
+      expect(f.s3.pedidos).toEqual([]);
+      const [pg] = await db
+        .select({ storage: snapshots.storage, data: snapshots.data })
+        .from(snapshots)
+        .where(eq(snapshots.id, f.foto.id));
+      expect(pg).toEqual({ storage: "pg", data: f.bytes });
+    }));
+  it("só publica bucket após PUT e leitura inteira; o mundo reabre com os mesmos bytes", async () =>
+    comEntrega(async (f) => {
+      expect(f.s3.pedidos).toEqual([]);
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("concluida");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "verified",
+        envelope: null,
+        leaseToken: null,
+        attemptCount: 1,
+      });
+      expect(f.s3.pedidos.map((p) => p.metodo)).toEqual(["PUT", "GET"]);
+      expect((await abrirPelaRota(f.sessao, f.pedido.mundoId)).status).toBe(200);
+      const posse = await f.instancia.cliente.reivindicarPosse(f.pedido.mundoId);
+      const foto = await lerFotografiaDoMundo(
+        { ...f.pedido, cerca: posse.cerca },
+        { ...f.destino, ler: f.s3.storage.recuperar },
+      );
+      expect(Buffer.from(foto?.bytes ?? [])).toEqual(f.bytes);
+      const antes = f.s3.pedidos.length;
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("concluida");
+      expect(f.s3.pedidos).toHaveLength(antes);
+      expect(
+        (await eventosCom("spaceId", f.pedido.mundoId)).filter(
+          (e) => e.eventType === "recreio.snapshot_object_confirmed",
+        ),
+      ).toHaveLength(1);
+    }));
+  it("resposta perdida mantém pg/envelope e recupera o mesmo objeto por replay 412", async () =>
+    comEntrega(async (f) => {
+      const antes = await entregaGuardada(f.id);
+      f.s3.estado.perderPut = true;
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("aguardando");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "prepared",
+        envelope: antes.envelope,
+        verifiedAt: null,
+        attemptCount: 1,
+        leaseToken: null,
+      });
+      const [pg] = await db
+        .select({ storage: snapshots.storage, data: snapshots.data })
+        .from(snapshots)
+        .where(eq(snapshots.id, f.foto.id));
+      expect(pg).toEqual({ storage: "pg", data: f.bytes });
+      expect(f.s3.objetos.size).toBe(1);
+      const pedidos = f.s3.pedidos.length;
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("aguardando");
+      expect(f.s3.pedidos).toHaveLength(pedidos);
+      f.s3.estado.perderPut = false;
+      await tornarEntregaDevida(f.id);
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("concluida");
+      const depois = await entregaGuardada(f.id);
+      expect(depois).toMatchObject({
+        state: "verified",
+        envelope: null,
+        attemptCount: 2,
+        cipherSha256: antes.cipherSha256,
+        objectKey: antes.objectKey,
+      });
+      expect(f.s3.objetos.size).toBe(1);
+      expect(f.s3.pedidos.map((p) => p.metodo)).toEqual(["PUT", "PUT", "GET"]);
+    }));
+  it("corrupção no objeto congela a entrega para revisão, sem retirar pg", async () =>
+    comEntrega(async (f) => {
+      f.s3.estado.corromper = true;
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("revisao");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "review",
+        reviewReason: "integrity",
+        verifiedAt: null,
+        leaseToken: null,
+      });
+      const [pg] = await db
+        .select({ storage: snapshots.storage, data: snapshots.data })
+        .from(snapshots)
+        .where(eq(snapshots.id, f.foto.id));
+      expect(pg).toEqual({ storage: "pg", data: f.bytes });
+      expect(f.s3.pedidos.map((p) => p.metodo)).toEqual(["PUT", "GET"]);
+    }));
+  it("fonte pg alterada antes da tentativa entra em revisão sem tráfego", async () =>
+    comEntrega(async (f) => {
+      await db
+        .update(snapshots)
+        .set({ data: Buffer.alloc(f.bytes.length) })
+        .where(eq(snapshots.id, f.foto.id));
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("revisao");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "review",
+        reviewReason: "integrity",
+        attemptCount: 0,
+      });
+      expect(f.s3.pedidos).toEqual([]);
+    }));
+  it("destino diferente do transporte é recusado antes da tentativa", async () =>
+    comEntrega(async (f) => {
+      await expect(
+        executarEntregaDaFotografia(
+          f.id,
+          { ...f.destino, bucketName: "outro-fixture" },
+          f.s3.storage,
+        ),
+      ).rejects.toMatchObject({ codigo: "DESTINO_DIVERGENTE" });
+      expect((await entregaGuardada(f.id)).attemptCount).toBe(0);
+      expect(f.s3.pedidos).toEqual([]);
+    }));
+  it("mundo reaberto durante I/O conserva pg e a mesma entrega recuperável", async () =>
+    comEntrega(async (f) => {
+      const transporte = {
+        ...f.s3.storage,
+        enviar: async (preparado: Parameters<typeof f.s3.storage.enviar>[0]) => {
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`set local lock_timeout='1500ms'`);
+            await tx
+              .select({ id: spaces.id })
+              .from(spaces)
+              .where(eq(spaces.id, f.pedido.mundoId))
+              .for("update");
+            await tx
+              .update(spaces)
+              .set({ status: "active" })
+              .where(eq(spaces.id, f.pedido.mundoId));
+          });
+          return f.s3.storage.enviar(preparado);
+        },
+      };
+      expect(await executarEntregaDaFotografia(f.id, f.destino, transporte)).toBe("aguardando");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "prepared",
+        verifiedAt: null,
+        leaseToken: null,
+      });
+      const [pg] = await db
+        .select({ storage: snapshots.storage, data: snapshots.data })
+        .from(snapshots)
+        .where(eq(snapshots.id, f.foto.id));
+      expect(pg).toEqual({ storage: "pg", data: f.bytes });
+      await db.update(spaces).set({ status: "hibernating" }).where(eq(spaces.id, f.pedido.mundoId));
+      await tornarEntregaDevida(f.id);
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("concluida");
+      expect(f.s3.objetos.size).toBe(1);
+    }));
+  it("tentativa vencida após leitura externa não publica ponteiro", async () =>
+    comEntrega(async (f) => {
+      const transporte = {
+        ...f.s3.storage,
+        enviar: async (preparado: Parameters<typeof f.s3.storage.enviar>[0]) => {
+          const r = await f.s3.storage.enviar(preparado);
+          await expirarTentativa(f.id);
+          return r;
+        },
+      };
+      expect(await executarEntregaDaFotografia(f.id, f.destino, transporte)).toBe("aguardando");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "prepared",
+        verifiedAt: null,
+        leaseToken: null,
+      });
+    }));
+  it("executor antigo não publica nem limpa o token de outro executor", async () =>
+    comEntrega(async (f) => {
+      const antiga = await reservarEntregaDaFotografia(f.id, f.destino);
+      if (antiga.tipo !== "trabalho") throw new Error("First work absent");
+      await expirarTentativa(f.id);
+      const nova = await reservarEntregaDaFotografia(f.id, f.destino);
+      if (nova.tipo !== "trabalho") throw new Error("Second work absent");
+      await f.s3.storage.enviar({
+        referencia: antiga.trabalho.referencia,
+        bytes: antiga.trabalho.envelope,
+      });
+      expect(await confirmarEntregaDaFotografia(antiga.trabalho)).toBe(false);
+      await registrarFalhaDaEntrega(antiga.trabalho, null);
+      expect((await entregaGuardada(f.id)).leaseToken).toBe(nova.trabalho.token);
+      await f.s3.storage.enviar({
+        referencia: nova.trabalho.referencia,
+        bytes: nova.trabalho.envelope,
+      });
+      expect(await confirmarEntregaDaFotografia(nova.trabalho)).toBe(true);
+      expect((await entregaGuardada(f.id)).attemptCount).toBe(2);
+      expect(f.s3.objetos.size).toBe(1);
+    }));
+  it("retirada durante envio conserva o tombstone e não ressuscita o vínculo", async () =>
+    comEntrega(async (f) => {
+      const transporte = {
+        ...f.s3.storage,
+        enviar: async (preparado: Parameters<typeof f.s3.storage.enviar>[0]) => {
+          const r = await f.s3.storage.enviar(preparado);
+          await db.transaction(async (tx) => {
+            await tx
+              .select({ id: spaces.id })
+              .from(spaces)
+              .where(eq(spaces.id, f.pedido.mundoId))
+              .for("update");
+            await tx.insert(snapshots).values({
+              spaceId: f.pedido.mundoId,
+              revision: 2,
+              fence: f.pedido.cerca,
+              schemaVersion: 1,
+              journalSeq: 0,
+              tick: 1,
+              kind: "checkpoint",
+              storage: "pg",
+              data: f.bytes,
+              byteSize: f.bytes.length,
+              sha256: f.foto.sha256,
+            });
+            await tx.update(spaces).set({ revision: 2 }).where(eq(spaces.id, f.pedido.mundoId));
+            await armazenamentoPg.apararFotografias(tx, f.pedido.mundoId, 1);
+          });
+          return r;
+        },
+      };
+      expect(await executarEntregaDaFotografia(f.id, f.destino, transporte)).toBe("aguardando");
+      expect(await entregaGuardada(f.id)).toMatchObject({
+        state: "retiring",
+        snapshotId: null,
+        envelope: null,
+        verifiedAt: null,
+      });
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("retirada");
+      expect(f.s3.objetos.size).toBe(1);
+    }));
+  it("falha real de auditoria desfaz a publicação; replay recupera o objeto já escrito", async () =>
+    comEntrega(async (f) => {
+      await db.execute(
+        sql`create function audit.recusar_objeto_confirmado_em_teste() returns trigger language plpgsql as $$ begin if new.event_type = 'recreio.snapshot_object_confirmed' then raise exception 'auditoria indisponível (teste)'; end if; return new; end $$`,
+      );
+      try {
+        await db.execute(
+          sql`create trigger recusar_objeto_confirmado_em_teste before insert on audit.events for each row execute function audit.recusar_objeto_confirmado_em_teste()`,
+        );
+        await expect(
+          executarEntregaDaFotografia(f.id, f.destino, f.s3.storage),
+        ).rejects.toBeInstanceOf(AuditPersistenceError);
+        expect(await entregaGuardada(f.id)).toMatchObject({
+          state: "prepared",
+          verifiedAt: null,
+          attemptCount: 1,
+        });
+        const [pg] = await db
+          .select({ storage: snapshots.storage, data: snapshots.data })
+          .from(snapshots)
+          .where(eq(snapshots.id, f.foto.id));
+        expect(pg).toEqual({ storage: "pg", data: f.bytes });
+        expect(f.s3.objetos.size).toBe(1);
+      } finally {
+        await db.execute(
+          sql`drop trigger if exists recusar_objeto_confirmado_em_teste on audit.events`,
+        );
+        await db.execute(sql`drop function if exists audit.recusar_objeto_confirmado_em_teste()`);
+      }
+      await expirarTentativa(f.id);
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("concluida");
+      expect(f.s3.objetos.size).toBe(1);
+      expect((await entregaGuardada(f.id)).state).toBe("verified");
+    }));
+  it("seis executores concorrentes fazem uma única tentativa externa", async () =>
+    comEntrega(async (f) => {
+      const estados = await Promise.all(
+        Array.from({ length: 6 }, () => executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)),
+      );
+      expect(estados).toContain("concluida");
+      expect(estados.every((e) => e === "concluida" || e === "ocupada")).toBe(true);
+      expect(f.s3.pedidos.map((p) => p.metodo)).toEqual(["PUT", "GET"]);
+      expect((await entregaGuardada(f.id)).attemptCount).toBe(1);
+    }));
 });

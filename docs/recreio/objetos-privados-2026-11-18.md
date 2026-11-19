@@ -298,3 +298,36 @@ recuperação após resposta perdida, confirmação com nova admissão e publica
 atômica do ponteiro, além do coletor de retirada. A preparação sozinha não
 comprova entrega externa nem autoriza migração. Nenhum objeto de produção foi
 preparado por esta etapa.
+
+
+A fonte `d4b77c2a` passou em quality `44442018626` e integração `44442022199`:
+41 cenários de fotografias, 98 arquivos/1214 casos PostgreSQL e cinco HTTP.
+Inclui leitores, restauração histórica, checkpoint/retenção e preparação
+cifrada/auditada, inclusive falha real da auditoria e concorrência. O teste de
+partida operacional sem variáveis Next também passou. [Recibo](evidencias/objetos-preparo-44442022199.json).
+
+## Executor em qualificação
+
+O executor interno reserva uma tentativa e token por 45 segundos antes de
+entregar o envelope ao transporte. O I/O fica fora das transações. Resposta
+perdida preserva PG e envelope e agenda recuperação em cinco minutos; replay
+usa o mesmo objeto com PUT condicional e leitura completa. A publicação exige
+mundo ainda parado, referência/fonte íntegras, token atual e prazo vivo no próprio
+UPDATE. Registro confirmado, ponteiro e auditoria são atômicos. Executor antigo
+não pode publicar nem limpar o token novo. Fonte/objeto corrompidos e chave
+antiga ausente ficam em revisão, preservando PG; erros de configuração, banco ou
+auditoria falham operacionalmente, sem declarar sucesso.
+
+Os cenários com PostgreSQL/SDK real e HTTP fechado cobrem resposta perdida,
+concorrência, nova abertura do mundo, tentativa vencida, retirada durante envio,
+rotação sem chave antiga e rollback real da auditoria após upload. Ainda precisam
+de seus gates remotos; não são prova de worker em produção. O transporte passa
+a expor apenas o nome do bucket junto das operações, para recusar uma composição
+que combine destino e transporte diferentes.
+
+Ainda não existe rota, job ou modo de migração habilitado. Faltam scanner
+limitado da fila, coleta de retirada com confirmação/recibo e verificação
+recorrente contra PUT tardio, proteção de capturas de backup, prova nativa no
+bucket real, migração aditiva e rollback com devolução explícita dos bytes a PG.
+Depois de mover bytes, desligar o leitor ou voltar para a fonte antiga não é
+rollback válido. Nenhum dado de produção foi movido.
