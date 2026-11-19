@@ -1,0 +1,32 @@
+{
+  "runId": 44456149519,
+  "source": "0f2d134fb7c836b00d5c94fc62f18c4e11fb1224",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 135331529184,
+      "name": "qualify",
+      "conclusion": "success"
+    },
+    {
+      "id": 135332109827,
+      "name": "provider",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135332110794,
+      "name": "file-provider",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 135332111325,
+      "name": "native-provider",
+      "conclusion": "skipped"
+    }
+  ],
+  "objectTests": 71,
+  "objectFiles": 5,
+  "productionDataTouched": false,
+  "productionApplied": false,
+  "scopeLimit": "Types and real file/SDK/closed HTTP tests; not an external-provider or production run."
+}

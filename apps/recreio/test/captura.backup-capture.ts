@@ -197,6 +197,7 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
       let antiga: CapturaAberta | undefined;
       const id = await comCapturaConsistente(destino, async (c) => {
         antiga = c;
+        expect(c.signal.aborted).toBe(false);
         const lista = await objetos(c);
         expect(lista).toHaveLength(1);
         const primeira = lista[0];
@@ -213,6 +214,7 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
       });
       expect((await reservas(f.entregaId))[0]?.captureId).toBe(id);
       if (!antiga) throw new Error("Captura ausente");
+      expect(antiga.signal.aborted).toBe(true);
       await expect(objetos(antiga)).rejects.toMatchObject({ codigo: "CAPTURA_ENCERRADA" });
     }));
   it("retenção depois das reservas não altera a visão original nem apaga a reserva", async () =>
@@ -361,7 +363,7 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
   it("queda real do backend de coordenação durante a reserva reverte o lote", async () =>
     comFoto(async (f) => {
       await db.execute(
-        sql`create function recreio.derrubar_barreira_backup_teste() returns trigger language plpgsql as $$ begin perform pg_terminate_backend(pid) from pg_locks where locktype='advisory' and classid=1380270930::oid and objid=8::oid and objsubid=2 and mode='ExclusiveLock' and granted and database=(select oid from pg_database where datname=current_database()); return new; end $$`,
+        sql`create function recreio.derrubar_barreira_backup_teste() returns trigger language plpgsql as $$ begin perform pg_terminate_backend(pid,5000) from pg_locks where locktype='advisory' and classid=1380270930::oid and objid=8::oid and objsubid=2 and mode='ExclusiveLock' and granted and database=(select oid from pg_database where datname=current_database()); return new; end $$`,
       );
       let chamado = false;
       try {
@@ -375,6 +377,11 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
         ).rejects.toBeDefined();
         expect(chamado).toBe(false);
         expect(await reservas(f.entregaId)).toHaveLength(0);
+        const [conexoes] = await db.execute<{
+          n: number;
+        }>(sql`select count(*)::int as n from pg_stat_activity
+          where datname=current_database() and application_name in ('recreio-backup-source','recreio-backup-coordinator')`);
+        expect(conexoes?.n).toBe(0);
       } finally {
         await db.execute(
           sql`drop trigger if exists derrubar_barreira_backup_teste on recreio.backup_object_holds`,

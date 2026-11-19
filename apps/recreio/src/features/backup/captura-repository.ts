@@ -24,6 +24,7 @@ type Fonte = Pick<postgres.TransactionSql, "unsafe">;
 export type CapturaAberta = {
   id: string;
   snapshot: string;
+  signal: AbortSignal;
   origem: Fonte;
   inventario: { quantidade: number; bytesCifrados: number; sha256: string };
   objetos: () => AsyncGenerator<ObjetoDaCaptura>;
@@ -59,6 +60,10 @@ async function* objetosNaVisao(fonte: Fonte): AsyncGenerator<ObjetoDaCaptura> {
     }
 }
 
+async function limitarControle(tx: Transacao) {
+  await tx.execute(sql`select set_config('lock_timeout','5000ms',true),
+    set_config('statement_timeout','15000ms',true),set_config('transaction_timeout','30000ms',true)`);
+}
 async function conferirBarreira(tx: Transacao, pid: number) {
   const [r] = await tx.execute<{ viva: boolean }>(sql`select exists (
     select 1 from pg_locks where locktype='advisory' and pid=${pid}
@@ -79,6 +84,7 @@ export async function travarColetaDeObjetos(tx: Transacao): Promise<void> {
 async function reservarLote(capturaId: string, lote: ObjetoDaCaptura[], pid: number) {
   if (!lote.length || lote.length > 100) throw new FalhaDaCaptura("LIMITE");
   await db.transaction(async (tx) => {
+    await limitarControle(tx);
     const mundos = [...new Set(lote.map((o) => o.mundoId))].sort();
     const travados = await tx
       .select({ id: spaces.id })
@@ -158,6 +164,7 @@ async function reservarLote(capturaId: string, lote: ObjetoDaCaptura[], pid: num
 
 async function fixarInventario(id: string, inventario: CapturaAberta["inventario"], pid: number) {
   await db.transaction(async (tx) => {
+    await limitarControle(tx);
     const [atual] = await tx
       .select({ state: captures.state })
       .from(captures)
@@ -202,6 +209,7 @@ export async function comCapturaConsistente<T>(
     url = process.env.DATABASE_URL;
   if (!alvo.success || !url) throw new FalhaDaCaptura("CONFIGURACAO");
   const [captura] = await db.transaction(async (tx) => {
+    await limitarControle(tx);
     const registros = await tx
       .insert(captures)
       .values({
@@ -221,9 +229,24 @@ export async function comCapturaConsistente<T>(
     return registros;
   });
   if (!captura) throw new FalhaDaCaptura("INVENTARIO");
-  const coordenador = postgres(url, { max: 1, prepare: false, connect_timeout: 10 }),
-    origem = postgres(url, { max: 1, prepare: false, connect_timeout: 10 });
+  const coordenador = postgres(url, {
+      max: 1,
+      prepare: false,
+      connect_timeout: 10,
+      connection: { application_name: "recreio-backup-coordinator" },
+    }),
+    origem = postgres(url, {
+      max: 1,
+      prepare: false,
+      connect_timeout: 10,
+      connection: { application_name: "recreio-backup-source" },
+    });
   let resultado: { ok: true; valor: T } | { ok: false; erro: unknown };
+  const interrupcao = new AbortController();
+  const conferirInterrupcao = () => {
+    if (interrupcao.signal.aborted) throw new FalhaDaCaptura("CAPTURA_ENCERRADA");
+  };
+  let tarefaDaOrigem: Promise<{ valor: T }> | undefined;
   try {
     const fora = await coordenador.begin(async (barreira) => {
       await barreira.unsafe("set local lock_timeout='15000ms'");
@@ -232,63 +255,80 @@ export async function comCapturaConsistente<T>(
         { pid: number }[]
       >`select pg_backend_pid() as pid, pg_advisory_xact_lock(${BARREIRA_CAPTURA_COLETA.grupo},${BARREIRA_CAPTURA_COLETA.chave})`;
       if (!coordenacao) throw new FalhaDaCaptura("CONFIGURACAO");
-      const dentro = await origem.begin(
-        "isolation level repeatable read read only",
-        async (fonte) => {
-          await fonte.unsafe("set local statement_timeout='15000ms'");
-          await fonte.unsafe("set local lock_timeout='5000ms'");
-          await fonte.unsafe("set local transaction_timeout='600000ms'");
-          const [s] = await fonte<{ snapshot: string }[]>`select pg_export_snapshot() as snapshot`;
-          if (!s || !/^[A-Fa-f0-9]+-[A-Fa-f0-9]+-[0-9]+$/.test(s.snapshot))
-            throw new FalhaDaCaptura("INVENTARIO");
-          const hash = createHash("sha256");
-          let quantidade = 0,
-            bytesCifrados = 0,
-            lote: ObjetoDaCaptura[] = [];
-          for await (const objeto of objetosNaVisao(fonte)) {
-            quantidade++;
-            bytesCifrados += objeto.referencia.bytesCifrados;
-            if (quantidade > 1_000_000 || bytesCifrados > 68_719_476_736)
-              throw new FalhaDaCaptura("LIMITE");
-            hash.update(resumoDaReferencia(objeto), "ascii");
-            lote.push(objeto);
-            if (lote.length === 100) {
-              await reservarLote(captura.id, lote, coordenacao.pid);
-              lote = [];
-            }
+      tarefaDaOrigem = origem.begin("isolation level repeatable read read only", async (fonte) => {
+        conferirInterrupcao();
+        await fonte.unsafe("set local statement_timeout='15000ms'");
+        await fonte.unsafe("set local lock_timeout='5000ms'");
+        await fonte.unsafe("set local transaction_timeout='600000ms'");
+        const [s] = await fonte<{ snapshot: string }[]>`select pg_export_snapshot() as snapshot`;
+        if (!s || !/^[A-Fa-f0-9]+-[A-Fa-f0-9]+-[0-9]+$/.test(s.snapshot))
+          throw new FalhaDaCaptura("INVENTARIO");
+        const hash = createHash("sha256");
+        let quantidade = 0,
+          bytesCifrados = 0,
+          lote: ObjetoDaCaptura[] = [];
+        for await (const objeto of objetosNaVisao(fonte)) {
+          conferirInterrupcao();
+          quantidade++;
+          bytesCifrados += objeto.referencia.bytesCifrados;
+          if (quantidade > 1_000_000 || bytesCifrados > 68_719_476_736)
+            throw new FalhaDaCaptura("LIMITE");
+          hash.update(resumoDaReferencia(objeto), "ascii");
+          lote.push(objeto);
+          if (lote.length === 100) {
+            await reservarLote(captura.id, lote, coordenacao.pid);
+            lote = [];
           }
-          if (lote.length) await reservarLote(captura.id, lote, coordenacao.pid);
-          const inventario = { quantidade, bytesCifrados, sha256: hash.digest("hex") };
-          await fixarInventario(captura.id, inventario, coordenacao.pid);
-          let ativa = true;
-          try {
-            return {
-              valor: await executar({
-                id: captura.id,
-                snapshot: s.snapshot,
-                origem: fonte,
-                inventario,
-                objetos: async function* () {
+        }
+        if (lote.length) await reservarLote(captura.id, lote, coordenacao.pid);
+        conferirInterrupcao();
+        const inventario = { quantidade, bytesCifrados, sha256: hash.digest("hex") };
+        await fixarInventario(captura.id, inventario, coordenacao.pid);
+        let ativa = true;
+        try {
+          return {
+            valor: await executar({
+              id: captura.id,
+              snapshot: s.snapshot,
+              signal: interrupcao.signal,
+              origem: fonte,
+              inventario,
+              objetos: async function* () {
+                if (!ativa) throw new FalhaDaCaptura("CAPTURA_ENCERRADA");
+                conferirInterrupcao();
+                for await (const objeto of objetosNaVisao(fonte)) {
                   if (!ativa) throw new FalhaDaCaptura("CAPTURA_ENCERRADA");
-                  for await (const objeto of objetosNaVisao(fonte)) {
-                    if (!ativa) throw new FalhaDaCaptura("CAPTURA_ENCERRADA");
-                    yield objeto;
-                  }
-                },
-              }),
-            };
-          } finally {
-            ativa = false;
-          }
-        },
-      );
+                  conferirInterrupcao();
+                  yield objeto;
+                }
+              },
+            }),
+          };
+        } finally {
+          ativa = false;
+          interrupcao.abort();
+        }
+      });
+      const dentro = await tarefaDaOrigem;
       return { dentro };
     });
     resultado = { ok: true, valor: fora.dentro.valor };
   } catch (erro) {
+    interrupcao.abort();
     resultado = { ok: false, erro };
+    // begin da coordenação pode rejeitar antes de seu callback encerrar.
+    // Aguardar a origem ANTES de disputar a linha de controle ou fechar pool.
+    if (tarefaDaOrigem) {
+      const [terminou] = await Promise.allSettled([tarefaDaOrigem]);
+      if (terminou?.status === "rejected" && terminou.reason !== erro)
+        resultado = {
+          ok: false,
+          erro: new AggregateError([erro, terminou.reason], "CAPTURA_INTERROMPIDA"),
+        };
+    }
     try {
       await db.transaction(async (tx) => {
+        await limitarControle(tx);
         const mudadas = await tx
           .update(captures)
           .set({ state: "review", reviewReason: "source_lost" })
@@ -307,7 +347,7 @@ export async function comCapturaConsistente<T>(
     } catch (revisao) {
       resultado = {
         ok: false,
-        erro: new AggregateError([erro, revisao], "CAPTURA_E_REVISAO_INCONCLUSIVAS"),
+        erro: new AggregateError([resultado.erro, revisao], "CAPTURA_E_REVISAO_INCONCLUSIVAS"),
       };
     }
   }

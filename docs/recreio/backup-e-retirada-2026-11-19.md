@@ -289,3 +289,23 @@ conteúdo aberto. Antes, os tetos individuais podiam admitir uma combinação
 impossível e só recusá-la depois da rede. Agora ela falha antes do GET; quatro
 casos SDK/HTTP verificam zero requisições e preservação da saída vazia. Gates
 da correção ainda pendentes; formatos e referências válidas não mudam.
+
+## Evidência da captura e fechamento de conexões
+
+A captura `a4c58bc9` passou em `44455214243`: 1.242 integrações/99 arquivos,
+dez casos de captura em banco próprio, cinco HTTP e ambos os upgrades com
+preservação de dados. [Recibo técnico](evidencias/capturas-integracao-44455214243.json).
+A correção de presença explícita das fixtures e a leitura do envelope
+`942fe57c` passaram no quality `44455645239` (402 testes do app). As quatro
+referências impossíveis foram recusadas antes da rede em `44456149519`/
+`0f2d134f`: tipos e 71 testes de objetos aprovados.
+[Recibo](evidencias/referencias-cifradas-44456149519.json).
+
+A prova da queda encontrou espera de dez segundos no fechamento. A revisão
+seguinte cancela o consumidor e aguarda explicitamente a transação da origem
+antes de disputar a linha de controle/fechar conexões; não deixa o callback
+do coordenador prosseguir em segundo plano. Transações de controle têm prazos
+de trava, comando e transação. A capacidade de captura expõe AbortSignal válido
+somente durante a leitura; o consumidor deve propagá-lo ao I/O. A prova agora
+aguarda o término real do backend e exige zero conexões de captura ao retornar.
+Esse ajuste ainda precisa dos gates remotos; não é RTO de produção.
