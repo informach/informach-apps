@@ -13,6 +13,7 @@ import { conferirInventarios, inventariarBackup } from "../scripts/backup/invent
 import { criarMontadorDaCaptura } from "../scripts/backup/montar-captura";
 import { novoJogador } from "./apoio";
 import { conexao, restaurar, temporarios } from "./backup-arquivos-apoio";
+import { provarClusterFrio } from "./backup-cluster-frio-apoio";
 import { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { mundoDe } from "./jogo-apoio";
 
@@ -187,6 +188,8 @@ it(
               .slice(inicioDaRecuperacao)
               .every((p) => p.metodo === "GET" && p.url.includes(`/backup/${ref.contexto.id}/`)),
           ).toBe(true);
+          const frio = await provarClusterFrio(ref.contexto.id, mestre, "backup-v2");
+          await s3.confirmarClusterFrio(frio);
           const retirada = indice.assinar({
             tipo: "retirado",
             capturaId: ref.contexto.id,
@@ -221,5 +224,5 @@ it(
         }
       }
     }),
-  120_000,
+  process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1" ? 360_000 : 120_000,
 );

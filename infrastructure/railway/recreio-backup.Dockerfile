@@ -5,10 +5,12 @@ RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --prod=false
 RUN pnpm --filter @informach/morada-server exec esbuild ../recreio/scripts/backup/ensaiar.ts --bundle --platform=node --format=esm --outfile=/build/ensaiar-backup.mjs
+RUN pnpm --filter @informach/morada-server exec esbuild ../recreio/scripts/backup/recuperar-captura-prova.ts --bundle --platform=node --format=cjs --conditions=react-server --tsconfig=../recreio/tsconfig.json --outfile=/build/recuperar-captura-prova.cjs
 
 FROM postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
 COPY --from=builder /usr/local/bin/node /usr/local/bin/node
 COPY --from=builder /build/ensaiar-backup.mjs /opt/recreio/ensaiar-backup.mjs
+COPY --from=builder /build/recuperar-captura-prova.cjs /opt/recreio/recuperar-captura-prova.cjs
 RUN node --version && postgres --version
 ENTRYPOINT ["node", "/opt/recreio/ensaiar-backup.mjs"]
 CMD []

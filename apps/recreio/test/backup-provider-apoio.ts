@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 import { exigir, FalhaDaProva } from "../scripts/backup/provas-arquivos";
 import { conexao } from "./backup-arquivos-apoio";
+import type { ReciboDoClusterFrio } from "./backup-cluster-frio-apoio";
 import { criarBucketS3DeTeste } from "./objetos-s3-apoio";
 
 /** Porta exclusiva de qualificação. Sem flag explícita usa HTTP fechado; a
@@ -82,7 +83,10 @@ export async function criarBucketDaMontagem() {
   const recibo = {
     source: process.env.GITHUB_SHA,
     runId: process.env.GITHUB_RUN_ID,
-    boundary: "synthetic_native_capture_sql_photo_signed_index_same_cluster_restore",
+    boundary:
+      process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1"
+        ? "synthetic_native_capture_stored_composite_fresh_cluster_restore"
+        : "synthetic_native_capture_sql_photo_signed_index_same_cluster_restore",
     status: "failed",
     externalProvider: externa,
     productionDataTouched: false,
@@ -98,11 +102,12 @@ export async function criarBucketDaMontagem() {
     authoritiesNormalizedForTraffic: false,
     durableCaptureFinalized: false,
   };
+  let frio: ReciboDoClusterFrio | undefined;
   const guardar = async () => {
     if (externa)
       await writeFile(
         resolve(variavel("RUNNER_TEMP"), "recreio-captura-provider.json"),
-        `${JSON.stringify(recibo, null, 2)}\n`,
+        `${JSON.stringify({ ...recibo, coldRecovery: frio ?? null }, null, 2)}\n`,
       );
   };
   await guardar();
@@ -195,6 +200,7 @@ export async function criarBucketDaMontagem() {
     await ausencia(key);
   }
   async function concluir() {
+    exigir(process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE !== "1" || frio, "CLUSTER_FRIO_AUSENTE");
     exigir(chaves.size === 4 && prefixos.size === 2, "INVENTARIO_DA_PROVA_DIVERGENTE");
     if (externa && endpoint) {
       for (const key of chaves) {
@@ -217,6 +223,25 @@ export async function criarBucketDaMontagem() {
     recibo.nativeRecoveryVerified = true;
     recibo.retirementVerified = true;
     recibo.status = "passed";
+    await guardar();
+  }
+  async function confirmarClusterFrio(r: ReciboDoClusterFrio | undefined) {
+    if (!r) {
+      exigir(process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE !== "1", "CLUSTER_FRIO_AUSENTE");
+      return;
+    }
+    exigir(
+      externa &&
+        r.source === process.env.GITHUB_SHA &&
+        r.runId === process.env.GITHUB_RUN_ID &&
+        prefixos.has(`recreio/v1/backup/${r.capturaId}/`) &&
+        r.ok &&
+        r.clusterCleanupConfirmed &&
+        r.localCleanupConfirmed,
+      "RECIBO_FRIO_DIVERGENTE",
+    );
+    frio = r;
+    recibo.freshCluster = true;
     await guardar();
   }
   async function fechar() {
@@ -249,5 +274,14 @@ export async function criarBucketDaMontagem() {
     }
     exigir(recibo.status === "passed" && recibo.cleanupConfirmed, "CAPTURA_PROVIDER_INCONCLUSIVA");
   }
-  return { cliente, destino, pedidos, admitirPrefixo, removerFoto, concluir, fechar };
+  return {
+    cliente,
+    destino,
+    pedidos,
+    admitirPrefixo,
+    removerFoto,
+    confirmarClusterFrio,
+    concluir,
+    fechar,
+  };
 }

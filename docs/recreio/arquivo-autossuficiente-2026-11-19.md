@@ -350,3 +350,33 @@ abrir dump/globais/fotografias e restaurar no cluster novo. As seis credenciais
 continuam exclusivas do bucket de homologação e as chaves do arquivo são
 sintéticas/descartáveis. Normalização de destinos/autoridades, ledger F7,
 controle durável, custódia e cadência continuam etapas separadas.
+
+Executor comum `cdbbc2fd` aprovado em `44479795532` nos dois operadores,
+incluindo offset não inicial do handle; tipos/objetos `44479790896` aprovados.
+[Recibo e limites](evidencias/cluster-comum-44479795532.json).
+
+### Prova fria composta em preparação
+
+`recuperar-captura-prova.ts` é um segundo entrypoint do mesmo Docker 18.6,
+empacotado CommonJS para o SDK Node. Recebe somente UUID de captura, versões
+sintéticas de chave e as seis credenciais restritas; recusa DATABASE_URL,
+credenciais do PostgreSQL/jogos e ambiente Railway. Não monta arquivos da
+origem. O SDK só admite GET no prefixo do backup indicado. Recupera índice,
+arquivo e composto, extrai dump/globais e restaura no cluster novo. Confere
+inventário e cada vínculo foto/entrega restaurados; abre os envelopes apenas
+com as versões de chave incluídas, sem buscar a fotografia viva.
+
+O launcher só roda no GitHub com flags explícitas, filesystem raiz readonly,
+tmpfs, 768 MiB, duas CPUs e 128 PIDs. Passa segredos por nomes de env, sem
+argumentos/arquivos/logs; não encaminha a conexão da origem. Aguarda o worker
+e reconcilia o container de nome exclusivo se houver falha. O teste reserva
+seis minutos no modo frio para prazo do worker e limpeza, mantendo os prazos
+internos e as verificações de integridade. A evidência fria só pode ser
+confirmada com cluster/arquivos removidos e vínculos/fotos conferidos.
+
+`fresh_cluster_probe` é falso por padrão e exige `capture_probe`. A origem
+sintética desse job fica no mesmo digest PostgreSQL 18.6 do destino, para não
+confundir patches/libc/locale. Nenhuma versão/serviço de produção foi alterada.
+Primeiro qualificar tipos, HTTP fechado e imagem; depois executar o modo
+externo. Ainda não há normalização de destinos/autoridades para tráfego,
+replay F7, custódia recuperável, controle durável, cron ou RPO/RTO de produção.

@@ -1,0 +1,63 @@
+{
+  "source": "cdbbc2fd0331cb6c9cc8209e1c750f6e7b900093",
+  "conclusion": "success",
+  "runtimeRunId": 44479795532,
+  "cases": [
+    {
+      "operator": "postgres",
+      "jobId": 135408980776,
+      "artifactId": 14508325718,
+      "artifactZipBytes": 415,
+      "artifactZipSha256": "c19bac070a8a954741f3475ba0aea3372bcb4646bd54c8d1ca7b9387223f4306",
+      "nativeResult": {
+        "operacao": "bd169a9d-c5cc-4a2e-a05f-bd23e2664d6b",
+        "ok": true,
+        "snapshotEm": "2026-11-19 07:28:41.709371+00",
+        "backupMs": 97,
+        "restauracaoMs": 1440,
+        "bytes": 8273,
+        "tabelas": 2,
+        "linhas": 2,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 4,
+        "participacoesEmPapeis": 4,
+        "temporariosRemovidos": true,
+        "totalMs": 1605
+      }
+    },
+    {
+      "operator": "ci",
+      "jobId": 135408980385,
+      "artifactId": 14507992162,
+      "artifactZipBytes": 415,
+      "artifactZipSha256": "460537d21997369252c13872843af486ae30ae725e8963b653d6878e88e77d07",
+      "nativeResult": {
+        "operacao": "c3ed9c3c-6efd-4d04-b5f2-c62fe87efad1",
+        "ok": true,
+        "snapshotEm": "2026-11-19 07:28:41.911758+00",
+        "backupMs": 70,
+        "restauracaoMs": 1298,
+        "bytes": 8117,
+        "tabelas": 2,
+        "linhas": 2,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 4,
+        "participacoesEmPapeis": 4,
+        "temporariosRemovidos": true,
+        "totalMs": 1412
+      }
+    }
+  ],
+  "objectsRunId": 44479790896,
+  "objectsJobId": 135408966216,
+  "appTypesVerified": true,
+  "borrowedDumpOffsetIsolationVerified": true,
+  "productionApplied": false,
+  "scopeLimit": "Shared fresh-cluster executor, immutable PostgreSQL 18.6, independent input descriptor offset and cleanup. Later stored-composite cold worker and provider proof are not covered by these runs."
+}
