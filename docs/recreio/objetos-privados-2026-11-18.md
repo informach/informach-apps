@@ -177,3 +177,17 @@ implementação; nenhum byte atual foi migrado por esta alteração de schema.
 216 para 217 migrations foram conferidos por hash e comparação estrutural.
 [Proveniência](evidencias/migracao-objetos-chaves-0216.json). A execução e o upgrade
 no PostgreSQL ainda precisam passar; nenhuma migration foi aplicada em produção.
+
+O registro aditivo seguinte, `snapshot_object_deliveries`, está em schema
+candidato. Ele liga fotografia/mundo/SHA/tamanho pela chave da 0216, conserva
+destino e envelope antes do envio, separa verificação de retirada e guarda
+lease/tentativas de um worker. Só uma entrega permanece vinculada a cada
+fotografia; recibos destacados continuam até o expurgo confirmado. O FK é
+restritivo: retenção precisa destacar a entrega na mesma transação antes de
+apagar a fotografia, nunca apagar o registro para ocultar um órfão.
+
+Esse registro não muda o escritor atual nem habilita objeto. Ainda precisa de
+geração, testes de PostgreSQL e implementação dos workers/leitores/retentores.
+Backups de banco com ponteiros de bucket precisarão incluir manifesto e objetos
+referenciados, protegendo-os contra GC durante a captura. Um dump de ponteiros
+sem esses objetos não é backup completo nem prova de recuperação.
