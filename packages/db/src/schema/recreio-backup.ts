@@ -151,3 +151,62 @@ export const recreioBackupObjectHolds = recreio.table(
     ),
   ],
 );
+
+/** Publicação separada do destino das fotografias. Nenhuma credencial/chave.
+ * Referência do ciphertext vive na captura; bytes assinados são fixados antes
+ * do primeiro PUT do índice e sobrevivem a reinício/rotação do worker. */
+export const recreioBackupPublications = recreio.table(
+  "backup_publications",
+  {
+    captureId: uuid("capture_id")
+      .primaryKey()
+      .references(() => recreioBackupCaptures.id, { onDelete: "restrict" }),
+    storageScope: text("storage_scope").$type<"qualification" | "production">().notNull(),
+    bucketId: uuid("bucket_id").notNull(),
+    bucketName: text("bucket_name").notNull(),
+    source: text("source").notNull(),
+    state: text("state")
+      .$type<"prepared" | "file_verified" | "index_prepared" | "published">()
+      .notNull(),
+    attempt: uuid("attempt").notNull(),
+    leaseUntil: momento("lease_until").notNull(),
+    createdAt: momento("created_at").notNull().defaultNow(),
+    fileVerifiedAt: momento("file_verified_at"),
+    indexBody: text("index_body"),
+    indexSha256: text("index_sha256"),
+    indexPreparedAt: momento("index_prepared_at"),
+    publishedAt: momento("published_at"),
+  },
+  (t) => [
+    index("recreio_backup_publication_pending").on(t.state, t.leaseUntil, t.captureId),
+    check(
+      "recreio_backup_publication_target",
+      sql`
+      ${t.storageScope} in ('qualification','production') and
+      ${t.bucketName} ~ '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$' and ${t.source} ~ '^[a-f0-9]{40}$'`,
+    ),
+    check(
+      "recreio_backup_publication_index",
+      sql`
+      (${t.indexBody} is null and ${t.indexSha256} is null and ${t.indexPreparedAt} is null) or
+      (${t.indexBody} is not null and octet_length(${t.indexBody}) between 1 and 32768 and
+       ${t.indexSha256} is not null and ${t.indexSha256} ~ '^[a-f0-9]{64}$' and ${t.indexPreparedAt} is not null)`,
+    ),
+    check(
+      "recreio_backup_publication_lifecycle",
+      sql`
+      (${t.state}='prepared' and ${t.fileVerifiedAt} is null and ${t.indexPreparedAt} is null and ${t.publishedAt} is null) or
+      (${t.state}='file_verified' and ${t.fileVerifiedAt} is not null and ${t.indexPreparedAt} is null and ${t.publishedAt} is null) or
+      (${t.state}='index_prepared' and ${t.fileVerifiedAt} is not null and ${t.indexPreparedAt} is not null and ${t.publishedAt} is null) or
+      (${t.state}='published' and ${t.fileVerifiedAt} is not null and ${t.indexPreparedAt} is not null and ${t.publishedAt} is not null)`,
+    ),
+    check(
+      "recreio_backup_publication_times",
+      sql`
+      isfinite(${t.createdAt}) and isfinite(${t.leaseUntil}) and ${t.leaseUntil}>${t.createdAt} and
+      (${t.fileVerifiedAt} is null or (isfinite(${t.fileVerifiedAt}) and ${t.fileVerifiedAt}>=${t.createdAt})) and
+      (${t.indexPreparedAt} is null or (isfinite(${t.indexPreparedAt}) and ${t.indexPreparedAt}>=${t.fileVerifiedAt})) and
+      (${t.publishedAt} is null or (isfinite(${t.publishedAt}) and ${t.publishedAt}>=${t.indexPreparedAt}))`,
+    ),
+  ],
+);

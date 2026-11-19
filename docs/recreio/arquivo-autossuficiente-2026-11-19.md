@@ -387,3 +387,18 @@ em `copiarPara` (`44482965319`/`44482960834`). O sinal já pertence ao iterator
 `objetos(signal)`, cujas capacidades o conservam; a chamada passa a usar o
 contrato de um argumento. Tipos e captura precisam passar novamente antes da
 prova externa fria. Não houve I/O externo desse novo modo nessa rodada.
+
+## Recuperação integral em cluster novo — prova externa
+
+A execução `44484289365`, fonte `1893b6f4`, passou com o bucket real de
+homologação. O worker recebeu somente o prefixo do backup e as chaves
+sintéticas; não recebeu credenciais do banco de origem. Restaurou em cluster
+PostgreSQL novo e privado, conferiu conteúdo, estrutura, metadados globais e
+uma fotografia com seu vínculo SQL. Os três GETs do worker ficaram no prefixo
+do backup. Cluster, arquivos locais e quatro objetos sintéticos foram removidos
+e a negativa anônima foi confirmada. O ZIP do artefato foi conferido por tamanho
+e SHA-256 antes de adotar o [recibo](evidencias/captura-provider-44484289365.json).
+
+A prova não normaliza destinos de objetos ou autoridades para receber tráfego.
+Publicação durável, retenção, custódia real de chaves, replay de direitos,
+agendamento e RPO/RTO de produção continuam pendentes.
