@@ -22,7 +22,6 @@ export * from "./recreio-comercial";
 export * from "./recreio-convites-dirigidos";
 export * from "./recreio-dados";
 export * from "./recreio-direitos";
-export * from "./recreio-direitos-operacoes";
 export * from "./recreio-familia";
 export * from "./recreio-financiamento";
 export * from "./recreio-grupo";

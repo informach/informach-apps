@@ -1,4 +1,4 @@
-import { type SQLWrapper, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -16,7 +16,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
-import { recreioRightsOperations } from "./recreio-direitos-operacoes";
 import { recreio } from "./recreio-namespace";
 
 /**
@@ -94,20 +93,10 @@ export const recreioProfiles = recreio.table(
   "profiles",
   {
     ...profileColumns,
-    /** Barreira durável. Só a operação coordenada pode atualizar a projeção. */
-    rightsOperationId: uuid("rights_operation_id").references(() => recreioRightsOperations.id, {
-      onDelete: "restrict",
-    }),
-    rightsFrozenState: jsonb("rights_frozen_state").$type<unknown[]>(),
+
   },
   (t) => [
-    check(
-      "recreio_profiles_rights_freeze",
-      sql`
-      (${t.rightsOperationId} is null and ${t.rightsFrozenState} is null) or
-      (${t.rightsOperationId} is not null and ${t.rightsFrozenState} is not null and
-       ${t.status}='suspended' and ${t.rightsFrozenState}=${recreioRightsProfileProjection(t)})`,
-    ),
+
     uniqueIndex("recreio_profiles_own_login").on(t.userId).where(sql`${t.userId} is not null`),
     unique("recreio_profile_identity_kind").on(t.id, t.kind),
     unique("recreio_profile_login_identity").on(t.id, t.userId),
@@ -250,20 +239,10 @@ export const recreioSpaces = recreio.table(
   "spaces",
   {
     ...spaceColumns,
-    /** Barreira durável. Só a operação coordenada pode atualizar a projeção. */
-    rightsOperationId: uuid("rights_operation_id").references(() => recreioRightsOperations.id, {
-      onDelete: "restrict",
-    }),
-    rightsFrozenState: jsonb("rights_frozen_state").$type<unknown[]>(),
+
   },
   (t) => [
-    check(
-      "recreio_spaces_rights_freeze",
-      sql`
-      (${t.rightsOperationId} is null and ${t.rightsFrozenState} is null) or
-      (${t.rightsOperationId} is not null and ${t.rightsFrozenState} is not null and
-       ${t.status}='archived' and ${t.rightsFrozenState}=${recreioRightsWorldProjection(t)})`,
-    ),
+
     index("recreio_spaces_steward").on(t.stewardProfileId),
     index("recreio_spaces_creator").on(t.createdByProfileId),
     check("recreio_spaces_name", sql`char_length(${t.name}) between 2 and 40`),
@@ -678,48 +657,3 @@ export const recreioSpaceJournal = recreio.table(
 export type RecreioProfile = typeof recreioProfiles.$inferSelect;
 export type RecreioDeviceSession = typeof recreioDeviceSessions.$inferSelect;
 export type RecreioEntitlement = typeof recreioEntitlements.$inferSelect;
-
-/** Projeções privadas do congelamento. Epoch numérico evita depender do timezone
- * da conexão. updatedAt é só manutenção técnica; createdAt e archivedAt também
- * governam retenção e, portanto, fazem parte da proteção. */
-export function recreioRightsProfileProjection(
-  v: Record<Exclude<keyof typeof profileColumns, "updatedAt">, SQLWrapper>,
-) {
-  const fields = {
-    id: sql`${v.id}`,
-    userId: sql`${v.userId}`,
-    groupId: sql`${v.groupId}`,
-    coverageEnabled: sql`${v.coverageEnabled}`,
-    kind: sql`${v.kind}`,
-    nickname: sql`${v.nickname}`,
-    avatar: sql`${v.avatar}`,
-    status: sql`${v.status}`,
-    policyVersion: sql`${v.policyVersion}`,
-    createdAt: sql`extract(epoch from ${v.createdAt})`,
-  } satisfies Record<Exclude<keyof typeof profileColumns, "updatedAt">, SQLWrapper>;
-  return sql`jsonb_build_array(${sql.join(Object.values(fields), sql`, `)})`;
-}
-
-export function recreioRightsWorldProjection(
-  v: Record<Exclude<keyof typeof spaceColumns, "updatedAt">, SQLWrapper>,
-) {
-  const fields = {
-    id: sql`${v.id}`,
-    gameId: sql`${v.gameId}`,
-    stewardProfileId: sql`${v.stewardProfileId}`,
-    createdByProfileId: sql`${v.createdByProfileId}`,
-    name: sql`${v.name}`,
-    contentPolicy: sql`${v.contentPolicy}`,
-    membersInvite: sql`${v.membersInvite}`,
-    status: sql`${v.status}`,
-    schemaVersion: sql`${v.schemaVersion}`,
-    revision: sql`${v.revision}`,
-    journalSeq: sql`${v.journalSeq}`,
-    leaseEpoch: sql`${v.leaseEpoch}`,
-    managementRevision: sql`${v.managementRevision}`,
-    archivedAt: sql`extract(epoch from ${v.archivedAt})`,
-    summary: sql`${v.summary}`,
-    createdAt: sql`extract(epoch from ${v.createdAt})`,
-  } satisfies Record<Exclude<keyof typeof spaceColumns, "updatedAt">, SQLWrapper>;
-  return sql`jsonb_build_array(${sql.join(Object.values(fields), sql`, `)})`;
-}
