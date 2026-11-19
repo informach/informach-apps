@@ -57,7 +57,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @informach/recreio-app typecheck
-      - run: pnpm --filter @informach/recreio-app test -- src/features/objetos
+      - run: pnpm --filter @informach/recreio-app test -- src/features/objetos src/features/direitos/livro
   provider:
     needs: qualify
     if: github.event_name == 'workflow_dispatch' && inputs.provider_probe
