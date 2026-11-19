@@ -207,3 +207,14 @@ test("Recreio launch enables only its sources and monitoring, preserving data re
     Object.values(morada.deploy.multiRegionConfig).every((region) => region.numReplicas === 1),
   );
 });
+
+test("shared migrations stay pinned and never run seeds when app launch flags change", async () => {
+  for (const launched of [false, true]) {
+    const resources = await graph(launched, launched);
+    const migrator = resources.get("migrator");
+    assert.equal(migrator.source.repo, "informach/informach-apps");
+    assert.equal(migrator.source.commitSha, "ea12cb6cf507d05e8819306169222ed84cb67113");
+    assert.equal(migrator.deploy.startCommand, "pnpm --filter @informach/db db:migrate");
+    assert.equal(migrator.deploy.restartPolicyType, "NEVER");
+  }
+});

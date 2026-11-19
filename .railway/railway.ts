@@ -59,6 +59,8 @@ const RECREIO_LAUNCHED = true;
 /** F5 qualificada em fonte congelada; D3 presente na main não autoriza trocar World2. */
 const RECREIO_PRODUCTION_COMMIT = "d014bd90a895df452b83b9a2e6e683ac5749e0cb";
 const MORADA_PRODUCTION_COMMIT = "644b3841cb81b24d04159f75892a4c21d4d5f094";
+/** Banco compartilhado: publicar código não admite migrations candidatas. */
+const MIGRATOR_PRODUCTION_COMMIT = "ea12cb6cf507d05e8819306169222ed84cb67113";
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
 // não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
@@ -183,10 +185,14 @@ export default defineRailway((ctx) => {
     sizeMB: 50000,
   });
 
-  // Schema e seeds. Roda uma vez por deploy; o /api/ready dos apps segura o
-  // tráfego enquanto o banco estiver atrás do build.
+  // Somente migrations da fonte qualificada. Seeds/backfills são operações
+  // separadas; /api/ready não autoriza aplicar candidatas no banco compartilhado.
   const migrator = service("migrator", {
-    source: main,
+    source: github(REPOSITORY, {
+      branch: "main",
+      commitSha: MIGRATOR_PRODUCTION_COMMIT,
+      rootDirectory: "/",
+    }),
     build: {
       builder: "RAILPACK",
       buildCommand: "pnpm install --frozen-lockfile --prod=false",
@@ -201,7 +207,7 @@ export default defineRailway((ctx) => {
         "/pnpm-workspace.yaml",
       ],
     },
-    start: "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference",
+    start: "pnpm --filter @informach/db db:migrate",
     replicas: { [REGION]: 1 },
     deploy: { restartPolicyType: "NEVER" },
     env: {

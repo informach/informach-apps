@@ -1,0 +1,21 @@
+{
+  "observedOn": "2026-11-19",
+  "projectId": "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+  "environmentId": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+  "serviceId": "82e23ee0-49ab-4046-90c3-6a0b6dd677e1",
+  "previousSourceFollowedMain": true,
+  "previousStartCommand": "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference",
+  "observedSourceCommit": "ea12cb6cf507d05e8819306169222ed84cb67113",
+  "observedStartCommand": "pnpm --filter @informach/db db:migrate",
+  "sourceConfigurationReadBackConfirmed": true,
+  "stagedChanges": false,
+  "deploymentRequestId": "d58e61b5-072d-43a8-bc47-67ba68ecc7c6",
+  "deploymentRequestStatus": "SKIPPED",
+  "previousActiveDeploymentId": "68fcc3f9-488b-47ef-aa1e-778610c7f11e",
+  "previousActiveDeploymentUnchanged": true,
+  "productionConfigurationChanged": true,
+  "candidateMigrationsApplied": false,
+  "newMigrationExecution": false,
+  "newSeedsExecution": false,
+  "scopeLimit": "Pins the shared migrator to the already qualified 204-receipt source and removes automatic seeds/backfills. It does not execute or qualify the candidate migrations, switch app/game runtimes, or complete the F6-F8 rollout."
+}
