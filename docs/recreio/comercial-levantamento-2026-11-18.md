@@ -5,6 +5,23 @@ pelo titular. Este registro organiza fatos e pendências; não habilita cobranç
 ensaio pago ou venda. F5 foi implantado com recursos desligados em `d014bd90`,
 204 recibos/0203 e evidências próprias, integrado publicamente em `337dc630`.
 
+## Composição Live em implementação (19/11)
+
+A candidata seguinte generaliza a composição existente para `STRIPE_MODE=prod`
+com `RECREIO_BILLING_MODE=live`, sem habilitar o modo. Checkout, portal,
+reconciliação, webhook e trocas recebem o mesmo modo; preços continuam no
+catálogo comum. Sandbox exige chave test e modo dev; Live exige chave live,
+modo prod, origem HTTPS e autenticação por e-mail em modo live. O reader
+conserva a conferência de `livemode`, catálogo, portal e correlação financeira.
+
+A interface distingue pagamentos de teste pela origem dos objetos, inclusive
+quando novas vendas estão fechadas. Off/setup continuam sem envio; recuperar
+contratos admitidos e administrar a própria cobrança não dependem de abrir
+novas vendas. Testes de configuração são fechados, sem chamadas ao Stripe.
+Nenhum preço/cliente/contrato/cobrança Live criado ou serviço ativado. Catálogo
+Live real, webhook/portal de produção, Checkout humano de teste e homologação
+final continuam obrigatórios; os testes manuais foram adiados pelo titular.
+
 ## Incremento de teste gratuito, em qualificação
 
 Atualização das trocas: preparação `13b31497` e aceite/encerramento `63b69792`

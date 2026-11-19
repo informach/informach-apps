@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { envioComercialDisponivel } from "@/lib/commercial-mode";
 import { env } from "@/lib/env";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
@@ -17,9 +18,9 @@ function criarOperacao(obterRuntime: () => RuntimeDeEnvioDaTroca, somenteRecuper
   return async (autor: AutorNativoRecente, entrada: unknown) => {
     const id = z.uuid().parse(entrada);
     assertAllowed(
-      somenteRecuperacao || env.RECREIO_BILLING_MODE === "sandbox",
+      somenteRecuperacao || envioComercialDisponivel(env.RECREIO_BILLING_MODE),
       "INDISPONIVEL",
-      "As trocas ainda estão em homologação.",
+      "As trocas de plano estão indisponíveis neste momento.",
     );
     await limitarTentativas({
       chave: `troca-enviar:${autor.contaId}`,

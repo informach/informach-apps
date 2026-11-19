@@ -5,8 +5,8 @@ import type {
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { consultarMeuGrupo } from "@/features/grupo/service";
+import { segredoStripeCompativel } from "@/lib/commercial-mode";
 import { env } from "@/lib/env";
-import { isStripeTestSecret } from "@/lib/environment";
 import { assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { AceiteDaCompraSchema, ofertasParaOAdulto } from "./regras";
@@ -46,15 +46,14 @@ export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
   const financeiro = await consultarSituacaoFinanceiraNoBanco(autor);
   const grupo = await consultarMeuGrupo(autor);
   const trocas = await consultarMinhasTrocasNoBanco(autor, env.STRIPE_MODE);
-  const configuracaoDeGestao =
-    env.STRIPE_MODE === "dev" &&
-    Boolean(
-      isStripeTestSecret(env.STRIPE_SECRET_KEY) &&
-        env.STRIPE_PORTAL_CONFIGURATION_ID?.startsWith("bpc_") &&
-        env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
-    );
+  const configuracaoDeGestao = Boolean(
+    segredoStripeCompativel(env.STRIPE_MODE, env.STRIPE_SECRET_KEY) &&
+      env.STRIPE_PORTAL_CONFIGURATION_ID?.startsWith("bpc_") &&
+      env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
+  );
   return {
     modo: env.RECREIO_BILLING_MODE,
+    pagamentoDeTeste: env.STRIPE_MODE === "dev",
     compra,
     financeiro,
     trocas,

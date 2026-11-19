@@ -1,10 +1,15 @@
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { getConfiguredProducts, isStripePriceIdConfigured } from "@informach/config";
 import { z } from "zod";
+import {
+  envioComercialDisponivel,
+  MODOS_DA_COBRANCA,
+  segredoStripeCompativel,
+} from "./commercial-mode";
 import { configuracaoDosObjetos, objectEnvironmentSchema } from "./object-environment";
 
 export function isStripeTestSecret(value: unknown): value is string {
-  return typeof value === "string" && /^(sk|rk)_test_[A-Za-z0-9_]{8,}$/.test(value);
+  return segredoStripeCompativel("dev", value);
 }
 
 /** Um mapa em JSON numa variável de ambiente; ausente ou vazio vale `{}`. */
@@ -60,8 +65,8 @@ export const schema = z.object({
   RECREIO_ACCESS_MODE: z.enum(["fechado", "aberto"]).default("fechado"),
   /** Setup prepara consentimento; só experiment pode iniciar teste na primeira SID. */
   RECREIO_TRIAL_MODE: z.enum(["off", "setup", "experiment"]).default("off"),
-  /** Sandbox só aceita Stripe test; live não é admitido antes da homologação. */
-  RECREIO_BILLING_MODE: z.enum(["off", "setup", "sandbox"]).default("off"),
+  /** Ativar live somente após homologação; composição não habilita o modo. */
+  RECREIO_BILLING_MODE: z.enum(MODOS_DA_COBRANCA).default("off"),
   /** Existing contracts keep reconciling independently from admitting new sales. */
   RECREIO_FINANCIAL_JOBS_MODE: z.enum(["off", "on"]).default("off"),
   STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
@@ -161,19 +166,38 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
     );
   const value = parsed.data;
   configuracaoDosObjetos(value);
-  if (value.RECREIO_BILLING_MODE === "sandbox" || value.RECREIO_FINANCIAL_JOBS_MODE === "on") {
+  if (
+    envioComercialDisponivel(value.RECREIO_BILLING_MODE) ||
+    value.RECREIO_FINANCIAL_JOBS_MODE === "on"
+  ) {
+    const modo =
+      value.RECREIO_BILLING_MODE === "live"
+        ? "prod"
+        : value.RECREIO_BILLING_MODE === "sandbox"
+          ? "dev"
+          : value.STRIPE_MODE;
+    const nome = value.RECREIO_BILLING_MODE === "sandbox" || modo === "dev" ? "sandbox" : "live";
     if (
-      value.STRIPE_MODE !== "dev" ||
-      !isStripeTestSecret(value.STRIPE_SECRET_KEY) ||
+      modo === "prod" &&
+      (new URL(value.NEXT_PUBLIC_APP_URL).protocol !== "https:" ||
+        value.BETTER_AUTH_URL !== new URL(value.NEXT_PUBLIC_APP_URL).origin ||
+        value.EMAIL_SANDBOX_MODE !== "live")
+    )
+      throw new Error(
+        "Invalid live billing environment: secure origin and live authentication required",
+      );
+    if (
+      value.STRIPE_MODE !== modo ||
+      !segredoStripeCompativel(modo, value.STRIPE_SECRET_KEY) ||
       !/^whsec_[A-Za-z0-9_]{8,}$/.test(value.STRIPE_WEBHOOK_SECRET ?? "") ||
       !/^bpc_[A-Za-z0-9_]+$/.test(value.STRIPE_PORTAL_CONFIGURATION_ID ?? "")
     )
       throw new Error(
-        "Invalid sandbox billing environment: STRIPE_MODE, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PORTAL_CONFIGURATION_ID",
+        `Invalid ${nome} billing environment: STRIPE_MODE, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PORTAL_CONFIGURATION_ID`,
       );
-    const produtos = getConfiguredProducts("recreio", "dev", value);
-    if (produtos.some((p) => !isStripePriceIdConfigured(p.stripePriceId.dev)))
-      throw new Error("Invalid sandbox billing environment: Recreio catalog prices");
+    const produtos = getConfiguredProducts("recreio", modo, value);
+    if (produtos.some((p) => !isStripePriceIdConfigured(p.stripePriceId[modo])))
+      throw new Error(`Invalid ${nome} billing environment: Recreio catalog prices`);
   }
   if (
     value.RECREIO_MODERATION_SECRET &&

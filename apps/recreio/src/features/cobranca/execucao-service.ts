@@ -2,6 +2,7 @@ import "server-only";
 import { stripeDestination } from "@informach/billing/destinations";
 import { z } from "zod";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { envioComercialDisponivel } from "@/lib/commercial-mode";
 import { env } from "@/lib/env";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { packageLogger } from "@/lib/observability";
@@ -24,7 +25,7 @@ function criarOperacaoDeCompra(obterRuntime: () => RuntimeDeCompra, somenteLeitu
   return async (autor: AutorNativoRecente, entrada: unknown) => {
     const id = z.uuid().parse(entrada);
     assertAllowed(
-      somenteLeitura || env.RECREIO_BILLING_MODE === "sandbox",
+      somenteLeitura || envioComercialDisponivel(env.RECREIO_BILLING_MODE),
       "INDISPONIVEL",
       "O envio da compra ainda não está disponível.",
     );

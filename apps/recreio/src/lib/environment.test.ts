@@ -38,6 +38,44 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("prepara live com origem segura, catálogo prod e chave live; recusa cruzamentos sem chamar o provedor", () => {
+    const prices = Object.fromEntries(
+      PRODUCTS.filter((p) => p.app === "recreio").map((p) => {
+        if (!p.stripePriceEnvironmentVariable) throw new Error("Missing catalog variable");
+        return [p.stripePriceEnvironmentVariable, `price_live_${p.id}`];
+      }),
+    );
+    const live = {
+      ...production,
+      ...prices,
+      RECREIO_BILLING_MODE: "live",
+      STRIPE_MODE: "prod",
+      STRIPE_SECRET_KEY: "rk_live_isolated_not_sent",
+      STRIPE_WEBHOOK_SECRET: "whsec_live_isolated_not_sent",
+      STRIPE_PORTAL_CONFIGURATION_ID: "bpc_live_recreio",
+    };
+    expect(validateEnvironment(live).RECREIO_BILLING_MODE).toBe("live");
+    for (const modo of ["off", "setup", "live"]) {
+      expect(
+        validateEnvironment({
+          ...live,
+          RECREIO_BILLING_MODE: modo,
+          RECREIO_FINANCIAL_JOBS_MODE: "on",
+        }).STRIPE_MODE,
+      ).toBe("prod");
+    }
+    for (const extra of [
+      { STRIPE_MODE: "dev" },
+      { STRIPE_SECRET_KEY: "sk_test_isolated_not_sent" },
+      { RECREIO_BILLING_MODE: "sandbox" },
+      { STRIPE_WEBHOOK_SECRET: "" },
+      { STRIPE_PORTAL_CONFIGURATION_ID: "" },
+      { RECREIO_FAMILY_ANNUAL_PRICE: "price_TODO_recreio" },
+      { EMAIL_SANDBOX_MODE: "memory" },
+      { NEXT_PUBLIC_APP_URL: "http://localhost:3009", BETTER_AUTH_URL: "http://localhost:3009" },
+    ])
+      expect(() => validateEnvironment({ ...live, ...extra })).toThrow();
+  });
   it("valida a composição de objetos na partida sem expor credenciais", () => {
     expect(validateEnvironment(base).RECREIO_OBJECTS_MODE).toBe("off");
     expect(() =>

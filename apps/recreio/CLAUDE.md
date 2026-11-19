@@ -16,6 +16,13 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 - **Fechamento da plataforma:** [escopo vigente](../../docs/recreio/fechamento-plataforma-2026-11-16.md). O titular confirmou os quatro preços e responsabilidade declarada pelo adulto; conta pagante não precisa ocupar perfil de jogador. Estas decisões não declaram os fluxos familiares/comerciais concluídos. SDK independente com dados opacos/conflitos/conquistas implantado em `6b51dd13`; migração 0167 e 168 recibos conferidos na [evidência operacional](../../docs/recreio/dados-de-perfil-2026-11-16.md). Leitores familiares e autoridade de mundos implantados em `ad37ca93`, com famílias desligadas e 175 recibos/0174 conferidos; [prova atual](../../docs/recreio/leitores-protegidos-2026-11-17.md). Checkpoint e o restante do plano continuam em implementação.
 - **Este app:** rotas, sessão, telas e tudo o que grava no schema `recreio` (`packages/db/src/schema/recreio.ts`). Ele é o único a gravar nesse schema; o servidor de um jogo fala com o Recreio por HTTP.
 
+Composição comercial candidata: `RECREIO_BILLING_MODE=live` só admite
+`STRIPE_MODE=prod`, chave live, origem segura, autenticação live e catálogo
+configurado. Sandbox continua exclusivamente dev/test. Off/setup não enviam
+compras/trocas; gestão e recuperação financeira existentes continuam separadas
+de novas vendas. Esta capacidade ainda está em qualificação e não foi ativada;
+Checkout humano e catálogo/portal/webhook Live reais continuam pendentes.
+
 ## Camadas
 
 Na candidata F7, `features/direitos` mantém a prévia e a confirmação de

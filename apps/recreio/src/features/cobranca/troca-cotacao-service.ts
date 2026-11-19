@@ -1,6 +1,7 @@
 import "server-only";
 import type { Product, StripeMode } from "@informach/config";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { envioComercialDisponivel } from "@/lib/commercial-mode";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
@@ -18,9 +19,9 @@ export function criarPreparacaoDeReducao(
   return async (autor: AutorNativoRecente, entrada: unknown) => {
     const pedido = PrepararTrocaSchema.parse(entrada);
     assertAllowed(
-      env.RECREIO_BILLING_MODE === "sandbox",
+      envioComercialDisponivel(env.RECREIO_BILLING_MODE),
       "INDISPONIVEL",
-      "As trocas ainda estão em homologação.",
+      "As trocas de plano estão indisponíveis neste momento.",
     );
     await limitarTentativas({
       chave: `troca-cotar:${autor.contaId}`,
@@ -36,9 +37,9 @@ export function criarPreparacaoDeAumento(obterRuntime: () => RuntimeDaCotacaoDeA
   return async (autor: AutorNativoRecente, entrada: unknown) => {
     const pedido = PrepararTrocaSchema.parse(entrada);
     assertAllowed(
-      env.RECREIO_BILLING_MODE === "sandbox",
+      envioComercialDisponivel(env.RECREIO_BILLING_MODE),
       "INDISPONIVEL",
-      "As trocas ainda estão em homologação.",
+      "As trocas de plano estão indisponíveis neste momento.",
     );
     await limitarTentativas({
       chave: `troca-cotar:${autor.contaId}`,

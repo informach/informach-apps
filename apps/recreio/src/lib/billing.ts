@@ -19,8 +19,8 @@ import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
 import type { RuntimeDeEnvioDoAumento } from "@/features/cobranca/troca-aumento-execucao-service";
 import type { RuntimeDeEnvioDaTroca } from "@/features/cobranca/troca-execucao-runtime";
 import type { RuntimeDoWebhook } from "@/features/cobranca/webhook-service";
+import { envioComercialDisponivel, segredoStripeCompativel } from "./commercial-mode";
 import { env } from "./env";
-import { isStripeTestSecret } from "./environment";
 import { assertAllowed } from "./errors";
 import { packageLogger } from "./observability";
 
@@ -28,21 +28,21 @@ let runtime: RuntimeDeCompra | undefined;
 let composicao: ReturnType<typeof criarComposicao> | undefined;
 /** Configuração e clientes vivem só na composição; nunca em página/formulário. */
 function criarComposicao() {
-  const chave = env.STRIPE_SECRET_KEY,
+  const modo = env.STRIPE_MODE,
+    chave = env.STRIPE_SECRET_KEY,
     segredo = env.STRIPE_WEBHOOK_SECRET,
     portalId = env.STRIPE_PORTAL_CONFIGURATION_ID;
   assertAllowed(
-    env.STRIPE_MODE === "dev" &&
-      chave &&
+    chave &&
       segredo &&
       portalId &&
-      isStripeTestSecret(chave) &&
+      segredoStripeCompativel(modo, chave) &&
       segredo.startsWith("whsec_") &&
       portalId.startsWith("bpc_"),
     "INDISPONIVEL",
     "A compra ainda não está disponível.",
   );
-  const produtos = produtosDoRecreio("dev", env);
+  const produtos = produtosDoRecreio(modo, env);
   const provider = createStripeProvider({
     secretKey: chave,
     webhookSecret: segredo,
@@ -52,12 +52,12 @@ function criarComposicao() {
   });
   const leitor = createStripePaymentFactReader({
     secretKey: chave,
-    expectedMode: "dev",
+    expectedMode: modo,
     timeoutMs: 10_000,
     maxNetworkRetries: 0,
   });
   const financiamento = criarConferenciaDeFinanciamento({
-    modo: "dev",
+    modo,
     leitor,
     cliente: new Stripe(chave, {
       apiVersion: "2026-04-22.dahlia",
@@ -76,23 +76,24 @@ function criarComposicao() {
     portalConfigurationId: portalId,
     products: produtos,
     organizationsEnabled: false,
-    stripeMode: "dev",
+    stripeMode: modo,
     publicAppUrl: env.NEXT_PUBLIC_APP_URL,
     resolveSubjectEmail: emailDoPagante,
     logger: packageLogger,
   });
   return {
+    modo,
     produtos,
     provider,
     leitor,
     financiamento,
     billing,
-    agendasAdmitidas: createStripeRecreioPlanSchedules({ secretKey: chave, mode: "dev" }),
-    aumentosAdmitidos: createStripeRecreioUpgrades({ secretKey: chave, mode: "dev" }),
+    agendasAdmitidas: createStripeRecreioPlanSchedules({ secretKey: chave, mode: modo }),
+    aumentosAdmitidos: createStripeRecreioUpgrades({ secretKey: chave, mode: modo }),
     async conferirCatalogo(budget?: PaymentReadBudget) {
       await conferirCatalogoDoRecreio({
         leitor,
-        modo: "dev",
+        modo,
         variaveis: env,
         portalId,
         urlDoApp: env.NEXT_PUBLIC_APP_URL,
@@ -107,7 +108,7 @@ function getComposicao() {
 }
 export function getRuntimeDaCompra(): RuntimeDeCompra {
   assertAllowed(
-    env.RECREIO_BILLING_MODE === "sandbox",
+    envioComercialDisponivel(env.RECREIO_BILLING_MODE),
     "INDISPONIVEL",
     "A compra ainda não está disponível.",
   );
@@ -118,13 +119,13 @@ export function getRuntimeDaConsultaDaCompra(): RuntimeDeCompra {
 }
 function getRuntimeCompartilhadoDaCompra(): RuntimeDeCompra {
   if (runtime) return runtime;
-  const { produtos, provider, billing, conferirCatalogo } = getComposicao();
+  const { modo, produtos, provider, billing, conferirCatalogo } = getComposicao();
   runtime = {
     conferirCatalogo,
     precoDoProduto(id) {
       const produto = produtos.find((p) => p.id === id);
       assertAllowed(produto, "OFERTA", "Confira a oferta atual antes de continuar.");
-      return produto.stripePriceId.dev;
+      return produto.stripePriceId[modo];
     },
     urlDeRetorno: `${new URL(env.NEXT_PUBLIC_APP_URL).origin}/conta/assinatura?retorno=1`,
     criarCheckout: (entrada) => billing.createSubscriptionCheckout(entrada),
@@ -141,6 +142,7 @@ function getRuntimeCompartilhadoDaCompra(): RuntimeDeCompra {
 /** Financial reads and recovery restricted to previously admitted plan changes. */
 export function getRuntimeDaConciliacao(): RuntimeDeConciliacao {
   const {
+    modo,
     produtos,
     provider,
     leitor,
@@ -152,7 +154,7 @@ export function getRuntimeDaConciliacao(): RuntimeDeConciliacao {
   const lerCheckout = provider.findCheckoutSession;
   assertAllowed(lerCheckout, "INDISPONIVEL", "A conferência financeira não está disponível.");
   return {
-    modo: "dev",
+    modo,
     produtos,
     leitor,
     financiamento,
@@ -164,9 +166,9 @@ export function getRuntimeDaConciliacao(): RuntimeDeConciliacao {
 }
 
 export function getRuntimeDoWebhook(): RuntimeDoWebhook {
-  const { provider, leitor } = getComposicao();
+  const { modo, provider, leitor } = getComposicao();
   return {
-    modo: "dev",
+    modo,
     verificar: provider.verifyWebhookSignature,
     clienteDoEvento: leitor.eventCustomerId,
   };
@@ -187,7 +189,7 @@ export function getRuntimeDoPortal(): RuntimeDoPortal {
 export function getRuntimeDoAumento(): RuntimeDeEnvioDoAumento {
   const c = getComposicao();
   return {
-    modo: "dev",
+    modo: c.modo,
     produtos: c.produtos,
     conferirCatalogo: c.conferirCatalogo,
     aumentos: c.aumentosAdmitidos,
@@ -196,7 +198,7 @@ export function getRuntimeDoAumento(): RuntimeDeEnvioDoAumento {
 export function getRuntimeDaReducao(): RuntimeDeEnvioDaTroca {
   const c = getComposicao();
   return {
-    modo: "dev",
+    modo: c.modo,
     produtos: c.produtos,
     conferirCatalogo: c.conferirCatalogo,
     agendas: c.agendasAdmitidas,

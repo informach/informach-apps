@@ -2,6 +2,7 @@
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { envioComercialDisponivel } from "@/lib/commercial-mode";
 import type { consultarMinhaCobranca } from "../service";
 import {
   aceitarTrocaAction,
@@ -57,7 +58,7 @@ export function GerirTroca({ estado, pedidoId }: { estado: Estado; pedidoId: str
   const excede = Boolean(oferta && perfis.filter((p) => p.cobrir).length > oferta.perfis);
   const bloqueado = !hidratado || pendente || incerta;
   const preparar =
-    estado.modo === "sandbox" &&
+    envioComercialDisponivel(estado.modo) &&
     estado.conferenciaDisponivel &&
     contrato?.podePreparar &&
     origem &&
@@ -184,7 +185,7 @@ export function GerirTroca({ estado, pedidoId }: { estado: Estado; pedidoId: str
               de fazer outra troca.
             </p>
           )}
-          {andamento && !pedido.aceitoEm && !vencida && estado.modo === "sandbox" && (
+          {andamento && !pedido.aceitoEm && !vencida && envioComercialDisponivel(estado.modo) && (
             <form
               aria-label="Autorizar troca de plano"
               className="mt-5"
@@ -233,7 +234,7 @@ export function GerirTroca({ estado, pedidoId }: { estado: Estado; pedidoId: str
                   Encerrar pedido sem envio
                 </button>
               )}
-              {pedido.aceitoEm && !pedido.tentativaEm && estado.modo === "sandbox" && (
+              {pedido.aceitoEm && !pedido.tentativaEm && envioComercialDisponivel(estado.modo) && (
                 <button
                   type="button"
                   className="rb rb-sol"

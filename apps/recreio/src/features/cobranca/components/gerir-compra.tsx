@@ -4,6 +4,7 @@ import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
+import { envioComercialDisponivel } from "@/lib/commercial-mode";
 import {
   abrirPortalAction,
   conferirCompraAction,
@@ -134,11 +135,12 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
           autorização. Isso não gera cobrança.
         </p>
       )}
-      {estado.modo === "sandbox" && (
-        <p className="painel mt-6 p-5 font-semibold">
-          Ambiente de homologação: os envios usam pagamento de teste e não geram cobrança real.
-        </p>
-      )}
+      {estado.pagamentoDeTeste &&
+        (envioComercialDisponivel(estado.modo) || estado.financeiro.temCliente) && (
+          <p className="painel mt-6 p-5 font-semibold">
+            Ambiente de homologação: os envios usam pagamento de teste e não geram cobrança real.
+          </p>
+        )}
       {estado.financeiro.assinatura && (
         <section aria-labelledby="situacao-da-assinatura" className="painel mt-6 p-5 sm:p-6">
           <h2 id="situacao-da-assinatura" className="font-display text-xl font-bold">
@@ -241,7 +243,7 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
             </button>
           )}
           {ativa &&
-            (estado.modo === "sandbox" ||
+            (envioComercialDisponivel(estado.modo) ||
               (compra.tentativaIniciadaEm && estado.conferenciaDisponivel)) && (
               <button
                 type="button"
@@ -250,8 +252,12 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
                 onClick={() => executar(compra.tentativaIniciadaEm ? "conferir" : "enviar")}
               >
                 {compra.tentativaIniciadaEm
-                  ? "Conferir envio no ambiente de teste"
-                  : "Continuar no ambiente de teste"}
+                  ? estado.pagamentoDeTeste
+                    ? "Conferir envio no ambiente de teste"
+                    : "Conferir pagamento"
+                  : estado.pagamentoDeTeste
+                    ? "Continuar no ambiente de teste"
+                    : "Continuar para o pagamento"}
               </button>
             )}
         </section>
