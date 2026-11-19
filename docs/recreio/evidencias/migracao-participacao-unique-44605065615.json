@@ -1,0 +1,28 @@
+{
+  "source": "951b40ff17c945c61a6cfd8269bc2afa4b069456",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0235_lethal_weapon_omega.sql",
+      "bytes": 138,
+      "sha256": "f7a887093f08b5bd29541073310d52472b6f91983243573123db4b673d0a2006"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0235_snapshot.json",
+      "bytes": 1105051,
+      "sha256": "308990b165b985f74ce524f61e067b58dd1e0b7b4b3cbdaf7455c514239ce83c"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 35688,
+      "sha256": "fe502816f4473344606b7520ebd259a6f94ba4d07eafc9f7c5d0ed617211cb08"
+    }
+  ],
+  "runId": 44605065615,
+  "artifactId": 14569972876,
+  "artifactZipBytes": 78052,
+  "artifactZipSha256": "867a21b397a119dab5402ae69d5cb8959bd1cde9172d8dd4bd666579e4abda6a",
+  "productionApplied": false,
+  "unchangedOtherTablesAndColumns": true,
+  "addedConstraint": "recreio_rights_operation_participation",
+  "journalPrefixPreserved": true
+}

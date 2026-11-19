@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."rights_operations" ADD CONSTRAINT "recreio_rights_operation_participation" UNIQUE("id","requester_user_id","kind");

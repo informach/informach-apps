@@ -18,6 +18,7 @@ import {
   recreioTrialEnrollments as trials,
 } from "@informach/db/schema";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { comContaPessoal } from "./autoridade-repository";
 import { criarArquivoPessoal, LIMITES_DA_COPIA_PESSOAL as limites } from "./captura-contrato";
@@ -37,6 +38,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
           capturadaEm,
           secoes: [
             "identificacao",
+            "participacao_recreio",
             "protecao_conta",
             "declaracao",
             "aparelho",
@@ -60,6 +62,10 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
           emailDeLogin: conta.email,
           criadaEm: conta.createdAt,
         });
+        arquivo.adicionar(
+          "participacao_recreio",
+          await lerParticipacaoDoRecreioLocked(tx, conta.id),
+        );
         const [pin] = await tx
           .select({
             definido: sql<boolean>`${pins.hash} is not null`,

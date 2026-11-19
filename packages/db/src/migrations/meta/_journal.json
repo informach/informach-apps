@@ -1646,6 +1646,13 @@
       "when": 1795115118036,
       "tag": "0234_recreio_exportacao_conta",
       "breakpoints": true
+    },
+    {
+      "idx": 235,
+      "version": "7",
+      "when": 1795118772644,
+      "tag": "0235_lethal_weapon_omega",
+      "breakpoints": true
     }
   ]
 }
