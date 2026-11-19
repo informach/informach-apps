@@ -480,3 +480,24 @@ outro perfil e referências tratadas, diário preservado na saída com erro e
 rollback estrito da cerca/recibo se a auditoria recusar. É prova focada; não
 qualifica a rodada integral ou produção. Dezesseis gates e CI compartilhado
 serão repetidos na fonte atual antes da integração.
+
+
+## Recuperação de diário em implementação
+
+Para a perda do host depois do commit de fatos e antes do checkpoint, a etapa
+seguinte deverá: reservar a operação/mundo drenando sem posse aberta, ler a
+foto e o sufixo contínuo sob limites de linhas/bytes, materializar fora do SQL,
+reaplicar os fatos pelo motor e persistir nova foto antes de concluir a drenagem.
+A confirmação deve revalidar hash/revisão/diário/cerca e lease do worker sob a
+barreira de captura, operação e mundo, com auditoria estrita. Não compactar ou
+alterar fatos antes de a foto nova cobri-los. Sem foto de base ou formato que
+não possa preservar os dados, manter revisão explícita, sem inventar estado.
+
+A inspeção encontrou JSON do diário convertido com `as Fato` no host. O novo
+leitor candidato valida todas as variantes e entidades do fato, com schemas
+estritos conferidos contra os tipos do domínio (Zod 4.6.7 já fixado). Recusa
+campos desconhecidos, JSON ambíguo e dados inválidos com erro constante; conserva
+as verificações nativas de sequência/ID/tick. Formato do jogo e protocolo não
+mudam. Essa correção de integração não implanta D3–D8 e ainda exige gates dos
+consumidores antes de publicação. A recuperação automática acima ainda não
+está implementada; a revisão de dependência continua protegendo o diário.

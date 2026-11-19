@@ -21,7 +21,7 @@ import {
   VERSAO_DO_MUNDO,
 } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
-import type { DefinicaoDeBairro } from "@informach/morada-sim/formatos";
+import { type DefinicaoDeBairro, lerFatoDoDiario } from "@informach/morada-sim/formatos";
 import {
   FECHAMENTO,
   type MensagemDoServidor,
@@ -339,7 +339,7 @@ export class Ator {
     const fatos = diario.map((entrada) => {
       if (entrada.seq !== ultima + 1) throw new ErroDoRecreio("SEQUENCIA");
       ultima = entrada.seq;
-      const fato = JSON.parse(leitura.decode(entrada.bytes)) as Fato;
+      const fato = lerFatoDoDiario(leitura.decode(entrada.bytes));
       if (fato.id !== entrada.fatoId || fato.tick !== entrada.tick)
         throw new ErroDoRecreio("SEQUENCIA");
       return fato;
