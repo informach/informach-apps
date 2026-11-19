@@ -596,6 +596,9 @@ export const recreioSpaceSnapshots = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_space_snapshots_revision").on(t.spaceId, t.revision),
+    // O registro aditivo de objetos deve comprovar fotografia, mundo e conteúdo.
+    // Gerar/adotar esta chave antes de gerar as FKs da nova tabela de objetos.
+    unique("recreio_snapshot_content_identity").on(t.id, t.spaceId, t.sha256, t.byteSize),
     check("recreio_space_snapshots_kind", sql`${t.kind} in ('checkpoint', 'hibernate', 'pinned')`),
     check(
       "recreio_space_snapshots_storage",

@@ -150,3 +150,23 @@ confirmada por inventário completo e GET ausente. O
 [recibo e hash do artefato](evidencias/objetos-provider-44433527147.json) separam
 essa prova de migração de fotos, exportação nativa ou restauração de backup.
 Somente bytes sintéticos foram usados; o objeto de teste foi removido.
+
+## Integração de fotografias em preparação
+
+A porta atual recebe transação em toda chamada. O leitor do bucket precisará
+de admissão e releitura de posse/revisão em transações separadas, com o I/O no
+intervalo; não colocar S3 sob a trava de mundo ou transformar erro em fallback
+silencioso para uma fotografia antiga. O adapter de transporte não concede a
+autoridade necessária para publicar o ponteiro ou entregar bytes a uma instância.
+
+Primeiro DDL candidato: chave única de identidade de conteúdo da fotografia
+(`id`, mundo, SHA e quantidade de bytes). Sua geração deve preceder o registro
+aditivo de objetos e suas FKs, para que a migration não referencie uma chave
+ainda ausente. O PK existente já assegura a unicidade; não há backfill de bytes
+ou dados pessoais. O registro de entrega deverá manter envelope/recibo antes
+do PUT e a confirmação antes de alterar o ponteiro. Retenção precisará destacar
+referências e enfileirar expurgo próprio sem perder fotografias fixadas.
+
+A chave ainda precisa ser gerada/adotada/verificada no GitHub. Não foi aplicada
+em produção. O contrato entre banco, posse, expurgo e objetos continua em
+implementação; nenhum byte atual foi migrado por esta alteração de schema.
