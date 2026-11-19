@@ -7,9 +7,13 @@ conciliador original. A presença do pedido bloqueia novas trocas desse contrato
 no servidor e na leitura da tela. Aceitar não chama Stripe nem confirma parada.
 O evento estrito `renewal_cancellation_accepted` e a inclusão na cópia pessoal
 usam somente os campos declarados; referências do provedor não saem no DTO.
-Sete casos nativos e quatro de entrada preparados, ainda sem qualificação
-deste incremento. Não há action, tela, provider ou worker de cancelamento
-compostos; o restante do checklist continua obrigatório.
+Sete casos nativos e quatro de entrada qualificados em 44617521395 e quality
+44617534421/96a9b76a; direitos/upgrade passaram 44617528305. CI compartilhada
+44617539778 ainda em curso na última consulta. O provider candidato usa o SDK
+fixado, confere cliente/origem/namespace, lê antes de repetir e depois de alterar
+somente `cancel_at_period_end`. Data anterior é preservada; agenda/troca ainda
+pendente requer conciliação original. Observação não concede acesso. Casos HTTP
+novos ainda aguardam gate. Não há action, tela ou worker compostos.
 
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
@@ -31,8 +35,8 @@ uma operação por assinatura, FK da origem comercial já existente e vínculo
 opcional ao encerramento do mesmo solicitante. Aceite, tentativa, observação
 e confirmação são fatos separados; confirmação requer resultado/prazo/SHA,
 sem lease ativo. Datas finitas e contadores acompanham a primeira tentativa.
-Não há escritor, job ou ação pública neste marco. Segue geração pelo GitHub;
-nenhum SQL foi criado manualmente ou aplicado em produção.
+O escritor de aceite está descrito acima; job e ação pública continuam pendentes.
+Nenhum SQL foi criado manualmente ou aplicado em produção.
 
 Parte do encerramento F7 e da homologação F6. Implementação autorizada no
 fechamento da plataforma, sem depender do Morada D3–D8. Nenhuma ativação por

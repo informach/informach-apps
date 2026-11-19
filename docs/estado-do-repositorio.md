@@ -15,7 +15,9 @@ inspecionadas. O bloqueio de novas prévias 071ba841 passou novamente em
 
 O cancelamento nativo da renovação está em implementação, separado de aceite,
 tentativa e confirmação. 0237 foi gerada e adotada intacta em 44614009506;
-238 recibos candidatos, qualificação em curso. O portal financeiro restrito,
+238 recibos candidatos; aceite/consulta qualificados em 44617521395/44617534421,
+direitos/upgrade 44617528305, fonte 96a9b76a. Provider está em candidata sem
+qualificação nova; job, ações e interface ainda pendentes. O portal restrito,
 a preservação do período pago e as capacidades antigas precisam ser provados
 antes de habilitar o encerramento. [Plano](recreio/cancelamento-nativo-2026-11-19.md)
 e [contratos/execução restante](recreio/encerramento-conta-2026-11-19.md).
