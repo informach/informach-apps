@@ -199,7 +199,13 @@ export async function criarBucketDaMontagem() {
     });
     await ausencia(key);
   }
+  async function confirmarPublicacaoDuravel(id: string) {
+    exigir(prefixos.has(`recreio/v1/backup/${id}/`), "PUBLICACAO_FORA_DO_ESCOPO");
+    recibo.durableCaptureFinalized = true;
+    await guardar();
+  }
   async function concluir() {
+    exigir(recibo.durableCaptureFinalized, "PUBLICACAO_DURAVEL_AUSENTE");
     exigir(process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE !== "1" || frio, "CLUSTER_FRIO_AUSENTE");
     exigir(chaves.size === 4 && prefixos.size === 2, "INVENTARIO_DA_PROVA_DIVERGENTE");
     if (externa && endpoint) {
@@ -281,6 +287,7 @@ export async function criarBucketDaMontagem() {
     admitirPrefixo,
     removerFoto,
     confirmarClusterFrio,
+    confirmarPublicacaoDuravel,
     concluir,
     fechar,
   };

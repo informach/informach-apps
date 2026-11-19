@@ -11,6 +11,12 @@ import { criarIndiceDeRecuperacao } from "../scripts/backup/indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "../scripts/backup/indice-s3";
 import { conferirInventarios, inventariarBackup } from "../scripts/backup/inventario";
 import { criarMontadorDaCaptura } from "../scripts/backup/montar-captura";
+import {
+  assumirPublicacao,
+  liberarReservasPublicadas,
+  prepararPublicacao,
+} from "../scripts/backup/publicacao-repository";
+import { publicarCapturaGuardada } from "../scripts/backup/publicar-captura";
 import { novoJogador } from "./apoio";
 import { conexao, restaurar, temporarios } from "./backup-arquivos-apoio";
 import { provarClusterFrio } from "./backup-cluster-frio-apoio";
@@ -124,21 +130,87 @@ it(
             indice,
             tempoLimiteMs: 2000,
           });
-        await s3.admitirPrefixo("backup", ref.contexto.id);
-        await transporte.enviar(ref, cifrado, readback);
-        const publicacao = indice.assinar({
-          tipo: "publicado",
+        const source = process.env.GITHUB_SHA;
+        if (!source) throw new Error("Fixture sem fonte Git");
+        const tentativa = await prepararPublicacao({
           capturaId: ref.contexto.id,
           destino,
-          source: process.env.GITHUB_SHA,
-          iniciadaEm: "2026-11-19T00:00:00.000Z",
-          conferidaEm: "2026-11-19T00:01:00.000Z",
+          source,
           arquivo: ref,
           composto: capturada.referencia,
-          inventario: capturada.inventario,
         });
-        await indices.publicar(publicacao, ref.contexto.id);
-        await indices.publicar(publicacao, ref.contexto.id); // Replay pelo 412 e leitura integral.
+        await s3.admitirPrefixo("backup", ref.contexto.id);
+        await transporte.enviar(ref, cifrado, readback);
+        const conferido = await arquivo("publicacao-recuperado.bin"),
+          abertoPublicacao = await arquivo("publicacao-aberto.bin");
+        await fonte.unsafe(`create function audit.recusar_publicacao_guardada_teste() returns trigger language plpgsql as $$
+          begin if new.event_type='recreio.backup_published' and new.payload->>'captureId'=TG_ARGV[0]
+          then raise exception 'recusa sintetica'; end if; return new; end $$`);
+        try {
+          await fonte.unsafe(
+            `create trigger recusar_publicacao_guardada_teste before insert on audit.events for each row execute function audit.recusar_publicacao_guardada_teste('${ref.contexto.id}')`,
+          );
+          await expect(
+            publicarCapturaGuardada({
+              tentativa,
+              destino,
+              transporte,
+              cifrador: codec,
+              composto: container,
+              indice,
+              indices,
+              recuperado: conferido,
+              aberto: abertoPublicacao,
+            }),
+          ).rejects.toMatchObject({ name: "AuditPersistenceError" });
+          const [pendente] =
+            await fonte`select state,index_body from recreio.backup_publications where capture_id=${ref.contexto.id}`;
+          expect(pendente?.state).toBe("index_prepared");
+          expect(
+            (await indices.recuperar(ref.contexto.id)).bytes.equals(
+              Buffer.from(pendente?.index_body),
+            ),
+          ).toBe(true);
+          await expect(liberarReservasPublicadas(ref.contexto.id)).rejects.toMatchObject({
+            codigo: "ESTADO",
+          });
+        } finally {
+          await fonte.unsafe(
+            "drop trigger if exists recusar_publicacao_guardada_teste on audit.events",
+          );
+          await fonte.unsafe("drop function audit.recusar_publicacao_guardada_teste()");
+        }
+        // Fonte local perdida, índice já existe, confirmação SQL não aconteceu.
+        for (const h of [composto, cifrado, readback, conferido, abertoPublicacao]) {
+          await h.truncate(0);
+          await h.sync();
+        }
+        await fonte`update recreio.backup_publications set created_at=created_at-interval '1 day',lease_until=clock_timestamp()-interval '1 second' where capture_id=${ref.contexto.id}`;
+        const retomada = await assumirPublicacao(ref.contexto.id);
+        await publicarCapturaGuardada({
+          tentativa: retomada,
+          destino,
+          transporte,
+          cifrador: codec,
+          composto: container,
+          indice,
+          indices,
+          recuperado: conferido,
+          aberto: abertoPublicacao,
+        });
+        expect(await liberarReservasPublicadas(ref.contexto.id)).toBe(1);
+        expect(await liberarReservasPublicadas(ref.contexto.id)).toBe(0);
+        const [controle] = await fonte`select c.state as captura,p.state as publicacao,
+          (select count(*)::int from recreio.backup_object_holds h where h.capture_id=c.id and h.released_at is null) as ativas
+          from recreio.backup_captures c join recreio.backup_publications p on p.capture_id=c.id where c.id=${ref.contexto.id}`;
+        expect(controle).toEqual({ captura: "verified", publicacao: "published", ativas: 0 });
+        await s3.confirmarPublicacaoDuravel(ref.contexto.id);
+        const republicacao = await indices.recuperar(ref.contexto.id);
+        await indices.publicar(republicacao.bytes, ref.contexto.id); // Replay pelo 412.
+        for (const h of [conferido, abertoPublicacao]) {
+          await h.truncate(0);
+          await h.sync();
+        }
         for (const h of [composto, cifrado, readback]) {
           await h.truncate(0);
           await h.sync();

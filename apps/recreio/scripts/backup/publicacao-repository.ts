@@ -320,6 +320,11 @@ export async function lerTentativaDePublicacao(bruto: TentativaDePublicacao) {
         bytes: c.archiveBytes,
         sha256: c.archiveSha256,
       }),
+      inventario: {
+        quantidade: c.objectCount,
+        bytesCifrados: c.objectBytes,
+        sha256: c.inventorySha256,
+      },
       indice: p.indexPreparedAt === null ? null : indicePersistido(p),
     };
   });
