@@ -33,6 +33,11 @@ const ReferenciaSchema = z.strictObject({
   bytes: z.number().int().min(0).max(LIMITE_TECNICO),
   sha256: ShaSchema,
   sha256Cifrado: ShaSchema,
+  bytesCifrados: z
+    .number()
+    .int()
+    .positive()
+    .max(LIMITE_TECNICO + 1024),
 });
 export type ReferenciaDoObjeto = z.infer<typeof ReferenciaSchema>;
 export class FalhaDoObjetoPrivado extends Error {
@@ -46,6 +51,12 @@ const shaConfere = (bytes: Uint8Array, esperado: string) =>
   timingSafeEqual(Buffer.from(sha256(bytes), "hex"), Buffer.from(esperado, "hex"));
 const mesmoContexto = (a: ContextoDoObjeto, b: ContextoDoObjeto) =>
   a.tipo === b.tipo && a.id === b.id;
+
+export function conferirReferenciaDoObjeto(bruto: unknown): ReferenciaDoObjeto {
+  const lida = ReferenciaSchema.safeParse(bruto);
+  if (!lida.success) throw new FalhaDoObjetoPrivado("INTEGRIDADE");
+  return lida.data;
+}
 
 /**
  * Envelope de objetos limitados em memória. Só usa AES-256-GCM do Node, IV
@@ -122,6 +133,7 @@ export function criarCifradorDeObjetos(config: {
         bytes: origem.length,
         sha256: sha256(origem),
         sha256Cifrado: sha256(bytes),
+        bytesCifrados: bytes.length,
       };
       return { referencia, bytes };
     } finally {
@@ -132,16 +144,17 @@ export function criarCifradorDeObjetos(config: {
   /** A referência deve vir do recibo autoritativo; nunca dos metadados do bucket.
    * Nenhum byte aberto é devolvido antes de validar tag, tamanho e checksum. */
   function abrir(referenciaBruta: unknown, conteudo: Uint8Array): Buffer {
-    const lida = ReferenciaSchema.safeParse(referenciaBruta);
-    if (!lida.success) throw new FalhaDoObjetoPrivado("INTEGRIDADE");
-    const referencia = lida.data;
+    const referencia = conferirReferenciaDoObjeto(referenciaBruta);
     if (
       referencia.bytes > limiteBytes ||
       !(conteudo instanceof Uint8Array) ||
       conteudo.byteLength > limiteBytes + MAGIA.length + 2 + CABECALHO_MAX + IV_BYTES + TAG_BYTES
     )
       throw new FalhaDoObjetoPrivado("LIMITE");
-    if (conteudo.byteLength < MAGIA.length + 2 + 2 + IV_BYTES + TAG_BYTES)
+    if (
+      conteudo.byteLength !== referencia.bytesCifrados ||
+      conteudo.byteLength < MAGIA.length + 2 + 2 + IV_BYTES + TAG_BYTES
+    )
       throw new FalhaDoObjetoPrivado("INTEGRIDADE");
     const bytes = Buffer.from(conteudo);
     if (
@@ -195,5 +208,10 @@ export function criarCifradorDeObjetos(config: {
       parcial.fill(0);
     }
   }
-  return { cifrar, abrir };
+  return Object.freeze({
+    cifrar,
+    abrir,
+    maxBytesAbertos: limiteBytes,
+    maxBytesCifrados: limiteBytes + MAGIA.length + 2 + CABECALHO_MAX + IV_BYTES + TAG_BYTES,
+  });
 }

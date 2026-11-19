@@ -83,3 +83,25 @@ proveniência. Os 1413 packages e 1421 snapshots existentes permaneceram iguais,
 assim como todos os outros importers; só foram acrescentadas as 25 entradas
 necessárias e a dependência do Recreio. [Recibo e hashes](evidencias/objetos-s3-lock-44430415152.json).
 A instalação e qualificação desta composição ainda exigem seus gates remotos.
+
+## Adapter S3 em candidata
+
+`features/objetos/s3.ts` recebe o cliente composto no servidor e um bucket
+próprio. A chave do objeto é derivada exclusivamente de contexto UUID/tipo e
+checksum cifrado validados; não recebe URL ou caminho do navegador. O cliente
+deve ter `maxAttempts=1`, e um prazo abrange requisição e consumo do corpo.
+GET aceita apenas resposta integral com tamanho e tipo corretos, limita cada
+chunk e fecha o socket ao abortar. Depois confere envelope, tag e SHA.
+
+O envio exige envelope íntegro, usa `If-None-Match: *` e relê o objeto antes de
+confirmar. Uma resposta 412 também precisa dessa releitura; presença/ETag não
+comprovam conteúdo. Perda de resposta permanece inconclusiva, sem repetir PUT.
+Recuperar usa a mesma referência; ausência não autoriza escolher outra chave.
+O escritor nativo deve persistir tentativa, envelope e referência antes da rede
+e reler a autoridade/cerca na confirmação. Essa integração ainda não existe.
+
+Os novos testes usam o SDK real contra HTTP fechado no runner, com credenciais
+sintéticas e sem serviço externo. Precisam de gate remoto próprio. Não provam
+compatibilidade real das condições S3 com o Railway, permissão de download,
+catálogo, migração ou backup. A referência do envelope agora conserva também o
+tamanho cifrado exato; o formato ainda não foi implantado.
