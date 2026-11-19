@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { VERSAO_DA_COMPRA } from "@/features/cobranca/constantes";
+import { AceiteDaCompraSchema } from "@/features/cobranca/regras";
 import { prepararCompraNoBanco } from "@/features/cobranca/repository";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import {
@@ -91,7 +92,7 @@ async function compraNaoEnviada(f: Fixture) {
     .orderBy(profiles.id);
   return prepararCompraNoBanco(
     f.autor,
-    {
+    AceiteDaCompraSchema.parse({
       pedidoId: randomUUID(),
       produtoId: "recreio_individual_monthly",
       valorCentavos: 5990,
@@ -102,7 +103,7 @@ async function compraNaoEnviada(f: Fixture) {
       versaoDasCondicoes: VERSAO_DA_COMPRA,
       versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
       perfis: inventario.map((p) => ({ perfilId: p.id, versao: p.policyVersion, cobrir: false })),
-    },
+    }),
     "dev",
   );
 }

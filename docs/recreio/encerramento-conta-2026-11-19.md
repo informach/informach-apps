@@ -46,6 +46,10 @@ nas fixtures novas: a compra precisava declarar o inventário do perfil existent
 como exceção síncrona. Corrigidos os testes sem relaxar as regras de seleção ou
 os três aceites; repetir o gate antes de qualificar este consentimento.
 
+44625575026/ad3e6cad apontou que IDs brutos do banco não têm a marca `PerfilId`
+esperada pela compra já validada. A fixture agora passa o pedido pelo schema
+real de entrada antes de chamar o repositório, sem cast; repetir a qualificação.
+
 ## Exportação
 
 A cópia de perfil já tem captura consistente, artefato cifrado de dez minutos,
