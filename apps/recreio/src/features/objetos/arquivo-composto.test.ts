@@ -15,6 +15,7 @@ import { criarCifradorDeObjetos } from "./criptografia";
 const sha = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
 const banco = Buffer.from(
   JSON.stringify({
+    metodo: "recreio-inventario-v2",
     versao: 180006,
     banco: {
       encoding: "UTF8",

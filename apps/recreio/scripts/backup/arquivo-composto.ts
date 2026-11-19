@@ -37,6 +37,7 @@ const Resumo = z.strictObject({
 });
 const Texto = z.string().max(256);
 const Banco = z.strictObject({
+  metodo: z.literal("recreio-inventario-v2"),
   versao: z.number().int().min(180000).max(189999),
   banco: z.strictObject({
     encoding: Texto,

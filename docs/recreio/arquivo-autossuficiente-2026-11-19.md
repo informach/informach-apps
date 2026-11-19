@@ -222,3 +222,37 @@ conferido e adotado no [recibo público](evidencias/captura-provider-44470950325
 Nenhum dado de produção foi usado. O recibo explicita `freshCluster=false`,
 `authoritiesNormalizedForTraffic=false` e `durableCaptureFinalized=false`;
 a prova não encerra as lacunas registradas acima.
+
+## Inventário v2 em qualificação
+
+O inventário passa a declarar `metodo=recreio-inventario-v2`; comparação e
+container recusam a versão anterior. Todos os arquivos da etapa anterior eram
+provas sintéticas já removidas, sem backup de produção/consumidor implantado.
+O SQL nativo e a versão externa anterior continuam com seus próprios recibos;
+não se atribui a eles a cobertura v2 sem nova execução.
+
+A conferência adicional resume schemas/proprietários, views/materializadas,
+funções/procedimentos, triggers/estado, regras, tipos/enums/domínios,
+propriedades/vínculos de sequências, extensões e estatísticas declaradas.
+Relações incluem persistência, partição/herança, opções, nomes de constraints,
+collation de coluna e estado/identidade dos índices. ACLs de schema, função,
+tipo, sequência, coluna e privilégios padrão conservam grantor, destinatário,
+privilégio e grant option; NULL usa o default efetivo do objeto. Somente hashes
+e contagens desses registros saem das consultas, sem expor definições ou
+nomes dos papéis em recibos públicos.
+
+Recursos ainda sem perfil (FDW/servidor estrangeiro, agregados de usuário,
+event triggers, large objects, parameter ACL, collations/conversions de
+usuário e ranges/multiranges) geram `CATALOGO_NAO_SUPORTADO`; não são omitidos
+para produzir uma comparação verde. Isso não declara suporte universal ao
+PostgreSQL. O contador atual de sequência não pertence ao snapshot MVCC e não
+entra no resumo estrutural; o dump guarda seu SEQUENCE SET. Sua conferência de
+restauração e o inventário/recriação dos papéis globais continuam como passos
+explícitos antes do desastre de cluster inteiro e de qualquer ativação.
+
+Quinze cenários adicionais foram preparados em PostgreSQL real: alteração de
+função, view, trigger, sequência, enum, domínio, nome de constraint, privilégios
+padrão/schema/função/coluna/tipo/sequência, recurso fora do perfil e método
+incompatível. A candidata precisa passar integração, objetos/tipos, captura
+composta e o executor Docker de restauração, todos no GitHub. Nenhum cliente,
+dependência, imagem operacional ou serviço de produção foi atualizado.
