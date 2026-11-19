@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { VERSAO_DO_CANCELAMENTO_DA_RENOVACAO } from "./renovacao-constantes";
 
-export const VERSAO_DO_CANCELAMENTO_DA_RENOVACAO = "renovacao-2026-11-19-v1";
+export { VERSAO_DO_CANCELAMENTO_DA_RENOVACAO } from "./renovacao-constantes";
 const id = z.uuid().transform((value) => value.toLowerCase());
 
 /** Somente referências locais mostradas ao próprio pagante. Identidade, modo,

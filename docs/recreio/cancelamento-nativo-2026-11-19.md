@@ -58,6 +58,15 @@ contra `env.STRIPE_MODE`; as travas, origem/namespace, catálogo e limite de nov
 envios permanecem. A composição Live anterior não comprovava esses três fluxos.
 Nova qualificação está pendente; não houve ativação Live.
 
+f160b445 passou quality 44622226513 e conciliação 44622231617. A jornada
+44622219026 falhou nos quatro casos anteriores de compra por `script-src eval`:
+o componente novo importava a versão pelo módulo de schemas Zod. A versão foi
+separada em arquivo sem dependências de execução e o navegador passou a usar
+somente esse arquivo; os validadores continuam no servidor. Não relaxar CSP nem
+filtrar a violação. Repetição remota obrigatória, inclusive jornada de renovação
+que a falha anterior impediu de executar. Integração do worker f89b6ac5 passou
+44620911792; configuração/agenda de produção continuam intactas.
+
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
 todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já

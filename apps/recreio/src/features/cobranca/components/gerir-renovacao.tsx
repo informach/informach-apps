@@ -6,7 +6,7 @@ import {
   cancelarRenovacaoAction,
   consultarCancelamentoDaRenovacaoAction,
 } from "../renovacao-actions";
-import { VERSAO_DO_CANCELAMENTO_DA_RENOVACAO } from "../renovacao-contrato";
+import { VERSAO_DO_CANCELAMENTO_DA_RENOVACAO } from "../renovacao-constantes";
 import type { consultarMinhaCobranca } from "../service";
 
 type Estado = Awaited<ReturnType<typeof consultarMinhaCobranca>>;
