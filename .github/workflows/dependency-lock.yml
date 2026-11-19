@@ -1,0 +1,64 @@
+name: Dependencies - gerar lockfile revisavel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["verify/dependency-lock-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-lock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - name: Resolver somente o lockfile, sem executar scripts de pacotes
+        run: pnpm install --lockfile-only --ignore-scripts
+      - name: Preservar lockfile e proveniencia para revisao
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/dependency-lock
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { createHash } from 'node:crypto';
+          import { copyFile, lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
+          import { resolve } from 'node:path';
+          const changed = execFileSync('git', ['diff', '--name-only', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+          const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+          if (changed.length !== 1 || changed[0] !== 'pnpm-lock.yaml' || untracked.length)
+            throw new Error('Resolution must change only pnpm-lock.yaml');
+          const path = 'pnpm-lock.yaml';
+          if (!(await lstat(path)).isFile()) throw new Error('Lockfile must be a regular file');
+          const root = resolve(process.env.ARTIFACT_DIR);
+          await mkdir(root, { recursive: true });
+          await copyFile(path, resolve(root, path));
+          const bytes = await readFile(path);
+          const original = execFileSync('git', ['show', 'HEAD:pnpm-lock.yaml']);
+          const manifest = await readFile('apps/recreio/package.json');
+          const sha = value => createHash('sha256').update(value).digest('hex');
+          const receipt = { source: process.env.GITHUB_SHA, node: process.version,
+            pnpm: execFileSync('pnpm', ['--version'], { encoding: 'utf8' }).trim(),
+            originalLockSha256: sha(original), recreioManifestSha256: sha(manifest),
+            file: { path, bytes: bytes.length, sha256: sha(bytes) } };
+          await writeFile(resolve(root, 'proveniencia.json'), JSON.stringify(receipt, null, 2) + '\n');
+          console.log(JSON.stringify(receipt));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lock-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dependency-lock/
+          if-no-files-found: error
+          retention-days: 7

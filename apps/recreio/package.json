@@ -31,6 +31,7 @@
     "gerar-chave": "node scripts/gerar-chave.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1172.0",
     "@better-auth/redis-storage": "1.7.10",
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",

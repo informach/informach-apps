@@ -44,6 +44,16 @@ validado. A API de criptografia foi conferida na
 [documentação Node 24](https://nodejs.org/docs/latest-v24.x/api/crypto.html).
 As versões Node/dependências do repositório permanecem fixas.
 
+## Dependência candidata do adapter S3
+
+O adapter seguinte usará `@aws-sdk/client-s3` fixado em `3.1172.0`, primeiro SDK
+S3 neste app, sem atualizar as dependências existentes. Metadados do registro
+oficial npm consultados nesta execução: Node >=20, Apache-2.0, integridade
+`sha512-ByCRHFlL9yui61J5e4w9nrDZcRUbAzd+78z9Q1DQWoAT2HE1XwjtDGEx86GdNTu1+oSyerNhl8eijF6jMUvEpg==`.
+A [API oficial do SDK](https://github.com/aws/aws-sdk-js-v3) foi consultada via
+Context7. O lockfile será resolvido no GitHub, sem hooks, e adotado somente após
+conferir proveniência e diff: nenhum pacote é instalado nesta máquina.
+
 ## Integração e provas restantes
 
 1. Adapter S3 com credenciais apenas no servidor, timeout/corpo limitados,
