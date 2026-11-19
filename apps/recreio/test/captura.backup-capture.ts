@@ -199,6 +199,8 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
         antiga = c;
         const lista = await objetos(c);
         expect(lista).toHaveLength(1);
+        const primeira = lista[0];
+        if (!primeira) throw new Error("Objeto inventariado ausente");
         expect(lista[0]).toMatchObject({
           entregaId: f.entregaId,
           fotografiaId: f.fotoId,
@@ -206,7 +208,7 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
         });
         const r = await reservas(f.entregaId);
         expect(r).toHaveLength(1);
-        expect(r[0]?.referenceSha256).toBe(resumoDaReferencia(lista[0]));
+        expect(r[0]?.referenceSha256).toBe(resumoDaReferencia(primeira));
         return c.id;
       });
       expect((await reservas(f.entregaId))[0]?.captureId).toBe(id);
@@ -310,8 +312,10 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
       ).rejects.toBe(falha);
       const r = await reservas(f.entregaId);
       expect(r).toHaveLength(1);
+      const reserva = r[0];
+      if (!reserva) throw new Error("Reserva ausente");
       expect(
-        (await db.select().from(captures).where(eq(captures.id, r[0].captureId)))[0],
+        (await db.select().from(captures).where(eq(captures.id, reserva.captureId)))[0],
       ).toMatchObject({ state: "review", reviewReason: "source_lost", verifiedAt: null });
     }));
   it("ausência de recibo não exclui fotografia silenciosamente do inventário", async () =>
@@ -342,8 +346,10 @@ describe("captura consistente: PostgreSQL próprio, sem S3/dados reais", () => {
         ).rejects.toBeInstanceOf(AuditPersistenceError);
         const r = await reservas(f.entregaId);
         expect(r).toHaveLength(1);
+        const reserva = r[0];
+        if (!reserva) throw new Error("Reserva ausente");
         expect(
-          (await db.select().from(captures).where(eq(captures.id, r[0].captureId)))[0],
+          (await db.select().from(captures).where(eq(captures.id, reserva.captureId)))[0],
         ).toMatchObject({ state: "review", capturedAt: null, objectCount: null });
       } finally {
         await db.execute(

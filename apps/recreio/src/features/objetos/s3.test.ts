@@ -31,6 +31,19 @@ describe("objetos privados pelo SDK S3 real em HTTP fechado", () => {
       await f.fechar();
     }
   });
+  it("cópia para captura conserva envelope autenticado sem devolver bytes abertos", async () => {
+    const f = await fixture();
+    try {
+      f.objetos.set(f.path, f.preparado.bytes);
+      const copia = await f.storage.recuperarEnvelope(f.preparado.referencia);
+      expect(copia).toEqual(f.preparado.bytes);
+      expect(copia).not.toBe(f.preparado.bytes);
+      expect(copia.includes(f.conteudo)).toBe(false);
+      expect(f.pedidos.map((p) => p.metodo)).toEqual(["GET"]);
+    } finally {
+      await f.fechar();
+    }
+  });
   it.each(["corromper", "parcial", "semTamanho"] as const)(
     "recusa leitura %s, inclusive depois de PUT confirmado",
     async (caso) => {
@@ -41,6 +54,9 @@ describe("objetos privados pelo SDK S3 real em HTTP fechado", () => {
           codigo: "INTEGRIDADE",
         });
         await expect(f.storage.recuperar(f.preparado.referencia)).rejects.toMatchObject({
+          codigo: "INTEGRIDADE",
+        });
+        await expect(f.storage.recuperarEnvelope(f.preparado.referencia)).rejects.toMatchObject({
           codigo: "INTEGRIDADE",
         });
         expect(f.objetos.size).toBe(1);

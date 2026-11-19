@@ -64,7 +64,11 @@ export function criarArmazenamentoPrivadoS3(config: {
       controle.abort();
     }
   }
-  async function lerEm(signal: AbortSignal, r: ReferenciaDoObjeto): Promise<Buffer> {
+  async function lerEm(
+    signal: AbortSignal,
+    r: ReferenciaDoObjeto,
+    formato: "aberto" | "envelope" = "aberto",
+  ): Promise<Buffer> {
     let resposta: GetObjectCommandOutput;
     try {
       resposta = await cliente.send(
@@ -90,7 +94,8 @@ export function criarArmazenamentoPrivadoS3(config: {
         resposta.$metadata.httpStatusCode !== 200 ||
         resposta.ContentLength !== r.bytesCifrados ||
         resposta.ContentType !== "application/octet-stream" ||
-        resposta.ContentEncoding
+        resposta.ContentEncoding ||
+        resposta.ContentRange
       )
         throw new FalhaDoArmazenamentoPrivado("INTEGRIDADE");
       const partes: Buffer[] = [];
@@ -104,7 +109,13 @@ export function criarArmazenamentoPrivadoS3(config: {
       }
       if (signal.aborted) throw new FalhaDoArmazenamentoPrivado("INCONCLUSIVO");
       if (tamanho !== r.bytesCifrados) throw new FalhaDoArmazenamentoPrivado("INTEGRIDADE");
-      return cifrador.abrir(r, Buffer.concat(partes, tamanho));
+      const envelope = Buffer.concat(partes, tamanho);
+      const aberto = cifrador.abrir(r, envelope);
+      if (formato === "envelope") {
+        aberto.fill(0);
+        return envelope;
+      }
+      return aberto;
     } catch (erro) {
       if (erro instanceof FalhaDoArmazenamentoPrivado || erro instanceof FalhaDoObjetoPrivado)
         throw erro;
@@ -117,6 +128,12 @@ export function criarArmazenamentoPrivadoS3(config: {
   async function recuperar(bruto: unknown): Promise<Buffer> {
     const r = referencia(bruto);
     return comPrazo((signal) => lerEm(signal, r));
+  }
+  /** Cópia cifrada para arquivo de captura: autentica integralmente a fotografia
+   * e descarta o conteúdo aberto. Uma fotografia por vez; não é porta de dump. */
+  async function recuperarEnvelope(bruto: unknown): Promise<Buffer> {
+    const r = referencia(bruto);
+    return comPrazo((signal) => lerEm(signal, r, "envelope"));
   }
   async function enviar(preparado: {
     referencia: ReferenciaDoObjeto;
@@ -151,5 +168,5 @@ export function criarArmazenamentoPrivadoS3(config: {
       return r;
     });
   }
-  return Object.freeze({ bucketName: bucket, enviar, recuperar });
+  return Object.freeze({ bucketName: bucket, enviar, recuperar, recuperarEnvelope });
 }

@@ -270,3 +270,15 @@ retenção antes/depois da reserva, alteração enquanto espera trava, coleta qu
 espera a barreira, falha de auditoria e término real do backend de coordenação.
 Esses novos gates ainda estão pendentes. Nenhuma migração, coleta ou captura foi
 ativada em produção.
+
+O gate quality `44455210426` encontrou três acessos de teste a uma primeira
+linha possivelmente ausente. A correção exige presença explicitamente, sem
+casts ou asserções não nulas; tipos do writer passaram nessa rodada.
+O transporte de fotografias acrescenta `recuperarEnvelope` para a próxima
+etapa: copia o ciphertext original após conferir hash/contexto/tag/conteúdo,
+zerando a cópia aberta temporária. A captura poderá conservar a referência
+original e a versão de chave, sem transformar silenciosamente a fotografia
+em outro objeto. A operação mantém o limite de uma fotografia em memória e
+não serve arquivos de dump. Testes com SDK/HTTP reais conferem envelope igual,
+uma única leitura e recusa de corrupção/parcial/comprimento ausente; pendentes
+no GitHub da nova fonte.
