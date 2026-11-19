@@ -166,6 +166,7 @@ async function main() {
         const nome = i.Key.slice(prefixo.length);
         exigir(
           nome === "cabecalho.json" ||
+            /^planos\/[a-f0-9]{64}\.json$/.test(nome) ||
             /^intencoes\/[a-f0-9-]{36}-[1-9][0-9]{0,15}\.json$/.test(nome) ||
             /^historico\/[0-9]{16}-[a-f0-9]{64}\.json$/.test(nome),
           "CHAVE_FORA_DO_ESCOPO",

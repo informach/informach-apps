@@ -103,6 +103,18 @@ async function preparar(
   });
   sim.aplicar({ t: "sessao_entrou", sessaoId: sidA.sid, perfilId: a.perfil.id });
   sim.aplicar({ t: "sessao_entrou", sessaoId: sidB.sid, perfilId: b.perfil.id });
+  const acesso = sim.estado.acessos.find((a) => a.perfilId === b.perfil.id);
+  if (!acesso) throw new Error("Game access absent");
+  // Fato produzido pelo motor, para conferir diário ainda não fotografado.
+  // Sessão entrou e passagem curta do relógio podem não produzir fatos.
+  expect(
+    sim.aplicar({
+      t: "conceder_acesso",
+      perfilId: b.perfil.id,
+      familiaId: acesso.familiaId,
+      permissoes: acesso.permissoes,
+    }).ok,
+  ).toBe(true);
   const fatos = sim.avancar(1000).fatos;
   expect(fatos.length).toBeGreaterThan(0);
   await host.cliente.anexarAoDiario({

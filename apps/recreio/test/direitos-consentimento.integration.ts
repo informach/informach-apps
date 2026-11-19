@@ -170,20 +170,33 @@ describe("consentimento nativo e outbox de retirada", () => {
       const [m] = await db.select().from(spaces).where(eq(spaces.id, mundo.id));
       expect(m?.rightsOperationId).toBeNull();
     }));
-  it("recusa mundo ativo e diário sem foto confirmada, preservando estado e progresso", async () =>
-    cenario(async (f) => {
-      const mundo = await f.mundo({ status: "active" });
-      const p = await f.previa();
-      await expect(f.confirmar(p)).rejects.toMatchObject({ code: "MUNDO_EM_USO" });
-      await db
-        .update(spaces)
-        .set({ status: "hibernating", journalSeq: 1 })
-        .where(eq(spaces.id, mundo.id));
-      await expect(f.confirmar(p)).rejects.toMatchObject({ code: "SALVAMENTO" });
-      const [m] = await db.select().from(spaces).where(eq(spaces.id, mundo.id));
-      expect(m?.journalSeq).toBe(1);
-      expect(m?.rightsOperationId).toBeNull();
-    }));
+  it("admite drenagem sem alterar o diário ou fingir foto confirmada", async () => {
+    for (const ativo of [true, false])
+      await cenario(async (f) => {
+        const mundo = await f.mundo({
+          status: ativo ? "active" : "hibernating",
+          diario: ativo ? 0 : 1,
+        });
+        const op = await f.confirmar(await f.previa());
+        const [m] = await db.select().from(spaces).where(eq(spaces.id, mundo.id));
+        expect(m).toMatchObject({
+          status: "archived",
+          rightsDraining: true,
+          rightsOperationId: op.operacaoId,
+          journalSeq: mundo.journalSeq,
+          revision: mundo.revision,
+          leaseEpoch: mundo.leaseEpoch,
+          name: mundo.name,
+        });
+        expect(
+          (await db.select().from(worlds).where(eq(worlds.operationId, op.operacaoId)))[0],
+        ).toMatchObject({
+          phase: "draining",
+          snapshotCursor: 0,
+          sourceJournalSeq: mundo.journalSeq,
+        });
+      });
+  });
   it("responsável por mundo de outro participante precisa transferir a gestão antes", async () =>
     cenario(async (f) => {
       const mundo = await f.mundo(),

@@ -431,3 +431,17 @@ com plano privado vinculado à intenção da nova época, releitura no replay e
 recusa anônima. Os treze devem ser removidos e a ausência relida. Ainda não
 é reaplicação nativa num banco restaurado: o consumidor, quarentena e
 normalização da autoridade atual continuam obrigatórios antes de tráfego.
+
+
+A qualidade de 68442b57 passou em 44575466040. A integração identificou o
+teste antigo ainda esperando recusa de mundo ativo e a fixture nova sem fato
+no diário (sessão/tempo curto não garantem fato). Os testes passam a exigir a
+nova barreira e a gerar um fato pelo comando real do motor, conservando o gate
+contra perda do diário. Nenhum resultado integral verde foi declarado.
+
+A primeira prova ampliada de bucket, 44576833907, foi recusada pelo guardião
+local de caminhos do próprio ensaio, que ainda não admitia planos/<SHA>.json.
+Todos os nove objetos sintéticos tentados foram limpos e a ausência confirmada;
+nenhum dado/credencial de produção. O guardião agora admite exatamente esse
+novo caminho dentro do mesmo livro sintético; não amplia bucket, prefixo,
+LIST/DELETE ou permissões. A prova real precisa ser repetida.
