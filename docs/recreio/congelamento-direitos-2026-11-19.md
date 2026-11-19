@@ -501,3 +501,20 @@ as verificações nativas de sequência/ID/tick. Formato do jogo e protocolo nã
 mudam. Essa correção de integração não implanta D3–D8 e ainda exige gates dos
 consumidores antes de publicação. A recuperação automática acima ainda não
 está implementada; a revisão de dependência continua protegendo o diário.
+
+
+O complemento candidato reaproveita lerMaterial/montarMaterial da recuperação
+nativa, exigindo marcador de direitos e operação conferida sob lock. O CLI
+ordinário mantém a recusa de mundo archived. Para o checkpoint mais recente,
+o limite é o sufixo atual do catálogo; não herda a margem de cinco fotografias
+históricas. A preparação é otimista: fora do SQL são materializados os bytes,
+validados os fatos e refeita a foto, preservando V1/V2/V3. A confirmação sob
+barreira de captura/operação/mundo relê a impressão completa antes de criar a
+nova revisão com auditoria estrita. Duas preparações só permitem uma confirmação.
+
+O executor recupera antes de concluir a drenagem. Foto e fatos originais ficam
+preservados; a compactação continua somente após tratar todas as fotografias.
+Fato inválido é revisão, erro inesperado continua falha, alteração concorrente
+recusa publicação. Buffers próprios de foto aberta/comprimida são apagados,
+sem modificar o argumento do chamador. Não há promessa de recuperar andamento
+volátil que nunca entrou no diário. Falta a qualificação remota deste complemento.

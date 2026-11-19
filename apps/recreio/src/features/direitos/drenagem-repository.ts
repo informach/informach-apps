@@ -63,11 +63,9 @@ export function concluirProximaDrenagem(config: CoordenacaoDeEfeitos) {
       .from(snapshots)
       .where(and(eq(snapshots.spaceId, mundo.id), eq(snapshots.revision, mundo.revision)))
       .limit(1);
-    assertAllowed(
-      mundo.revision === 0 ? mundo.journalSeq === 0 && !foto : foto?.diario === mundo.journalSeq,
-      "DIREITOS_DEPENDENCIA",
-      "O diário pendente exige recuperação antes da retirada.",
-    );
+    const coberto =
+      mundo.revision === 0 ? mundo.journalSeq === 0 && !foto : foto?.diario === mundo.journalSeq;
+    if (!coberto) return { situacao: "recuperacao_pendente" as const, operacaoId: op.id };
     const cerca = sql`${spaces.leaseEpoch}+1`,
       gestao = sql`${spaces.managementRevision}+1`;
     await tx

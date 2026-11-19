@@ -21,7 +21,8 @@ import {
   VERSAO_DO_MUNDO,
 } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
-import { type DefinicaoDeBairro, lerFatoDoDiario } from "@informach/morada-sim/formatos";
+import { lerFatoDoDiario } from "@informach/morada-sim/diario";
+import type { DefinicaoDeBairro } from "@informach/morada-sim/formatos";
 import {
   FECHAMENTO,
   type MensagemDoServidor,

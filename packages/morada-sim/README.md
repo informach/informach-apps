@@ -174,7 +174,7 @@ ao formato antigo recusa a preparação. Composição, provas e limites no
 [registro F7](../../docs/recreio/adapter-privacidade-morada-2026-11-19.md).
 
 
-O subpath `/formatos` oferece `lerFatoDoDiario` para JSON canônico do diário.
+O subpath `/diario` oferece `lerFatoDoDiario` para JSON canônico do diário.
 Todas as variantes e entidades são validadas com schema estrito antes do
 redutor; conteúdo desconhecido/ambíguo é recusado com erro constante, sem
 converter JSON por cast. O host continua conferindo sequência e metadados

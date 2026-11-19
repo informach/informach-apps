@@ -2,12 +2,19 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
-import { prepararFotografiaEResumoPessoaisDoMorada } from "@informach/morada-sim/direitos";
+import type { Fato } from "@informach/morada-sim";
+import { lerFatoDoDiario } from "@informach/morada-sim/diario";
+import {
+  prepararFotografiaEResumoPessoaisDoMorada,
+  prepararRecuperacaoNaFotografiaDoMorada,
+} from "@informach/morada-sim/direitos";
 import {
   conferirMetadadosDaFotografia,
   FOTOGRAFIA_ABERTA_MAX_BYTES,
 } from "@informach/morada-sim/formatos";
 import { MundoIdSchema, PerfilIdSchema } from "@informach/recreio";
+import type { ResumoDoMundo } from "@informach/recreio/contrato";
+import { DIARIO_RECUPERACAO_MAX_ENTRADAS } from "@informach/recreio/contrato";
 import { z } from "zod";
 
 const Meta = z.strictObject({
@@ -45,57 +52,117 @@ export function prepararFotoPessoalDoMorada(
   perfilBruto: unknown,
   politica: { retirarTextosDaFundacao: boolean },
 ) {
+  const perfilId = PerfilIdSchema.parse(perfilBruto);
+  return prepararFotografia(bytes, metadados, (foto) =>
+    prepararFotografiaEResumoPessoaisDoMorada(foto, perfilId, politica),
+  );
+}
+
+export function prepararRecuperacaoDoMorada(
+  bytes: Uint8Array,
+  metadados: unknown,
+  diario: {
+    diarioFonte: number;
+    diarioFinal: number;
+    entradas: readonly { seq: number; tick: number; fatoId: string; bytes: Uint8Array }[];
+  },
+) {
+  const contador = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+  const inicio = contador.parse(diario.diarioFonte),
+    fim = contador.parse(diario.diarioFinal);
+  const limite = jogoPorId("morada")?.limites.diarioPendenteMaxBytes;
+  if (!limite || !Number.isSafeInteger(limite))
+    throw new FalhaDaPreparacaoDeFotoPessoal("CONFIGURACAO");
+  if (
+    diario.entradas.length > DIARIO_RECUPERACAO_MAX_ENTRADAS ||
+    diario.entradas.reduce((n, e) => n + e.bytes.byteLength, 0) > limite
+  )
+    throw new FalhaDaPreparacaoDeFotoPessoal("LIMITE");
+  return prepararFotografia(bytes, metadados, (foto, meta) => {
+    let seq = inicio,
+      tick = meta.tick;
+    const fatos: Fato[] = [];
+    for (const entrada of diario.entradas) {
+      if (entrada.seq !== ++seq || entrada.seq > fim || entrada.tick < tick)
+        throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+      const fato = lerFatoDoDiario(new TextDecoder("utf-8", { fatal: true }).decode(entrada.bytes));
+      if (fato.id !== entrada.fatoId || fato.tick !== entrada.tick)
+        throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+      tick = fato.tick;
+      fatos.push(fato);
+    }
+    if (seq !== fim) throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+    return prepararRecuperacaoNaFotografiaDoMorada(foto, fatos);
+  });
+}
+
+function prepararFotografia(
+  bytes: Uint8Array,
+  metadados: unknown,
+  transformar: (
+    foto: unknown,
+    meta: z.infer<typeof Meta>,
+  ) => { fotografia: { tick: number }; resumo: ResumoDoMundo },
+) {
   const meta = Meta.parse(metadados),
-    perfilId = PerfilIdSchema.parse(perfilBruto),
     limite = limiteDeBytes();
   if (!(bytes instanceof Uint8Array) || bytes.byteLength > limite || meta.bytes > limite)
     throw new FalhaDaPreparacaoDeFotoPessoal("LIMITE");
   const copia = Buffer.from(bytes);
-  if (copia.byteLength !== meta.bytes || sha(copia) !== meta.sha256)
-    throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
-  let aberto: Buffer;
+  let aberto: Buffer | undefined, resultado: Buffer | undefined;
   try {
-    aberto = gunzipSync(copia, { maxOutputLength: FOTOGRAFIA_ABERTA_MAX_BYTES });
+    if (copia.byteLength !== meta.bytes || sha(copia) !== meta.sha256)
+      throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+    try {
+      aberto = gunzipSync(copia, { maxOutputLength: FOTOGRAFIA_ABERTA_MAX_BYTES });
+    } catch (erro) {
+      falhaDeCompactacao(erro);
+    }
+    let foto: unknown;
+    try {
+      const texto = new TextDecoder("utf-8", { fatal: true }).decode(aberto);
+      foto = JSON.parse(texto);
+      if (JSON.stringify(foto) !== texto) throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+    } catch {
+      throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+    }
+    if (
+      !conferirMetadadosDaFotografia(foto, {
+        mundoId: meta.mundoId,
+        tick: meta.tick,
+        versaoDoMundo: meta.schemaVersion,
+      })
+    )
+      throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+    const { fotografia, resumo } = transformar(foto, meta);
+    if (
+      !conferirMetadadosDaFotografia(fotografia, {
+        mundoId: meta.mundoId,
+        tick: fotografia.tick,
+        versaoDoMundo: meta.schemaVersion,
+      })
+    )
+      throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
+    const texto = JSON.stringify(fotografia);
+    if (Buffer.byteLength(texto) > FOTOGRAFIA_ABERTA_MAX_BYTES)
+      throw new FalhaDaPreparacaoDeFotoPessoal("LIMITE");
+    try {
+      resultado = gzipSync(texto, { maxOutputLength: limite });
+    } catch (erro) {
+      falhaDeCompactacao(erro);
+    }
+    return {
+      bytes: resultado,
+      sha256: sha(resultado),
+      schemaVersion: meta.schemaVersion,
+      tick: fotografia.tick,
+      resumo,
+    };
   } catch (erro) {
-    falhaDeCompactacao(erro);
+    resultado?.fill(0);
+    throw erro;
+  } finally {
+    copia.fill(0);
+    aberto?.fill(0);
   }
-  let foto: unknown;
-  try {
-    const texto = new TextDecoder("utf-8", { fatal: true }).decode(aberto);
-    foto = JSON.parse(texto);
-    // O writer nativo usa JSON.stringify. Duplicação de chave/normalização
-    // oculta não pode desaparecer silenciosamente numa retirada pessoal.
-    if (JSON.stringify(foto) !== texto) throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
-  } catch {
-    throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
-  }
-  if (
-    !conferirMetadadosDaFotografia(foto, {
-      mundoId: meta.mundoId,
-      tick: meta.tick,
-      versaoDoMundo: meta.schemaVersion,
-    })
-  )
-    throw new FalhaDaPreparacaoDeFotoPessoal("INTEGRIDADE");
-  const { fotografia: retirada, resumo } = prepararFotografiaEResumoPessoaisDoMorada(
-    foto,
-    perfilId,
-    politica,
-  );
-  const texto = JSON.stringify(retirada);
-  if (Buffer.byteLength(texto) > FOTOGRAFIA_ABERTA_MAX_BYTES)
-    throw new FalhaDaPreparacaoDeFotoPessoal("LIMITE");
-  let resultado: Buffer;
-  try {
-    resultado = gzipSync(texto, { maxOutputLength: limite });
-  } catch (erro) {
-    falhaDeCompactacao(erro);
-  }
-  return {
-    bytes: resultado,
-    sha256: sha(resultado),
-    schemaVersion: meta.schemaVersion,
-    tick: meta.tick,
-    resumo,
-  };
 }

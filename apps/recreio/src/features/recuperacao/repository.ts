@@ -68,7 +68,7 @@ type Material = {
   };
   entradas: { seq: number; tick: number; fatoId: string; bytes: Uint8Array }[];
 };
-type MaterialPreparado = {
+export type MaterialPreparado = {
   mundo: Material["mundo"];
   fonte: ReferenciaDeFotografia;
   entradas: Material["entradas"];
@@ -112,17 +112,23 @@ function impressao(material: Material): string {
   return hash.digest("hex");
 }
 
-/** Mundo primeiro; nenhuma posse aberta, inclusive uma vencida ainda não recolhida. */
-async function lerMaterial(
+/** Mundo primeiro; nenhuma posse aberta, inclusive uma vencida ainda não
+ * recolhida. O contexto de direitos é composição interna: o coordenador já
+ * conferiu intenção/livro e mantém a operação sob lock. Não é autorização por
+ * conhecer um UUID, nem parâmetro aceito pelo CLI ou por uma rota pública. */
+export async function lerMaterial(
   tx: Transacao,
   pedido: PedidoDeRecuperacao,
   trava: "share" | "update",
+  operacaoDeDireitos?: string,
 ): Promise<MaterialPreparado> {
   const [mundo] = await tx
     .select({
       id: spaces.id,
       gameId: spaces.gameId,
       status: spaces.status,
+      rightsOperationId: spaces.rightsOperationId,
+      rightsDraining: spaces.rightsDraining,
       revision: spaces.revision,
       journalSeq: spaces.journalSeq,
       leaseEpoch: spaces.leaseEpoch,
@@ -138,7 +144,12 @@ async function lerMaterial(
     .from(leases)
     .where(and(eq(leases.spaceId, mundo.id), isNull(leases.releasedAt)))
     .limit(1);
-  if (mundo.status !== "hibernating" || posse) throw new RecusaDeRecuperacao("MUNDO_NAO_PARADO");
+  const parado = operacaoDeDireitos
+    ? mundo.status === "archived" &&
+      mundo.rightsDraining &&
+      mundo.rightsOperationId === operacaoDeDireitos
+    : mundo.status === "hibernating" && !mundo.rightsDraining && mundo.rightsOperationId === null;
+  if (!parado || posse) throw new RecusaDeRecuperacao("MUNDO_NAO_PARADO");
   let fonte: ReferenciaDeFotografia | null;
   try {
     fonte = await armazenamentoPg.prepararLeituraDaFotografia(
@@ -173,7 +184,8 @@ async function lerMaterial(
     .limit(DIARIO_RECUPERACAO_MAX_ENTRADAS + 1);
   if (
     metas.length > DIARIO_RECUPERACAO_MAX_ENTRADAS ||
-    metas.reduce((n, e) => n + e.bytes, 0) > pedido.diarioPendenteMaxBytes * FOTOGRAFIAS_GUARDADAS
+    metas.reduce((n, e) => n + e.bytes, 0) >
+      pedido.diarioPendenteMaxBytes * (operacaoDeDireitos ? 1 : FOTOGRAFIAS_GUARDADAS)
   )
     throw new RecusaDeRecuperacao("LIMITE");
   let seq = foto.journalSeq;
@@ -203,7 +215,10 @@ async function lerMaterial(
   };
 }
 
-function montarMaterial(preparado: MaterialPreparado, bytes: Uint8Array): MaterialDeRecuperacao {
+export function montarMaterial(
+  preparado: MaterialPreparado,
+  bytes: Uint8Array,
+): MaterialDeRecuperacao {
   const foto = preparado.fonte.meta;
   if (bytes.length !== foto.bytes || resumo(bytes) !== foto.sha256)
     throw new RecusaDeRecuperacao("INTEGRIDADE");

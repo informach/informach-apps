@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { AuditPersistenceError } from "@informach/auth";
-import { db, eq, sql } from "@informach/db";
+import { and, db, eq, sql } from "@informach/db";
 import {
   recreioGameSessions as games,
   recreioSpaceJournal as journal,
@@ -24,6 +24,7 @@ import { consentirRetiradaNoBanco } from "@/features/direitos/retirada-consentim
 import { prepararPedidoDeDireitos } from "@/features/direitos/service";
 import { aceitarConvite, criarConvite } from "@/features/mundos/service";
 import { processarProximaFotografiaDeDireitos } from "../scripts/direitos/fotografias";
+import { recuperarProximoDiarioDeDireitos } from "../scripts/direitos/recuperacao";
 import { aposentarInstancias, codigoDoBanco, novoJogador } from "./apoio";
 import {
   abrirPelaRota,
@@ -112,7 +113,7 @@ async function preparar(
       t: "conceder_acesso",
       perfilId: b.perfil.id,
       familiaId: acesso.familiaId,
-      permissoes: acesso.permissoes,
+      permissoes: acesso.permissoes.filter((p) => p !== "gastar"),
     }).ok,
   ).toBe(true);
   const fatos = sim.avancar(1000).fatos;
@@ -264,25 +265,46 @@ describe("drenagem de direitos pelo contrato existente do host", () => {
       expect(texto).not.toContain(f.a.perfil.id);
       expect(texto).toContain(f.b.perfil.id);
     }));
-  it("host que saiu com erro não transforma diário pendente em salvamento", async () =>
+  it("recupera o diário confirmado após falha do host antes de concluir a drenagem", async () =>
     cenario(async (f) => {
       await f.host.cliente.liberarPosse({ mundoId: f.mundo.id, cerca: f.cerca, motivo: "erro" });
       const fotosAntes = await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id));
-      const diarioAntes = await db.select().from(journal).where(eq(journal.spaceId, f.mundo.id));
-      expect(await f.drenar()).toMatchObject({ situacao: "revisao" });
+      const diarioAntes = await db
+        .select()
+        .from(journal)
+        .where(eq(journal.spaceId, f.mundo.id))
+        .orderBy(journal.seq);
+      expect(await f.drenar()).toMatchObject({ situacao: "recuperacao_pendente" });
       expect(
-        (await db.select().from(operations).where(eq(operations.id, f.op.operacaoId)))[0],
-      ).toMatchObject({ state: "review", reviewCode: "dependency" });
-      expect(await db.select().from(journal).where(eq(journal.spaceId, f.mundo.id))).toEqual(
-        diarioAntes,
+        await recuperarProximoDiarioDeDireitos({
+          assinatura: f.livro.assinatura,
+          storage: f.storage,
+          leitor: null,
+        }),
+      ).toMatchObject({ situacao: "diario_recuperado" });
+      const fotosDepois = await db
+        .select()
+        .from(snapshots)
+        .where(eq(snapshots.spaceId, f.mundo.id))
+        .orderBy(snapshots.revision);
+      expect(fotosDepois).toHaveLength(fotosAntes.length + 1);
+      expect(fotosDepois[0]).toEqual(fotosAntes[0]);
+      const ultima = fotosDepois.at(-1);
+      if (!ultima?.data) throw new Error("Recovered photo absent");
+      const foto = abrirFotografia(JSON.parse(gunzipSync(ultima.data).toString("utf-8")));
+      expect(foto.estado.acessos.find((a) => a.perfilId === f.b.perfil.id)).toEqual(
+        f.final.estado.acessos.find((a) => a.perfilId === f.b.perfil.id),
       );
-      expect(await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id))).toEqual(
-        fotosAntes,
+      expect(foto.tick).toBe(
+        diarioAntes.reduce((n, e) => Math.max(n, e.tick), fotosAntes[0]?.tick ?? 0),
       );
-      expect((await db.select().from(spaces).where(eq(spaces.id, f.mundo.id)))[0]).toMatchObject({
-        rightsDraining: true,
-        status: "archived",
-      });
+      expect(
+        await db.select().from(journal).where(eq(journal.spaceId, f.mundo.id)).orderBy(journal.seq),
+      ).toEqual(diarioAntes);
+      expect(await f.drenar()).toMatchObject({ situacao: "mundo_drenado" });
+      expect(
+        (await db.select().from(worlds).where(eq(worlds.operationId, f.op.operacaoId)))[0],
+      ).toMatchObject({ phase: "frozen", sourceRevision: 2, sourceJournalSeq: f.diarioSeq });
     }));
   it("auditoria recusada reverte a cerca e o recibo da drenagem", async () =>
     cenario(async (f) => {
@@ -306,5 +328,96 @@ describe("drenagem de direitos pelo contrato existente do host", () => {
       expect(
         (await db.select().from(worlds).where(eq(worlds.operationId, f.op.operacaoId)))[0]?.phase,
       ).toBe("draining");
+    }));
+  it("fato inválido vai para revisão sem criar foto ou descartar o diário", async () =>
+    cenario(async (f) => {
+      await f.host.cliente.liberarPosse({ mundoId: f.mundo.id, cerca: f.cerca, motivo: "erro" });
+      const [entrada] = await db
+        .select()
+        .from(journal)
+        .where(eq(journal.spaceId, f.mundo.id))
+        .orderBy(journal.seq)
+        .limit(1);
+      if (!entrada) throw new Error("Journal absent");
+      const invalido = Buffer.from(
+        JSON.stringify({
+          id: entrada.factId,
+          tick: entrada.tick,
+          familiaId: null,
+          causa: { comandoId: null, autor: "sim", motivo: "fixture" },
+          dados: { tipo: "desconhecido" },
+        }),
+      );
+      await db
+        .update(journal)
+        .set({ payload: invalido, byteSize: invalido.byteLength })
+        .where(and(eq(journal.spaceId, f.mundo.id), eq(journal.seq, entrada.seq)));
+      const fotosAntes = await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id));
+      expect(
+        await recuperarProximoDiarioDeDireitos({
+          assinatura: f.livro.assinatura,
+          storage: f.storage,
+          leitor: null,
+        }),
+      ).toMatchObject({ situacao: "revisao" });
+      expect(await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id))).toEqual(
+        fotosAntes,
+      );
+      expect(
+        (await db.select().from(journal).where(eq(journal.spaceId, f.mundo.id)))[0]?.payload,
+      ).toEqual(invalido);
+      expect(
+        (await db.select().from(operations).where(eq(operations.id, f.op.operacaoId)))[0],
+      ).toMatchObject({ state: "review", reviewCode: "integrity" });
+      expect((await db.select().from(spaces).where(eq(spaces.id, f.mundo.id)))[0]).toMatchObject({
+        rightsDraining: true,
+        revision: 1,
+      });
+    }));
+  it("falha de auditoria reverte a foto recuperada e permite repetir sem novo consentimento", async () =>
+    cenario(async (f) => {
+      await f.host.cliente.liberarPosse({ mundoId: f.mundo.id, cerca: f.cerca, motivo: "erro" });
+      await db.execute(
+        sql`create function audit.recusar_recuperacao_teste() returns trigger language plpgsql as $$ begin if new.event_type='recreio.rights_world_recovered' then raise exception 'auditoria indisponível'; end if; return new; end $$`,
+      );
+      await db.execute(
+        sql`create trigger recusar_recuperacao_teste before insert on audit.events for each row execute function audit.recusar_recuperacao_teste()`,
+      );
+      try {
+        await expect(
+          recuperarProximoDiarioDeDireitos({
+            assinatura: f.livro.assinatura,
+            storage: f.storage,
+            leitor: null,
+          }),
+        ).rejects.toBeInstanceOf(AuditPersistenceError);
+      } finally {
+        await db.execute(sql`drop trigger recusar_recuperacao_teste on audit.events`);
+        await db.execute(sql`drop function audit.recusar_recuperacao_teste()`);
+      }
+      expect((await db.select().from(spaces).where(eq(spaces.id, f.mundo.id)))[0]).toMatchObject({
+        revision: 1,
+        rightsDraining: true,
+      });
+      expect(
+        await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id)),
+      ).toHaveLength(1);
+      expect(
+        await recuperarProximoDiarioDeDireitos({
+          assinatura: f.livro.assinatura,
+          storage: f.storage,
+          leitor: null,
+        }),
+      ).toMatchObject({ situacao: "diario_recuperado" });
+      expect(
+        await recuperarProximoDiarioDeDireitos({
+          assinatura: f.livro.assinatura,
+          storage: f.storage,
+          leitor: null,
+        }),
+      ).toEqual({ situacao: "ociosa" });
+      expect(
+        await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id)),
+      ).toHaveLength(2);
     }));
 });

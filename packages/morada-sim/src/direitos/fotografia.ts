@@ -1,6 +1,8 @@
 import { z } from "zod";
+import type { Fato } from "../dominio/fatos";
 import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "../dominio/revisao-dos-objetos";
 import type { EstadoDoMundo } from "../dominio/tipos";
+import { restaurar } from "../execucao";
 import { abrirFotografia } from "../formatos/fotografia";
 import { resumoDoEstadoDoMorada } from "../formatos/resumo";
 import { canonico } from "../nucleo/canonico";
@@ -94,6 +96,16 @@ export function prepararFotografiaEResumoPessoaisDoMorada(
   perfilId: string,
   politica: { retirarTextosDaFundacao: boolean },
 ) {
+  const { origem, aberta, versao } = conferirOrigem(bruto);
+  const retirada = prepararRetiradaPessoalDoMorada(aberta.estado, perfilId, politica);
+  const foto = { ...origem, estado: formatoDaOrigem(retirada, versao) };
+  const reaberta = abrirFotografia(foto);
+  if (canonico(reaberta.estado) !== canonico(retirada))
+    throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
+  return { fotografia: foto, resumo: resumoDoEstadoDoMorada(retirada) };
+}
+
+function conferirOrigem(bruto: unknown) {
   const lido = Envelope.safeParse(bruto);
   if (!lido.success) throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
   const origem = lido.data;
@@ -113,10 +125,20 @@ export function prepararFotografiaEResumoPessoaisDoMorada(
     throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
   if (canonico(formatoDaOrigem(aberta.estado, versao)) !== canonico(origem.estado))
     throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
-  const retirada = prepararRetiradaPessoalDoMorada(aberta.estado, perfilId, politica);
-  const foto = { ...origem, estado: formatoDaOrigem(retirada, versao) };
+  return { origem, aberta, versao };
+}
+/** Recuperação de fatos já confirmados, sem avançar a simulação nem converter
+ * o formato persistido. Uma mudança incompatível exige revisão explícita. */
+export function prepararRecuperacaoNaFotografiaDoMorada(bruto: unknown, fatos: readonly Fato[]) {
+  const { origem, aberta, versao } = conferirOrigem(bruto);
+  const recuperada = restaurar(aberta, fatos).fotografar();
+  const foto = {
+    ...origem,
+    tick: recuperada.tick,
+    estado: formatoDaOrigem(recuperada.estado, versao),
+  };
   const reaberta = abrirFotografia(foto);
-  if (canonico(reaberta.estado) !== canonico(retirada))
+  if (canonico(reaberta.estado) !== canonico(recuperada.estado))
     throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
-  return { fotografia: foto, resumo: resumoDoEstadoDoMorada(retirada) };
+  return { fotografia: foto, resumo: resumoDoEstadoDoMorada(recuperada.estado) };
 }

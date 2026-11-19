@@ -357,3 +357,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.rights_withdrawal_completed`: `{ app, operationId, profileCount, retainedCount }`. Conclusão da retirada consentida, discriminando referências técnicas mínimas ainda retidas. Nenhuma retenção é apresentada como anonimização; o prazo privado permanece no recibo.
 
 - `recreio.rights_world_drained`: `{ app, operationId, worldCount }`. Confirma posse liberada, sessões encerradas e foto cobrindo o diário antes do congelamento de conteúdo. Sem IDs dos mundos/perfis, contadores privados ou bytes. Efeito e evento atômicos.
+
+- `recreio.rights_world_recovered`: `{ app, operationId, worldCount, journalEntryCount }`. Nova fotografia confirma o sufixo já durável de um mundo em drenagem, sem descartar fatos. Sem nomes, IDs de mundo/perfil, hashes, bytes ou conteúdo. Fotografia, contadores e evento são atômicos; não substitui a conclusão da retirada.

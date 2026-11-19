@@ -34,7 +34,7 @@ async function limites(tx: Transacao) {
  * monopoliza a fila. Erro inesperado continua sendo erro do job. */
 export async function comEfeitoNativoDeDireitos<T>(
   config: CoordenacaoDeEfeitos,
-  fase: "drenagem" | "diario" | "dados" | "cadastro",
+  fase: "recuperacao" | "drenagem" | "diario" | "dados" | "cadastro",
   executar: (tx: Transacao, operacao: typeof operations.$inferSelect) => Promise<T>,
 ) {
   const livroId = config.assinatura.livroId,
@@ -52,13 +52,18 @@ export async function comEfeitoNativoDeDireitos<T>(
   const baseDoCadastro = sql`exists(select 1 from ${subjects} where ${subjects.operationId}=${operations.id} and ${subjects.phase}='selected') and
     not exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and (${worlds.phase} in ('draining','frozen','snapshots') or exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId})))`;
   const elegivel =
-    fase === "drenagem"
-      ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='draining')`
-      : fase === "diario"
-        ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies' and exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId}))`
-        : fase === "dados"
-          ? sql`(${baseDoCadastro}) and (${possuiDados})`
-          : sql`(${baseDoCadastro}) and not (${possuiDados})`;
+    fase === "recuperacao"
+      ? sql`exists(select 1 from recreio.rights_worlds w join recreio.spaces s on s.id=w.space_id
+          where w.operation_id=${operations.id} and w.phase='draining' and (s.revision>0 or s.journal_seq>0)
+            and not exists(select 1 from recreio.space_leases l where l.space_id=s.id and l.released_at is null)
+            and not exists(select 1 from recreio.space_snapshots f where f.space_id=s.id and f.revision=s.revision and f.journal_seq=s.journal_seq))`
+      : fase === "drenagem"
+        ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='draining')`
+        : fase === "diario"
+          ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies' and exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId}))`
+          : fase === "dados"
+            ? sql`(${baseDoCadastro}) and (${possuiDados})`
+            : sql`(${baseDoCadastro}) and not (${possuiDados})`;
   const reservada = await db.transaction(async (tx) => {
     await limites(tx);
     const [op] = await tx

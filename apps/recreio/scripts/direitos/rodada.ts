@@ -10,6 +10,7 @@ import { publicarProximoConsentimento } from "../../src/features/direitos/public
 import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
 import type { LeitorDeFotografiasPrivadas } from "../../src/features/posse/armazenamento";
 import { processarProximaFotografiaDeDireitos } from "./fotografias";
+import { recuperarProximoDiarioDeDireitos } from "./recuperacao";
 
 type Config = {
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
@@ -34,6 +35,7 @@ export async function processarRodadaDeDireitos(config: Config) {
   });
   const etapas = [
     { nome: "publicacao", executar: () => publicarProximoConsentimento(config) },
+    { nome: "recuperacao", executar: () => recuperarProximoDiarioDeDireitos(config) },
     { nome: "drenagem", executar: async () => concluirProximaDrenagem(await efeito()) },
     { nome: "fotografias", executar: () => processarProximaFotografiaDeDireitos(config) },
     { nome: "dados", executar: async () => retirarProximosDadosPessoais(await efeito()) },
