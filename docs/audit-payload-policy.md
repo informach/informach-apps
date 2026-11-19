@@ -318,3 +318,8 @@ Eventos `admin.*` registram consultas e ações da equipe no Bastidores (`apps/a
 Banimento e papel usam os eventos do pacote de autenticação, também em nome de quem agiu: `user.banned` e `user.unbanned` com `{ targetId, reason }`, e `user.role_changed` com `{ targetId, previousRole, newRole, reason }` (o script do primeiro owner grava `source` no lugar de `reason`). Toda ação que muda algo leva motivo, inclusive desbanir e mudar papel. `reason` é texto curto (até 280 caracteres) escrito pela equipe para explicar a ação; a tela orienta a não colar mensagens da pessoa nem dados além do necessário.
 
 No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só mostram os dados com o evento gravado; banir, desbanir e mudar papel gravam o evento na mesma transação da mudança; encerrar sessões, reenviar confirmação e desconectar computador mostram erro e reportam `audit.change_unrecorded` quando a mudança aconteceu e o evento não gravou.
+
+- `recreio.backup_publication_prepared`: `{ app, captureId, storageScope }`, ator técnico nulo; referência imutável e destino persistidos antes de I/O. Sem bucket/hash/índice/chave.
+- `recreio.backup_publication_claimed`: `{ app, captureId }`, ator técnico nulo; nova tentativa após prazo; não declara I/O anterior encerrado. Token não entra na auditoria.
+- `recreio.backup_published`: `{ app, captureId, objectCount }`, ator técnico nulo; confirmação de arquivo/índice guardados e estados atômicos. Não libera reservas por si só.
+- `recreio.backup_holds_released`: `{ app, captureId, objectCount }`, ator técnico nulo; lote de até cem reservas após publicação confirmada; repetição sem alteração não gera evento. Todos os quatro eventos são estritos na transação do controle.

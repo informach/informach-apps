@@ -228,6 +228,10 @@ export type AuditEventType =
   | "recreio.backup_capture_prepared"
   | "recreio.backup_inventory_fixed"
   | "recreio.backup_capture_reviewed"
+  | "recreio.backup_publication_prepared"
+  | "recreio.backup_publication_claimed"
+  | "recreio.backup_published"
+  | "recreio.backup_holds_released"
   // Bastidores (apps/admin): consultas e ações da equipe sobre uma conta.
   | "admin.user_viewed"
   | "admin.sessions_revoked"
