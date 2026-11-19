@@ -181,8 +181,8 @@ export function PainelDeDireitos({
             )}
             {tipo === "retirar_perfil" && estado.perfis.length === 0 && (
               <p className="text-tinta-suave">
-                Você não tem perfil próprio ou sob sua responsabilidade. Sua conta pode encerrar a
-                participação sem criar um jogador.
+                Você não tem perfil próprio ou sob sua responsabilidade. Para conferir o
+                encerramento, escolha essa opção acima.
               </p>
             )}
             {tipo === "encerrar_conta" && (

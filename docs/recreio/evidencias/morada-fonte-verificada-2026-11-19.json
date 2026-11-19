@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-11-19 19:34:45 UTC",
+  "projectId": "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+  "serviceId": "b294fe7c-b96b-4ca5-bfa5-191a7d574f08",
+  "deploymentId": "3cd2cb8f-f160-4508-9f6e-c2d196235bb5",
+  "status": "SUCCESS",
+  "source": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+  "protocol": 1,
+  "scope": "Leitura do deploy corrente e conferencia do protocolo na fonte; nenhuma mudanca de servico ou prova nova de desempenho."
+}

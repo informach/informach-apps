@@ -1,0 +1,18 @@
+{
+  "source": "fe86dfb6325678fff3931e0a59c96dc7eae94b25",
+  "runId": 44596490165,
+  "jobId": 135816073724,
+  "artifactId": 14567280057,
+  "artifactZipBytes": 595659,
+  "artifactZipSha256": "49768b33515b2cd770fca514482750ddfa10e4dec99ae26f1f27a98eb437d0e8",
+  "browserTestsPassed": 4,
+  "screenshotSha256": "eadb4493922991d647d1eca70662028c738b068eb12bb80c2dbb75f054d19bda",
+  "productionApplied": false,
+  "scope": "Dados sinteticos e chave descartavel: copia de conta sem jogador e de perfil, download, revogacao, negativa para outro adulto e duas previas. Sem prova de encerramento/restauracao de direitos.",
+  "visualReview": {
+    "performed": true,
+    "horizontalOverflowObserved": false,
+    "controlsAndLabelsReadable": true,
+    "accountScopeAndExpiryVisible": true
+  }
+}

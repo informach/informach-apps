@@ -341,7 +341,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: informach/informach-apps
-          ref: 179a0a76a5350b1f96464a6fb2df83dbb5d91cad
+          ref: 644b3841cb81b24d04159f75892a4c21d4d5f094
           path: host-anterior
           persist-credentials: false
       - name: Instalar o host anterior sem compartilhar packages da candidata
@@ -352,7 +352,7 @@ jobs:
         if: matrix.gate == 'versoes'
         env:
           MORADA_HOST_ANTERIOR_DIR: ${{ github.workspace }}/host-anterior
-          MORADA_HOST_ANTERIOR_SHA: 179a0a76a5350b1f96464a6fb2df83dbb5d91cad
+          MORADA_HOST_ANTERIOR_SHA: 644b3841cb81b24d04159f75892a4c21d4d5f094
           MORADA_COMPATIBILIDADE_RELATORIO: ${{ runner.temp }}/morada-compatibilidade.json
         run: |
           cp apps/morada-server/test/compatibilidade-executor.ts host-anterior/apps/morada-server/test/

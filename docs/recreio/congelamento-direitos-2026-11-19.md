@@ -710,3 +710,19 @@ composição de teste passa a usar clientes distintos para migrations Drizzle e
 fixtures SQL, encerrando ambos. Não converter dados persistidos, sobrescrever
 serializers ou modificar o DDL. A causa foi conferida na documentação primária
 da versão em `drizzle-orm/changelogs/0.30.0.md`; nova prova remota obrigatória.
+
+
+926f625d passou 44598475811: upgrade 234→235 preservou dois artefatos,
+perfis/progresso/conquistas, recusou escopo parcial e repetiu sem mudança;
+100 casos em oito arquivos passaram. Quality de 9ffec971 passou em
+44597940078 mantendo o teste de fronteira intacto. A interface da conta/perfil
+passou quatro jornadas em 44596490165/fe86dfb6, com PNG de 390 px inspecionado,
+legível e sem estouro horizontal. ZIP fora do Git e SHA no recibo derivado.
+
+A leitura atual do Railway confirmou Morada 644b3841, ainda protocolo 1.
+O gate de versões estava usando 179a0a76 como “publicado”; passa a usar a fonte
+644b3841 efetivamente implantada. Preserva os mesmos testes de protocolo 1/2
+e a jornada de entrar/sair/reabrir, sem relaxar capacidades do host anterior.
+Não é novo deploy ou prova de carga. A rodada completa dessa fonte ainda deve
+ser repetida. O texto sem jogador também deixa claro que encerramento está
+em prévia, sem sugerir execução já disponível.

@@ -1,28 +1,30 @@
 # Estado do trabalho no repositório
 
-**19/11 — Recreio, continuação candidata de F7:** recuperação automática do
-sufixo durável após perda do host, escopo de mundos vinculado ao plano assinado,
-confirmação/estado da retirada e cópia pessoal consistente com artefato cifrado
-estão em qualificação. Fonte 7b41f7ac passou 98 casos/8 arquivos no gate focado
-44591852000, incluindo expiração, política alterada, revogação durante abertura
-e rollback de auditoria. Rodada completa/navegador 44591857114 em curso; o
-quality encontrou somente formatação do recibo derivado 0233, corrigida na
-candidata seguinte. A cópia do perfil ainda não é exportação integral da conta.
+**19/11 — Recreio, cópias pessoais e retirada em qualificação:** a candidata
+inclui recuperação do diário durável, escopo de mundos vinculado ao plano,
+confirmação/estado da retirada e cópias cifradas de perfil e conta/pagante sem
+jogador. 926f625d passou 100 casos/8 arquivos e upgrade 234→235 em 44598475811;
+fe86dfb6 passou quatro jornadas de navegador em 44596490165, capturas 390 px
+inspecionadas. O reader financeiro foi movido ao domínio billing após o teste
+de fronteira apontar leitura direta; quality 44597940078/9ffec971 aprovado.
+A falha de Date na fixture de upgrade foi corrigida separando os clientes SQL
+e Drizzle, sem alterar dados ou DDL. 235 recibos candidatos/0234.
 
-0233 foi gerada/adotada intacta em 44589919804: apenas `personal_exports`,
-234 recibos candidatos, tabelas anteriores idênticas. Produção continua na
-última conferência 204/0203, portal/Admin d014bd90 e Morada 644b3841. Nenhuma
-migration, fonte ou capacidade desta frente foi ativada em produção. Os modos
-de confirmação de retirada e exportação são off por padrão.
+Base 59b75ea4 concluiu os dezesseis gates 44592552895. O CI compartilhado
+44580457595/72a761ac também concluiu. As ampliações posteriores precisam de
+rodada completa atualizada. A leitura corrente do Railway confirmou Morada
+644b3841/protocolo 1; o gate passa a usar essa fonte efetivamente publicada.
+Portal/Admin permanecem na última conferência d014bd90 e schema 204/0203.
+Nenhuma migration, fonte ou capacidade desta frente foi ativada em produção;
+confirmação de retirada e cópia pessoal continuam off por padrão.
 
-Fonte 72a761ac concluiu os dezesseis gates 44580450953; o CI compartilhado
-44580457595 ainda precisa ser conferido. A prova externa 44577680233 preserva
-plano/livro e confirmou limpeza dos treze objetos sintéticos; não reaplica
-retiradas nativas num banco restaurado. Continuam abertos encerramento da
-conta, exportação integral da conta, artefatos após restauração, reaplicação
-nativa antes de tráfego, custódia/agenda/alertas/custo e homologação final.
-Todos os testes manuais ficam para o final por decisão do titular.
-[Contrato, falhas e evidências](recreio/congelamento-direitos-2026-11-19.md).
+A prova externa 44577680233 preserva plano/livro e confirmou limpeza dos treze
+objetos sintéticos; não reaplica retiradas nativas num banco restaurado. Revisão
+da cobertura de exportação integral, encerramento da conta, invalidação de
+artefatos restaurados, reaplicação nativa antes de tráfego, custódia/agenda/
+alertas/custo e homologação final continuam abertos. Todos os testes manuais
+ficam para o final por decisão do titular. [Contrato, falhas e evidências](recreio/congelamento-direitos-2026-11-19.md)
+e [execução restante](recreio/encerramento-conta-2026-11-19.md).
 
 **19/11 — F7, continuação candidata:** consentimento individual nativo, outbox
 assinada e processamento de fotos com cursor/cerca em implementação. 0226 cria
