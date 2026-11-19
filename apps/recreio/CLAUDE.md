@@ -18,24 +18,31 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 
 ## Camadas
 
-Na candidata F7, `features/direitos` contém recortes pessoais, inventário por
-jogo e prévia persistida em `/conta/dados`. A prévia pública continua separada
-da execução. O backend candidato já registra consentimento/outbox assinados,
-trata fotografias/resumos/diário coberto e dados pessoais, minimiza o cadastro,
-expurga referências após os prazos originais e conclui a retirada com retenções
-explícitas. A drenagem fecha novas entradas e espera o checkpoint da posse
-atual; diário pendente após perda do host permanece bloqueado para recuperação.
+Na candidata F7, `features/direitos` mantém a prévia e a confirmação de
+retirada separadas em `/conta/dados`. Consentimento/outbox, fotos/resumo/diário,
+minimização, expurgo e conclusão preservam as retenções originais. Drenagem
+fecha entradas e espera a posse atual; se o host cair, recuperação tipada do
+sufixo já durável produz nova foto sem descartar a origem. Mundos locais são
+comparados com os IDs/jogos do plano assinado antes de qualquer efeito.
 
-`processar-direitos` é um executor privado, desligado por padrão, sem IDs por
-argumento ou criação implícita de consentimento/livro. O livro externo conserva
-a intenção e o plano original imutável, sem nomes/e-mails. A prova sintética
-real de bucket 44577680233 confirmou plano, replay do livro, privacidade e
-limpeza dos treze objetos; não comprova efeitos nativos num banco restaurado.
-Qualidade de bc62ea3e passou em 44577667398; os demais gates estão em curso.
-Encerramento de conta, exportação integral/download, recuperação do diário
-pendente e reaplicação nativa antes de tráfego continuam em implementação.
-Nenhuma dessas candidatas foi ativada em produção. Contratos, falhas e provas
-em [retirada e recuperação](../../docs/recreio/congelamento-direitos-2026-11-19.md).
+`processar-direitos` é privado/off por padrão. A confirmação exige capacidade
+separada `RECREIO_RIGHTS_CONSENT_MODE=native`, custódia completa e livro aberto
+conferido. Nenhum argumento ou formulário cria livro/consentimento implícito.
+O plano externo imutável passou no bucket real em 44577680233, com limpeza;
+não é reaplicação nativa num banco restaurado.
+
+A cópia pessoal do perfil usa fotografia SQL consistente e páginas explícitas;
+o artefato AES-GCM de dez minutos fica em `personal_exports`, ligado ao login,
+aparelho, perfil, política e responsabilidade atuais. `RECREIO_EXPORT_MODE`
+é off por padrão e usa keyring próprio. Download via POST da mesma origem,
+revalidação depois de abrir, revogação/substituição atômica e expiração na
+manutenção. 98 casos/8 arquivos passaram em 44591852000/7b41f7ac; navegador
+e gates completos ainda em qualificação. Não é exportação integral da conta.
+
+Encerramento, dados pessoais de conta/cobrança, reaplicação nativa/restauração,
+custódia/agenda/alertas e homologação permanecem em implementação. 234 recibos
+candidatos/0233, nenhuma ativação em produção. Contratos e falhas em
+[retirada e recuperação](../../docs/recreio/congelamento-direitos-2026-11-19.md).
 
 Autoridade recente própria ou responsabilidade explícita independe de
 assinatura/gameplay. A conta do adulto pode administrar com zero jogadores;

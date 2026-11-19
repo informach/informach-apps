@@ -363,3 +363,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.profile_personal_capture_prepared`: `{ app, profileId, gameCount }`. Captura consistente de cadastro, dados pessoais dos jogos e vínculos próprios. Sem nome, contato, nascimento, horários, credenciais, IDs de terceiros ou conteúdo. Evento atômico com a leitura; não comprova artefato publicado ou download.
 
 - `recreio.personal_export_published`, `recreio.personal_export_download_admitted` e `recreio.personal_export_revoked`: `{ app, exportId }`. Publicação, admissão da resposta autenticada e revogação do artefato temporário pessoal. Sem perfil/mundo de terceiros, bytes, chave, referência cifrada, nome ou contato. Admitir não comprova recepção completa pelo navegador. O recibo temporário não é autorização portadora.
+
+- `recreio.personal_exports_cleared`: `{ app, expiredCount, receiptCount }`. Expiração dos envelopes temporários e remoção dos recibos já sem corpo há 24 h, em lotes delimitados. Auditoria estrita no mesmo commit; sem IDs, bytes, referências ou conteúdo.

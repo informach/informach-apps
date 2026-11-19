@@ -152,6 +152,7 @@ export type AuditEventType =
   | "recreio.personal_export_published"
   | "recreio.personal_export_download_admitted"
   | "recreio.personal_export_revoked"
+  | "recreio.personal_exports_cleared"
   | "recreio.rights_prepared"
   | "recreio.rights_preparation_cancelled"
   | "recreio.rights_dashboard_viewed"

@@ -612,3 +612,16 @@ retorno de login recente. O executor isolado prepara chave própria descartável
 para testar essa jornada real no navegador (390 px), incluindo leitura do
 arquivo, tentativa de outro adulto e download após revogação. Não usa chaves
 ou dados de produção. Confirmação destrutiva continua off nesse executor.
+
+
+44591852000/7b41f7ac passou 98 casos em oito arquivos. Os cinco cenários do
+artefato agora executaram e passaram; nenhuma mudança nos limites do perfil.
+Quality 44591277874/0cdbe71b encontrou apenas formatação do recibo derivado da
+0233; o JSON derivado foi formatado sem modificar SQL/snapshot/journal ou seus
+hashes. A rodada completa/navegador 44591857114 continua em curso, com a mesma
+falha de recibo conhecida; precisa de repetição na fonte corrigida.
+
+A candidata seguinte acrescenta auditoria atômica em lote no expurgo de
+artefatos e libera o Blob do navegador ao trocar/revogar a cópia. Artefatos
+restaurados também terão de ser revogados no coordenador offline antes de
+servir tráfego; esta entrega não substitui essa pendência de F8.

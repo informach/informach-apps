@@ -333,6 +333,13 @@ export function expurgarCopiasPessoaisVencidas() {
       with lote as (select id from ${exports} where state<>'ready' and cleared_at<=${AGORA}-interval '24 hours' order by cleared_at,id limit 100 for update skip locked)
       delete from ${exports} where id in (select id from lote) returning id
     `);
+    if (expiradas.length || removidas.length)
+      await logAuditEventStrict(
+        "recreio.personal_exports_cleared",
+        null,
+        { app: "recreio", expiredCount: expiradas.length, receiptCount: removidas.length },
+        { writer: tx },
+      );
     return { expiradas: expiradas.length, removidas: removidas.length };
   });
 }

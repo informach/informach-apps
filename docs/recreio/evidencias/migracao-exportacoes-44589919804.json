@@ -23,7 +23,5 @@
   "artifactZipSha256": "60251f4714fdc2eb0046f46809d780e6888131ea32b7f5f20fcae95c8cd5e769",
   "productionApplied": false,
   "unchangedAllPreviousTables": true,
-  "addedTables": [
-    "recreio.personal_exports"
-  ]
+  "addedTables": ["recreio.personal_exports"]
 }

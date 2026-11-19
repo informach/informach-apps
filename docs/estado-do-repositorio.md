@@ -1,26 +1,28 @@
 # Estado do trabalho no repositório
 
-**19/11 — Recreio, direitos e recuperação em qualificação:** fonte 2a7acd8b
-passou os dezesseis gates 44552782455 e CI compartilhado 44552798763. Seguem
-candidatas de retirada nativa: consentimento/outbox, fotos/resumo/diário,
-dados pessoais, minimização, expurgo em lotes, conclusão e drenagem pelo
-checkpoint existente do host. As migrations 0228–0232 foram geradas/adotadas
-intactas, com 233 recibos na candidata; produção permanece em 204/0203.
-Qualidade de bc62ea3e passou em 44577667398. Integração passou 1376 cenários
-e encontrou expectativa HTTP incorreta no teste novo (409, não 403), já
-corrigida; gate focado 44579776354 passou 84 casos/7 arquivos em de6ea245,
-incluindo três de drenagem pelo HTTP real. A rodada integral
-44578951063 e CI 44578956873 foram interrompidos por conter a expectativa
-antiga; devem ser repetidos após qualificar a correção, sem declará-los verdes.
+**19/11 — Recreio, continuação candidata de F7:** recuperação automática do
+sufixo durável após perda do host, escopo de mundos vinculado ao plano assinado,
+confirmação/estado da retirada e cópia pessoal consistente com artefato cifrado
+estão em qualificação. Fonte 7b41f7ac passou 98 casos/8 arquivos no gate focado
+44591852000, incluindo expiração, política alterada, revogação durante abertura
+e rollback de auditoria. Rodada completa/navegador 44591857114 em curso; o
+quality encontrou somente formatação do recibo derivado 0233, corrigida na
+candidata seguinte. A cópia do perfil ainda não é exportação integral da conta.
 
-A prova real 44577680233 confirmou plano externo imutável, replay do livro,
-recusa anônima e limpeza dos treze objetos sintéticos; recibo derivado com SHA
-adotado. Não é reaplicação nativa num banco restaurado. Prévia pública continua
-separada da execução. Encerramento da conta, exportação integral, recuperação
-de diário após falha do host, reaplicação nativa, custódia/agenda/alertas de
-backup e homologação final permanecem abertos. Nenhuma candidata desta frente
-ativada em produção; todos os testes manuais ficam para o final.
-[Contrato e evidências](recreio/congelamento-direitos-2026-11-19.md).
+0233 foi gerada/adotada intacta em 44589919804: apenas `personal_exports`,
+234 recibos candidatos, tabelas anteriores idênticas. Produção continua na
+última conferência 204/0203, portal/Admin d014bd90 e Morada 644b3841. Nenhuma
+migration, fonte ou capacidade desta frente foi ativada em produção. Os modos
+de confirmação de retirada e exportação são off por padrão.
+
+Fonte 72a761ac concluiu os dezesseis gates 44580450953; o CI compartilhado
+44580457595 ainda precisa ser conferido. A prova externa 44577680233 preserva
+plano/livro e confirmou limpeza dos treze objetos sintéticos; não reaplica
+retiradas nativas num banco restaurado. Continuam abertos encerramento da
+conta, exportação integral da conta, artefatos após restauração, reaplicação
+nativa antes de tráfego, custódia/agenda/alertas/custo e homologação final.
+Todos os testes manuais ficam para o final por decisão do titular.
+[Contrato, falhas e evidências](recreio/congelamento-direitos-2026-11-19.md).
 
 **19/11 — F7, continuação candidata:** consentimento individual nativo, outbox
 assinada e processamento de fotos com cursor/cerca em implementação. 0226 cria

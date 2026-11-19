@@ -29,6 +29,10 @@ export function CopiaPessoal({
     [],
   );
   const bloqueado = !hidratado || pendente;
+  function liberarArquivo() {
+    if (url.current) URL.revokeObjectURL(url.current);
+    url.current = null;
+  }
   function tratar(r: { error: string; code: string }) {
     definirErro(r.error);
     definirRecente(r.code === "AUTH" || r.code === "LOGIN_RECENTE");
@@ -107,6 +111,7 @@ export function CopiaPessoal({
                 disabled={bloqueado}
                 onClick={() => {
                   definirPedido(null);
+                  liberarArquivo();
                   definirCopia(null);
                   definirErro("");
                   informar("");
@@ -193,6 +198,7 @@ export function CopiaPessoal({
                   try {
                     const r = await revogarArquivoPessoalAction({ copiaId: copia.copiaId });
                     if (r.ok) {
+                      liberarArquivo();
                       definirCopia(null);
                       definirPedido(null);
                       informar("Cópia revogada. O arquivo temporário foi retirado do servidor.");
