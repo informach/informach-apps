@@ -38,6 +38,7 @@ function conferirMundo(
   assertAllowed(
     mundo &&
       mundo.rightsOperationId === passo.operationId &&
+      !mundo.rightsDraining &&
       mundo.status === "archived" &&
       mundo.revision === passo.sourceRevision &&
       mundo.journalSeq === passo.sourceJournalSeq &&

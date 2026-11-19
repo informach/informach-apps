@@ -467,7 +467,7 @@ describe("minimização nativa sem reabrir autoridade", () => {
       );
       await db.insert(codes).values({
         profileId: outro.id,
-        codeHash: "c".repeat(64),
+        codeHash: randomUUID().replaceAll("-", "") + randomUUID().replaceAll("-", ""),
         createdAt: criado,
         expiresAt: vence,
       });

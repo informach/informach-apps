@@ -1,0 +1,31 @@
+{
+  "source": "2cc226d76b909a5a1bcb5f1ca0187517a574a9e4",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0232_recreio_drenagem_direitos.sql",
+      "bytes": 2638,
+      "sha256": "b6327276d6c550d7c5487a0285c141fe9cbec2b828c49542118444034d0475c5"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0232_snapshot.json",
+      "bytes": 1095204,
+      "sha256": "7f932305451b1ec32a581e691983d9c5143bb8d3cf0a7ae68cfa5063f870cccd"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 35224,
+      "sha256": "03a5d30222dc1be15b78b83101d9cb49047d2554af803af20faf8a1defa665db"
+    }
+  ],
+  "runId": 44573813341,
+  "artifactId": 14553634995,
+  "artifactZipBytes": 77590,
+  "artifactZipSha256": "777065117a3cf2341f21d9e51573237c5b2ce794c9c093092b8d19eacbfb2e8c",
+  "productionApplied": false,
+  "unchangedPreviousColumnsAndOtherConstraints": true,
+  "addedColumns": [["recreio.spaces", "rights_draining"]],
+  "changedConstraints": [
+    ["recreio.spaces", "recreio_spaces_rights_freeze"],
+    ["recreio.rights_worlds", "recreio_rights_world_phase"]
+  ]
+}

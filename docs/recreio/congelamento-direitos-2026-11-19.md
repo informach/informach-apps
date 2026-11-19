@@ -389,3 +389,22 @@ O upgrade compara todas as colunas antigas e prova a ausência do marcador
 novo nos registros preservados. DDL será gerado remotamente; produção segue
 inalterada. Recuperar um host perdido com diário além da foto exige caminho
 próprio antes de liberar o mundo, sem descartar progresso.
+
+
+A etapa candidata já encerra SIDs dos mundos pelo cursor nativo e permite o
+checkpoint somente à posse que continua válida. Reivindicar/renovar essa posse
+não reabre archived; liberar conserva o status até o tratamento coordenado.
+O finalizador da drenagem confere foto/diário e ausência de posse/SIDs antes
+de capturar contadores finais e incrementar cerca/gestão. Diário não coberto
+após saída com erro vira revisão de dependência, preservando seus bytes.
+
+0232 foi gerada em 44573813341 (2cc226d7) e adotada intacta: coluna falsa por
+padrão e dois CHECKs, 233 recibos, SHA/proveniência e colunas/constraints antigas
+conferidas. Ainda sem execução em produção. O executor inclui a etapa de
+drenagem antes das fotografias; fotos/cadastro recusam tratar mundo drenando.
+
+A fonte dbb06181 passou qualidade 44573168280. Integração 44573174515 passou
+1372 cenários e identificou apenas colisão entre o hash fixo de um código
+bystander do teste novo e outro arquivo da suíte. O novo teste agora usa hash
+próprio, sem alterar a constraint ou o teste anterior. A rodada 44572112358
+registrou a mesma colisão. Não registrar essas rodadas como integralmente verdes.

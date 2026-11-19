@@ -11,6 +11,7 @@ import {
   recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
   recreioRightsProfileProjection,
+  recreioRightsWorldDrainingProjection,
   recreioRightsWorldProjection,
   recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
@@ -154,11 +155,12 @@ export function consentirRetiradaNoBanco(
     const mundos = idsMundos.length
       ? await tx.select().from(spaces).where(inArray(spaces.id, idsMundos)).orderBy(spaces.id)
       : [];
+    const drenando = new Set<string>();
     for (const mundo of mundos) {
       assertAllowed(
-        mundo.rightsOperationId === null && mundo.status !== "active",
+        mundo.rightsOperationId === null && !mundo.rightsDraining,
         "MUNDO_EM_USO",
-        "Saia do jogo e aguarde o salvamento antes de confirmar.",
+        "Um mundo já tem retirada em andamento.",
       );
       const outrosAtuais = await tx.$count(
         members,
@@ -186,21 +188,14 @@ export function consentirRetiradaNoBanco(
         .from(games)
         .where(and(eq(games.spaceId, mundo.id), isNull(games.endedAt)))
         .limit(1);
-      assertAllowed(
-        !posse && !sessao,
-        "MUNDO_EM_USO",
-        "Aguarde o encerramento confirmado das sessões e do salvamento.",
-      );
       const [foto] = await tx
         .select({ diario: snapshots.journalSeq })
         .from(snapshots)
         .where(and(eq(snapshots.spaceId, mundo.id), eq(snapshots.revision, mundo.revision)))
         .limit(1);
-      assertAllowed(
-        mundo.revision === 0 ? mundo.journalSeq === 0 && !foto : foto?.diario === mundo.journalSeq,
-        "SALVAMENTO",
-        "O último salvamento precisa ser conferido antes da retirada.",
-      );
+      const fotoCompleta =
+        mundo.revision === 0 ? mundo.journalSeq === 0 && !foto : foto?.diario === mundo.journalSeq;
+      if (mundo.status === "active" || posse || sessao || !fotoCompleta) drenando.add(mundo.id);
     }
     const bytes = assinatura.assinarIntencao({
       formato: "recreio-intencao-direitos-v1",
@@ -265,18 +260,20 @@ export function consentirRetiradaNoBanco(
         .where(eq(profiles.id, perfil.id));
     }
     for (const mundo of mundos) {
-      assertAllowed(mundo.status !== "active", "MUNDO_EM_USO", "Mundo em uso.");
+      const drenar = drenando.has(mundo.id);
       await tx.insert(worlds).values({
         operationId: operacao.id,
         spaceId: mundo.id,
-        sourceStatus: mundo.status,
+        sourceStatus: mundo.status === "active" ? "hibernating" : mundo.status,
+        phase: drenar ? "draining" : "frozen",
         sourceRevision: mundo.revision,
         sourceJournalSeq: mundo.journalSeq,
         sourceLeaseEpoch: mundo.leaseEpoch,
         sourceManagementRevision: mundo.managementRevision,
       });
-      const cerca = sql`${spaces.leaseEpoch}+1`,
-        gestao = sql`${spaces.managementRevision}+1`;
+      const cerca = drenar ? sql`${spaces.leaseEpoch}` : sql`${spaces.leaseEpoch}+1`,
+        gestao = drenar ? sql`${spaces.managementRevision}` : sql`${spaces.managementRevision}+1`;
+      const projetar = drenar ? recreioRightsWorldDrainingProjection : recreioRightsWorldProjection;
       await tx
         .update(spaces)
         .set({
@@ -284,7 +281,8 @@ export function consentirRetiradaNoBanco(
           leaseEpoch: cerca,
           managementRevision: gestao,
           rightsOperationId: operacao.id,
-          rightsFrozenState: recreioRightsWorldProjection({
+          rightsDraining: drenar,
+          rightsFrozenState: projetar({
             ...spaces,
             status: sql`'archived'`,
             leaseEpoch: cerca,
@@ -304,10 +302,23 @@ export function consentirRetiradaNoBanco(
           isNull(devices.revokedAt),
         ),
       );
-    await encerrarSessoesAbertas(tx, inArray(games.profileId, ids), "permissions_changed", {
-      porQuem: "ator",
-      contaId: autor.contaId,
-    });
+    await encerrarSessoesAbertas(
+      tx,
+      idsMundos.length
+        ? sql`(${games.profileId} in (${sql.join(
+            ids.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )}) or ${games.spaceId} in (${sql.join(
+            idsMundos.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )}))`
+        : inArray(games.profileId, ids),
+      "permissions_changed",
+      {
+        porQuem: "ator",
+        contaId: autor.contaId,
+      },
+    );
     await logAuditEventStrict(
       "recreio.rights_consented",
       autor.contaId,

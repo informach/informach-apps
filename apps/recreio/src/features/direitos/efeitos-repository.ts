@@ -34,7 +34,7 @@ async function limites(tx: Transacao) {
  * monopoliza a fila. Erro inesperado continua sendo erro do job. */
 export async function comEfeitoNativoDeDireitos<T>(
   config: CoordenacaoDeEfeitos,
-  fase: "diario" | "dados" | "cadastro",
+  fase: "drenagem" | "diario" | "dados" | "cadastro",
   executar: (tx: Transacao, operacao: typeof operations.$inferSelect) => Promise<T>,
 ) {
   const livroId = config.assinatura.livroId,
@@ -50,13 +50,15 @@ export async function comEfeitoNativoDeDireitos<T>(
     exists(select 1 from ${keys} where ${keys.profileId}=${subjects.profileReference}) or
     exists(select 1 from ${achievements} where ${achievements.profileId}=${subjects.profileReference})))`;
   const baseDoCadastro = sql`exists(select 1 from ${subjects} where ${subjects.operationId}=${operations.id} and ${subjects.phase}='selected') and
-    not exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and (${worlds.phase} in ('frozen','snapshots') or exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId})))`;
+    not exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and (${worlds.phase} in ('draining','frozen','snapshots') or exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId})))`;
   const elegivel =
-    fase === "diario"
-      ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies' and exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId}))`
-      : fase === "dados"
-        ? sql`(${baseDoCadastro}) and (${possuiDados})`
-        : sql`(${baseDoCadastro}) and not (${possuiDados})`;
+    fase === "drenagem"
+      ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='draining')`
+      : fase === "diario"
+        ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies' and exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId}))`
+        : fase === "dados"
+          ? sql`(${baseDoCadastro}) and (${possuiDados})`
+          : sql`(${baseDoCadastro}) and not (${possuiDados})`;
   const reservada = await db.transaction(async (tx) => {
     await limites(tx);
     const [op] = await tx
@@ -148,14 +150,15 @@ export async function comEfeitoNativoDeDireitos<T>(
       erro instanceof ZodError ||
       (erro instanceof AppError &&
         ["DIREITOS", "DIREITOS_LIVRO", "DIREITOS_INTEGRIDADE"].includes(erro.code));
-    if (integridade)
+    const dependencia = erro instanceof AppError && erro.code === "DIREITOS_DEPENDENCIA";
+    if (integridade || dependencia)
       return db.transaction(async (tx) => {
         await limites(tx);
         const linhas = await tx
           .update(operations)
           .set({
             state: "review",
-            reviewCode: "integrity",
+            reviewCode: dependencia ? "dependency" : "integrity",
             leaseToken: null,
             leaseUntil: null,
             updatedAt: AGORA,
@@ -170,7 +173,7 @@ export async function comEfeitoNativoDeDireitos<T>(
             app: "recreio",
             operationId: reservada.id,
             kind: reservada.kind,
-            reasonCode: "integrity",
+            reasonCode: dependencia ? "dependency" : "integrity",
           },
           { writer: tx },
         );

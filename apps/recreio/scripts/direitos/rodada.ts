@@ -1,5 +1,6 @@
 import { concluirProximaRetirada } from "../../src/features/direitos/conclusao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
+import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
 import { resumoDaFilaDeDireitos } from "../../src/features/direitos/fila-repository";
 import type { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
@@ -33,6 +34,7 @@ export async function processarRodadaDeDireitos(config: Config) {
   });
   const etapas = [
     { nome: "publicacao", executar: () => publicarProximoConsentimento(config) },
+    { nome: "drenagem", executar: async () => concluirProximaDrenagem(await efeito()) },
     { nome: "fotografias", executar: () => processarProximaFotografiaDeDireitos(config) },
     { nome: "dados", executar: async () => retirarProximosDadosPessoais(await efeito()) },
     { nome: "cadastro", executar: async () => minimizarProximoPerfil(await efeito()) },

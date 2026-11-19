@@ -59,6 +59,7 @@ export function minimizarProximoPerfil(config: CoordenacaoDeEfeitos) {
               (m) =>
                 m.id === p.spaceId &&
                 m.rightsOperationId === op.id &&
+                !m.rightsDraining &&
                 m.status === "archived" &&
                 m.revision === p.sourceRevision &&
                 m.journalSeq === p.sourceJournalSeq &&

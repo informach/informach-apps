@@ -355,3 +355,5 @@ No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só 
 - `recreio.rights_references_purged`: `{ app, operationId, domain, count }`. Expurgo delimitado de referências nativas após seus prazos originais. Sem IDs dos itens/perfil/mundo, nomes, hashes ou bytes; o efeito e o evento são atômicos.
 - `recreio.rights_profile_removed`: `{ app, operationId, profileCount }`. Remoção física do perfil já minimizado, após conferir retenções e vínculos; o recibo e o DELETE são atômicos. Não representa exclusão de identidade global ou fatos financeiros.
 - `recreio.rights_withdrawal_completed`: `{ app, operationId, profileCount, retainedCount }`. Conclusão da retirada consentida, discriminando referências técnicas mínimas ainda retidas. Nenhuma retenção é apresentada como anonimização; o prazo privado permanece no recibo.
+
+- `recreio.rights_world_drained`: `{ app, operationId, worldCount }`. Confirma posse liberada, sessões encerradas e foto cobrindo o diário antes do congelamento de conteúdo. Sem IDs dos mundos/perfis, contadores privados ou bytes. Efeito e evento atômicos.

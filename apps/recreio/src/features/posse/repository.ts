@@ -83,6 +83,7 @@ const FIM_DA_POSSE = { vazio: "empty", drenagem: "drain", erro: "error" } as con
 type MundoTravado = {
   id: string;
   status: EstadoDeMundo;
+  rightsDraining: boolean;
   schemaVersion: number;
   revision: number;
   journalSeq: number;
@@ -99,6 +100,7 @@ async function travarMundo(
     .select({
       id: spaces.id,
       status: spaces.status,
+      rightsDraining: spaces.rightsDraining,
       schemaVersion: spaces.schemaVersion,
       revision: spaces.revision,
       journalSeq: spaces.journalSeq,
@@ -617,7 +619,7 @@ export async function reivindicarPosse(entrada: {
       .where(eq(leases.id, posse.id))
       .returning({ expiresAt: leases.expiresAt });
     if (!renovada) throw new Error("A posse não foi gravada.");
-    if (mundo.status !== "active")
+    if (mundo.status !== "active" && !mundo.rightsDraining)
       await tx
         .update(spaces)
         .set({ status: "active", updatedAt: AGORA })
@@ -951,7 +953,10 @@ export async function liberarPosseDoMundo(
       .where(eq(leases.id, posse.id));
     await tx
       .update(spaces)
-      .set({ status: "hibernating", updatedAt: AGORA })
+      .set({
+        status: sql`case when ${spaces.rightsDraining} then 'archived' else 'hibernating' end`,
+        updatedAt: AGORA,
+      })
       .where(eq(spaces.id, mundo.id));
   });
 }
@@ -992,7 +997,10 @@ export async function fecharPossesVencidas(limite = 500): Promise<number> {
       if (linhas.length === 0) return 0;
       await tx
         .update(spaces)
-        .set({ status: "hibernating", updatedAt: AGORA })
+        .set({
+          status: sql`case when ${spaces.rightsDraining} then 'archived' else 'hibernating' end`,
+          updatedAt: AGORA,
+        })
         .where(and(eq(spaces.id, vencida.spaceId), eq(spaces.status, "active")));
       return 1;
     });

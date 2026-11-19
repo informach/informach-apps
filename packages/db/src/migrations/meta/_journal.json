@@ -1625,6 +1625,13 @@
       "when": 1795107437709,
       "tag": "0231_recreio_historico_expurgo",
       "breakpoints": true
+    },
+    {
+      "idx": 232,
+      "version": "7",
+      "when": 1795108124360,
+      "tag": "0232_recreio_drenagem_direitos",
+      "breakpoints": true
     }
   ]
 }
