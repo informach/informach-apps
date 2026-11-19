@@ -3,6 +3,7 @@ import { and, db, eq, inArray } from "@informach/db";
 import { recreioGroups as groups, recreioProfiles as profiles, users } from "@informach/db/schema";
 import { ContaIdSchema, ErroDoRecreio, GrupoIdSchema } from "@informach/recreio";
 import { serializarContaNativa } from "@/features/account/autoridade-repository";
+import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-repository";
 import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import type { Transacao } from "@/lib/repository";
 
@@ -37,6 +38,7 @@ export async function travarGrupoDoTeste(
     .orderBy(users.id)
     .for("share");
   if (atuais.length !== contas.length) throw new ErroDoRecreio("SESSAO_INVALIDA");
+  const participacao = await lerParticipacaoDoRecreioLocked(tx, pista.paganteId, true);
   const [grupo] = await tx
     .select({ id: groups.id, ownerUserId: groups.ownerUserId })
     .from(groups)
@@ -49,5 +51,5 @@ export async function travarGrupoDoTeste(
   if (!grupo || perfil?.grupoId !== grupo.id) throw new ErroDoRecreio("SESSAO_INVALIDA");
   const pagante = atuais.find((c) => c.id === pista.paganteId);
   if (!pagante) throw new ErroDoRecreio("SESSAO_INVALIDA");
-  return pagante;
+  return { ...pagante, participacaoAtiva: participacao.estado === "active" };
 }

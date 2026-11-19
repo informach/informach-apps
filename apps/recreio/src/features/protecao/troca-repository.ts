@@ -15,6 +15,7 @@ import {
   lerContaNativa,
   validarIdentidadeDaSessaoNativa,
 } from "@/features/account/autoridade-repository";
+import { exigirParticipacaoAtivaLocked } from "@/features/account/participacao-repository";
 import { exigirCadastroProtegidoDisponivel } from "@/features/familia/disponibilidade";
 import { paraPerfil } from "@/features/perfis/repository";
 import { invalidarIngressosDoAparelho } from "@/features/sessao-de-jogo/ingressos-repository";
@@ -35,6 +36,7 @@ export async function trocarContextoComPin(
     await tx.execute(sql`set local lock_timeout='2s'`);
     await tx.execute(sql`set local transaction_timeout='15s'`);
     const conta = await lerContaNativa(tx, autor.contaId);
+    if (destino.tipo === "perfil") await exigirParticipacaoAtivaLocked(tx, autor.contaId);
     const [perfil] =
       destino.tipo === "perfil"
         ? await tx.select().from(profiles).where(eq(profiles.id, destino.perfilId)).for("share")

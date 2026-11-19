@@ -1653,6 +1653,13 @@
       "when": 1795118772644,
       "tag": "0235_lethal_weapon_omega",
       "breakpoints": true
+    },
+    {
+      "idx": 236,
+      "version": "7",
+      "when": 1795118920205,
+      "tag": "0236_ambitious_whistler",
+      "breakpoints": true
     }
   ]
 }

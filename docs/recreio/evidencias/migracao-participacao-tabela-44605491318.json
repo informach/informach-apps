@@ -1,0 +1,29 @@
+{
+  "source": "19928a6489c7d88c16c95067a779bc520f716923",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0236_ambitious_whistler.sql",
+      "bytes": 2347,
+      "sha256": "c58e769543a6b983b6922d425449c41cbb5bba88486c875699c425771fd2746e"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0236_snapshot.json",
+      "bytes": 1109573,
+      "sha256": "f7691d47cc4485dac8adb31f08417cb37ed3edec386d442522d900ac8213f3dd"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 35836,
+      "sha256": "3f561fee054a356473675475da6da6665475d618f888f66a1084f565e5c774bd"
+    }
+  ],
+  "runId": 44605491318,
+  "artifactId": 14570163407,
+  "artifactZipBytes": 78803,
+  "artifactZipSha256": "c001f015b4412f4260480e0f42c9ed52370f8cb2c474ace135634823f589c6f5",
+  "productionApplied": false,
+  "unchangedPreviousTables": true,
+  "addedTable": "recreio.account_participations",
+  "referencedUniquePresentInPreviousMigration": true,
+  "journalPrefixPreserved": true
+}

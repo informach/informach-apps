@@ -70,6 +70,7 @@ async function comPreparacao<T>(
       const pagante = preparacao.pagante;
       if (
         !pagante?.emailVerified ||
+        !pagante.participacaoAtiva ||
         (pagante.banned && (!pagante.banExpiresAt || pagante.banExpiresAt > agora)) ||
         !contexto.perfil.coverageEnabled ||
         contexto.perfil.status !== "active"

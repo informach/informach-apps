@@ -92,6 +92,19 @@ nova tabela sai temporariamente do índice apenas na fonte intermediária do
 gerador; essa fonte não é candidata a deploy ou gate do app. Arquivos gerados
 não são reordenados ou editados manualmente.
 
+A UNIQUE 0235 foi gerada em 44605065615/951b40ff e a tabela 0236 em
+44605491318/19928a64, ambas adotadas byte a byte após SHA, predecessor e prefixo
+do journal. Na segunda geração, todas as tabelas anteriores permaneceram
+idênticas. 237 recibos candidatos; nenhum DDL aplicado em produção. Recibos em
+`evidencias/migracao-participacao-{unique,tabela}-*.json`.
+
+As provas preparadas conferem legado sem jogador, bloqueio dos escritores em
+`closing`/`closed`, manutenção da leitura financeira/direitos, autenticação
+infantil recusada, FK de solicitante/tipo, snapshot antigo recusado e espera
+real por trava PostgreSQL. As operações usadas para testar a barreira são
+fixtures estruturais assinadas; não demonstram consentimento de encerramento
+v2, processamento ou liquidação financeira.
+
 Intenções externas conservam os IDs e o consentimento original. Reaplicação
 offline não pode criar usuários fictícios, atribuir ao operador o aceite do
 solicitante ausente no backup ou exigir um novo consentimento para retirar

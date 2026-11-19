@@ -26,7 +26,9 @@ import { prepararPedidoDeDireitos } from "@/features/direitos/service";
 import { prepararCadastroDeMenor } from "@/features/familia/repository";
 import { admitirGrupoParaAceite } from "@/features/grupo/autoridade-repository";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
+import { travarGrupoDoTeste } from "@/features/grupo/teste-repository";
 import { criarPerfilProprio } from "@/features/perfis/service";
+import { trocarContextoComPin } from "@/features/protecao/troca-repository";
 import { resolverAtor } from "@/features/sessao/service";
 import { VERSAO_DO_TESTE } from "@/features/teste/constantes";
 import { registrarConsentimentoNoBanco } from "@/features/teste/repository";
@@ -219,8 +221,23 @@ describe("direitos: barreira da participação nativa", () => {
         }),
       ),
     ).rejects.toMatchObject({ codigo: "SESSAO_INVALIDA" });
+    await expect(
+      trocarContextoComPin(f.autor, { tipo: "perfil", perfilId }, "0000"),
+    ).rejects.toMatchObject({ code: "PARTICIPACAO_ENCERRADA" });
     const [grupo] = await db.select().from(groups).where(eq(groups.ownerUserId, f.conta.id));
     if (!grupo) throw new Error("Group fixture absent");
+    const pagante = await db.transaction((tx) =>
+      travarGrupoDoTeste(
+        tx,
+        {
+          perfilId,
+          sessaoDeAparelhoId: f.autor.sessaoDeAparelhoId,
+        },
+        { grupoId: GrupoIdSchema.parse(grupo.id), paganteId: f.conta.id },
+        f.conta.id,
+      ),
+    );
+    expect(pagante.participacaoAtiva).toBe(false);
     await expect(
       db.transaction((tx) =>
         admitirGrupoParaAceite(tx, destinatario.autor, GrupoIdSchema.parse(grupo.id)),

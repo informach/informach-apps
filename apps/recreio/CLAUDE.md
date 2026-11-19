@@ -46,9 +46,23 @@ revalidação depois de abrir, revogação/substituição atômica e expiração
 manutenção. 98 casos/8 arquivos passaram em 44591852000/7b41f7ac; navegador
 e gates completos ainda em qualificação. Não é exportação integral da conta.
 
-Encerramento, dados pessoais de conta/cobrança, reaplicação nativa/restauração,
-custódia/agenda/alertas e homologação permanecem em implementação. 234 recibos
-candidatos/0233, nenhuma ativação em produção. Contratos e falhas em
+Conta/pagante também possui cópia própria, sem exigir jogador: 100 casos e
+upgrade 234→235 em 44598475811; quatro jornadas reais em 44596490165. A fonte
+851821a8 passou os dezesseis gates 44600003119, usando o Morada efetivamente
+publicado 644b3841/protocolo 1. Composição Live 21b5cd72 passou quality
+44601426279 e os dezesseis gates 44601444985, sem ativação ou cobrança real.
+
+A barreira candidata `account_participations` distingue atividade de direitos
+e gestão financeira: novas operações exigem estado ativo atual; leitura de
+direitos e consulta/cancelamento financeiro preservam autenticação nativa.
+O kernel de jogo, seleção com PIN, aceite em grupo e início de teste também
+conferem a participação aplicável. 0235/0236 foram geradas separadamente para
+garantir UNIQUE antes da FK; 237 recibos, qualificação remota em curso. Não há
+writer público de estado ou encerramento completo. [Plano e geração](../../docs/recreio/encerramento-conta-2026-11-19.md).
+
+Encerramento, cobertura integral das cópias, reaplicação nativa/restauração,
+custódia/agenda/alertas e homologação permanecem em implementação; nenhuma
+ativação desta frente em produção. Contratos e falhas em
 [retirada e recuperação](../../docs/recreio/congelamento-direitos-2026-11-19.md).
 
 Autoridade recente própria ou responsabilidade explícita independe de
