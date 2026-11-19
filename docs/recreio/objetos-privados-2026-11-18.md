@@ -170,3 +170,10 @@ referências e enfileirar expurgo próprio sem perder fotografias fixadas.
 A chave ainda precisa ser gerada/adotada/verificada no GitHub. Não foi aplicada
 em produção. O contrato entre banco, posse, expurgo e objetos continua em
 implementação; nenhum byte atual foi migrado por esta alteração de schema.
+
+
+0216 gerada em `44435353411`/`36f11806` e adotada intacta: somente a constraint
+`recreio_snapshot_content_identity`. SQL, snapshot, predecessor e prefixo de
+216 para 217 migrations foram conferidos por hash e comparação estrutural.
+[Proveniência](evidencias/migracao-objetos-chaves-0216.json). A execução e o upgrade
+no PostgreSQL ainda precisam passar; nenhuma migration foi aplicada em produção.

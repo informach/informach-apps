@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."space_snapshots" ADD CONSTRAINT "recreio_snapshot_content_identity" UNIQUE("id","space_id","sha256","byte_size");
