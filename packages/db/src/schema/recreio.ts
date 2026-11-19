@@ -113,8 +113,15 @@ export const recreioProfiles = recreio.table(
     unique("recreio_profile_login_identity").on(t.id, t.userId),
     index("recreio_profiles_group").on(t.groupId),
     check("recreio_profiles_kind", sql`${t.kind} in ('adult', 'minor')`),
-    // Perfil adulto mantém login até o encerramento coordenado; a FK restringe exclusão direta.
-    check("recreio_profiles_adult_login", sql`${t.kind} = 'minor' or ${t.userId} is not null`),
+    // A retirada coordenada pode conservar só uma referência técnica suspensa
+    // até vencer a retenção das presenças. Ela não conserva login ou cadastro.
+    check(
+      "recreio_profiles_adult_login",
+      sql`
+      ${t.kind}='minor' or ${t.userId} is not null or
+      (${t.rightsOperationId} is not null and ${t.status}='suspended' and ${t.groupId} is null and
+       ${t.coverageEnabled}=false and ${t.nickname}='Perfil retirado' and ${t.avatar}='padrao')`,
+    ),
     check("recreio_profiles_nickname", sql`char_length(${t.nickname}) between 2 and 20`),
     check("recreio_profiles_status", sql`${t.status} in ('active', 'suspended')`),
     check("recreio_profiles_policy_version", sql`${t.policyVersion} >= 1`),

@@ -211,3 +211,21 @@ binário ao env completo do portal. O preparador e sua prova usam agora somente
 o limite canônico do Morada em @informach/config/jogos; não recebem env fictício
 ou mock de login/e-mail para conseguir ler bytes. O CI da fonte anterior aa95
 concluiu com sucesso em 44535164045, sem qualificar automaticamente esta mudança.
+
+## Referências técnicas durante retenção
+
+Presenças, visitas e convites dirigidos já têm retenções técnicas delimitadas
+no schema (até 30 dias após seu marco próprio). Não reiniciar esses prazos
+quando chega um pedido de direitos. O executor deve retirar imediatamente
+cadastro/conteúdo/capacidades e manter, quando a FK de segurança ainda exigir,
+somente referência suspensa sem login, grupo, cobertura, nome ou avatar pessoal.
+Isso é minimização com retenção, não anonimização. A auditoria segue a política
+central de cinco anos e financeiro/identidade global continuam separados.
+
+Schema candidato acrescenta fase/política/data de minimização e prazo de
+retenção ao recibo do sujeito, com coerência de NULL/estado e remoção final.
+A exceção de adulto sem login exige operação vinculada, suspensão, grupo nulo,
+cobertura desligada e rótulo/avatar genéricos; CHECK da projeção continua
+impedindo writer antigo. Não autoriza criador de perfil a emitir essa referência.
+Ainda faltam o minimizador, expurgo por prazo, recibo final e telas/retensões
+completas. Gerar/qualificar esse DDL remotamente antes da adoção.

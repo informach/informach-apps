@@ -46,6 +46,13 @@ export const recreioRightsSubjects = recreio.table(
     liveProfileId: uuid("live_profile_id").references(() => profiles.id, { onDelete: "set null" }),
     policyVersion: integer("policy_version").notNull(),
     guardianReference: uuid("guardian_reference"),
+    phase: text("phase")
+      .$type<"selected" | "minimized" | "removed">()
+      .notNull()
+      .default("selected"),
+    minimizedAt: timestamp("minimized_at", { withTimezone: true }),
+    retainedUntil: timestamp("retained_until", { withTimezone: true }),
+    retentionPolicyVersion: text("retention_policy_version").$type<"perfil-2026-11-19">(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [
@@ -56,6 +63,13 @@ export const recreioRightsSubjects = recreio.table(
       sql`${t.liveProfileId} is null or ${t.liveProfileId}=${t.profileReference}`,
     ),
     check("recreio_rights_subject_policy", sql`${t.policyVersion}>=1`),
+    check(
+      "recreio_rights_subject_phase",
+      sql`
+      (${t.phase}='selected' and ${t.minimizedAt} is null and ${t.retainedUntil} is null and ${t.completedAt} is null and ${t.retentionPolicyVersion} is null) or
+      (${t.phase}='minimized' and ${t.minimizedAt} is not null and ${t.retainedUntil} is not null and ${t.retainedUntil}>${t.minimizedAt} and ${t.liveProfileId} is not null and ${t.completedAt} is null and ${t.retentionPolicyVersion} is not null and ${t.retentionPolicyVersion}='perfil-2026-11-19') or
+      (${t.phase}='removed' and ${t.minimizedAt} is not null and ${t.completedAt} is not null and ${t.completedAt}>=${t.minimizedAt} and ${t.liveProfileId} is null and (${t.retainedUntil} is null or ${t.completedAt}>=${t.retainedUntil}) and ${t.retentionPolicyVersion} is not null and ${t.retentionPolicyVersion}='perfil-2026-11-19')`,
+    ),
   ],
 );
 
