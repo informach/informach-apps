@@ -17,6 +17,7 @@ import {
 } from "@informach/db/schema";
 import { type PerfilId, PerfilIdSchema } from "@informach/recreio";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { comPerfilPessoal } from "./autoridade-repository";
 import { lerCadastroPessoalNaTransacao } from "./cadastro-repository";
@@ -35,6 +36,7 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
       perfilId,
       null,
       async (tx, perfil, conferirPrazo) => {
+        const participacao = await lerParticipacaoDoRecreioLocked(tx, autor.contaId);
         assertAllowed(
           perfil.rightsOperationId === null,
           "DIREITOS",
@@ -296,6 +298,7 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
           tipo: perfil.kind,
           versaoDaPolitica: perfil.policyVersion,
           responsabilidadeId: responsavel?.id ?? null,
+          revisaoDaParticipacao: participacao.revisao,
           capturadaEm: cadastro.conferidoEm,
         };
       },

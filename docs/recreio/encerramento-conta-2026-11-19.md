@@ -355,3 +355,16 @@ continuam permitidas em closing/closed; cópias anteriores não ganham nova
 autoridade. A migration será gerada no GitHub e adotada intacta após revisão.
 Dois casos nativos cobrem consentimento real durante I/O e a barreira estrutural
 closed/3 depois de abrir. A segunda fixture não prova conclusão de conta.
+
+
+A3a0000b passou finanças 44637871880 (rodada com os onze casos novos). Direitos
+44637867410 passou 131/132: a fixture de mundo sem lease esperava drenagem, mas
+o consentimento já o cerca e registra frozen. A prova passa a exigir a fase
+real e drainer ocioso; a barreira não foi relaxada.
+
+0239 foi gerada em 44638655178/ba7d2338, artefato 14585700653, adotada intacta.
+Dois ALTERs somente em personal_exports; demais tabelas e prefixo de 239
+recibos preservados, predecessor conferido. São agora 240 recibos candidatos;
+nenhuma migration aplicada em produção. O upgrade conserva os corpos opacos e
+as referências anteriores, verifica revisão legada zero e recusa revisão 4.
+A aplicação da barreira de cópias e os dois casos novos aguardam gates remotos.

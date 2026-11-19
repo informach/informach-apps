@@ -35,7 +35,7 @@ async function memoria(sql: postgres.Sql) {
   if (COM_COPIAS) {
     const [copias] = await sql<
       { conteudo: unknown }[]
-    >`select jsonb_agg(to_jsonb(c)-'scope' order by id) as conteudo from recreio.personal_exports c`;
+    >`select jsonb_agg(to_jsonb(c)-array['scope','participation_revision'] order by id) as conteudo from recreio.personal_exports c`;
     assert.ok(copias);
     return { perfis: linha.conteudo, copias: copias.conteudo };
   }
@@ -170,10 +170,20 @@ async function main() {
     );
     if (COM_COPIAS) {
       const linhas = await sql<
-        { scope: string; profile_id: string | null }[]
-      >`select scope,profile_id from recreio.personal_exports`;
+        { scope: string; profile_id: string | null; participation_revision: number }[]
+      >`select scope,profile_id,participation_revision from recreio.personal_exports`;
       assert.equal(linhas.length, 2);
       assert.ok(linhas.every((linha) => linha.scope === "profile" && linha.profile_id !== null));
+      assert.ok(
+        linhas.every((linha) => linha.participation_revision === 0),
+        "Legacy exports must not acquire a later participation revision.",
+      );
+      await assert.rejects(
+        async () => {
+          await sql`update recreio.personal_exports set participation_revision=4`;
+        },
+        (e: unknown) => typeof e === "object" && e !== null && "code" in e && e.code === "23514",
+      );
       await assert.rejects(
         async () => {
           await sql`update recreio.personal_exports set scope='account'`;
@@ -262,6 +272,8 @@ async function main() {
               escopoPerfilAplicado: true,
               corpoOpacoPreservado: true,
               escopoParcialRecusado: true,
+              revisaoLegadaPreservada: true,
+              revisaoInvalidaRecusada: true,
             }
           : {}),
         ...(COM_MUNDOS

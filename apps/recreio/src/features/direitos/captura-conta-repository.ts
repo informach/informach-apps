@@ -66,10 +66,8 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
           emailDeLogin: conta.email,
           criadaEm: conta.createdAt,
         });
-        arquivo.adicionar(
-          "participacao_recreio",
-          await lerParticipacaoDoRecreioLocked(tx, conta.id),
-        );
+        const participacao = await lerParticipacaoDoRecreioLocked(tx, conta.id);
+        arquivo.adicionar("participacao_recreio", participacao);
         const [pin] = await tx
           .select({
             definido: sql<boolean>`${pins.hash} is not null`,
@@ -335,7 +333,11 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
           { writer: tx },
         );
         await prazo();
-        return { escopo: "account" as const, capturadaEm };
+        return {
+          escopo: "account" as const,
+          capturadaEm,
+          revisaoDaParticipacao: participacao.revisao,
+        };
       },
       true,
     );

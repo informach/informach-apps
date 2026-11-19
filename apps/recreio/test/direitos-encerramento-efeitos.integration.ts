@@ -102,9 +102,14 @@ describe("encerramento: efeitos pessoais dependem da confirmação financeira or
         situacao: "ociosa",
       });
       expect(await livro.processar()).toMatchObject({ situacao: "confirmada" });
+      // No lease existed at consent: the native freeze already fenced the
+      // world. The drainer correctly has no pending save to wait for.
       expect(await concluirProximaDrenagem(await livro.coordenar())).toMatchObject({
-        situacao: "mundo_drenado",
+        situacao: "ociosa",
       });
+      expect(
+        (await db.select().from(worlds).where(eq(worlds.operationId, livro.recibo.operacaoId)))[0],
+      ).toMatchObject({ phase: "frozen" });
       for (let n = 0; n < 2; n++)
         expect(await processarProximaFotografiaDeDireitos(config)).toMatchObject({
           situacao: "fotografia_processada",

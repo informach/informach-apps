@@ -5,6 +5,7 @@ import {
   customers,
   recreioDeviceSessions as devices,
   recreioPersonalExports as exports,
+  recreioAccountParticipations as participations,
   recreioProfiles as profiles,
   sessions,
   subscriptions,
@@ -28,6 +29,7 @@ import { criarCifradorDeObjetos } from "@/features/objetos/criptografia";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { loginReal, novaConta } from "./apoio";
+import { livroDoEncerramento } from "./encerramento-financeiro-apoio";
 
 async function adulto() {
   const conta = await novaConta(),
@@ -78,6 +80,99 @@ async function cenario(
 }
 
 describe("direitos: artefato temporário pessoal", () => {
+  it("encerramento invalida cópia anterior e publicação em voo, sem impedir nova cópia dos direitos", async () =>
+    cenario(async (f) => {
+      const a = await semJogador();
+      const antiga = await prepararArquivoPessoal(
+        a.autor,
+        { copiaId: randomUUID(), escopo: "account" },
+        f.cifrador,
+      );
+      const captura = await capturarDadosPessoaisDaConta(a.autor),
+        copiaId = randomUUID();
+      const cifrada = f.cifrador.cifrar({ tipo: "exportacao", id: copiaId }, captura.bytes);
+      const livro = await livroDoEncerramento(a.autor, () => {
+        throw new Error("No customer");
+      });
+      try {
+        expect(captura.revisaoDaParticipacao).toBe(0);
+        await expect(
+          publicarCopiaPessoalNoBanco(a.autor, copiaId, captura, cifrada),
+        ).rejects.toMatchObject({ code: "COPIA_INDISPONIVEL" });
+        expect(await db.select().from(exports).where(eq(exports.id, copiaId))).toEqual([]);
+        await expect(
+          abrirArquivoPessoal(a.autor, { copiaId: antiga.copiaId }, f.cifrador),
+        ).rejects.toMatchObject({ code: "COPIA_INDISPONIVEL" });
+        const atual = await prepararArquivoPessoal(
+          a.autor,
+          { copiaId: randomUUID(), escopo: "account" },
+          f.cifrador,
+        );
+        expect(
+          (await db.select().from(exports).where(eq(exports.id, atual.copiaId)))[0],
+        ).toMatchObject({ participationRevision: 2 });
+        const bytes = await abrirArquivoPessoal(a.autor, { copiaId: atual.copiaId }, f.cifrador);
+        try {
+          expect(bytes.toString("utf8")).toContain('"estado":"closing"');
+        } finally {
+          bytes.fill(0);
+        }
+      } finally {
+        captura.bytes.fill(0);
+        cifrada.bytes.fill(0);
+        await livro.fechar();
+      }
+    }));
+
+  it("mudança para closed entre abertura e admissão recusa bytes antigos e conserva cópia nova", async () =>
+    cenario(async (f) => {
+      const a = await semJogador();
+      const livro = await livroDoEncerramento(a.autor, () => {
+        throw new Error("No customer");
+      });
+      let corpo: Buffer | undefined;
+      try {
+        const recibo = await prepararArquivoPessoal(
+          a.autor,
+          { copiaId: randomUUID(), escopo: "account" },
+          f.cifrador,
+        );
+        const envelope = await carregarCopiaPessoalNoBanco(a.autor, recibo.copiaId);
+        try {
+          corpo = f.cifrador.abrir(envelope.referencia, envelope.bytes);
+        } finally {
+          envelope.bytes.fill(0);
+        }
+        // Structural state transition solely tests the export fence. This is
+        // not proof that account-domain cleanup or closure has completed.
+        await db
+          .update(participations)
+          .set({
+            state: "closed",
+            revision: 3,
+            closedAt: sql`clock_timestamp()`,
+            updatedAt: sql`clock_timestamp()`,
+          })
+          .where(eq(participations.userId, a.conta.id));
+        await expect(
+          admitirDownloadPessoalNoBanco(a.autor, recibo.copiaId, envelope.referencia),
+        ).rejects.toMatchObject({ code: "COPIA_INDISPONIVEL" });
+        const nova = await prepararArquivoPessoal(
+          a.autor,
+          { copiaId: randomUUID(), escopo: "account" },
+          f.cifrador,
+        );
+        const bytes = await abrirArquivoPessoal(a.autor, { copiaId: nova.copiaId }, f.cifrador);
+        try {
+          expect(bytes.toString("utf8")).toContain('"estado":"closed"');
+        } finally {
+          bytes.fill(0);
+        }
+      } finally {
+        corpo?.fill(0);
+        await livro.fechar();
+      }
+    }));
   it("conta sem jogador exporta só o próprio histórico Recreio, sem misturar outro adulto ou aplicativo", async () =>
     cenario(async (f) => {
       const a = await semJogador(),

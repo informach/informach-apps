@@ -1,0 +1,34 @@
+{
+  "source": "ba7d233896890896c73f7947ba249f16fa7f7856",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0239_parched_johnny_storm.sql",
+      "bytes": 303,
+      "sha256": "2f793e37c0314f3e8ee0beb6e37b8a3c7539b237496234c3c52903ffa715e6e7"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0239_snapshot.json",
+      "bytes": 1137887,
+      "sha256": "e16fb34f1192be96ae610ea5bb766ac22755bb6827a4b241919fd8869b1263b8"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 36282,
+      "sha256": "a86225a732dec7d6d887ff9ece8e507546bbce68fb334a2824c8838941031104"
+    }
+  ],
+  "runId": 44638655178,
+  "artifactId": 14585700653,
+  "artifactZipBytes": 80960,
+  "artifactZipSha256": "54e68364efff0220b95a4a082ae629a640c3ec0a7b141c74e9b01459dde94ec1",
+  "productionApplied": false,
+  "adopted": true,
+  "unchangedOtherPreviousTables": true,
+  "changedPreviousTable": "recreio.personal_exports",
+  "onlyPreviousChanges": [
+    "participation_revision integer default 0 not null",
+    "participation_revision between 0 and 3"
+  ],
+  "journalPrefixPreserved": true,
+  "statementCount": 2
+}

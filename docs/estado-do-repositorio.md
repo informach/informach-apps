@@ -1,5 +1,22 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, incremento atual de encerramento:** coordenação financeira
+28411278 passou quality/direitos 44634257754/44634262912. Os onze novos casos
+foram acrescentados em 02f2b7aa; a fixture de corrida foi corrigida sem relaxar
+constraints, e finanças 44637871880/a3a0000b concluiu. Efeitos candidatos exigem
+recibo financeiro da mesma operação antes de tratar perfis/fotografias; mundo
+só é liberado depois do último perfil. Direitos passaram 131/132: corrigida a
+expectativa de drenagem de mundo já cercado sem lease, nova rodada necessária.
+
+A cópia da conta passa a conservar revisão de participação para impedir
+publicação/download de captura anterior ao encerramento. 0239 gerada no GitHub
+44638655178/ba7d2338 e adotada byte a byte; 240 recibos candidatos. A barreira,
+upgrade e casos novos ainda precisam de qualificação. CI compartilhado
+44617539778/96a9b76a concluiu, sem cobrir automaticamente as mudanças seguintes.
+Limpeza/conclusão integral da conta, ação pública, reaplicação antes de tráfego
+e operação final continuam abertos. Produção permanece sem alterações desta
+frente, em schema 204/0203. [Execução e limites](recreio/encerramento-conta-2026-11-19.md).
+
 **19/11 — Recreio, encerramento ainda em implementação:** o preparador privado
 v2 e a origem financeira própria passaram quality 44611408303 e 119 casos/10
 arquivos em 44611402130/db59fc52, com upgrade 234→237 preservando perfis e cópias.

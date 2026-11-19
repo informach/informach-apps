@@ -12,6 +12,7 @@ import {
   type AutorNativoRecente,
   autorizarContaNativaParaDireitos,
 } from "@/features/account/autoridade-repository";
+import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-repository";
 import {
   conferirReferenciaDoObjeto,
   type ReferenciaDoObjeto,
@@ -50,6 +51,7 @@ const colunas = {
   id: exports.id,
   scope: exports.scope,
   requesterUserId: exports.requesterUserId,
+  participationRevision: exports.participationRevision,
   profileId: exports.profileId,
   deviceSessionId: exports.deviceSessionId,
   authSessionId: exports.authSessionId,
@@ -88,6 +90,7 @@ async function atual(
   linha: Pick<
     Linha,
     | "scope"
+    | "participationRevision"
     | "requesterUserId"
     | "profileId"
     | "deviceSessionId"
@@ -108,6 +111,8 @@ async function atual(
       linha.expiresAt > agora,
   );
   indisponivel(linha.scope === contexto.scope);
+  const participacao = await lerParticipacaoDoRecreioLocked(tx, autor.contaId);
+  indisponivel(linha.participationRevision === participacao.revisao);
   if (contexto.scope === "account") {
     indisponivel(
       linha.profileId === null &&
@@ -214,6 +219,7 @@ export function publicarCopiaPessoalNoBanco(
         contexto,
         {
           ...origem,
+          participationRevision: captura.revisaoDaParticipacao,
           requesterUserId: autor.contaId,
           deviceSessionId: autor.sessaoDeAparelhoId,
           authSessionId: autor.login.authSessionId,
@@ -245,6 +251,7 @@ export function publicarCopiaPessoalNoBanco(
       await tx.insert(exports).values({
         id: copiaId,
         requesterUserId: autor.contaId,
+        participationRevision: captura.revisaoDaParticipacao,
         ...origem,
         deviceSessionId: autor.sessaoDeAparelhoId,
         authSessionId: autor.login.authSessionId,

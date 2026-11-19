@@ -1,0 +1,2 @@
+ALTER TABLE "recreio"."personal_exports" ADD COLUMN "participation_revision" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."personal_exports" ADD CONSTRAINT "recreio_personal_export_participation" CHECK ("recreio"."personal_exports"."participation_revision" between 0 and 3);
