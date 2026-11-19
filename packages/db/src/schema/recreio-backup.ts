@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -236,6 +237,11 @@ export const recreioBackupRetirements = recreio.table(
   },
   (t) => [
     index("recreio_backup_retirement_due").on(t.nextAttemptAt, t.captureId),
+    foreignKey({
+      name: "recreio_backup_retirement_publication",
+      columns: [t.captureId],
+      foreignColumns: [recreioBackupPublications.captureId],
+    }).onDelete("restrict"),
     check(
       "recreio_backup_retirement_metadata",
       sql`${t.source} ~ '^[a-f0-9]{40}$' and

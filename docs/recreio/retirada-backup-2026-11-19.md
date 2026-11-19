@@ -47,3 +47,9 @@ Ausência de uma publicação legada não comprova que não houve I/O. A retomad
 abandono automático recusa protocolo legado. Um banco restaurado também não
 pode ativar jobs por ter esse número: a normalização/ledger e o bootstrap de
 recuperação permanecem gates separados, antes de qualquer tráfego ou coleta.
+
+O controle de retirada também precisa de FK RESTRICT para a publicação, que
+conserva o destino independente. A FK só para captura deixaria apagar os
+metadados necessários à retomada. A constraint adicional é aditiva e não exige
+backfill de produção: essa tabela só existe em candidata e todos os escritores
+nativos criam a publicação antes da retirada; não houve implantação.
