@@ -75,7 +75,10 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
     definirRecente(false);
     iniciar(async () => {
       try {
-        const resposta = await cancelarPreviaAction(ref);
+        const resposta = await cancelarPreviaAction({
+          preparacaoId: ref.preparacaoId,
+          planoSha256: ref.planoSha256,
+        });
         if (resposta.ok) {
           definirPrevia((anterior) =>
             anterior?.preparacaoId === ref.preparacaoId
@@ -140,15 +143,18 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
               Encerrar minha participação no Recreio
             </label>
             {tipo === "retirar_perfil" && (
-              <label className="block font-semibold">
-                Perfil
+              <div>
+                <label htmlFor="direitos-perfil" className="block font-semibold">
+                  Perfil
+                </label>
                 <select
+                  id="direitos-perfil"
                   value={perfilId}
                   onChange={(e) => {
                     definirPerfil(e.target.value);
                     conferir(false);
                   }}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-tinta/20 bg-white px-3"
+                  className="mt-2 h-12 w-full rounded-controle border border-linha-forte bg-fundo px-3 text-tinta"
                   required
                 >
                   <option value="">Escolha um perfil</option>
@@ -159,7 +165,7 @@ export function PainelDeDireitos({ estado }: { estado: Estado }) {
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
             )}
             {tipo === "retirar_perfil" && estado.perfis.length === 0 && (
               <p className="text-tinta-suave">

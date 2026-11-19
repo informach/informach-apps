@@ -65,6 +65,16 @@ function primeiroMorador(estado: EstadoDoMundo) {
   return primeiro;
 }
 
+function moradorDoFundador(estado: EstadoDoMundo) {
+  const recibo = estado.fundacao;
+  if (!recibo) throw new Error("Foundation absent");
+  const morador = listar(estado.moradores).find((m) =>
+    Object.hasOwn(recibo.resultado.versoes, m.id),
+  );
+  if (!morador) throw new Error("Founded resident absent");
+  return morador;
+}
+
 describe("Morada: retirada pessoal pura sem perder progresso compartilhado", () => {
   it("retira acesso, preferência e autoria de pedido, preservando o outro perfil e a história", () => {
     const antes = base();
@@ -123,8 +133,11 @@ describe("Morada: retirada pessoal pura sem perder progresso compartilhado", () 
     const mundo = fundacao(),
       antes = copiar(mundo.estado);
     const depois = retirar(mundo.estado, LIA, politica);
-    const morador = primeiroMorador(antes),
+    const morador = moradorDoFundador(antes),
       redigido = depois.moradores.porId[morador.id];
+    const vizinho = primeiroMorador(antes);
+    expect(vizinho.id).not.toBe(morador.id);
+    expect(depois.moradores.porId[vizinho.id]).toEqual(vizinho);
     expect(redigido).toBeDefined();
     expect(redigido?.nome).toBe(`Morador ${morador.id.slice(4)}`);
     expect(redigido?.versao).toBe(morador.versao + 1);
@@ -153,7 +166,7 @@ describe("Morada: retirada pessoal pura sem perder progresso compartilhado", () 
 
   it("mudar a família do morador não oculta o nome atribuível ao fundador original", () => {
     const antes = fundacao().estado,
-      morador = primeiroMorador(antes);
+      morador = moradorDoFundador(antes);
     const id = novoId(antes, "fam");
     inserir(antes.familias, id, {
       id,

@@ -48,8 +48,8 @@ test("o responsável vê o menor e um aparelho pareado não abre a gestão de da
   const familia = await familiaComAparelho(browser, "Perfil protegido");
   try {
     await familia.adulto.page.goto("/conta/dados");
-    const campo = familia.adulto.page.getByLabel("Perfil", { exact: true });
-    await hidratado(campo);
+    const campo = familia.adulto.page.getByRole("combobox", { name: "Perfil", exact: true });
+    await expect(campo).toBeEnabled();
     await campo.selectOption(familia.perfilId);
     await familia.adulto.page
       .getByRole("checkbox", { name: /Conferi a seleção e quero preparar/ })

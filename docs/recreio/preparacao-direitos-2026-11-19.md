@@ -51,3 +51,13 @@ login recente. Conta sem jogador, menor sob responsabilidade atual e negativa de
 contexto pareado têm jornadas de navegador preparadas para GitHub Actions. A
 tela informa explicitamente que não existe execução de exclusão neste incremento;
 nenhuma intenção externa ou consentimento destrutivo foi exposto.
+
+
+A fonte `e33c2d30` aprovou quinze dos dezesseis gates em `44531301242`,
+incluindo integração com o contador corrigido, mas o E2E recusou dois cenários
+novos. Cancelamento passava a prévia inteira para um contrato estrito de duas
+referências; a UI foi corrigida para projetar somente ID/hash, sem afrouxar o
+servidor. O seletor passou a ter associação explícita label/id, tema coerente e
+espera pelo estado habilitado público (já condicionado à hidratação), em vez de
+inspecionar propriedade interna do React. Capturas sintéticas foram examinadas;
+a nova fonte exige nova rodada. Não houve promoção de fonte reprovada.

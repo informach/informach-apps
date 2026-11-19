@@ -42,3 +42,11 @@ os writers, fotografias e diário históricos, expurgo/retirada de objetos,
 referências/resumos/nome do mundo no portal e aplicação do livro externo na
 restauração. Nenhum mundo real ou arte licenciada foi utilizado nesta etapa.
 Não declarar anonimização completa ou encerramento a partir deste componente.
+
+
+Primeira quality `44533801048`/`222c7c6a`: tipos passaram; na simulação,
+250 cenários passaram e dois testes novos selecionavam o primeiro vizinho
+preexistente em vez do morador realmente criado pelo fundador. A fixture passou
+a selecionar o ID comprovado no recibo real de fundação e a exigir também que
+o vizinho permaneça idêntico. A regra de preservação de terceiros não foi
+alterada para satisfazer o teste. A correção ainda precisa de prova remota.
