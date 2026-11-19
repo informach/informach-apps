@@ -158,6 +158,7 @@ export type AuditEventType =
   | "recreio.rights_preparation_cancelled"
   | "recreio.rights_dashboard_viewed"
   | "recreio.rights_consented"
+  | "recreio.account_participation_closing"
   | "recreio.rights_admitted"
   | "recreio.rights_photo_processed"
   | "recreio.rights_journal_compacted"

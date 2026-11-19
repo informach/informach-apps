@@ -1,0 +1,27 @@
+{
+  "source": "5667c4217d0f928a22b448aae733a8a99e29a81b",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0238_careful_veda.sql",
+      "bytes": 6080,
+      "sha256": "0183be8f10f70f747996458dc924ac641583c0ff52ee1974aa23befc08537210"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0238_snapshot.json",
+      "bytes": 1136916,
+      "sha256": "2540e0a7e95024a33f757c1fb38881c38d73acf2c44204d4e8603e608a169e4c"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 36126,
+      "sha256": "614359dcab9c1b598901895944b692b3253287e6c947c4a9cae752cf5dd980f9"
+    }
+  ],
+  "runId": 44623327745,
+  "artifactId": 14577701698,
+  "artifactZipBytes": 81788,
+  "artifactZipSha256": "13f8f63d1bdccbafa4a213a3c61d1196b3b0ebdf4b41577949aa492534aa23a7",
+  "productionApplied": false,
+  "adopted": false,
+  "rejectionReason": "NULL attempt counter branch and missing participation finite-date constraint; regenerated without editing generated files"
+}

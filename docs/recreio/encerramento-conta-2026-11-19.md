@@ -24,6 +24,22 @@ Também foi acrescentada finitude às datas da participação. A geração inici
 44623327745 não autoriza adoção; regenerar a partir da correção, sem editar SQL
 ou snapshot gerados. Provar os dois casos no PostgreSQL descartável.
 
+A geração corrigida 44623570754/01288283 foi conferida e adotada intacta:
+0238/239 recibos candidatos, novo recibo e somente a nova condição de finitude
+na tabela anterior de participação. Prefixo/predecessor, hashes e as demais
+tabelas foram conferidos. Cinco comandos aditivos, sem migração em produção.
+O ZIP original 44623327745 foi preservado e seu recibo marca `adopted=false`.
+
+O consentimento privado candidato agora exige V2/três aceites, conserva o ciclo
+financeiro antes da TX e toma UPDATE das identidades em ordem antes de mundos,
+perfis e aparelhos. Reconstitui todo o escopo; outbox assinada, congelamento de
+perfis/mundos, encerramento de pedidos nunca enviados, participação `closing`
+e recibo financeiro `pending` são atômicos. Contexto infantil não vira gestão
+adulta ao retirar o perfil ativo. Replay conserva os bytes/login/fonte originais
+e não atravessa os tipos de operação. Sete testes novos aguardam qualificação.
+Isso não confirma parada de renovação, exclusão, publicação no livro ou estado
+`closed`; os executores destrutivos continuam exclusivos de `retirar_perfil`.
+
 ## Exportação
 
 A cópia de perfil já tem captura consistente, artefato cifrado de dez minutos,

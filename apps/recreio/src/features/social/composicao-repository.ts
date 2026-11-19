@@ -72,6 +72,7 @@ async function comporPerfisSociais(
   antesDosPerfis?: (tx: Transacao) => Promise<void>,
   limite = 2,
   permitirSemAlvos = false,
+  modoDasContas: "share" | "update" = "share",
 ) {
   assertAllowed(
     (ids.length > 0 || autor.tipo === "equipe" || permitirSemAlvos) && ids.length <= limite,
@@ -93,7 +94,7 @@ async function comporPerfisSociais(
     .from(users)
     .where(inArray(users.id, contas))
     .orderBy(users.id)
-    .for("share");
+    .for(modoDasContas);
   assertAllowed(contasAtuais.length === contas.length, "CONTATO", "Contato não disponível.");
   await antesDosPerfis?.(tx);
   const perfis = await tx
@@ -157,4 +158,24 @@ export function travarComposicaoDeDireitos(
   antesDosPerfis: (tx: Transacao) => Promise<void>,
 ) {
   return comporPerfisSociais(tx, { tipo: "responsavel", contaId }, ids, antesDosPerfis, 256, true);
+}
+
+/** The account-closing fence must precede worlds/profiles/devices. All related
+ * native identities use the same sorted order; no SHARE→UPDATE upgrade after
+ * taking a profile. Common social/right operations retain their SHARE mode. */
+export function travarComposicaoDeEncerramento(
+  tx: Transacao,
+  contaId: string,
+  ids: readonly PerfilId[],
+  antesDosPerfis: (tx: Transacao) => Promise<void>,
+) {
+  return comporPerfisSociais(
+    tx,
+    { tipo: "responsavel", contaId },
+    ids,
+    antesDosPerfis,
+    256,
+    true,
+    "update",
+  );
 }

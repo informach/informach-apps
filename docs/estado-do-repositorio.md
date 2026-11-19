@@ -15,9 +15,13 @@ inspecionadas. O bloqueio de novas prévias 071ba841 passou novamente em
 
 O cancelamento nativo da renovação está em implementação, separado de aceite,
 tentativa e confirmação. 0237 foi gerada e adotada intacta em 44614009506;
-238 recibos candidatos; aceite/consulta qualificados em 44617521395/44617534421,
-direitos/upgrade 44617528305, fonte 96a9b76a. Provider está em candidata sem
-qualificação nova; job, ações e interface ainda pendentes. O portal restrito,
+239 recibos candidatos/0238. Aceite/consulta passaram 44617521395/44617534421;
+provider 44620033752/8af11a7c, worker f89b6ac5 em qualidade/conciliação/integração
+44620905768/44620899730/44620911792. A interface e portal restrito f160b445 passaram
+quality/finanças 44622226513/44622231617; CSP corrigida separando a constante
+do Zod, nova jornada 44624092000 ainda em curso. O consentimento privado de
+encerramento agora vincula congelamento/outbox/fila financeira na mesma TX,
+sem conclusão ou ação pública, com sete casos novos aguardando gate. O portal restrito,
 a preservação do período pago e as capacidades antigas precisam ser provados
 antes de habilitar o encerramento. [Plano](recreio/cancelamento-nativo-2026-11-19.md)
 e [contratos/execução restante](recreio/encerramento-conta-2026-11-19.md).

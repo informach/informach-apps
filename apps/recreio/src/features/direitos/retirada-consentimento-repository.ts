@@ -1,6 +1,7 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import { logAuditEventStrict } from "@informach/auth";
+import type { StripeMode } from "@informach/config";
 import { and, db, eq, inArray, isNull, sql } from "@informach/db";
 import {
   recreioDeviceSessions as devices,
@@ -23,10 +24,16 @@ import {
   type AutorNativoRecente,
   autorizarContaNativaParaDireitos,
 } from "@/features/account/autoridade-repository";
+import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
-import { travarComposicaoDeDireitos } from "@/features/social/composicao-repository";
+import {
+  travarComposicaoDeDireitos,
+  travarComposicaoDeEncerramento,
+} from "@/features/social/composicao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, travar } from "@/lib/repository";
+import { congelarContaDoEncerramentoLocked } from "./encerramento-congelamento-repository";
+import { AceiteDoEncerramentoSchema } from "./encerramento-contrato";
 import { mesmoEscopoDeDireitos } from "./escopo";
 import { type criarAssinaturaDoLivro, resumoDoRegistro } from "./livro/assinatura";
 import { ConsentimentoDeRetiradaSchema } from "./preparacao-contrato";
@@ -54,8 +61,30 @@ export function consentirRetiradaNoBanco(
   entrada: unknown,
   config: { assinatura: Assinatura; fonte: string; epoca: number },
 ) {
-  const pedido = ConsentimentoDeRetiradaSchema.parse(entrada),
-    { fonte, epoca } = Configuracao.parse({ fonte: config.fonte, epoca: config.epoca });
+  return consentirPlanoNoBanco(autor, ConsentimentoDeRetiradaSchema.parse(entrada), config);
+}
+
+/** Private native coordinator only. Public composition still requires external
+ * ledger/key preflight and the explicit three-checkbox account-closure flow. */
+export function consentirEncerramentoNoBanco(
+  autor: AutorNativoRecente,
+  entrada: unknown,
+  config: { assinatura: Assinatura; fonte: string; epoca: number; modo: StripeMode },
+) {
+  const pedido = AceiteDoEncerramentoSchema.parse(entrada);
+  return comCicloDeCobranca(autor.contaId, () =>
+    consentirPlanoNoBanco(autor, pedido, config, config.modo),
+  );
+}
+
+function consentirPlanoNoBanco(
+  autor: AutorNativoRecente,
+  pedido: { preparacaoId: string; planoSha256: string },
+  config: { assinatura: Assinatura; fonte: string; epoca: number },
+  financeiro?: StripeMode,
+) {
+  const tipo = financeiro === undefined ? "retirar_perfil" : "encerrar_conta";
+  const { fonte, epoca } = Configuracao.parse({ fonte: config.fonte, epoca: config.epoca });
   const { assinatura } = config;
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout='5s'`);
@@ -68,7 +97,9 @@ export function consentirRetiradaNoBanco(
       .where(eq(operations.preparationId, pedido.preparacaoId));
     if (anterior) {
       assertAllowed(
-        anterior.requesterUserId === autor.contaId && anterior.planSha256 === pedido.planoSha256,
+        anterior.requesterUserId === autor.contaId &&
+          anterior.planSha256 === pedido.planoSha256 &&
+          anterior.kind === tipo,
         "DIREITOS",
         "Pedido não disponível.",
       );
@@ -89,13 +120,18 @@ export function consentirRetiradaNoBanco(
     assertAllowed(pista, "DIREITOS", "Prepare uma nova prévia para continuar.");
     const plano = lerPlanoDeDireitos(pista, autor.contaId);
     assertAllowed(
-      plano.tipo === "retirar_perfil",
+      plano.tipo === tipo &&
+        (financeiro === undefined ||
+          (plano.formato === "recreio-previa-encerramento-v2" &&
+            plano.financeiro.modo === financeiro)),
       "ESCOPO",
-      "Este consentimento é exclusivo da retirada de um perfil.",
+      "Prepare uma prévia compatível com esta operação.",
     );
     const ids = plano.perfis.map((p) => p.id),
       idsMundos = plano.mundos.map((m) => m.id);
-    await travarComposicaoDeDireitos(tx, autor.contaId, ids, async (transacao) => {
+    const compor =
+      financeiro === undefined ? travarComposicaoDeDireitos : travarComposicaoDeEncerramento;
+    await compor(tx, autor.contaId, ids, async (transacao) => {
       if (!idsMundos.length) return;
       const linhas = await transacao
         .select()
@@ -111,11 +147,16 @@ export function consentirRetiradaNoBanco(
     });
     // Reconstituir depois das contas/mundos/perfis sob trava, sem adquirir um
     // mundo descoberto tardiamente depois de segurar um perfil.
-    const atual = await montarPlanoDeDireitos(tx, autor, {
-      pedidoId: pista.id,
-      tipo: plano.tipo,
-      perfis: ids,
-    });
+    const atual = await montarPlanoDeDireitos(
+      tx,
+      autor,
+      {
+        pedidoId: pista.id,
+        tipo: plano.tipo,
+        perfis: ids,
+      },
+      financeiro,
+    );
     assertAllowed(
       mesmoEscopoDeDireitos(plano, atual),
       "ESCOPO",
@@ -317,6 +358,14 @@ export function consentirRetiradaNoBanco(
         contaId: autor.contaId,
       },
     );
+    if (financeiro !== undefined) {
+      assertAllowed(
+        plano.formato === "recreio-previa-encerramento-v2",
+        "ESCOPO",
+        "Prepare uma nova prévia.",
+      );
+      await congelarContaDoEncerramentoLocked(tx, plano, operacao.id, agora);
+    }
     await logAuditEventStrict(
       "recreio.rights_consented",
       autor.contaId,

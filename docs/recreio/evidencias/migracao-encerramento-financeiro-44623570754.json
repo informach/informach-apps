@@ -1,0 +1,33 @@
+{
+  "source": "0128828335ebf590715b60fc3b2eb44a22351999",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0238_wooden_sunset_bain.sql",
+      "bytes": 6590,
+      "sha256": "c2cc55450ee89c3030072a7926f0ab62cd3a4f412cf24a4082d3f9e515c5e654"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0238_snapshot.json",
+      "bytes": 1137468,
+      "sha256": "766c6c73f88d6830d20a8aecc03fe9fd0b6342df58439319cf71689995489728"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 36132,
+      "sha256": "d1641361c106bf5ef24c2feae9c86d1fb0990ffaafc33be77537a3fbdc9c262c"
+    }
+  ],
+  "runId": 44623570754,
+  "artifactId": 14578387091,
+  "artifactZipBytes": 81910,
+  "artifactZipSha256": "5774fbc76365e1cc62733f49ba3d60298a7f29eaed3f4c18ad1d1886fab504d5",
+  "productionApplied": false,
+  "adopted": true,
+  "unchangedOtherPreviousTables": true,
+  "changedPreviousTable": "recreio.account_participations",
+  "onlyPreviousChange": "additional finite-date constraint",
+  "addedTable": "recreio.account_closure_finances",
+  "referencedUniquesAlreadyPresent": true,
+  "journalPrefixPreserved": true,
+  "statementCount": 5
+}
