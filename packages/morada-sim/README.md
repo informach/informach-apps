@@ -162,3 +162,13 @@ Com `conferirReplicacao: true` (o padrão dos testes) o replicador varre tudo a 
 ## Identidade dos fatos na recuperação
 
 Alterações repetíveis (acesso, preferido, casal e mudança de família) usam o contador durável `contadores.fat`, com sufixo `fat_...`. O redutor reaplica também o contador ao ler o diário. Duas alterações no mesmo tick, inclusive depois de restaurar, têm ids diferentes. O relógio continua no último tick conhecido: não é necessário simular um passo artificial para evitar colisão. Nascimento (`nasc:<gravidez>`) e mudança de fase mantêm seus ids estáveis. Fotografias v1 e fatos antigos continuam legíveis; o novo contador cabe no mapa de contadores existente.
+
+
+## Retirada pessoal (candidata F7)
+
+O subpath `/direitos` prepara retirada de referências pessoais no estado e em
+fotografias V1/V2/V3, conservando o formato persistido e o progresso dos demais.
+É puro e não concede autoridade, toma posse ou grava dados. Textos atribuídos
+à fundação exigem decisão explícita; referência residual ou perda no retorno
+ao formato antigo recusa a preparação. Composição, provas e limites no
+[registro F7](../../docs/recreio/adapter-privacidade-morada-2026-11-19.md).
