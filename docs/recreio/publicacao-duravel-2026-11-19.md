@@ -26,3 +26,19 @@ destino divergente, token vencido/concorrente, bytes divergentes, rollback por
 auditoria, lotes/repetição de liberação, e integração com composição real de
 arquivo/índice. A prova de cluster novo é evidência separada, já conferida em
 `44484289365`/`1893b6f4`. Nenhuma dessas candidatas habilita produção.
+
+A 0219 foi gerada em `44486780124`/`065c8ff8`, sem banco/segredos; SQL,
+snapshot e journal foram adotados intactos após verificar SHA/tamanho,
+predecessor, apenas uma tabela adicionada e todas as tabelas anteriores iguais.
+O controle guarda prazo de vinte minutos; renovação exige token ainda vigente.
+A confirmação revalida o prazo depois da auditoria, que pode esperar.
+
+O executor `publicar-captura.ts` recupera ciphertext do provedor, abre o arquivo
+e confere o composto inteiro antes da confirmação. Compara destino e inventário
+aos persistidos, fixa bytes assinados antes do PUT e relê índice/tombstone antes
+de confirmar. Uma falha de auditoria depois do índice guardado mantém a captura
+selada e todas as reservas; retomada usa novo token e os mesmos bytes, mesmo
+sem arquivos locais. Não há endpoint público para aceitar provas do navegador.
+
+Retirada de arquivo, expurgo de objetos, agendamento, custódia e replay F7
+continuam pendentes. O controle durável em candidata não é rotina de produção.

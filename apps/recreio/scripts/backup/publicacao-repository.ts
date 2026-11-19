@@ -257,6 +257,10 @@ export async function prepararIndiceDuravel(
   entrada: Uint8Array,
   indice: ReturnType<typeof criarIndiceDeRecuperacao>,
 ) {
+  exigir(
+    entrada instanceof Uint8Array && entrada.byteLength > 0 && entrada.byteLength <= 32768,
+    "CONFIGURACAO",
+  );
   const t = token(bruto),
     bytes = Buffer.from(entrada),
     v = indice.conferir(bytes, t.capturaId);
@@ -332,6 +336,10 @@ export async function lerTentativaDePublicacao(bruto: TentativaDePublicacao) {
 /** Bytes vêm da leitura autenticada do índice no provedor, após conferir a
  * ausência de tombstone. Nenhuma reserva é liberada nesta transação. */
 export async function confirmarPublicacao(bruto: TentativaDePublicacao, confirmado: Uint8Array) {
+  exigir(
+    confirmado instanceof Uint8Array && confirmado.byteLength > 0 && confirmado.byteLength <= 32768,
+    "CONFIGURACAO",
+  );
   const t = token(bruto),
     bytes = Buffer.from(confirmado);
   await db.transaction(async (tx) => {
@@ -363,6 +371,8 @@ export async function confirmarPublicacao(bruto: TentativaDePublicacao, confirma
       { app: "recreio", captureId: c.id, objectCount: c.objectCount },
       { writer: tx },
     );
+    // Auditoria/contagem podem esperar; o relógio inicial não autoriza commit tardio.
+    await vigente(tx, p, t);
   });
 }
 /** Lote limitado e repetível. Publicações antigas sem este controle não

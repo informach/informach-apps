@@ -395,6 +395,39 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
       f.indice.encerrar();
     }
   });
+  it("prazo que vence durante auditoria não autoriza confirmação tardia", async () => {
+    const f = await pronta();
+    await db.execute(sql`create sequence audit.publicacao_prazo_visitada`);
+    await db.execute(sql`create function audit.expirar_publicacao_teste() returns trigger language plpgsql as $$
+      begin if new.event_type='recreio.backup_published' then
+        perform nextval('audit.publicacao_prazo_visitada'); perform pg_sleep(3);
+      end if; return new; end $$`);
+    await db.execute(
+      sql`create trigger expirar_publicacao_teste before insert on audit.events for each row execute function audit.expirar_publicacao_teste()`,
+    );
+    try {
+      await db.execute(
+        sql`update recreio.backup_publications set lease_until=clock_timestamp()+interval '2 seconds' where capture_id=${f.id}`,
+      );
+      await expect(confirmarPublicacao(f.t, f.bytes)).rejects.toMatchObject({
+        codigo: "TENTATIVA",
+      });
+      const [visita] = await db.execute<{ visitada: boolean }>(
+        sql`select is_called as visitada from audit.publicacao_prazo_visitada`,
+      );
+      expect(visita?.visitada).toBe(true);
+      expect(await estados(f.id)).toEqual({
+        captura: "sealed",
+        publicacao: "index_prepared",
+        ativas: 0,
+      });
+    } finally {
+      await db.execute(sql`drop trigger expirar_publicacao_teste on audit.events`);
+      await db.execute(sql`drop function audit.expirar_publicacao_teste()`);
+      await db.execute(sql`drop sequence audit.publicacao_prazo_visitada`);
+      f.indice.encerrar();
+    }
+  });
   it("constraints rejeitam tuplas parciais, prazo infinito e destino/fonte inválidos", async () => {
     const f = await fixture();
     try {

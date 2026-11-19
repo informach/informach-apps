@@ -32,6 +32,7 @@ export async function publicarCapturaGuardada(config: {
   recuperado: FileHandle;
   aberto: FileHandle;
 }) {
+  const { transporte, cifrador, composto, indice, indices, recuperado, aberto } = config;
   const alvo = DestinoDeCapturaSchema.safeParse(config.destino);
   if (!alvo.success) throw new FalhaDaPublicacao("CONFIGURACAO");
   const tentativa = { ...config.tentativa },
@@ -39,13 +40,13 @@ export async function publicarCapturaGuardada(config: {
     registro = await lerTentativaDePublicacao(tentativa);
   if (
     !isDeepStrictEqual(destino, registro.destino) ||
-    config.transporte.bucketName !== destino.bucketName ||
-    config.indices.bucketName !== destino.bucketName
+    transporte.bucketName !== destino.bucketName ||
+    indices.bucketName !== destino.bucketName
   )
     throw new FalhaDaPublicacao("CONFIGURACAO");
-  await config.transporte.recuperar(registro.arquivo, config.recuperado);
-  await config.cifrador.abrir(config.recuperado, config.aberto, registro.arquivo);
-  const resumo = await config.composto.conferir(config.aberto, registro.composto);
+  await transporte.recuperar(registro.arquivo, recuperado);
+  await cifrador.abrir(recuperado, aberto, registro.arquivo);
+  const resumo = await composto.conferir(aberto, registro.composto);
   if (
     resumo.capturaId !== tentativa.capturaId ||
     !isDeepStrictEqual(resumo.inventario, registro.inventario)
@@ -54,11 +55,11 @@ export async function publicarCapturaGuardada(config: {
   const corpo = await confirmarArquivoGuardado(tentativa),
     preparado = await prepararIndiceDuravel(
       tentativa,
-      registro.indice ?? config.indice.assinar(corpo),
-      config.indice,
+      registro.indice ?? indice.assinar(corpo),
+      indice,
     );
-  await config.indices.publicar(preparado, tentativa.capturaId);
-  const relido = await config.indices.recuperar(tentativa.capturaId);
+  await indices.publicar(preparado, tentativa.capturaId);
+  const relido = await indices.recuperar(tentativa.capturaId);
   if (!relido.bytes.equals(preparado)) throw new FalhaDaPublicacao("INTEGRIDADE");
   await confirmarPublicacao(tentativa, relido.bytes);
   return { capturaId: tentativa.capturaId, publicada: true };
