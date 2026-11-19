@@ -2,13 +2,16 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
+  customers,
   recreioDeviceSessions as devices,
   recreioPersonalExports as exports,
   recreioProfiles as profiles,
   sessions,
+  subscriptions,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
 import { capturarDadosPessoaisDoPerfil } from "@/features/direitos/captura-perfil-repository";
 import {
   admitirDownloadPessoalNoBanco,
@@ -42,6 +45,19 @@ async function adulto() {
   });
   return { conta, autor, perfil };
 }
+
+async function semJogador() {
+  const conta = await novaConta(),
+    login = await loginReal(conta),
+    contexto = await resolverAtor(login);
+  const [sessao] = await db.select().from(sessions).where(eq(sessions.id, login.authSessionId));
+  if (!contexto || !sessao) throw new Error("Native session absent");
+  const autor: AutorNativoRecente = {
+    ...contexto.ator,
+    login: { authSessionId: sessao.id, criadoEm: sessao.createdAt, expiraEm: sessao.expiresAt },
+  };
+  return { conta, autor };
+}
 async function cenario(
   executar: (
     f: Awaited<ReturnType<typeof adulto>> & { cifrador: ReturnType<typeof criarCifradorDeObjetos> },
@@ -62,6 +78,110 @@ async function cenario(
 }
 
 describe("direitos: artefato temporário pessoal", () => {
+  it("conta sem jogador exporta só o próprio histórico Recreio, sem misturar outro adulto ou aplicativo", async () =>
+    cenario(async (f) => {
+      const a = await semJogador(),
+        b = await semJogador();
+      const clientes = await db
+        .insert(customers)
+        .values([
+          {
+            provider: "stripe" as const,
+            providerCustomerId: `cus_${randomUUID()}`,
+            subjectType: "user" as const,
+            subjectId: a.conta.id,
+            app: "recreio",
+            email: "fiscal-proprio@example.test",
+          },
+          {
+            provider: "stripe" as const,
+            providerCustomerId: `cus_${randomUUID()}`,
+            subjectType: "user" as const,
+            subjectId: b.conta.id,
+            app: "recreio",
+            email: "fiscal-alheio@example.test",
+          },
+          {
+            provider: "stripe" as const,
+            providerCustomerId: `cus_${randomUUID()}`,
+            subjectType: "user" as const,
+            subjectId: a.conta.id,
+            app: "cozya",
+            email: "fiscal-outro-app@example.test",
+          },
+        ])
+        .returning({ id: customers.id });
+      await db.insert(subscriptions).values(
+        clientes.map((cliente, i) => ({
+          customerId: cliente.id,
+          provider: "stripe" as const,
+          providerSubscriptionId: `sub_${randomUUID()}`,
+          productId: i === 0 ? "recreio_individual_monthly" : "produto-que-nao-pode-aparecer",
+          providerPriceId: `price_${randomUUID()}`,
+          status: "active" as const,
+          currentPeriodStart: new Date("2026-11-01T00:00:00Z"),
+          currentPeriodEnd: new Date("2026-12-01T00:00:00Z"),
+          metadata: { privado: "METADADO_LIVRE_NAO_EXPORTAR" },
+        })),
+      );
+      const pedido = { copiaId: randomUUID(), escopo: "account" as const };
+      const recibo = await prepararArquivoPessoal(a.autor, pedido, f.cifrador);
+      expect(recibo.escopo).toBe("account");
+      expect(await prepararArquivoPessoal(a.autor, pedido, f.cifrador)).toEqual(recibo);
+      const [linha] = await db.select().from(exports).where(eq(exports.id, pedido.copiaId));
+      expect(linha).toMatchObject({
+        scope: "account",
+        profileId: null,
+        profileKind: null,
+        policyVersion: null,
+        guardianReference: null,
+      });
+      const bytes = await abrirArquivoPessoal(a.autor, { copiaId: pedido.copiaId }, f.cifrador);
+      try {
+        const texto = bytes.toString("utf8");
+        expect(texto).toContain(a.conta.email);
+        expect(texto).toContain("fiscal-proprio@example.test");
+        expect(texto).toContain("recreio_individual_monthly");
+        for (const privado of [
+          b.conta.email,
+          "fiscal-alheio@example.test",
+          "fiscal-outro-app@example.test",
+          "produto-que-nao-pode-aparecer",
+          "METADADO_LIVRE_NAO_EXPORTAR",
+          a.autor.login.authSessionId,
+          a.autor.sessaoDeAparelhoId,
+        ])
+          expect(texto).not.toContain(privado);
+      } finally {
+        bytes.fill(0);
+      }
+      expect(await db.select().from(profiles).where(eq(profiles.userId, a.conta.id))).toHaveLength(
+        0,
+      );
+      await expect(
+        abrirArquivoPessoal(b.autor, { copiaId: pedido.copiaId }, f.cifrador),
+      ).rejects.toMatchObject({ code: "COPIA_INDISPONIVEL" });
+    }));
+  it("escopo de conta não pode ser reaproveitado como perfil e continua negado ao contexto infantil", async () =>
+    cenario(async (f) => {
+      const pedido = { copiaId: randomUUID(), escopo: "account" as const };
+      await prepararArquivoPessoal(f.autor, pedido, f.cifrador);
+      await expect(
+        prepararArquivoPessoal(
+          f.autor,
+          { copiaId: pedido.copiaId, perfilId: f.perfil.id },
+          f.cifrador,
+        ),
+      ).rejects.toMatchObject({ code: "COPIA_INDISPONIVEL" });
+      await db
+        .update(devices)
+        .set({ minorContextGeneration: randomUUID() })
+        .where(eq(devices.id, f.autor.sessaoDeAparelhoId));
+      await expect(capturarDadosPessoaisDaConta(f.autor)).rejects.toMatchObject({ code: "AUTH" });
+      await expect(
+        abrirArquivoPessoal(f.autor, { copiaId: pedido.copiaId }, f.cifrador),
+      ).rejects.toMatchObject({ code: "AUTH" });
+    }));
   it("guarda somente envelope cifrado e repete o mesmo arquivo; UUID não concede acesso a outro adulto", async () =>
     cenario(async (f) => {
       const pedido = { copiaId: randomUUID(), perfilId: f.perfil.id },

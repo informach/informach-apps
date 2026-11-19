@@ -4,8 +4,10 @@ import { z } from "zod";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import type { criarCifradorDeObjetos } from "@/features/objetos/criptografia";
 import { limitarTentativas } from "@/lib/rate-limit";
+import { capturarDadosPessoaisDaConta } from "./captura-conta-repository";
 import { capturarDadosPessoaisDoPerfil } from "./captura-perfil-repository";
 import {
+  type AlvoDaCopia,
   admitirDownloadPessoalNoBanco,
   carregarCopiaPessoalNoBanco,
   consultarCopiaPessoalNoBanco,
@@ -13,8 +15,12 @@ import {
   revogarCopiaPessoalNoBanco,
 } from "./exportacao-repository";
 
-const Pedido = z.strictObject({ copiaId: z.uuid(), perfilId: PerfilIdSchema });
-const Referencia = z.strictObject({ copiaId: z.uuid() });
+const Id = z.uuid().transform((id) => id.toLowerCase());
+const Pedido = z.union([
+  z.strictObject({ copiaId: Id, perfilId: PerfilIdSchema }),
+  z.strictObject({ copiaId: Id, escopo: z.literal("account") }),
+]);
+const Referencia = z.strictObject({ copiaId: Id });
 type Cifrador = ReturnType<typeof criarCifradorDeObjetos>;
 
 export async function prepararArquivoPessoal(
@@ -28,13 +34,18 @@ export async function prepararArquivoPessoal(
     max: 6,
     janelaEmSegundos: 3600,
   });
-  const anterior = await consultarCopiaPessoalNoBanco(autor, pedido.copiaId, pedido.perfilId);
+  const alvo: AlvoDaCopia =
+    "perfilId" in pedido ? { escopo: "profile", perfilId: pedido.perfilId } : { escopo: "account" };
+  const anterior = await consultarCopiaPessoalNoBanco(autor, pedido.copiaId, alvo);
   if (anterior) {
     // A consulta confere autoridade, mas uma repetição também precisa conservar
     // o alvo original. Não confiar no UUID escolhido pelo navegador.
     return anterior;
   }
-  const captura = await capturarDadosPessoaisDoPerfil(autor, pedido.perfilId);
+  const captura =
+    "perfilId" in pedido
+      ? await capturarDadosPessoaisDoPerfil(autor, pedido.perfilId)
+      : await capturarDadosPessoaisDaConta(autor);
   let cifrada: ReturnType<Cifrador["cifrar"]> | undefined;
   try {
     cifrada = cifrador.cifrar({ tipo: "exportacao", id: pedido.copiaId }, captura.bytes);

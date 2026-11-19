@@ -1,0 +1,29 @@
+{
+  "source": "d1d05d8303f5a73471158ff924d4f023043cec72",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0234_recreio_exportacao_conta.sql",
+      "bytes": 1391,
+      "sha256": "fc098f2eb9896ef832a1d0cc1a5362528a229f225440d93be354aa6ca7530d5c"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0234_snapshot.json",
+      "bytes": 1104786,
+      "sha256": "74b4ad12d09fc7fc6e120af8645aec2b848bc993502a51c44e15370a9d7e69e7"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 35539,
+      "sha256": "5aa354ed07e906951b92f3a2a3765ed209abea2ca652f8d4a01bd3c591805a05"
+    }
+  ],
+  "runId": 44594508248,
+  "artifactId": 14565935721,
+  "artifactZipBytes": 78215,
+  "artifactZipSha256": "dcffb32ebb91f324bdd8d36fdfd22fd39bb53fea5939c7bfdce4cd79c9ab3dd4",
+  "productionApplied": false,
+  "unchangedOtherTablesAndColumns": true,
+  "addedColumn": "recreio.personal_exports.scope",
+  "changedNullableColumns": ["profile_id", "profile_kind", "policy_version"],
+  "changedConstraint": "recreio_personal_export_profile"
+}

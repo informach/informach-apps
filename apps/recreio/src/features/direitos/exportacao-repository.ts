@@ -5,6 +5,7 @@ import { and, db, eq, sql } from "@informach/db";
 import {
   recreioPersonalExports as exports,
   recreioGuardianLinks as guardians,
+  type recreioProfiles as profiles,
 } from "@informach/db/schema";
 import { PerfilIdSchema } from "@informach/recreio";
 import {
@@ -17,13 +18,37 @@ import {
 } from "@/features/objetos/criptografia";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
-import { comPerfilPessoal, conferirAutorDeDireitosNoBanco } from "./autoridade-repository";
+import {
+  comContaPessoal,
+  comPerfilPessoal,
+  conferirAutorDeDireitosNoBanco,
+} from "./autoridade-repository";
+import type { capturarDadosPessoaisDaConta } from "./captura-conta-repository";
 import type { capturarDadosPessoaisDoPerfil } from "./captura-perfil-repository";
 
-type Captura = Awaited<ReturnType<typeof capturarDadosPessoaisDoPerfil>>;
+type Captura =
+  | Omit<Awaited<ReturnType<typeof capturarDadosPessoaisDoPerfil>>, "bytes">
+  | Omit<Awaited<ReturnType<typeof capturarDadosPessoaisDaConta>>, "bytes">;
+export type AlvoDaCopia = { escopo: "profile"; perfilId: string } | { escopo: "account" };
+type Contexto = { scope: "profile"; perfil: typeof profiles.$inferSelect } | { scope: "account" };
+function comTitularDeCopia<T>(
+  autor: AutorNativoRecente,
+  pista: { scope: "profile" | "account"; perfilId: string | null },
+  executar: (tx: Transacao, contexto: Contexto, prazo: () => Promise<Date>) => Promise<T>,
+) {
+  if (pista.scope === "account") {
+    indisponivel(pista.perfilId === null);
+    return comContaPessoal(autor, (tx, _conta, prazo) => executar(tx, { scope: "account" }, prazo));
+  }
+  indisponivel(pista.perfilId);
+  return comPerfilPessoal(autor, PerfilIdSchema.parse(pista.perfilId), null, (tx, perfil, prazo) =>
+    executar(tx, { scope: "profile", perfil }, prazo),
+  );
+}
 type Linha = typeof exports.$inferSelect;
 const colunas = {
   id: exports.id,
+  scope: exports.scope,
   requesterUserId: exports.requesterUserId,
   profileId: exports.profileId,
   deviceSessionId: exports.deviceSessionId,
@@ -43,9 +68,13 @@ function indisponivel(valor: unknown): asserts valor {
     "A cópia não está disponível. Prepare uma nova cópia com seu próprio login.",
   );
 }
-function recibo(linha: Pick<Linha, "id" | "expiresAt" | "capturedAt">, ref: ReferenciaDoObjeto) {
+function recibo(
+  linha: Pick<Linha, "id" | "expiresAt" | "capturedAt" | "scope">,
+  ref: ReferenciaDoObjeto,
+) {
   return {
     copiaId: linha.id,
+    escopo: linha.scope,
     capturadaEm: linha.capturedAt.toISOString(),
     expiraEm: linha.expiresAt.toISOString(),
     bytes: ref.bytes,
@@ -55,9 +84,10 @@ function recibo(linha: Pick<Linha, "id" | "expiresAt" | "capturedAt">, ref: Refe
 async function atual(
   tx: Transacao,
   autor: AutorNativoRecente,
-  perfil: { id: string; kind: string; policyVersion: number; rightsOperationId: string | null },
+  contexto: Contexto,
   linha: Pick<
     Linha,
+    | "scope"
     | "requesterUserId"
     | "profileId"
     | "deviceSessionId"
@@ -72,14 +102,27 @@ async function atual(
 ) {
   indisponivel(
     linha.requesterUserId === autor.contaId &&
-      linha.profileId === perfil.id &&
       linha.deviceSessionId === autor.sessaoDeAparelhoId &&
       linha.authSessionId === autor.login.authSessionId &&
-      linha.policyVersion === perfil.policyVersion &&
-      linha.profileKind === perfil.kind &&
-      perfil.rightsOperationId === null &&
       linha.state === "ready" &&
       linha.expiresAt > agora,
+  );
+  indisponivel(linha.scope === contexto.scope);
+  if (contexto.scope === "account") {
+    indisponivel(
+      linha.profileId === null &&
+        linha.profileKind === null &&
+        linha.policyVersion === null &&
+        linha.guardianReference === null,
+    );
+    return;
+  }
+  const perfil = contexto.perfil;
+  indisponivel(
+    linha.profileId === perfil.id &&
+      linha.policyVersion === perfil.policyVersion &&
+      linha.profileKind === perfil.kind &&
+      perfil.rightsOperationId === null,
   );
   const [vinculo] = await tx
     .select({ id: guardians.id })
@@ -91,7 +134,7 @@ async function atual(
 async function pistaDaCopia(autor: AutorNativoRecente, copiaId: string) {
   await conferirAutorDeDireitosNoBanco(autor);
   const [pista] = await db
-    .select({ perfilId: exports.profileId })
+    .select({ perfilId: exports.profileId, scope: exports.scope })
     .from(exports)
     .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)));
   return pista;
@@ -101,28 +144,27 @@ async function pistaDaCopia(autor: AutorNativoRecente, copiaId: string) {
 export async function consultarCopiaPessoalNoBanco(
   autor: AutorNativoRecente,
   copiaId: string,
-  perfilEsperado?: string,
+  alvo?: AlvoDaCopia,
 ) {
   const pista = await pistaDaCopia(autor, copiaId);
   if (!pista) return null;
-  indisponivel(perfilEsperado === undefined || perfilEsperado === pista.perfilId);
-  return comPerfilPessoal(
-    autor,
-    PerfilIdSchema.parse(pista.perfilId),
-    null,
-    async (tx, perfil, prazo) => {
-      const [linha] = await tx
-        .select({ ...colunas, reference: exports.reference })
-        .from(exports)
-        .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)))
-        .for("share");
-      indisponivel(linha);
-      await atual(tx, autor, perfil, linha, await prazo());
-      const ref = conferirReferenciaDoObjeto(linha.reference);
-      indisponivel(ref.contexto.tipo === "exportacao" && ref.contexto.id === linha.id);
-      return recibo(linha, ref);
-    },
+  indisponivel(
+    alvo === undefined ||
+      (alvo.escopo === pista.scope &&
+        (alvo.escopo === "account" || alvo.perfilId === pista.perfilId)),
   );
+  return comTitularDeCopia(autor, pista, async (tx, contexto, prazo) => {
+    const [linha] = await tx
+      .select({ ...colunas, reference: exports.reference })
+      .from(exports)
+      .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)))
+      .for("share");
+    indisponivel(linha);
+    await atual(tx, autor, contexto, linha, await prazo());
+    const ref = conferirReferenciaDoObjeto(linha.reference);
+    indisponivel(ref.contexto.tipo === "exportacao" && ref.contexto.id === linha.id);
+    return recibo(linha, ref);
+  });
 }
 
 /** Cifragem ocorre fora desta transação. Revalida o escopo capturado antes de
@@ -130,7 +172,7 @@ export async function consultarCopiaPessoalNoBanco(
 export function publicarCopiaPessoalNoBanco(
   autor: AutorNativoRecente,
   copiaId: string,
-  captura: Omit<Captura, "bytes">,
+  captura: Captura,
   cifrada: { referencia: ReferenciaDoObjeto; bytes: Buffer },
 ) {
   const ref = conferirReferenciaDoObjeto(cifrada.referencia);
@@ -140,75 +182,92 @@ export function publicarCopiaPessoalNoBanco(
       ref.bytesCifrados === cifrada.bytes.length &&
       ref.bytes <= 32 * 1024 * 1024,
   );
-  return comPerfilPessoal(autor, captura.perfilId, null, async (tx, perfil, prazo) => {
-    const agora = await prazo(),
-      capturadaEm = new Date(captura.capturadaEm),
-      expiraEm = new Date(capturadaEm.getTime() + 10 * 60_000);
-    indisponivel(
-      Number.isFinite(capturadaEm.getTime()) && capturadaEm <= agora && expiraEm > agora,
-    );
-    await atual(
-      tx,
-      autor,
-      perfil,
-      {
+  const origem =
+    captura.escopo === "profile"
+      ? {
+          scope: captura.escopo,
+          profileId: captura.perfilId,
+          profileKind: captura.tipo,
+          policyVersion: captura.versaoDaPolitica,
+          guardianReference: captura.responsabilidadeId,
+        }
+      : {
+          scope: captura.escopo,
+          profileId: null,
+          profileKind: null,
+          policyVersion: null,
+          guardianReference: null,
+        };
+  return comTitularDeCopia(
+    autor,
+    { scope: origem.scope, perfilId: origem.profileId },
+    async (tx, contexto, prazo) => {
+      const agora = await prazo(),
+        capturadaEm = new Date(captura.capturadaEm),
+        expiraEm = new Date(capturadaEm.getTime() + 10 * 60_000);
+      indisponivel(
+        Number.isFinite(capturadaEm.getTime()) && capturadaEm <= agora && expiraEm > agora,
+      );
+      await atual(
+        tx,
+        autor,
+        contexto,
+        {
+          ...origem,
+          requesterUserId: autor.contaId,
+          deviceSessionId: autor.sessaoDeAparelhoId,
+          authSessionId: autor.login.authSessionId,
+          state: "ready",
+          expiresAt: expiraEm,
+        },
+        agora,
+      );
+      const [anterior] = await tx
+        .select(colunas)
+        .from(exports)
+        .where(eq(exports.id, copiaId))
+        .for("update");
+      // Repetição não substitui um arquivo nem revive um pedido vencido/revogado.
+      if (anterior) {
+        await atual(tx, autor, contexto, anterior, await prazo());
+        const [completa] = await tx
+          .select({ reference: exports.reference })
+          .from(exports)
+          .where(eq(exports.id, copiaId));
+        return recibo(anterior, conferirReferenciaDoObjeto(completa?.reference));
+      }
+      // Uma única cópia pronta por conta. A substituição revoga os bytes anteriores
+      // atomicamente, inclusive quando outra aba escolheu um novo identificador.
+      await tx
+        .update(exports)
+        .set({ state: "revoked", reference: null, encryptedBytes: null, clearedAt: agora })
+        .where(and(eq(exports.requesterUserId, autor.contaId), eq(exports.state, "ready")));
+      await tx.insert(exports).values({
+        id: copiaId,
         requesterUserId: autor.contaId,
-        profileId: captura.perfilId,
+        ...origem,
         deviceSessionId: autor.sessaoDeAparelhoId,
         authSessionId: autor.login.authSessionId,
-        policyVersion: captura.versaoDaPolitica,
-        profileKind: captura.tipo,
-        guardianReference: captura.responsabilidadeId,
         state: "ready",
+        reference: ref,
+        encryptedBytes: cifrada.bytes,
+        capturedAt: capturadaEm,
         expiresAt: expiraEm,
-      },
-      agora,
-    );
-    const [anterior] = await tx
-      .select(colunas)
-      .from(exports)
-      .where(eq(exports.id, copiaId))
-      .for("update");
-    // Repetição não substitui um arquivo nem revive um pedido vencido/revogado.
-    if (anterior) {
-      await atual(tx, autor, perfil, anterior, await prazo());
-      const [completa] = await tx
-        .select({ reference: exports.reference })
-        .from(exports)
-        .where(eq(exports.id, copiaId));
-      return recibo(anterior, conferirReferenciaDoObjeto(completa?.reference));
-    }
-    // Uma única cópia pronta por conta. A substituição revoga os bytes anteriores
-    // atomicamente, inclusive quando outra aba escolheu um novo identificador.
-    await tx
-      .update(exports)
-      .set({ state: "revoked", reference: null, encryptedBytes: null, clearedAt: agora })
-      .where(and(eq(exports.requesterUserId, autor.contaId), eq(exports.state, "ready")));
-    await tx.insert(exports).values({
-      id: copiaId,
-      requesterUserId: autor.contaId,
-      profileId: perfil.id,
-      deviceSessionId: autor.sessaoDeAparelhoId,
-      authSessionId: autor.login.authSessionId,
-      profileKind: captura.tipo,
-      policyVersion: captura.versaoDaPolitica,
-      guardianReference: captura.responsabilidadeId,
-      state: "ready",
-      reference: ref,
-      encryptedBytes: cifrada.bytes,
-      capturedAt: capturadaEm,
-      expiresAt: expiraEm,
-      createdAt: agora,
-    });
-    await logAuditEventStrict(
-      "recreio.personal_export_published",
-      autor.contaId,
-      { app: "recreio", exportId: copiaId },
-      { writer: tx },
-    );
-    await prazo();
-    return recibo({ id: copiaId, capturedAt: capturadaEm, expiresAt: expiraEm }, ref);
-  });
+        createdAt: agora,
+      });
+      await logAuditEventStrict(
+        "recreio.personal_export_published",
+        autor.contaId,
+        { app: "recreio", exportId: copiaId },
+        { writer: tx },
+      );
+      await prazo();
+      return recibo(
+        { id: copiaId, capturedAt: capturadaEm, expiresAt: expiraEm, scope: origem.scope },
+        ref,
+      );
+    },
+  );
 }
 
 /** Duas autorizações: antes de carregar o envelope e depois de abri-lo.
@@ -217,30 +276,23 @@ export function publicarCopiaPessoalNoBanco(
 export async function carregarCopiaPessoalNoBanco(autor: AutorNativoRecente, copiaId: string) {
   const pista = await pistaDaCopia(autor, copiaId);
   indisponivel(pista);
-  return comPerfilPessoal(
-    autor,
-    PerfilIdSchema.parse(pista.perfilId),
-    null,
-    async (tx, perfil, prazo) => {
-      const [linha] = await tx
-        .select({ ...colunas, reference: exports.reference })
-        .from(exports)
-        .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)))
-        .for("share");
-      indisponivel(linha);
-      await atual(tx, autor, perfil, linha, await prazo());
-      const referencia = conferirReferenciaDoObjeto(linha.reference);
-      indisponivel(
-        referencia.contexto.tipo === "exportacao" && referencia.contexto.id === linha.id,
-      );
-      const [corpo] = await tx
-        .select({ bytes: exports.encryptedBytes })
-        .from(exports)
-        .where(eq(exports.id, copiaId));
-      indisponivel(corpo?.bytes);
-      return { perfilId: PerfilIdSchema.parse(perfil.id), referencia, bytes: corpo.bytes };
-    },
-  );
+  return comTitularDeCopia(autor, pista, async (tx, contexto, prazo) => {
+    const [linha] = await tx
+      .select({ ...colunas, reference: exports.reference })
+      .from(exports)
+      .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)))
+      .for("share");
+    indisponivel(linha);
+    await atual(tx, autor, contexto, linha, await prazo());
+    const referencia = conferirReferenciaDoObjeto(linha.reference);
+    indisponivel(referencia.contexto.tipo === "exportacao" && referencia.contexto.id === linha.id);
+    const [corpo] = await tx
+      .select({ bytes: exports.encryptedBytes })
+      .from(exports)
+      .where(eq(exports.id, copiaId));
+    indisponivel(corpo?.bytes);
+    return { referencia, bytes: corpo.bytes };
+  });
 }
 
 export async function admitirDownloadPessoalNoBanco(
@@ -252,28 +304,23 @@ export async function admitirDownloadPessoalNoBanco(
   // Conferir o recibo na mesma transação da auditoria, depois de abrir.
   const pista = await pistaDaCopia(autor, copiaId);
   indisponivel(pista);
-  return comPerfilPessoal(
-    autor,
-    PerfilIdSchema.parse(pista.perfilId),
-    null,
-    async (tx, perfil, prazo) => {
-      const [linha] = await tx
-        .select({ ...colunas, reference: exports.reference })
-        .from(exports)
-        .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)))
-        .for("share");
-      indisponivel(linha);
-      await atual(tx, autor, perfil, linha, await prazo());
-      indisponivel(isDeepStrictEqual(conferirReferenciaDoObjeto(linha.reference), referencia));
-      await logAuditEventStrict(
-        "recreio.personal_export_download_admitted",
-        autor.contaId,
-        { app: "recreio", exportId: copiaId },
-        { writer: tx },
-      );
-      await prazo();
-    },
-  );
+  return comTitularDeCopia(autor, pista, async (tx, contexto, prazo) => {
+    const [linha] = await tx
+      .select({ ...colunas, reference: exports.reference })
+      .from(exports)
+      .where(and(eq(exports.id, copiaId), eq(exports.requesterUserId, autor.contaId)))
+      .for("share");
+    indisponivel(linha);
+    await atual(tx, autor, contexto, linha, await prazo());
+    indisponivel(isDeepStrictEqual(conferirReferenciaDoObjeto(linha.reference), referencia));
+    await logAuditEventStrict(
+      "recreio.personal_export_download_admitted",
+      autor.contaId,
+      { app: "recreio", exportId: copiaId },
+      { writer: tx },
+    );
+    await prazo();
+  });
 }
 
 export async function revogarCopiaPessoalNoBanco(autor: AutorNativoRecente, copiaId: string) {

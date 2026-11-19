@@ -292,6 +292,7 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
         await conferirPrazo();
         return {
           perfilId: PerfilIdSchema.parse(perfil.id),
+          escopo: "profile" as const,
           tipo: perfil.kind,
           versaoDaPolitica: perfil.policyVersion,
           responsabilidadeId: responsavel?.id ?? null,

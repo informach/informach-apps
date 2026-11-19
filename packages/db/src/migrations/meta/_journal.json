@@ -1639,6 +1639,13 @@
       "when": 1795113536004,
       "tag": "0233_recreio_exportacoes_temporarias",
       "breakpoints": true
+    },
+    {
+      "idx": 234,
+      "version": "7",
+      "when": 1795115118036,
+      "tag": "0234_recreio_exportacao_conta",
+      "breakpoints": true
     }
   ]
 }

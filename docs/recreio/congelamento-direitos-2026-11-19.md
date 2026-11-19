@@ -645,3 +645,26 @@ PNG inspecionada: escopo e prazo visíveis, controles legíveis, sem estouro
 horizontal. ZIP original guardado fora do Git; SHA e fonte no recibo derivado
 `evidencias/direitos-ui-44593400873.json`. Não comprova exportação integral da
 conta, encerramento ou ativação em produção.
+
+
+## Cópia da conta/pagante — em implementação
+
+0234 foi gerada/adotada intacta em 44594508248/d1d05d83: acrescenta `scope`
+com default `profile`, torna o vínculo do perfil opcional só para `account` e
+confere as duas formas completas no CHECK. Os demais campos/tabelas/constraints
+permaneceram iguais; 235 recibos candidatos, nenhum em produção.
+
+O coordenador de conta não cria jogador. Usa a mesma fotografia SQL consistente
+para identificação usada no portal, proteção sem hash/geração, declarações,
+aparelhos sem credenciais, convites comerciais sem contatos de convidados,
+aceites de teste/compra, trocas, assinaturas/períodos próprios e estados de
+pedidos de direitos. Joins financeiros exigem cliente `user` do solicitante e
+app `recreio`; não inferem autoridade por família ou pagamento de outro adulto.
+Metadados livres do provedor, códigos e conteúdo dos perfis/mundos ficam fora
+deste escopo. O arquivo de perfil continua com sua autorização própria/parental.
+
+O artefato comum conserva login/aparelho, quota e prazo; ambos os escopos são
+revalidados antes da publicação e após a abertura. Repetir um UUID com outro
+escopo/alvo é recusado. Novos testes usam conta sem jogador, outro pagante,
+outro app da mesma pessoa e contexto infantil. Backend ainda precisa passar
+novos gates; interface de escolha conta/perfil segue em implementação.

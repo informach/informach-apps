@@ -3,6 +3,7 @@ import { and, db, eq, sql } from "@informach/db";
 import {
   recreioGuardianLinks as guardians,
   recreioProfiles as profiles,
+  type users,
 } from "@informach/db/schema";
 import type { PerfilId } from "@informach/recreio";
 import {
@@ -22,6 +23,34 @@ export function conferirAutorDeDireitosNoBanco(autor: AutorNativoRecente) {
     const nativa = await autorizarContaNativa(tx, autor);
     await nativa.conferirPrazo(autor.login);
   });
+}
+
+/** Dados da própria conta no Recreio, inclusive quando não há jogador.
+ * Não concede leitura dos perfis nem conteúdo financeiro de outro adulto. */
+export function comContaPessoal<T>(
+  autor: AutorNativoRecente,
+  executar: (
+    tx: Transacao,
+    conta: typeof users.$inferSelect,
+    conferirPrazo: () => Promise<Date>,
+  ) => Promise<T>,
+  consistente = false,
+) {
+  return db.transaction(
+    async (tx) => {
+      await tx.execute(sql`set local statement_timeout='5s'`);
+      await tx.execute(sql`set local lock_timeout='2s'`);
+      await tx.execute(sql`set local transaction_timeout='15s'`);
+      const conta = await lerContaNativa(tx, autor.contaId),
+        nativa = await autorizarContaNativa(tx, autor);
+      const prazo = () => nativa.conferirPrazo(autor.login);
+      await prazo();
+      const resultado = await executar(tx, conta, prazo);
+      await prazo();
+      return resultado;
+    },
+    consistente ? { isolationLevel: "repeatable read" } : undefined,
+  );
 }
 
 /** Leitura pessoal própria/parental, não autoridade para conteúdo compartilhado

@@ -149,6 +149,7 @@ export type AuditEventType =
   | "recreio.profile_game_inventory_viewed"
   | "recreio.profile_record_copy_prepared"
   | "recreio.profile_personal_capture_prepared"
+  | "recreio.account_personal_capture_prepared"
   | "recreio.personal_export_published"
   | "recreio.personal_export_download_admitted"
   | "recreio.personal_export_revoked"
