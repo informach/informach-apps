@@ -188,3 +188,28 @@ a prova externa e adotar o recibo apenas se restauração, retirada, acesso
 anônimo negado e limpeza tiverem sido confirmados. Chaves de cifragem são
 descartáveis, não credenciais de produção. Essa execução não habilita serviços,
 libera reservas ou comprova custódia recuperável/ledger F7/cadência/RPO/RTO.
+
+### Lacunas antes do desastre de cluster inteiro
+
+A restauração recente cria outro banco no mesmo cluster: os papéis globais e
+as extensões já instaladas continuam disponíveis. Isso não prova reconstrução
+de um cluster perdido. Antes de habilitar o backup operacional, persistir as
+identidades/atributos necessários dos papéis sem suas senhas, admitir a
+recriação segura no destino isolado e ensaiar cluster novo. Ampliar também a
+conferência do catálogo: o inventário atual resume tabelas/constraints/índices/
+RLS e concessões de tabela; não compara integralmente funções, views, triggers,
+sequências, tipos, privilégios de schema/função/coluna e configurações globais.
+Essas lacunas precisam de implementação e testes de divergência, não de uma
+alegação mais ampla sobre o inventário atual. A referência com hash/GCM
+protege os bytes guardados; não substitui a conferência da restauração.
+
+Os clientes PostgreSQL 18 do runner podem variar no patch: `44468536258` usou
+18.7; `44469243603` e `44469593535` registraram 18.6. O executor operacional
+continua no digest 18.6 documentado. Não inferir homologação dessa imagem a
+partir de um cliente do runner com outro patch.
+
+A porta de qualificação `5a71f233` passou no HTTP fechado em `44470641584`
+e nos tipos/objetos em `44470645967`, antes de admitir a prova externa.
+[Recibo](evidencias/captura-provider-fechado-44470641584.json). O modo externo
+exige também negar leitura anônima dos três objetos do backup, inclusive o
+documento de retirada; a fotografia já foi apagada com ausência confirmada.

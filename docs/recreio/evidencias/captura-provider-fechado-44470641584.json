@@ -1,0 +1,13 @@
+{
+  "source": "5a71f233ca3ad7ef1e09f1767b5f277ce740f7d8",
+  "captureRunId": 44470641584,
+  "captureJobId": 135378974967,
+  "objectsRunId": 44470645967,
+  "objectsJobId": 135378992731,
+  "conclusion": "success",
+  "captureTests": 16,
+  "objectTests": 146,
+  "externalProvider": false,
+  "productionApplied": false,
+  "scopeLimit": "Closed HTTP qualification of exact-prefix admission, SDK PUT/replay, source deletion with GET absence, capture/index recovery, SQL restore and cleanup; actual provider requires separate explicit capture_probe run."
+}

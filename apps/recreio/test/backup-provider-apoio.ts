@@ -198,7 +198,7 @@ export async function criarBucketDaMontagem() {
     exigir(chaves.size === 4 && prefixos.size === 2, "INVENTARIO_DA_PROVA_DIVERGENTE");
     if (externa && endpoint) {
       for (const key of chaves) {
-        if (!key.endsWith("manifesto.json") && !/\/backup\/.+\/[a-f0-9]{64}$/.test(key)) continue;
+        if (!key.startsWith("recreio/v1/backup/")) continue;
         const url = new URL(endpoint.origin);
         if (estilo) url.pathname = `/${destino.bucketName}/${key}`;
         else {

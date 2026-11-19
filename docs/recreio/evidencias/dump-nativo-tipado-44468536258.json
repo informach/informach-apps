@@ -11,5 +11,7 @@
   "frozenInstallVerified": true,
   "appTypesVerified": true,
   "productionApplied": false,
-  "scopeLimit": "Real PostgreSQL snapshot/dump, encrypted composite and isolated SQL restoration. No S3 photos/provider, native durable publish control, custody, rights replay or production qualification."
+  "scopeLimit": "Real PostgreSQL snapshot/dump, encrypted composite and isolated SQL restoration. No S3 photos/provider, native durable publish control, custody, rights replay or production qualification.",
+  "client": "pg_dump (PostgreSQL) 18.7 (Ubuntu 18.7-1.pgdg26.04+2)",
+  "clientScope": "Client/server major 18 qualification; this run is not the immutable operational image PostgreSQL 18.6."
 }

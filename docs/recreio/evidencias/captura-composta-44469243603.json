@@ -14,5 +14,9 @@
   "appTypesVerified": true,
   "frozenInstallVerified": true,
   "productionApplied": false,
-  "scopeLimit": "SQL snapshot plus one native encrypted photo, composite, signed index, actual SDK over closed HTTP, destruction of local sources/live photo, isolated same-cluster restore and retirement. Not external provider, fresh cluster, normalized authorities/destinations, durable native publication, retained backup or production qualification."
+  "scopeLimit": "SQL snapshot plus one native encrypted photo, composite, signed index, actual SDK over closed HTTP, destruction of local sources/live photo, isolated same-cluster restore and retirement. Not external provider, fresh cluster, normalized authorities/destinations, durable native publication, retained backup or production qualification.",
+  "appUnitTests": 481,
+  "integrationTests": 1242,
+  "integrationFiles": 99,
+  "httpTests": 5
 }
