@@ -389,7 +389,7 @@ export async function admitirCancelamentoDaTrocaLocked(
   const grupoId = await grupoDaTroca(autor, id, modo);
   return db.transaction(async (tx) => {
     await limites(tx);
-    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update");
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update", "financeiro");
     const agora = await atual.nativa.conferirPrazo(autor.login);
     const [anterior] = await tx
       .select()
@@ -558,7 +558,7 @@ export async function conferirResultadoDaTrocaNoBanco(
   const grupoId = await grupoDaTroca(autor, id, modo);
   return db.transaction(async (tx) => {
     await limites(tx);
-    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share", "financeiro");
     await atual.nativa.conferirPrazo(autor.login);
     const [linha] = await tx
       .select()

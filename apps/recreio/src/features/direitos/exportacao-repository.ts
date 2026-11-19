@@ -10,7 +10,7 @@ import {
 import { PerfilIdSchema } from "@informach/recreio";
 import {
   type AutorNativoRecente,
-  autorizarContaNativa,
+  autorizarContaNativaParaDireitos,
 } from "@/features/account/autoridade-repository";
 import {
   conferirReferenciaDoObjeto,
@@ -331,7 +331,7 @@ export async function revogarCopiaPessoalNoBanco(autor: AutorNativoRecente, copi
     await tx.execute(sql`set local lock_timeout='2s'`);
     await tx.execute(sql`set local transaction_timeout='15s'`);
     // O helper abaixo toma a conta/perfil/aparelho na ordem canônica.
-    const nativa = await autorizarContaNativa(tx, autor);
+    const nativa = await autorizarContaNativaParaDireitos(tx, autor);
     const agora = await nativa.conferirPrazo(autor.login);
     const [linha] = await tx
       .select(colunas)

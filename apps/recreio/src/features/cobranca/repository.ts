@@ -209,12 +209,12 @@ export async function consultarMinhaCompraNoBanco(autor: IdentidadeNativa) {
   return db.transaction(async (tx) => {
     await limites(tx);
     if (!pista) {
-      const nativa = await autorizarContaNativa(tx, autor);
+      const nativa = await autorizarContaNativa(tx, autor, "share", "share", "financeiro");
       await nativa.conferirPrazo();
       return null;
     }
     const grupoId = GrupoIdSchema.parse(pista.id);
-    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share", "financeiro");
     const [linha] = await tx
       .select()
       .from(purchases)
@@ -237,12 +237,12 @@ export async function consultarSituacaoFinanceiraNoBanco(autor: IdentidadeNativa
   return db.transaction(async (tx) => {
     await limites(tx);
     if (!pista) {
-      const nativa = await autorizarContaNativa(tx, autor);
+      const nativa = await autorizarContaNativa(tx, autor, "share", "share", "financeiro");
       await nativa.conferirPrazo();
       return { podeContratar: true, temCliente: false, assinatura: null };
     }
     const grupoId = GrupoIdSchema.parse(pista.id);
-    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share", "financeiro");
     const fatos = await lerFatosDoGrupo(grupoId, tx);
     assertAllowed(fatos, "COBRANCA", "Assinatura não disponível.");
     const [cliente] = await tx
@@ -285,7 +285,7 @@ export async function encerrarCompraNaoEnviadaNoBanco(autor: IdentidadeNativa, i
     const grupoId = GrupoIdSchema.parse(pista.id);
     return db.transaction(async (tx) => {
       await limites(tx);
-      const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update");
+      const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update", "financeiro");
       const [linha] = await tx
         .select()
         .from(purchases)
@@ -351,7 +351,13 @@ async function comCompraParaEnvio<T>(
   const grupoId = GrupoIdSchema.parse(pista.id);
   return db.transaction(async (tx) => {
     await limites(tx);
-    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update");
+    const atual = await admitirGrupoDoTitular(
+      tx,
+      autor,
+      grupoId,
+      "update",
+      somenteLeitura ? "financeiro" : "participacao",
+    );
     const [linha] = await tx
       .select()
       .from(purchases)
@@ -543,7 +549,7 @@ export async function conferirResultadoDaCompraLocked(autor: AutorNativoRecente,
   const grupoId = GrupoIdSchema.parse(pista.id);
   return db.transaction(async (tx) => {
     await limites(tx);
-    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share", "financeiro");
     const [linha] = await tx
       .select()
       .from(purchases)

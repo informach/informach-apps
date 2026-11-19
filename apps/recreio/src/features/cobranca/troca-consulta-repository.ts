@@ -32,12 +32,12 @@ export function consultarMinhasTrocasNoBanco(autor: IdentidadeNativa, modo: Stri
         .from(groups)
         .where(eq(groups.ownerUserId, autor.contaId));
       if (!pista) {
-        const nativa = await autorizarContaNativa(tx, autor);
+        const nativa = await autorizarContaNativa(tx, autor, "share", "share", "financeiro");
         await nativa.conferirPrazo();
         return null;
       }
       const grupoId = GrupoIdSchema.parse(pista.id);
-      const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+      const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share", "financeiro");
       const fatos = await lerFatosDoGrupo(grupoId, tx),
         agora = await atual.nativa.conferirPrazo();
       const assinatura = fatos?.assinaturaAtiva ?? fatos?.assinaturaInativa;

@@ -11,6 +11,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { ErroDoRecreio, type PerfilId, type SessaoDeAparelhoId } from "@informach/recreio";
+import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-repository";
 import { decidirFatosLidos } from "@/features/acesso/decisao";
 import { lerFatosDeAcesso } from "@/features/acesso/repository";
 import { jogosProtegidosDisponiveis } from "@/features/familia/disponibilidade";
@@ -62,6 +63,8 @@ export async function prepararIdentidadeDoJogo(
   await antesDaConta?.(tx, contaId);
   const [conta] = await tx.select().from(users).where(eq(users.id, contaId)).for("share");
   if (!conta?.emailVerified) throw new ErroDoRecreio("SESSAO_INVALIDA");
+  if ((await lerParticipacaoDoRecreioLocked(tx, contaId, true)).estado !== "active")
+    throw new ErroDoRecreio("SESSAO_INVALIDA");
   return { conta, tipo: perfil.kind };
 }
 

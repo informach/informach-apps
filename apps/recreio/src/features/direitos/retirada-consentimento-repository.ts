@@ -21,7 +21,7 @@ import {
 import { z } from "zod";
 import {
   type AutorNativoRecente,
-  autorizarContaNativa,
+  autorizarContaNativaParaDireitos,
 } from "@/features/account/autoridade-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { travarComposicaoDeDireitos } from "@/features/social/composicao-repository";
@@ -72,7 +72,7 @@ export function consentirRetiradaNoBanco(
         "DIREITOS",
         "Pedido não disponível.",
       );
-      const nativa = await autorizarContaNativa(tx, autor);
+      const nativa = await autorizarContaNativaParaDireitos(tx, autor);
       await nativa.conferirPrazo(autor.login);
       return recibo(anterior);
     }
@@ -133,7 +133,7 @@ export function consentirRetiradaNoBanco(
       "DIREITOS",
       "Prepare uma nova prévia para continuar.",
     );
-    const nativa = await autorizarContaNativa(tx, autor);
+    const nativa = await autorizarContaNativaParaDireitos(tx, autor);
     const agora = await nativa.conferirPrazo(autor.login);
     assertAllowed(
       preparacao.expiresAt > agora,

@@ -1,6 +1,8 @@
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import Link from "next/link";
+import { ContaEncerrada } from "@/features/account/components/conta-encerrada";
 import { Sair } from "@/features/account/components/sair";
+import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { EstadoDoAcesso } from "@/features/acesso/components/estado-do-acesso";
 import { avaliarAcesso } from "@/features/acesso/service";
 import { descreverAcesso } from "@/features/acesso/texto";
@@ -14,6 +16,8 @@ export const metadata = { title: "Conta" };
 
 export default async function Conta() {
   const { user, ator, perfis } = await paginaDaGestao();
+  const participacao = await consultarMinhaParticipacaoNoRecreio(ator);
+  if (participacao.estado !== "active") return <ContaEncerrada estado={participacao.estado} />;
   const familiaVisivel =
     novosPerfisProtegidosDisponiveis || (await listarPerfisMenores(ator)).itens.length > 0;
   const perfil = ator.perfil;

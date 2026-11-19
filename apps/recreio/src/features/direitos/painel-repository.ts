@@ -8,7 +8,7 @@ import {
   recreioProfiles as profiles,
 } from "@informach/db/schema";
 import {
-  autorizarContaNativa,
+  autorizarContaNativaParaDireitos,
   type IdentidadeNativa,
   lerContaNativa,
 } from "@/features/account/autoridade-repository";
@@ -66,7 +66,7 @@ export function consultarPainelDeDireitosNoBanco(autor: IdentidadeNativa) {
       "CONFLITO",
       "A responsabilidade mudou. Reabra a página.",
     );
-    const nativa = await autorizarContaNativa(tx, autor);
+    const nativa = await autorizarContaNativaParaDireitos(tx, autor);
     const linhas = await tx
       .select({
         id: preparations.id,

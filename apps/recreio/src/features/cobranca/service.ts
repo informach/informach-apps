@@ -4,6 +4,7 @@ import type {
   AutorNativoRecente,
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
+import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { consultarMeuGrupo } from "@/features/grupo/service";
 import { segredoStripeCompativel } from "@/lib/commercial-mode";
 import { env } from "@/lib/env";
@@ -42,9 +43,11 @@ export async function consultarMinhaCompra(autor: IdentidadeNativa) {
   return consultarMinhaCompraNoBanco(autor);
 }
 export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
+  const participacao = await consultarMinhaParticipacaoNoRecreio(autor);
+  const ativa = participacao.estado === "active";
   const compra = await consultarMinhaCompra(autor);
   const financeiro = await consultarSituacaoFinanceiraNoBanco(autor);
-  const grupo = await consultarMeuGrupo(autor);
+  const grupo = ativa ? await consultarMeuGrupo(autor) : null;
   const trocas = await consultarMinhasTrocasNoBanco(autor, env.STRIPE_MODE);
   const configuracaoDeGestao = Boolean(
     segredoStripeCompativel(env.STRIPE_MODE, env.STRIPE_SECRET_KEY) &&
@@ -52,10 +55,10 @@ export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
       env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
   );
   return {
-    modo: env.RECREIO_BILLING_MODE,
+    modo: ativa ? env.RECREIO_BILLING_MODE : "off",
     pagamentoDeTeste: env.STRIPE_MODE === "dev",
     compra,
-    financeiro,
+    financeiro: { ...financeiro, podeContratar: ativa && financeiro.podeContratar },
     trocas,
     ofertas: ofertasParaOAdulto(),
     perfis: grupo?.perfis ?? [],

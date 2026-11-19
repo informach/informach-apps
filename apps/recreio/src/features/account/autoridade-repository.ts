@@ -9,11 +9,16 @@ import { type ContaId, PerfilIdSchema, type SessaoDeAparelhoId } from "@informac
 import { sessaoDeLoginViva } from "@/features/sessao/login";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao, travar } from "@/lib/repository";
+import {
+  exigirParticipacaoAtivaLocked,
+  lerParticipacaoDoRecreioLocked,
+} from "./participacao-repository";
 
 export type IdentidadeNativa = { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId };
 /** Somente o adapter servidor lê essas datas do login autenticado. */
 export type ProvaDeLoginNativo = { authSessionId: string; criadoEm: Date; expiraEm: Date };
 export type AutorNativoRecente = IdentidadeNativa & { login: ProvaDeLoginNativo };
+export type FinalidadeDaContaNativa = "participacao" | "direitos" | "financeiro";
 const LOGIN_RECENTE_MS = 10 * 60_000;
 
 export async function serializarContaNativa(tx: Transacao, contaId: ContaId) {
@@ -87,8 +92,13 @@ export async function autorizarContaNativa(
   ator: IdentidadeNativa,
   travaDoPerfil: "share" | "update" = "share",
   travaDoAparelho: "share" | "update" = "share",
+  finalidade: FinalidadeDaContaNativa = "participacao",
 ) {
   const conta = await lerContaNativa(tx, ator.contaId);
+  const participacao =
+    finalidade === "participacao"
+      ? await exigirParticipacaoAtivaLocked(tx, ator.contaId)
+      : await lerParticipacaoDoRecreioLocked(tx, ator.contaId);
   const [perfil] = await tx
     .select({ id: profiles.id })
     .from(profiles)
@@ -118,8 +128,15 @@ export async function autorizarContaNativa(
     validarIdentidadeDaSessaoNativa(tx, ator, conta, atual, prova);
   await conferirPrazo();
   return {
+    participacao,
     perfilId: atual.activeProfileId && perfil ? PerfilIdSchema.parse(perfil.id) : null,
     aparelho: { id: atual.id, criadoEm: atual.createdAt, vistoEm: atual.lastSeenAt },
     conferirPrazo,
   };
+}
+
+/** Direitos pessoais continuam acessíveis durante e depois do encerramento.
+ * Não concede criação de perfis, teste, compras ou gameplay. */
+export function autorizarContaNativaParaDireitos(tx: Transacao, ator: IdentidadeNativa) {
+  return autorizarContaNativa(tx, ator, "share", "share", "direitos");
 }

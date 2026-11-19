@@ -9,9 +9,11 @@ import {
 import { type ContaId, ContaIdSchema, type GrupoId } from "@informach/recreio";
 import {
   autorizarContaNativa,
+  type FinalidadeDaContaNativa,
   type IdentidadeNativa,
   serializarContaNativa,
 } from "@/features/account/autoridade-repository";
+import { exigirParticipacaoAtivaLocked } from "@/features/account/participacao-repository";
 import { AppError, assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 
@@ -48,6 +50,7 @@ async function admitirComposicao(
   grupoId: GrupoId,
   modo: "share" | "update",
   autoridade: "titular" | "proprio" | "destinatario",
+  finalidade: FinalidadeDaContaNativa = "participacao",
 ) {
   const [pistaDoGrupo] = await tx
     .select({ id: groups.id, titularId: groups.ownerUserId })
@@ -94,7 +97,7 @@ async function admitirComposicao(
     .where(inArray(users.id, contas))
     .orderBy(users.id)
     .for("share");
-  const nativa = await autorizarContaNativa(tx, autor, modo);
+  const nativa = await autorizarContaNativa(tx, autor, modo, "share", finalidade);
   const [grupo] = await tx
     .select({ id: groups.id, ownerUserId: groups.ownerUserId })
     .from(groups)
@@ -144,8 +147,9 @@ export function admitirGrupoDoTitular(
   autor: IdentidadeNativa,
   grupoId: GrupoId,
   modo: "share" | "update",
+  finalidade: "participacao" | "financeiro" = "participacao",
 ) {
-  return admitirComposicao(tx, autor, grupoId, modo, "titular");
+  return admitirComposicao(tx, autor, grupoId, modo, "titular", finalidade);
 }
 
 /** Autoridade técnica limitada à conciliação de fatos já admitidos. Não cria
@@ -205,6 +209,12 @@ export function admitirGrupoDaParticipacaoPropria(
 }
 
 /** Só prepara as travas; destinatário ainda precisa comprovar seu convite no writer. */
-export function admitirGrupoParaAceite(tx: Transacao, autor: IdentidadeNativa, grupoId: GrupoId) {
-  return admitirComposicao(tx, autor, grupoId, "update", "destinatario");
+export async function admitirGrupoParaAceite(
+  tx: Transacao,
+  autor: IdentidadeNativa,
+  grupoId: GrupoId,
+) {
+  const atual = await admitirComposicao(tx, autor, grupoId, "update", "destinatario");
+  await exigirParticipacaoAtivaLocked(tx, atual.grupo.ownerUserId);
+  return atual;
 }

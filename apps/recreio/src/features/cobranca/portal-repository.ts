@@ -39,7 +39,7 @@ export async function admitirPortalLocked(
     await tx.execute(sql`set local statement_timeout='5s'`);
     await tx.execute(sql`set local lock_timeout='2s'`);
     const grupoId = GrupoIdSchema.parse(pista.id);
-    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share", "financeiro");
     await atual.nativa.conferirPrazo(autor.login);
     const [cliente] = await tx
       .select({ id: customers.id })

@@ -54,6 +54,7 @@ export const recreioRightsOperations = recreio.table(
   },
   (t) => [
     unique("recreio_rights_operation_preparation").on(t.preparationId),
+    unique("recreio_rights_operation_participation").on(t.id, t.requesterUserId, t.kind),
     foreignKey({
       name: "recreio_rights_operation_preparation_identity",
       columns: [t.preparationId, t.requesterUserId, t.planSha256, t.kind],

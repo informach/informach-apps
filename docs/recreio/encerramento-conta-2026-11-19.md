@@ -56,6 +56,33 @@ para apagar perfis não selecionados.
 
 ## Recuperação e implantação
 
+### Barreira de participação em implementação
+
+`account_participations` distingue legado ativo (ausência/revisão zero), ativo
+persistido (1), encerramento (2) e encerrado (3). A FK composta exige operação
+de encerramento do mesmo solicitante; retirada de perfil e operação alheia não
+podem ser usadas como origem. Identidade comum, finanças e mundos não têm cascade
+destrutivo. Não há writer público, retomada automática ou nova declaração de
+consentimento neste incremento.
+
+Admissão nativa comum e kernel de jogo exigem participação atual ativa. Direitos
+pessoais e gestão/leitura/cancelamento financeiro usam finalidade explícita,
+conservando a mesma identidade, contexto adulto, aparelho e login. Não concedem
+novas compras/trocas/testes. Aceitar convite também confere o titular do grupo,
+impedindo anexar um novo membro a um grupo em encerramento.
+
+O coordenador deve conservar o ciclo financeiro externo antes da transação,
+mutexes de contas em ordem e UPDATE na identidade antes de mudar a participação.
+Leitores conservam SHARE nessa identidade. Admissão para escrita/jogo exige
+`read committed`: um snapshot antigo anterior à espera não comprova estado
+atual; a captura de direitos mantém seu `repeatable read` sem conceder escrita.
+Perfis selecionados e capacidades de jogo ainda precisam ser congelados na mesma
+transação do consentimento completo. Esta base não executa o encerramento.
+
+Schema e código seguem para geração/qualificação no GitHub; não foram migrados
+ou habilitados em produção. O plano v2, coordenação financeira, consentimento,
+workers e conclusão continuam obrigatórios.
+
 Intenções externas conservam os IDs e o consentimento original. Reaplicação
 offline não pode criar usuários fictícios, atribuir ao operador o aceite do
 solicitante ausente no backup ou exigir um novo consentimento para retirar

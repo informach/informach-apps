@@ -8,7 +8,7 @@ import {
 import type { PerfilId } from "@informach/recreio";
 import {
   type AutorNativoRecente,
-  autorizarContaNativa,
+  autorizarContaNativaParaDireitos,
   lerContaNativa,
 } from "@/features/account/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
@@ -20,7 +20,7 @@ export function conferirAutorDeDireitosNoBanco(autor: AutorNativoRecente) {
     await tx.execute(sql`set local statement_timeout='5s'`);
     await tx.execute(sql`set local lock_timeout='2s'`);
     await tx.execute(sql`set local transaction_timeout='15s'`);
-    const nativa = await autorizarContaNativa(tx, autor);
+    const nativa = await autorizarContaNativaParaDireitos(tx, autor);
     await nativa.conferirPrazo(autor.login);
   });
 }
@@ -42,7 +42,7 @@ export function comContaPessoal<T>(
       await tx.execute(sql`set local lock_timeout='2s'`);
       await tx.execute(sql`set local transaction_timeout='15s'`);
       const conta = await lerContaNativa(tx, autor.contaId),
-        nativa = await autorizarContaNativa(tx, autor);
+        nativa = await autorizarContaNativaParaDireitos(tx, autor);
       const prazo = () => nativa.conferirPrazo(autor.login);
       await prazo();
       const resultado = await executar(tx, conta, prazo);
@@ -103,7 +103,7 @@ export async function comPerfilPessoal<T>(
       );
       // Suspensão do jogador e cobertura comercial não extinguem direitos pessoais.
       if (jogo !== null) await travar(tx, `dados-perfil:${perfil.id}:${jogo}`);
-      const nativa = await autorizarContaNativa(tx, autor);
+      const nativa = await autorizarContaNativaParaDireitos(tx, autor);
       const conferirPrazo = () => nativa.conferirPrazo(autor.login);
       await conferirPrazo();
       const resultado = await executar(tx, perfil, conferirPrazo);

@@ -14,7 +14,7 @@ import {
 } from "@informach/db/schema";
 import {
   type AutorNativoRecente,
-  autorizarContaNativa,
+  autorizarContaNativaParaDireitos,
   lerContaNativa,
 } from "@/features/account/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
@@ -160,7 +160,7 @@ export async function montarPlanoDeDireitos(
         .limit(513)
     : [];
   assertAllowed(linhas.length <= 512, "LIMITE", "Este pedido exige preparação pelo suporte.");
-  const nativa = await autorizarContaNativa(tx, autor);
+  const nativa = await autorizarContaNativaParaDireitos(tx, autor);
   await nativa.conferirPrazo(autor.login);
   return PlanoDeDireitosSchema.parse({
     formato: "recreio-previa-direitos-v1",
@@ -206,7 +206,7 @@ export function prepararDireitosNoBanco(
         "CONFLITO",
         "Este pedido já foi usado com outra seleção. Prepare uma nova prévia.",
       );
-      const nativa = await autorizarContaNativa(tx, autor);
+      const nativa = await autorizarContaNativaParaDireitos(tx, autor);
       const agora = await nativa.conferirPrazo(autor.login);
       return recibo(existente, anterior, agora, !mesmoEscopoDeDireitos(anterior, plano));
     }
@@ -258,7 +258,7 @@ export function prepararDireitosNoBanco(
       },
       { writer: tx },
     );
-    const nativa = await autorizarContaNativa(tx, autor);
+    const nativa = await autorizarContaNativaParaDireitos(tx, autor);
     const conferidoEm = await nativa.conferirPrazo(autor.login);
     return recibo(linha, plano, conferidoEm, false);
   });
@@ -295,7 +295,7 @@ export function cancelarPreparacaoNoBanco(
       "CONSENTIMENTO",
       "Esta prévia já originou uma operação. Acompanhe o pedido de direitos.",
     );
-    const nativa = await autorizarContaNativa(tx, autor);
+    const nativa = await autorizarContaNativaParaDireitos(tx, autor);
     const agora = await nativa.conferirPrazo(autor.login);
     if (linha.cancelledAt !== null) return { cancelada: true as const };
     await tx.update(preparations).set({ cancelledAt: agora }).where(eq(preparations.id, linha.id));
