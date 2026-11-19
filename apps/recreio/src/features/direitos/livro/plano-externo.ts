@@ -1,6 +1,7 @@
+import { isDeepStrictEqual } from "node:util";
 import { type PlanoDeDireitos, PlanoDeDireitosSchema } from "../preparacao-contrato";
 import { resumoDoRegistro } from "./assinatura";
-import { FalhaDoLivroDeDireitos, ShaDoLivroSchema } from "./contrato";
+import { FalhaDoLivroDeDireitos, type IntencaoDeDireitos, ShaDoLivroSchema } from "./contrato";
 
 export const MAX_PLANO_EXTERNO = 256 * 1024;
 /** O SHA é autenticado pela intenção assinada, não fornecido por uma URL ou
@@ -37,4 +38,16 @@ export function serializarPlanoExterno(plano: PlanoDeDireitos, sha256: string) {
     bytes.fill(0);
     throw erro;
   }
+}
+
+export function conferirEscopoDoPlanoExterno(i: IntencaoDeDireitos, p: PlanoDeDireitos) {
+  if (
+    p.contaId !== i.contaId ||
+    p.tipo !== i.tipo ||
+    !isDeepStrictEqual(
+      p.perfis.map((p) => p.id),
+      i.perfilIds,
+    )
+  )
+    throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
 }

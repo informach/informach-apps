@@ -445,3 +445,18 @@ Todos os nove objetos sintéticos tentados foram limpos e a ausência confirmada
 nenhum dado/credencial de produção. O guardião agora admite exatamente esse
 novo caminho dentro do mesmo livro sintético; não amplia bucket, prefixo,
 LIST/DELETE ou permissões. A prova real precisa ser repetida.
+
+
+A repetição real 44577680233 (bc62ea3e) passou quatorze propriedades e confirmou
+limpeza dos treze objetos. Artefato original preservado fora do Git e recibo
+derivado com SHA em evidencias/livro-plano-externo-44577680233.json. Produção,
+credenciais da origem e efeitos nativos de restauração permanecem fora do ensaio.
+Qualidade da mesma fonte passou em 44577667398; integração ainda em conferência.
+
+A leitura de reaplicação candidata agora faz duas passagens sob a mesma cerca:
+primeiro confere todos os planos, seu SHA e conta/tipo/perfis contra a intenção;
+só depois chama o consumidor. Um plano final ausente impede inclusive o efeito
+da primeira intenção. Orçamento cumulativo de bytes e prazo único impedem
+carga sem limite; só um plano fica em memória por vez. Erro do consumidor é
+preservado. Isso prepara o consumidor nativo e não substitui a quarentena,
+normalização das autoridades ou a prova com banco restaurado anterior ao pedido.

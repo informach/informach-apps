@@ -7,6 +7,7 @@ import { criarArmazenamentoDoLivro } from "./armazenamento";
 import { resumoDoRegistro } from "./assinatura";
 import { lerPlanoExterno, MAX_PLANO_EXTERNO, serializarPlanoExterno } from "./plano-externo";
 import { admitirIntencaoNoLivro } from "./publicacao";
+import { reaplicarPlanosConsentidos } from "./reaplicacao-planos";
 
 function plano(mundos = 0) {
   const perfil = randomUUID();
@@ -166,5 +167,102 @@ describe("plano privado endereçado pelo SHA da intenção", () => {
       ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
       expect((await f.storage.lerCabecalho()).documento.entradas).toBe(0);
       expect([...f.http.objetos.keys()].some((k) => k.includes("/intencoes/"))).toBe(false);
+    }));
+  async function congelarComPlanos(f: Awaited<ReturnType<typeof preparar>>) {
+    await f.storage.iniciarCabecalho(f.livro.assinatura.assinarCabecalho(f.livro.inicial));
+    const planos = [plano(), plano()];
+    for (const p of planos) {
+      const bytes = Buffer.from(JSON.stringify(p));
+      const doc = {
+        ...f.livro.intencao(),
+        contaId: p.contaId,
+        perfilIds: p.perfis.map((p) => p.id),
+        planoSha256: resumoDoRegistro(bytes),
+      };
+      await admitirIntencaoNoLivro({
+        storage: f.storage,
+        assinatura: f.livro.assinatura,
+        bytes: f.livro.assinatura.assinarIntencao(doc),
+        plano: bytes,
+        instante: "2026-11-19T10:01:00.000Z",
+      });
+    }
+    const head = await f.storage.lerCabecalho();
+    await f.storage.congelarCabecalho(head, "2026-11-19T10:02:00.000Z");
+    return planos;
+  }
+  it("confere todos os planos antes do primeiro efeito e entrega a seleção assinada", async () =>
+    cenario(async (f) => {
+      const planos = await congelarComPlanos(f),
+        recebidos: string[] = [];
+      const r = await reaplicarPlanosConsentidos({
+        storage: f.storage,
+        maxEntradas: 10,
+        maxBytesPlanos: 4096,
+        tempoLimiteMs: 5000,
+        aplicar: async (i, p, c) => {
+          expect(p.contaId).toBe(i.contaId);
+          expect(c.sequencia).toBe(recebidos.length + 1);
+          recebidos.push(p.contaId);
+        },
+      });
+      expect(r).toMatchObject({ congelado: true, planosConferidos: 2, entradasReaplicadas: 2 });
+      expect(recebidos).toEqual(planos.map((p) => p.contaId));
+    }));
+  it("plano final ausente impede inclusive o efeito da primeira intenção", async () =>
+    cenario(async (f) => {
+      const planos = await congelarComPlanos(f),
+        ultimo = planos.at(-1);
+      if (!ultimo) throw new Error("Plan absent");
+      f.http.objetos.delete(
+        `/recreio-fixture/${f.storage.prefixo}planos/${resumoDoRegistro(Buffer.from(JSON.stringify(ultimo)))}.json`,
+      );
+      const efeitos: string[] = [];
+      await expect(
+        reaplicarPlanosConsentidos({
+          storage: f.storage,
+          maxEntradas: 10,
+          maxBytesPlanos: 4096,
+          tempoLimiteMs: 5000,
+          aplicar: async (i) => {
+            efeitos.push(i.operacaoId);
+          },
+        }),
+      ).rejects.toMatchObject({ codigo: "AUSENTE" });
+      expect(efeitos).toEqual([]);
+    }));
+  it("orçamento insuficiente recusa antes do consumidor sem truncar a seleção", async () =>
+    cenario(async (f) => {
+      await congelarComPlanos(f);
+      const efeitos: string[] = [];
+      await expect(
+        reaplicarPlanosConsentidos({
+          storage: f.storage,
+          maxEntradas: 10,
+          maxBytesPlanos: 1,
+          tempoLimiteMs: 5000,
+          aplicar: async (i) => {
+            efeitos.push(i.operacaoId);
+          },
+        }),
+      ).rejects.toMatchObject({ codigo: "LIMITE" });
+      expect(efeitos).toEqual([]);
+    }));
+  it("preserva o erro original do consumidor e mantém a cerca congelada", async () =>
+    cenario(async (f) => {
+      await congelarComPlanos(f);
+      const causa = new Error("Falha controlada do destino isolado");
+      await expect(
+        reaplicarPlanosConsentidos({
+          storage: f.storage,
+          maxEntradas: 10,
+          maxBytesPlanos: 4096,
+          tempoLimiteMs: 5000,
+          aplicar: async () => {
+            throw causa;
+          },
+        }),
+      ).rejects.toBe(causa);
+      expect((await f.storage.lerCabecalho()).documento.estado).toBe("congelado");
     }));
 });

@@ -3,6 +3,7 @@ import type { criarArmazenamentoDoLivro } from "./armazenamento";
 import { type criarAssinaturaDoLivro, resumoDoRegistro } from "./assinatura";
 import { FalhaDoLivroDeDireitos } from "./contrato";
 import { conferirPrefixoDoLivro } from "./leitura";
+import { conferirEscopoDoPlanoExterno, lerPlanoExterno } from "./plano-externo";
 
 /** Conciliação antes de tentar CAS. Uma intenção já admitida pode não ser a
  * última do livro; só buscar a cabeça repetiria o consentimento após crash.
@@ -21,6 +22,8 @@ export async function admitirIntencaoNoLivro(config: {
   const bytes = Buffer.from(config.bytes),
     assinada = assinatura.lerIntencaoAssinada(bytes),
     doc = assinada.documento;
+  if (config.plano)
+    conferirEscopoDoPlanoExterno(doc, lerPlanoExterno(config.plano, doc.planoSha256));
   const signal = config.signal
     ? AbortSignal.any([config.signal, AbortSignal.timeout(30_000)])
     : AbortSignal.timeout(30_000);

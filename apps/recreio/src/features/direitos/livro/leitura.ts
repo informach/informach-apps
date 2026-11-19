@@ -117,6 +117,7 @@ export function conferirPrefixoDoLivro(config: Limites & { storage: Armazenament
 export function reaplicarLivroCongelado(
   config: Limites & {
     storage: Armazenamento;
+    cercaSha256?: string;
     aplicar: (
       intencao: IntencaoDeDireitos,
       contexto: { sequencia: number; sha256: string; signal: AbortSignal },
@@ -126,6 +127,8 @@ export function reaplicarLivroCongelado(
   const { storage, aplicar, maxEntradas, tempoLimiteMs, signal: externo } = config;
   return comPrazo({ maxEntradas, tempoLimiteMs, signal: externo }, async (signal) => {
     const prova = await conferir(storage, maxEntradas, signal);
+    if (config.cercaSha256 !== undefined && prova.cabecalho.sha256 !== config.cercaSha256)
+      throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
     if (prova.cabecalho.documento.estado !== "congelado")
       throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
     const mesmaCerca = async () => {
