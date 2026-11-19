@@ -1,0 +1,22 @@
+{
+  "source": "1601e4f23b7598d69b03c71562d6a6ec8346a4d6",
+  "runId": 44593400873,
+  "jobId": 135805187126,
+  "artifactId": 14564666996,
+  "artifactZipBytes": 383717,
+  "artifactZipSha256": "3c50ae6139c4704460db282f2fc09f6098bb440e4589e749abed1a3560de4ec1",
+  "browserTestsPassed": 3,
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "screenshotSha256": "52c07023e848c484c3f199cd8125871531853e41564917c24db4b96bf6af953e",
+  "productionApplied": false,
+  "scope": "Standalone real e PostgreSQL descartavel, dados/chave sinteticos. Preparacao/download/revogacao de copia pessoal e duas previas; nao comprova exportacao integral da conta ou encerramento.",
+  "visualReview": {
+    "performed": true,
+    "horizontalOverflowObserved": false,
+    "controlsAndLabelsReadable": true,
+    "scopeAndExpiryVisible": true
+  }
+}

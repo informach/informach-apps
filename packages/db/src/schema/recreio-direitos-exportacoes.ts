@@ -28,15 +28,14 @@ export const recreioPersonalExports = recreio.table(
     requesterUserId: text("requester_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
+    scope: text("scope").$type<"profile" | "account">().notNull().default("profile"),
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "cascade" }),
     deviceSessionId: uuid("device_session_id")
       .notNull()
       .references(() => devices.id, { onDelete: "cascade" }),
     authSessionId: text("auth_session_id").notNull(),
-    profileKind: text("profile_kind").$type<"adult" | "minor">().notNull(),
-    policyVersion: integer("policy_version").notNull(),
+    profileKind: text("profile_kind").$type<"adult" | "minor">(),
+    policyVersion: integer("policy_version"),
     guardianReference: uuid("guardian_reference"),
     state: text("state").$type<"ready" | "revoked" | "expired">().notNull(),
     reference: jsonb("reference").$type<unknown>(),
@@ -60,7 +59,12 @@ export const recreioPersonalExports = recreio.table(
     check("recreio_personal_export_state", sql`${t.state} in ('ready','revoked','expired')`),
     check(
       "recreio_personal_export_profile",
-      sql`${t.policyVersion}>0 and ((${t.profileKind}='adult' and ${t.guardianReference} is null) or (${t.profileKind}='minor' and ${t.guardianReference} is not null))`,
+      sql`((
+        ${t.scope}='profile' and ${t.profileId} is not null and ${t.policyVersion}>0 and
+        ((${t.profileKind}='adult' and ${t.guardianReference} is null) or (${t.profileKind}='minor' and ${t.guardianReference} is not null))
+      ) or (
+        ${t.scope}='account' and ${t.profileId} is null and ${t.profileKind} is null and ${t.policyVersion} is null and ${t.guardianReference} is null
+      )) is true`,
     ),
     check(
       "recreio_personal_export_window",

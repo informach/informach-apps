@@ -634,3 +634,14 @@ as duas autorizações e a recusa de revogação no intervalo. Nova rodada exigi
 O gate auxiliar `rights-ui` executa somente as três jornadas de direitos no
 standalone real com PostgreSQL descartável; não substitui os dezesseis gates.
 A captura de 390 px entra na whitelist de artefatos sintéticos para inspeção.
+
+
+44593297388/ddd4d2e5 passou o gate nativo após simplificar a leitura do
+artefato. A primeira tentativa auxiliar de navegador 44593302510 foi cancelada
+por faltar a etapa de instalar Chromium nesse novo gate; não é prova verde.
+A correção 1601e4f2 passou três jornadas reais em 44593400873: download e
+revogação a 390 px, prévia sem jogador e negativa da gestão infantil. Captura
+PNG inspecionada: escopo e prazo visíveis, controles legíveis, sem estouro
+horizontal. ZIP original guardado fora do Git; SHA e fonte no recibo derivado
+`evidencias/direitos-ui-44593400873.json`. Não comprova exportação integral da
+conta, encerramento ou ativação em produção.
