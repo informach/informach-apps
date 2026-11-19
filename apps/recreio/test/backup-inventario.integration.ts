@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { recriarGlobaisPostgres } from "../scripts/backup/globais-postgres";
 import {
   conferirInventarios,
   type InventarioDoBackup,
@@ -102,7 +103,14 @@ describe("inventário de restauração em dois bancos reais", () => {
     expect(original.tabelas.find((t) => t.nome === "documentos")?.resumo.linhas).toBe(2);
     expect(() => conferirInventarios(original, restaurado)).not.toThrow();
     expect(JSON.stringify(original)).not.toContain("conteúdo sintético");
-    expect(JSON.stringify(original)).not.toContain(leitor);
+    expect(
+      JSON.stringify({
+        tabelas: original.tabelas,
+        estrutura: original.estrutura,
+        permissoes: original.permissoes,
+      }),
+    ).not.toContain(leitor);
+    expect(original.globais.papeis.some((p) => p.nome === leitor)).toBe(true);
   });
 
   it("recusa conteúdo diferente mesmo com a mesma quantidade e tamanho de linhas", async () => {
@@ -167,5 +175,19 @@ describe("inventário de restauração em dois bancos reais", () => {
     const adulterado = JSON.parse(JSON.stringify(original));
     delete adulterado.metodo;
     expect(() => conferirInventarios(adulterado, original)).toThrow("FORMATO_DIVERGENTE");
+  });
+  it("detecta alteração de atributo de papel mesmo com todas as tabelas iguais", async () => {
+    const original = await ler(origem);
+    await copia.unsafe(`alter role "${leitor}" connection limit 3`);
+    const restaurado = await ler(copia);
+    expect(restaurado.tabelas).toEqual(original.tabelas);
+    expect(() => conferirInventarios(original, restaurado)).toThrow("ESTRUTURA_DIVERGENTE");
+  });
+  it("recriação global recusa o cluster de origem sem alterar seus metadados", async () => {
+    const original = await ler(origem);
+    await expect(
+      recriarGlobaisPostgres(origem, original.globais, "/tmp/recreio-backup-Prova123", 55432),
+    ).rejects.toMatchObject({ codigo: "ALVO_NAO_ISOLADO" });
+    expect(await ler(origem)).toEqual(original);
   });
 });

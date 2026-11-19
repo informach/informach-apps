@@ -1,6 +1,12 @@
 -- Somente o container descartável do GitHub. Nenhum dado ou credencial real.
 CREATE SCHEMA recreio;
 CREATE ROLE recreio_backup_reader NOLOGIN;
+CREATE ROLE recreio_backup_parent NOLOGIN NOINHERIT CONNECTION LIMIT 3 VALID UNTIL '2030-01-01 00:00:00+00';
+ALTER ROLE recreio_backup_reader SET default_transaction_read_only=on;
+ALTER ROLE recreio_backup_reader SET statement_timeout='15000ms';
+GRANT recreio_backup_parent TO recreio_backup_reader WITH ADMIN TRUE;
+GRANT recreio_backup_parent TO recreio_backup_reader WITH INHERIT FALSE;
+GRANT recreio_backup_parent TO recreio_backup_reader WITH SET FALSE;
 CREATE TABLE recreio.spaces (
   id uuid PRIMARY KEY,
   nome text NOT NULL

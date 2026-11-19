@@ -264,3 +264,41 @@ o socket do PostgreSQL temporário do entrypoint ficou pronto antes da criação
 de `POSTGRES_DB`. A correção substitui essa prontidão por consulta autenticada
 TCP ao banco exato, sem atraso fixo. O teste de restauração não chegou a ser
 executado nessa rodada e precisa passar novamente com a prontidão corrigida.
+
+O executor Docker com prontidão corrigida passou em `44473670843`/`1c7d9e56`,
+imagem Node 24.15.0/PostgreSQL 18.6, inventário v2, conteúdo/estrutura e
+remoção dos temporários confirmados. [Recibo](evidencias/catalogo-runtime-44473670843.json).
+Ele antecede o incremento de metadados globais abaixo.
+
+### Metadados globais e recriação em preparação
+
+Duas consultas de metadados em transações READ ONLY no Railway confirmaram
+PostgreSQL 18.6, um papel não nativo, operador superuser e três memberships,
+sem concedentes não superuser, configs por banco, tablespaces extras ou objetos
+fora do perfil. Dono do banco é o operador, ACL/default e limite de conexões
+estão no perfil admitido. Nenhum conteúdo familiar, senha ou valor de segredo
+foi consultado/devolvido. [Recibo da observação](evidencias/perfil-postgres-producao-20261119.json).
+Isso não qualifica isolamento de privilégios dos aplicativos nem restauração.
+
+`globais-postgres.ts` acrescenta ao inventário privado nomes/atributos,
+limites/validade, configurações permitidas e vínculos com ADMIN/INHERIT/SET.
+Senhas/hashes não são selecionados. O perfil exige operador superuser/dono,
+ACL default, sem settings por banco/tablespaces extras; concedentes precisam
+ser o operador. Configuração fora da lista falha explicitamente. Esses nomes
+ficam no arquivo cifrado, nunca no recibo público. A comparação passa a incluir
+os metadados globais, sem anunciar suporte universal a todos os perfis de DBA.
+
+A recriação só admite o cluster novo do executor: sem TCP, socket privado em
+`/tmp/recreio-backup-*`, porta 55432, controle no banco postgres, operador
+correto e nenhum banco de aplicação. Identidades existentes inesperadas são
+recusadas. O bootstrap usa o nome do operador capturado; outros papéis começam
+sem senha. A senha nova do operador é preservada. Atributos/GUCs/memberships
+são aplicados em transação e conferidos; grants idênticos não são repetidos.
+A regra impede executar essa recriação no banco de origem.
+
+O workflow Docker passa a provar bootstrap `postgres` e `ci`, com dois papéis
+NOLOGIN, limite/expiração/GUCs e ADMIN/INHERIT/SET distintos. Dois testes SQL
+adicionais cobrem drift global e recusa da origem; oito testes de contrato
+cobrem senha, NUL, duplicação, operador, GUCs e membros fora do perfil. Tudo
+aguarda os gates remotos desta candidata. Não há reconstrução de credenciais
+antigas, normalização F7/autoridades para tráfego ou implantação.

@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
 import type postgres from "postgres";
 import { estruturaAdicional, permissoesAdicionais, recursosNaoSuportados } from "./catalogo";
+import { type GlobaisPostgres, inventariarGlobaisPostgres } from "./globais-postgres";
 
 type Leitor = Pick<postgres.Sql, "unsafe">;
 type Resumo = { linhas: number; sha256: string };
 export type InventarioDoBackup = {
   metodo: "recreio-inventario-v2";
   versao: number;
+  globais: GlobaisPostgres;
   banco: {
     encoding: string;
     datcollate: string;
@@ -150,9 +152,11 @@ export async function inventariarBackup(leitor: Leitor): Promise<InventarioDoBac
     ],
     ["other-acls", permissoesAdicionais],
   ]);
+  const globais = await inventariarGlobaisPostgres(leitor);
   return {
     metodo: "recreio-inventario-v2",
     versao: servidor.versao,
+    globais,
     banco,
     tabelas,
     estrutura,
@@ -166,6 +170,7 @@ export function conferirInventarios(origem: InventarioDoBackup, copia: Inventari
     throw new FalhaDeInventario("FORMATO_DIVERGENTE");
   if (origem.versao !== copia.versao) throw new FalhaDeInventario("VERSAO_DIVERGENTE");
   if (
+    JSON.stringify(origem.globais) !== JSON.stringify(copia.globais) ||
     JSON.stringify(origem.banco) !== JSON.stringify(copia.banco) ||
     JSON.stringify(origem.estrutura) !== JSON.stringify(copia.estrutura) ||
     JSON.stringify(origem.permissoes) !== JSON.stringify(copia.permissoes)

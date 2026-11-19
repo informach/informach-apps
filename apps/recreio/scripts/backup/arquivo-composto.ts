@@ -12,6 +12,7 @@ import {
   criarCifradorDeObjetos,
   FalhaDoObjetoPrivado,
 } from "../../src/features/objetos/criptografia";
+import { GlobaisPostgresSchema } from "./globais-postgres";
 
 const MAGIA = Buffer.from("RCROBK01", "ascii"),
   BLOCO = 64 * 1024,
@@ -39,6 +40,7 @@ const Texto = z.string().max(256);
 const Banco = z.strictObject({
   metodo: z.literal("recreio-inventario-v2"),
   versao: z.number().int().min(180000).max(189999),
+  globais: GlobaisPostgresSchema,
   banco: z.strictObject({
     encoding: Texto,
     datcollate: Texto,

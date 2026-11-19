@@ -17,6 +17,26 @@ const banco = Buffer.from(
   JSON.stringify({
     metodo: "recreio-inventario-v2",
     versao: 180006,
+    globais: {
+      formato: "recreio-globais-postgres-v1",
+      operador: "fixture",
+      papeis: [
+        {
+          nome: "fixture",
+          superuser: true,
+          herdar: true,
+          criarPapel: true,
+          criarBanco: true,
+          login: true,
+          replicacao: true,
+          ignorarRls: true,
+          conexoes: -1,
+          validade: null,
+          configuracoes: [],
+        },
+      ],
+      membros: [],
+    },
     banco: {
       encoding: "UTF8",
       datcollate: "C",

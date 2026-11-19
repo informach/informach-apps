@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { chown, mkdtemp, open, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import postgres from "postgres";
+import { FalhaDosGlobaisPostgres, recriarGlobaisPostgres } from "./globais-postgres";
 import { conferirInventarios, FalhaDeInventario, inventariarBackup } from "./inventario";
 
 const AMBIENTE = "174b2cb0-e1cd-410c-8764-d913e3af18d3";
@@ -163,8 +164,6 @@ async function principal(): Promise<void> {
           inventario.banco.encoding !== "UTF8"
         )
           throw new FalhaDeEnsaio("VERSAO_OU_LOCALE_NAO_SUPORTADO");
-        const papeis = await tx<{ rolname: string }[]>`select rolname from pg_roles
-        where rolname !~ '^pg_' and rolname <> 'postgres' order by rolname`;
         fase = "backup";
         const inicioDoBackup = performance.now();
         const saida = await open(arquivo, "wx", 0o600);
@@ -189,12 +188,12 @@ async function principal(): Promise<void> {
         }
         const backupMs = Math.round(performance.now() - inicioDoBackup);
         const bytes = (await stat(arquivo)).size;
-        return { inventario, papeis, instante, backupMs, bytes };
+        return { inventario, instante, backupMs, bytes };
       },
     );
     await origem.end({ timeout: 5 });
     origem = undefined;
-    const { inventario: fatos, papeis, instante, backupMs, bytes } = preparado;
+    const { inventario: fatos, instante, backupMs, bytes } = preparado;
     if (bytes === 0) throw new FalhaDeEnsaio("BACKUP_AUSENTE");
     const inicioDaRestauracao = performance.now();
     fase = "cluster_descartavel";
@@ -207,7 +206,7 @@ async function principal(): Promise<void> {
         "initdb",
         "-D",
         dados,
-        "--username=postgres",
+        `--username=${fatos.globais.operador}`,
         "--encoding=UTF8",
         `--locale=${fatos.banco.datcollate}`,
         "--auth=scram-sha-256",
@@ -237,7 +236,7 @@ async function principal(): Promise<void> {
     const opcoes = {
       host: absoluto,
       port: PORTA,
-      username: "postgres",
+      username: fatos.globais.operador,
       password: senha,
       ssl: false,
       max: 1,
@@ -246,8 +245,7 @@ async function principal(): Promise<void> {
       idle_timeout: 1,
     };
     controle = postgres({ ...opcoes, database: "postgres" });
-    for (const { rolname } of papeis)
-      await controle.unsafe(`create role ${citarIdentificador(rolname)} nologin`);
+    await recriarGlobaisPostgres(controle, fatos.globais, absoluto, PORTA);
     await controle.unsafe(`create database ${citarIdentificador(destino)} template template0
       encoding ${citarLiteral(fatos.banco.encoding)} locale ${citarLiteral(fatos.banco.datcollate)}`);
     await controle.end({ timeout: 5 });
@@ -259,7 +257,7 @@ async function principal(): Promise<void> {
       ambienteNativo({
         PGHOST: absoluto,
         PGPORT: String(PORTA),
-        PGUSER: "postgres",
+        PGUSER: fatos.globais.operador,
         PGPASSWORD: senha,
         PGSSLMODE: "disable",
         PGCONNECT_TIMEOUT: "15",
@@ -284,6 +282,9 @@ async function principal(): Promise<void> {
       versao: fatos.versao,
       conteudoIdentico: true,
       estruturaIdentica: true,
+      globaisIdenticos: true,
+      papeis: fatos.globais.papeis.length,
+      participacoesEmPapeis: fatos.globais.membros.length,
     };
   } catch (erro) {
     falha = erro;
@@ -315,7 +316,9 @@ async function principal(): Promise<void> {
   }
   if (falha || !resultado) {
     const codigo =
-      falha instanceof FalhaDeEnsaio || falha instanceof FalhaDeInventario
+      falha instanceof FalhaDeEnsaio ||
+      falha instanceof FalhaDeInventario ||
+      falha instanceof FalhaDosGlobaisPostgres
         ? falha.codigo
         : "ENSAIO_NAO_CONFIRMADO";
     console.error(JSON.stringify({ operacao, ok: false, fase, codigo, temporariosRemovidos }));
