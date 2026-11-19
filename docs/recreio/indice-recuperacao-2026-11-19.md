@@ -66,5 +66,21 @@ sem alterar os buffers do titular.
 Testes usam exclusivamente referências e chaves sintéticas: replay idêntico,
 adulteração, separação AES/HMAC, referências divergentes, rotação, contexto,
 campos duplicados, datas, tamanho, cópias do chaveiro e fechamento. Ainda
-precisam passar no GitHub. Não há publicação S3 do índice, ledger externo F7,
+passaram no GitHub: [44465715755](https://github.com/informach/informach-apps/actions/runs/44465715755), fonte `0a231890`, tipos e 128 testes de objetos, incluindo 26 do índice. O [recibo](evidencias/indice-assinado-44465715755.json) limita a evidência a essa candidata. Não há ledger externo F7,
 retenção, descoberta operacional ou recuperação de chaves reais nesta etapa.
+
+## Adapter S3 em qualificação
+
+`indice-s3.ts` publica exclusivamente `manifesto.json` e `retirado.json` no
+prefixo da captura, com SDK sem repetição automática, PUT condicional e GET
+integral autenticado. O 412 só admite bytes idênticos aos preparados. Resposta
+perdida é inconclusiva e a recuperação pode ler o original sem banco. Uma
+retirada assinada é conferida antes/depois de publicar e em toda recuperação;
+403 ou bucket inexistente não equivalem a retirada ausente. A retirada não
+apaga o arquivo e deve ser preservada contra PUTs tardios.
+
+Testes pelo SDK e servidor HTTP fechado cobrem resposta perdida, concorrência,
+412 contraditório, permissão, ausência, adulteração, conteúdo/tamanho/status,
+prazo e cancelamento. Este adapter ainda aguarda evidência remota. Não há job
+agendado, controle de tentativas durável, listagem/seleção operacional, prova de
+restauração SQL ou publicação real do índice no provedor nesta etapa.

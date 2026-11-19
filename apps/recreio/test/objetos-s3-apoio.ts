@@ -7,6 +7,7 @@ import { criarArmazenamentoPrivadoS3 } from "@/features/objetos/s3";
 
 export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1) {
   const objetos = new Map<string, Buffer>();
+  const tipos = new Map<string, string>();
   const pedidos: { metodo: string; url: string; condicao?: string; assinado: boolean }[] = [];
   const erros: unknown[] = [],
     timers = new Set<ReturnType<typeof setTimeout>>();
@@ -17,6 +18,8 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
     semTamanho: false,
     demorar: false,
     leituraIniciada: false,
+    negar: false,
+    bucketAusente: false,
   };
   function xml(res: ServerResponse, status: number, code: string) {
     res.writeHead(status, { "content-type": "application/xml" });
@@ -33,6 +36,14 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
       condicao: req.headers["if-none-match"],
       assinado: req.headers.authorization?.includes("Credential=fixture-key/") ?? false,
     });
+    if (estado.negar) {
+      xml(res, 403, "AccessDenied");
+      return;
+    }
+    if (estado.bucketAusente) {
+      xml(res, 404, "NoSuchBucket");
+      return;
+    }
     if (req.method === "PUT") {
       const partes: Buffer[] = [];
       for await (const parte of req) partes.push(Buffer.from(parte));
@@ -41,6 +52,7 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
         return;
       }
       objetos.set(path, Buffer.concat(partes));
+      tipos.set(path, req.headers["content-type"] ?? "application/octet-stream");
       if (estado.perderPut) {
         req.socket.destroy();
         return;
@@ -61,7 +73,7 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
     const corpo = Buffer.from(bytes);
     if (estado.corromper) corpo[corpo.length - 1] = (corpo.at(-1) ?? 0) ^ 1;
     res.statusCode = estado.parcial ? 206 : 200;
-    res.setHeader("content-type", "application/octet-stream");
+    res.setHeader("content-type", tipos.get(path) ?? "application/octet-stream");
     if (!estado.semTamanho) res.setHeader("content-length", corpo.length);
     estado.leituraIniciada = true;
     if (estado.demorar) {
@@ -130,6 +142,7 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
     preparado,
     conteudo,
     objetos,
+    tipos,
     path,
     estado,
     pedidos,
