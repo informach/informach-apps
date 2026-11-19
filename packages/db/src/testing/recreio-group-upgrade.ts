@@ -69,6 +69,7 @@ async function main() {
   const admin = postgres(origem, { max: 1, onnotice: () => {} });
   let criada = false;
   let conexao: postgres.Sql | undefined;
+  let migracao: postgres.Sql | undefined;
   try {
     etapa = "historico";
     const anterior = {
@@ -94,7 +95,10 @@ async function main() {
     url.pathname = `/${nome}`;
     const sql = postgres(url.toString(), { max: 1, onnotice: () => {} });
     conexao = sql;
-    const banco = drizzle(sql);
+    // Drizzle altera parsers/serializers de datas da instância recebida.
+    // Fixtures SQL usam o codec nativo do postgres.js, em cliente separado.
+    migracao = postgres(url.toString(), { max: 1, onnotice: () => {} });
+    const banco = drizzle(migracao);
     etapa = "migrations_anteriores";
     await migrate(banco, { migrationsFolder: pasta });
     etapa = "fixtures";
@@ -276,6 +280,7 @@ async function main() {
   } finally {
     try {
       await conexao?.end({ timeout: 3 });
+      await migracao?.end({ timeout: 3 });
       if (criada) await admin.unsafe(`drop database "${nome}" with (force)`);
     } finally {
       await admin.end({ timeout: 3 });

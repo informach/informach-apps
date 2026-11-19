@@ -700,3 +700,13 @@ insuficiente, antes da suíte nativa. A candidata seguinte registra só etapa e
 frames de localização sem mensagem SQL/parâmetros/valores. A causa ainda deve
 ser confirmada remotamente; não é um upgrade qualificado nem motivo para
 relaxar constraints ou reescrever o DDL.
+
+
+O diagnóstico 44597932940/9ffec971 localizou o TypeError no bind da fixture de
+datas: o mesmo cliente postgres.js era entregue ao Drizzle e usado para SQL
+nativo. O driver Drizzle 0.45.4 substitui os serializers de timestamp por
+identidade; as novas fixtures Date chegavam sem codificação ao protocolo. A
+composição de teste passa a usar clientes distintos para migrations Drizzle e
+fixtures SQL, encerrando ambos. Não converter dados persistidos, sobrescrever
+serializers ou modificar o DDL. A causa foi conferida na documentação primária
+da versão em `drizzle-orm/changelogs/0.30.0.md`; nova prova remota obrigatória.
