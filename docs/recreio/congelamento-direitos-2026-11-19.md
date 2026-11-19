@@ -460,3 +460,14 @@ da primeira intenção. Orçamento cumulativo de bytes e prazo único impedem
 carga sem limite; só um plano fica em memória por vez. Erro do consumidor é
 preservado. Isso prepara o consumidor nativo e não substitui a quarentena,
 normalização das autoridades ou a prova com banco restaurado anterior ao pedido.
+
+
+A integração 44577672778 passou 1376 cenários e encontrou só a expectativa
+HTTP do teste novo: mundo archived é MUNDO_INDISPONIVEL/409 no contrato
+existente. O teste passa a exigir exatamente esse corpo/código, preservando
+a recusa. Para iterar sem repetir oito minutos de toda a suíte a cada ajuste,
+o workflow acrescenta verification_gate=rights, que roda os arquivos de
+direitos com o mesmo banco isolado/migrations, sem credenciais reais. É gate
+auxiliar, identificado como rights; all mantém seus dezesseis gates e continua
+obrigatório antes de integrar/implantar. A rodada integral em curso anterior
+a essa correção pode ser interrompida e repetida após o gate focado.

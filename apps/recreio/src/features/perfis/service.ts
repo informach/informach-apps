@@ -19,9 +19,9 @@ import {
 export type { PerfilDoRecreio } from "./repository";
 
 /**
- * Os perfis que esta conta pode escolher em "Quem vai jogar?". Nesta etapa é
- * só o perfil dela mesma; os perfis sem login do grupo entram depois, aqui.
- * Quem decide a lista é sempre o servidor.
+ * Lista legada de jogadores adultos próprios. A escolha de menor/retorno à
+ * gestão pertence ao serviço de proteção com PIN, sem ampliar esta autoridade.
+ * Quem decide os destinos é sempre o servidor.
  */
 export function perfisSelecionaveis(contaId: ContaId): Promise<PerfilDoRecreio[]> {
   return perfisDaConta(contaId);

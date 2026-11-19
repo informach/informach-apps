@@ -6,7 +6,7 @@ import { paginaDaConta } from "@/features/sessao/ator";
 
 export default async function LayoutDoPortal({ children }: { children: React.ReactNode }) {
   // O layout não é refeito a cada navegação entre páginas irmãs: cada página
-  // do portal confere a conta e o perfil de novo.
+  // revalida a conta e a autoridade de seu escopo; gestão aceita zero jogadores.
   const { ator } = await paginaDaConta();
   return (
     <div className="flex min-h-dvh flex-col">

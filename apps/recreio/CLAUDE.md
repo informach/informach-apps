@@ -18,15 +18,29 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 
 ## Camadas
 
-Na candidata F7, `features/direitos` prepara recortes pessoais de cadastro e de
-progresso/versões/conflitos/conquistas por perfil/jogo, com inventário histórico
-paginado dos jogos persistidos. Não é exportação completa
-ou download publicado. A candidata posterior acrescenta prévia persistida,
-idempotência por pedido e `/conta/dados`, sem consentimento ou execução destrutiva;
-[contrato e gates pendentes](../../docs/recreio/preparacao-direitos-2026-11-19.md).
-Usa autoridade nativa recente própria ou responsabilidade
-explícita, independente de assinatura e gameplay; mutex dos dados antes do
-aparelho, integridade e auditoria estritas. [Escopo e pendências](../../docs/recreio/direitos-implementacao-2026-11-18.md).
+Na candidata F7, `features/direitos` contém recortes pessoais, inventário por
+jogo e prévia persistida em `/conta/dados`. A prévia pública continua separada
+da execução. O backend candidato já registra consentimento/outbox assinados,
+trata fotografias/resumos/diário coberto e dados pessoais, minimiza o cadastro,
+expurga referências após os prazos originais e conclui a retirada com retenções
+explícitas. A drenagem fecha novas entradas e espera o checkpoint da posse
+atual; diário pendente após perda do host permanece bloqueado para recuperação.
+
+`processar-direitos` é um executor privado, desligado por padrão, sem IDs por
+argumento ou criação implícita de consentimento/livro. O livro externo conserva
+a intenção e o plano original imutável, sem nomes/e-mails. A prova sintética
+real de bucket 44577680233 confirmou plano, replay do livro, privacidade e
+limpeza dos treze objetos; não comprova efeitos nativos num banco restaurado.
+Qualidade de bc62ea3e passou em 44577667398; os demais gates estão em curso.
+Encerramento de conta, exportação integral/download, recuperação do diário
+pendente e reaplicação nativa antes de tráfego continuam em implementação.
+Nenhuma dessas candidatas foi ativada em produção. Contratos, falhas e provas
+em [retirada e recuperação](../../docs/recreio/congelamento-direitos-2026-11-19.md).
+
+Autoridade recente própria ou responsabilidade explícita independe de
+assinatura/gameplay. A conta do adulto pode administrar com zero jogadores;
+contexto infantil não ganha gestão ao retirar um perfil. Conservar mutex dos
+dados antes do aparelho, integridade e auditoria estritas. [Recortes pessoais](../../docs/recreio/direitos-implementacao-2026-11-18.md).
 
 Na candidata F8, `features/objetos/criptografia.ts` oferece o envelope
 AES-256-GCM limitado em memória, com contexto autenticado, rotação de chaves e
@@ -88,7 +102,7 @@ somente datas/durações recentes ao responsável atual. Recibos técnicos têm
 expurgo próprio de 24 horas em lotes, sem encerrar ou reativar sessões.
 
 - Conta Informach por `@informach/auth`: senha ou código por e-mail (OTP para confirmar, entrar e redefinir senha), sem organizations. Sessões no Redis (`recreio:auth:`) com o cache de cookie desligado, para que sair ou revogar valha na hora.
-- `/` (página pública do alfa), `/entrar`, `/estante` e `/conta` (as duas exigem conta com e-mail confirmado e perfil ativo, conferidos no layout e em cada página), `/termos` e `/privacidade` provisórios.
+- `/` é a página pública do alfa. `/estante` exige conta confirmada e perfil escolhido; `/conta` exige a conta nativa em contexto adulto e funciona sem jogador. Layout e cada página revalidam a autoridade de seu escopo. `/entrar`, `/termos` e `/privacidade` completam a superfície pública; textos comerciais finais dependem dos recursos realmente liberados.
 - `src/proxy.ts` só entrega a CSP com nonce e o caminho de volta do login. A autenticação fica no servidor, em layouts, páginas e ações. A política é montada em `lib/csp.ts`.
 - `/api/health` não toca o banco. `/api/ready` exige `transaction_timeout` (PostgreSQL 17+), sonda o schema `recreio`, confere a migração esperada (`checkSchemaReadiness`) e o Redis; dependência incompatível ou Redis ausente responde 503. Os gates completos usam PG 18; o CI geral também prova a recusa em PG 16.
 - `/api/email/unsubscribe`: todo e-mail enviado leva esse endereço.
@@ -100,10 +114,10 @@ expurgo próprio de 24 horas em lotes, sem encerrar ou reativar sessões.
 São cinco coisas separadas: a conta (`core.users`, do login compartilhado), a assinatura (espelhada pelo `@informach/billing`), o grupo de assinatura, o perfil e a sessão de aparelho. **O jogo só recebe o id do perfil, nunca o da conta.**
 
 - `features/sessao`: `atorAtual()` (em `ator.ts`, com `cache` do React) devolve `{ contaId, sessaoDeAparelhoId, perfil | null }` com os ids de marca de `@informach/recreio`. A sessão de aparelho é uma linha em `recreio.device_sessions`, criada no primeiro pedido de cada sessão do Better Auth. O perfil ativo mora nessa linha e é conferido a cada pedido contra a lista que o servidor monta para a conta (`perfisSelecionaveis`); se saiu da lista, a sessão fica sem perfil. **Nenhum cookie e nenhum campo do pedido leva id de perfil.** `perfilAtivo()` lança `NAO_AUTENTICADO` ou `SEM_PERFIL`; `paginaDaConta()` e `paginaDoPortal()` são as versões que redirecionam.
-- `features/perfis`: uma conta tem um perfil de login próprio (adulto), criado junto com o grupo em `/comecar`, numa transação com a conta travada. `/perfis` ("Quem vai jogar?") escolhe o perfil do aparelho; hoje a lista tem só o próprio. O apelido segue `APELIDO` do domínio; os avatares são um conjunto fixo (`avatares.ts`).
+- `features/perfis` cria/edita o jogador adulto próprio, opcional para o pagante. A escolha familiar em `/perfis` usa o domínio de proteção/PIN para distinguir adulto, menor e retorno à gestão. O seletor legado `selecionarPerfil` continua exclusivo do adulto próprio; não o ampliar para contornar o PIN de menores. O apelido segue `APELIDO` e os avatares são o conjunto fixo `avatares.ts`.
 - `/conta/perfil` edita só apelido/avatar do adulto próprio. A entrada não leva identificadores; o repository trava perfil → aparelho e revalida conta, seleção, revogação, prazo e estado ativo. Base divergente recusa sobrescrita de outra aba; repetição igual não gera evento. `recreio.profile_updated` guarda apenas os nomes dos campos, atomicamente com a atualização; política e cobertura não mudam.
 - `features/aparelhos` lista por conta e por páginas de vinte sessões de login; o aparelho atual fica separado. A desconexão de outro aparelho serializa por conta antes de revalidar perfil adulto/aparelho; depois trava alvo → cursor → sessões de jogo. Dados e auditoria são atômicos; mantém a negativa persistida, sem excluir o login nem afetar outros apps. Aparelhos pareados e gestão infantil pertencem a A5.
-- `/(portal)/*` exige perfil ativo: sem perfil vai para `/comecar`; com perfil e sem escolha, para `/perfis`.
+- O layout `/(portal)` exige conta nativa, inclusive sem jogador. Páginas de jogo/estante usam `paginaDoPortal`; páginas de gestão usam `paginaDaConta` e sua autorização própria. Não obrigar criar jogador para administrar família, assinatura ou dados.
 - Sair é `POST /api/conta/sair`: encerra a linha da sessão de aparelho (`revoked_at`) e a sessão de login no mesmo pedido. Linha encerrada não volta; com o login ainda de pé, o portal manda entrar de novo.
 - Ids de conta, perfil e sessão são todos UUID. O que separa um do outro é a marca do tipo na compilação e, em execução, a consulta (cada id só é procurado na sua tabela, sempre junto com a conta de quem pede). Toda fronteira valida com o esquema Zod do domínio, sem cast.
 

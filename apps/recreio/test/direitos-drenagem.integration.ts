@@ -205,7 +205,10 @@ describe("drenagem de direitos pelo contrato existente do host", () => {
       expect(encerradas.every((s) => s.endedAt !== null && s.endedSeq !== null)).toBe(true);
       expect(await f.drenar()).toMatchObject({ situacao: "aguardando_salvamento" });
       const nova = await entrarNoJogo(f.b);
-      expect((await abrirPelaRota(nova, f.mundo.id)).status).toBe(403);
+      expect(await abrirPelaRota(nova, f.mundo.id)).toEqual({
+        status: 409,
+        corpo: { codigo: "MUNDO_INDISPONIVEL" },
+      });
       expect(
         await codigoDoBanco(
           db.update(spaces).set({ name: "Alteração indevida" }).where(eq(spaces.id, f.mundo.id)),
