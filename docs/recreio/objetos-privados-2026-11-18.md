@@ -191,3 +191,11 @@ geração, testes de PostgreSQL e implementação dos workers/leitores/retentore
 Backups de banco com ponteiros de bucket precisarão incluir manifesto e objetos
 referenciados, protegendo-os contra GC durante a captura. Um dump de ponteiros
 sem esses objetos não é backup completo nem prova de recuperação.
+
+
+0217 gerada em `44436222649`/`ce8ac9f6` e adotada intacta: somente a tabela de
+entregas, suas constraints/FKs e índices. Hashes, predecessor e prefixo de 217
+para 218 migrations conferidos; nomes dentro do limite PostgreSQL. A chave da
+0216 já precede a FK. [Proveniência](evidencias/migracao-objetos-entregas-0217.json).
+Faltam aplicação em banco descartável, cenários de integridade/retenção e os
+writers nativos. Nenhum desses DDLs foi aplicado em produção.
