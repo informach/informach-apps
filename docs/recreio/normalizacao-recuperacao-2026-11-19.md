@@ -75,3 +75,9 @@ A integração anterior `44506197051`/`ee755949` concluiu 1.313 PostgreSQL,
 dezesseis nativos e cinco HTTP. Os dezesseis gates e o CI compartilhado da
 fonte corrigida estão em execução; nenhum desses resultados autoriza tráfego
 restaurado ou aplicação das migrations candidatas.
+
+Os dezesseis gates da fonte corrigida `bf6fa706` concluíram com sucesso em
+`44507842698`. A integração posterior `d32c07ae` com a main também repetiu a
+prova externa completa em `44509240153`, com ZIP/SHA e limpeza conferidos.
+Seus gates gerais/compartilhados e o quality posterior do migrator precisam
+ser conferidos separadamente; [controle da integração](integracao-f6-f8-2026-11-19.md).

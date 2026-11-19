@@ -1,0 +1,73 @@
+{
+  "source": "bf6fa7065b87081789f17cb029753590e81bbc21",
+  "runId": 44507842698,
+  "status": "passed",
+  "jobs": [
+    {
+      "jobId": 135504005749,
+      "name": "Recreio / equipe"
+    },
+    {
+      "jobId": 135504006174,
+      "name": "Recreio / cliente"
+    },
+    {
+      "jobId": 135504006187,
+      "name": "Recreio / trial-setup"
+    },
+    {
+      "jobId": 135504006208,
+      "name": "Recreio / commercial-ui"
+    },
+    {
+      "jobId": 135504006212,
+      "name": "Recreio / integration"
+    },
+    {
+      "jobId": 135504006300,
+      "name": "Recreio / versoes"
+    },
+    {
+      "jobId": 135504006302,
+      "name": "Recreio / trial-ui"
+    },
+    {
+      "jobId": 135504006345,
+      "name": "Recreio / commercial-setup"
+    },
+    {
+      "jobId": 135504006362,
+      "name": "Recreio / trial-play"
+    },
+    {
+      "jobId": 135504006381,
+      "name": "Recreio / quality"
+    },
+    {
+      "jobId": 135504006393,
+      "name": "Recreio / longa"
+    },
+    {
+      "jobId": 135504006397,
+      "name": "Recreio / trial-experiment"
+    },
+    {
+      "jobId": 135504006418,
+      "name": "Recreio / commercial-reconciliation"
+    },
+    {
+      "jobId": 135504006535,
+      "name": "Recreio / e2e"
+    },
+    {
+      "jobId": 135504006567,
+      "name": "Recreio / commercial-checkout"
+    },
+    {
+      "jobId": 135504006646,
+      "name": "Recreio / checkpoint"
+    }
+  ],
+  "productionApplied": false,
+  "scopeLimit": "Full sixteen platform gates for the corrected recovery source, including PostgreSQL, application/browser/client/long-run, billing and infrastructure checks. Before merging current public main and before the later migrator pin; not final production or commercial qualification."
+}

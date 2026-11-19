@@ -145,7 +145,14 @@ consumidor no decoder. A regressão reproduziu a perda de causa; o corretivo
 `bf6fa706` passou em `44507816907`, com rollback integral após queda, recusa
 de manifesto/foto corrompida e limpeza confirmada. A integração anterior
 `44506197051` concluiu 1.313 PostgreSQL, dezesseis nativos e cinco HTTP.
-Dezesseis gates/CI compartilhado da fonte corrigida ainda em execução. Custódia, normalização de autoridades, replay F7, agenda e RPO/RTO
+Os dezesseis gates da fonte corrigida passaram em `44507842698`; seu CI
+compartilhado e a qualificação da integração posterior precisam de resultados
+próprios. A main pública foi integrada somente na candidata `d32c07ae`, que
+repetiu a prova externa de restauração com sucesso em `44509240153`. O migrator
+foi fixado operacionalmente em `ea12cb6c`, com comando de migrations sem seeds
+ou backfills; leitura posterior confirmada, solicitação de deploy `SKIPPED`,
+nenhuma migration nova executada. IaC/guarda em `5a69ed00` sob quality remoto.
+[Fontes, gates e barreira operacional](recreio/integracao-f6-f8-2026-11-19.md). Custódia, normalização de autoridades, replay F7, agenda e RPO/RTO
 continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
 e [publicação durável](recreio/publicacao-duravel-2026-11-19.md).
 
