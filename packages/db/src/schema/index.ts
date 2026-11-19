@@ -16,6 +16,7 @@ export * from "./missao-saber";
 export * from "./oauth";
 export * from "./ops";
 export * from "./recreio";
+export * from "./recreio-backup";
 export * from "./recreio-checkpoints";
 export * from "./recreio-comercial";
 export * from "./recreio-convites-dirigidos";

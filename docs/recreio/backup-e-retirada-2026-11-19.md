@@ -204,4 +204,32 @@ a cópia cifrada local, abertura idêntica, acesso anônimo negado e limpeza rem
 e local comprovadas. O prefixo próprio deve estar vazio antes; apenas a chave
 própria é removida. Recibo técnico registra tempos e pico de memória. A chave
 descartável vive só no executor: não demonstra custódia de chaves nem reinício
-do backup em produção. A execução e seus gates ainda estão pendentes.
+do backup em produção.
+
+A execução `44453304274`/`07b5ff8a` passou: 67.108.864 bytes sintéticos,
+cifragem em 396 ms, PUT/readback em 4.237 ms, replay em 3.866 ms e recuperação
+em 1.202 ms. Pico RSS de 183.816.192 bytes; esse job de rede não recebeu o
+limite Docker do perfil offline. Todos os critérios e ambas as limpezas foram
+confirmados. [Recibo técnico conferido](evidencias/arquivo-provider-44453304274.json).
+O perfil offline da mesma fonte também passou em `44453287884`: 384 MiB,
+RSS de 75.239.424 bytes, cifragem em 4.161 ms e abertura em 4.369 ms,
+[recibo](evidencias/arquivo-memoria-44453287884.json). Nenhum dado real foi usado.
+
+## Reservas de captura em preparação
+
+`packages/db/src/schema/recreio-backup.ts` acrescenta apenas duas tabelas novas:
+`backup_captures` conserva destino e estados de preparação, inventário,
+arquivo preparado, verificação, abandono ou revisão; `backup_object_holds`
+liga cada captura às entregas por FKs restritivas e conserva o recibo depois
+da liberação. Hash/quantidades, referências do arquivo e datas têm CHECKs;
+não há dump, credenciais ou material de chave nessas tabelas. Campos de arquivo
+precisam estar completos antes de admitir a escrita externa. Um abandono após
+preparar arquivo exige prova de ausência, não apenas expiração.
+
+Este é schema candidato aditivo, ainda sem migração gerada ou escritor
+operacional. A consistência entre liberação e estado da captura exige o writer
+transacional e seus testes; FK/CHECK isolados não demonstram captura segura.
+Geração deve ocorrer em `db-generate.yml`, sem banco/segredos/seeds, e os três
+arquivos gerados devem ser adotados intactos, com predecessor e hashes conferidos.
+Qualificar upgrade e concorrência em PostgreSQL descartável antes de qualquer
+implantação. Não alterar as 0216/0217 para incluir essas tabelas.
