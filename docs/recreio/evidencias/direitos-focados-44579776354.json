@@ -1,0 +1,14 @@
+{
+  "source": "de6ea245d2f98659414eec68b29d7ce340073311",
+  "runId": 44579776354,
+  "jobId": 135756975882,
+  "gate": "rights",
+  "status": "passed",
+  "nativePostgresTests": 84,
+  "testFiles": 7,
+  "drainTestsWithRealHttpContract": 3,
+  "fullPipeline": false,
+  "productionQualified": false,
+  "productionApplied": false,
+  "scope": "Native rights tests only; includes consent, photographs, minimization, purge, finalization, drain and operational composition. Does not close export, account closure or native backup replay."
+}

@@ -1,17 +1,25 @@
 # Estado do trabalho no repositório
 
-**19/11 — Recreio, retirada nativa em qualificação:** fonte 2a7acd8b passou
-os dezesseis gates 44552782455 e o CI compartilhado 44552798763. A correção
-do contexto infantil 1aaa1618 passou qualidade 44570280421 e integração
-44570289673. Consentimento assinado, fotos/resumo, diário coberto, dados e
-minimização estão implementados; seguem expurgo físico em lotes, conclusão
-com retenções explícitas e executor operacional desligado por padrão.
-A candidata 2f318592 adotou 0231 com cinco índices intactos do gerador remoto
-44571719480: 232 recibos. Novos testes ainda em conferência; a união de
-três eventos de auditoria foi corrigida após recusa do typecheck.
-Mundos ativos ainda precisam de drenagem pelo host, e encerramento nativo,
-exportação integral, custódia/restauração e homologação final continuam abertos.
-Nenhuma dessas candidatas ativada em produção; testes manuais só no final.
+**19/11 — Recreio, direitos e recuperação em qualificação:** fonte 2a7acd8b
+passou os dezesseis gates 44552782455 e CI compartilhado 44552798763. Seguem
+candidatas de retirada nativa: consentimento/outbox, fotos/resumo/diário,
+dados pessoais, minimização, expurgo em lotes, conclusão e drenagem pelo
+checkpoint existente do host. As migrations 0228–0232 foram geradas/adotadas
+intactas, com 233 recibos na candidata; produção permanece em 204/0203.
+Qualidade de bc62ea3e passou em 44577667398. Integração passou 1376 cenários
+e encontrou expectativa HTTP incorreta no teste novo (409, não 403), já
+corrigida; gate focado 44579776354 passou 84 casos/7 arquivos em de6ea245,
+incluindo três de drenagem pelo HTTP real. A rodada integral
+44578951063 e CI 44578956873 foram interrompidos por conter a expectativa
+antiga; devem ser repetidos após qualificar a correção, sem declará-los verdes.
+
+A prova real 44577680233 confirmou plano externo imutável, replay do livro,
+recusa anônima e limpeza dos treze objetos sintéticos; recibo derivado com SHA
+adotado. Não é reaplicação nativa num banco restaurado. Prévia pública continua
+separada da execução. Encerramento da conta, exportação integral, recuperação
+de diário após falha do host, reaplicação nativa, custódia/agenda/alertas de
+backup e homologação final permanecem abertos. Nenhuma candidata desta frente
+ativada em produção; todos os testes manuais ficam para o final.
 [Contrato e evidências](recreio/congelamento-direitos-2026-11-19.md).
 
 **19/11 — F7, continuação candidata:** consentimento individual nativo, outbox

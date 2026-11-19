@@ -471,3 +471,12 @@ direitos com o mesmo banco isolado/migrations, sem credenciais reais. É gate
 auxiliar, identificado como rights; all mantém seus dezesseis gates e continua
 obrigatório antes de integrar/implantar. A rodada integral em curso anterior
 a essa correção pode ser interrompida e repetida após o gate focado.
+
+
+O gate focado 44579776354 passou 84 cenários PostgreSQL em sete arquivos,
+fonte de6ea245, incluindo três de drenagem com o contrato HTTP real. Confirmou
+checkpoint final mantendo archived, fonte cercada após salvar, progresso do
+outro perfil e referências tratadas, diário preservado na saída com erro e
+rollback estrito da cerca/recibo se a auditoria recusar. É prova focada; não
+qualifica a rodada integral ou produção. Dezesseis gates e CI compartilhado
+serão repetidos na fonte atual antes da integração.
