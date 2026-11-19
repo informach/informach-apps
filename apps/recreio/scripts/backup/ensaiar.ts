@@ -1,14 +1,14 @@
-import { spawn } from "node:child_process";
-import { randomBytes, randomUUID } from "node:crypto";
-import { chown, mkdtemp, open, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdtemp, open, realpath, rm, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import postgres from "postgres";
-import { FalhaDosGlobaisPostgres, recriarGlobaisPostgres } from "./globais-postgres";
-import { conferirInventarios, FalhaDeInventario, inventariarBackup } from "./inventario";
+import { comBancoRestaurado, FalhaDoClusterIsolado } from "./cluster-isolado";
+import { ambienteNativo, FalhaDaFerramentaNativa, ferramentaNativa } from "./ferramentas-nativas";
+import { FalhaDosGlobaisPostgres } from "./globais-postgres";
+import { FalhaDeInventario, inventariarBackup } from "./inventario";
 
 const AMBIENTE = "174b2cb0-e1cd-410c-8764-d913e3af18d3";
 const PROJETO = "f4da4285-5b98-48b5-b03e-5be02f4e7c56";
-const PORTA = 55432;
 
 class FalhaDeEnsaio extends Error {
   constructor(readonly codigo: string) {
@@ -52,62 +52,6 @@ function origemAutorizada(): { url: URL; fixture: boolean } {
   return { url, fixture };
 }
 
-/** Nenhuma variável da origem é herdada pelos processos do destino. */
-function ambienteNativo(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-  return {
-    PATH: process.env.PATH,
-    NODE_ENV: "production",
-    LANG: "en_US.utf8",
-    TZ: "UTC",
-    ...extra,
-  };
-}
-
-async function ferramenta(
-  programa: string,
-  argumentos: string[],
-  ambiente: NodeJS.ProcessEnv,
-  saida?: number,
-): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const filho = spawn(programa, argumentos, {
-      env: ambiente,
-      stdio: ["ignore", saida ?? "ignore", "pipe"],
-      windowsHide: true,
-    });
-    let aviso = false;
-    let terminou = false;
-    const prazo = setTimeout(() => {
-      filho.kill("SIGKILL");
-    }, 180_000);
-    filho.stderr?.on("data", (dados: Buffer) => {
-      // Erros nativos podem incluir uma linha privada. Só a classificação sai.
-      if (/\bwarning\b/i.test(dados.toString("utf8"))) aviso = true;
-    });
-    filho.once("error", () => {
-      clearTimeout(prazo);
-      terminou = true;
-      reject(new FalhaDeEnsaio("FERRAMENTA_INDISPONIVEL"));
-    });
-    filho.once("close", (codigo) => {
-      clearTimeout(prazo);
-      if (terminou) return;
-      terminou = true;
-      if (codigo !== 0) reject(new FalhaDeEnsaio("FERRAMENTA_FALHOU"));
-      else if (aviso) reject(new FalhaDeEnsaio("FERRAMENTA_COM_AVISO"));
-      else resolve();
-    });
-  });
-}
-
-function citarIdentificador(valor: string): string {
-  return `"${valor.replaceAll('"', '""')}"`;
-}
-
-function citarLiteral(valor: string): string {
-  return `'${valor.replaceAll("'", "''")}'`;
-}
-
 async function principal(): Promise<void> {
   process.umask(0o077);
   const { url, fixture } = origemAutorizada();
@@ -118,18 +62,11 @@ async function principal(): Promise<void> {
   const absoluto = await realpath(diretorio);
   if (dirname(absoluto) !== "/tmp" || !/^recreio-backup-[a-zA-Z0-9]+$/.test(basename(absoluto)))
     throw new FalhaDeEnsaio("DIRETORIO_FORA_DO_ESCOPO");
-  await chown(absoluto, 999, 999);
-  const dados = join(absoluto, "cluster");
   const arquivo = join(absoluto, "origem.dump");
-  const senha = randomBytes(32).toString("base64url");
-  const arquivoDaSenha = join(absoluto, "senha");
-  const destino = `recreio_restore_${randomBytes(12).toString("hex")}`;
   let fase = "origem";
-  let inicioDoClusterSolicitado = false;
+  let destinoLimpo = true;
   let temporariosRemovidos = false;
   let origem: postgres.Sql | undefined;
-  let copia: postgres.Sql | undefined;
-  let controle: postgres.Sql | undefined;
   let resultado: Record<string, number | string | boolean> | undefined;
   let falha: unknown;
   console.log(JSON.stringify({ operacao, fase, estado: "iniciado" }));
@@ -168,7 +105,7 @@ async function principal(): Promise<void> {
         const inicioDoBackup = performance.now();
         const saida = await open(arquivo, "wx", 0o600);
         try {
-          await ferramenta(
+          await ferramentaNativa(
             "pg_dump",
             ["--format=custom", `--snapshot=${snapshot.id}`],
             ambienteNativo({
@@ -181,7 +118,7 @@ async function principal(): Promise<void> {
               PGCONNECT_TIMEOUT: "15",
               PGOPTIONS: "-c default_transaction_read_only=on -c lock_timeout=2000",
             }),
-            saida.fd,
+            { saida: saida.fd },
           );
         } finally {
           await saida.close();
@@ -195,87 +132,24 @@ async function principal(): Promise<void> {
     origem = undefined;
     const { inventario: fatos, instante, backupMs, bytes } = preparado;
     if (bytes === 0) throw new FalhaDeEnsaio("BACKUP_AUSENTE");
-    const inicioDaRestauracao = performance.now();
-    fase = "cluster_descartavel";
-    await writeFile(arquivoDaSenha, senha, { mode: 0o600 });
-    await chown(arquivoDaSenha, 999, 999);
-    await ferramenta(
-      "gosu",
-      [
-        "postgres",
-        "initdb",
-        "-D",
-        dados,
-        `--username=${fatos.globais.operador}`,
-        "--encoding=UTF8",
-        `--locale=${fatos.banco.datcollate}`,
-        "--auth=scram-sha-256",
-        `--pwfile=${arquivoDaSenha}`,
-      ],
-      ambienteNativo(),
-    );
-    inicioDoClusterSolicitado = true;
-    await ferramenta(
-      "gosu",
-      [
-        "postgres",
-        "pg_ctl",
-        "-D",
-        dados,
-        "-l",
-        join(absoluto, "postgres.log"),
-        "-w",
-        "-t",
-        "30",
-        "-o",
-        `-c listen_addresses= -c unix_socket_directories=${absoluto} -p ${PORTA} -c shared_buffers=32MB -c max_connections=8 -c max_parallel_workers=0`,
-        "start",
-      ],
-      ambienteNativo(),
-    );
-    const opcoes = {
-      host: absoluto,
-      port: PORTA,
-      username: fatos.globais.operador,
-      password: senha,
-      ssl: false,
-      max: 1,
-      prepare: false,
-      connect_timeout: 15,
-      idle_timeout: 1,
-    };
-    controle = postgres({ ...opcoes, database: "postgres" });
-    await recriarGlobaisPostgres(controle, fatos.globais, absoluto, PORTA);
-    await controle.unsafe(`create database ${citarIdentificador(destino)} template template0
-      encoding ${citarLiteral(fatos.banco.encoding)} locale ${citarLiteral(fatos.banco.datcollate)}`);
-    await controle.end({ timeout: 5 });
-    controle = undefined;
-    fase = "restaurar";
-    await ferramenta(
-      "pg_restore",
-      ["--exit-on-error", "--dbname", destino, arquivo],
-      ambienteNativo({
-        PGHOST: absoluto,
-        PGPORT: String(PORTA),
-        PGUSER: fatos.globais.operador,
-        PGPASSWORD: senha,
-        PGSSLMODE: "disable",
-        PGCONNECT_TIMEOUT: "15",
-      }),
-    );
-    fase = "conferir";
-    copia = postgres({ ...opcoes, database: destino });
-    const restaurado = await copia.begin(
-      "isolation level repeatable read read only",
-      inventariarBackup,
-    );
-    conferirInventarios(fatos, restaurado);
+    fase = "restaurar_cluster_isolado";
+    destinoLimpo = false;
+    const entrada = await open(arquivo, "r");
+    let restauracao: Awaited<ReturnType<typeof comBancoRestaurado>>;
+    try {
+      // O helper abre o descritor herdado com offset próprio.
+      await entrada.read(Buffer.alloc(1), 0, 1, null);
+      restauracao = await comBancoRestaurado({ dump: entrada, inventario: fatos });
+      destinoLimpo = restauracao.temporariosRemovidos;
+    } finally {
+      await entrada.close();
+    }
     resultado = {
       operacao,
       ok: true,
       snapshotEm: instante,
       backupMs,
-      restauracaoMs: Math.round(performance.now() - inicioDaRestauracao),
+      restauracaoMs: restauracao.restauracaoMs,
       bytes,
       tabelas: fatos.tabelas.length,
       linhas: fatos.tabelas.reduce((s, t) => s + t.resumo.linhas, 0),
@@ -287,22 +161,13 @@ async function principal(): Promise<void> {
       participacoesEmPapeis: fatos.globais.membros.length,
     };
   } catch (erro) {
+    if (erro instanceof FalhaDoClusterIsolado) destinoLimpo = erro.temporariosRemovidos;
     falha = erro;
   } finally {
-    const encerramentos = await Promise.allSettled([
-      origem?.end({ timeout: 5 }),
-      copia?.end({ timeout: 5 }),
-      controle?.end({ timeout: 5 }),
-    ]);
+    const encerramentos = await Promise.allSettled([origem?.end({ timeout: 5 })]);
     if (encerramentos.some((r) => r.status === "rejected"))
       falha ??= new FalhaDeEnsaio("CONEXAO_NAO_ENCERRADA");
     try {
-      if (inicioDoClusterSolicitado)
-        await ferramenta(
-          "gosu",
-          ["postgres", "pg_ctl", "-D", dados, "-m", "fast", "-w", "-t", "10", "stop"],
-          ambienteNativo(),
-        );
       // O caminho absoluto foi conferido antes de criar qualquer arquivo.
       if ((await realpath(absoluto)) !== absoluto || dirname(absoluto) !== "/tmp") {
         falha ??= new FalhaDeEnsaio("LIMPEZA_FORA_DO_ESCOPO");
@@ -314,11 +179,14 @@ async function principal(): Promise<void> {
       falha ??= erro;
     }
   }
+  temporariosRemovidos = temporariosRemovidos && destinoLimpo;
   if (falha || !resultado) {
     const codigo =
       falha instanceof FalhaDeEnsaio ||
       falha instanceof FalhaDeInventario ||
-      falha instanceof FalhaDosGlobaisPostgres
+      falha instanceof FalhaDosGlobaisPostgres ||
+      falha instanceof FalhaDoClusterIsolado ||
+      falha instanceof FalhaDaFerramentaNativa
         ? falha.codigo
         : "ENSAIO_NAO_CONFIRMADO";
     console.error(JSON.stringify({ operacao, ok: false, fase, codigo, temporariosRemovidos }));

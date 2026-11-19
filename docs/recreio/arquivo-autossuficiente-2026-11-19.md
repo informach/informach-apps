@@ -319,3 +319,34 @@ alvo e confere novamente essa ausência ao final. São contagens booleanas no
 cluster descartável; nenhum hash/valor de senha é selecionado/transportado.
 O operador mantém a senha nova gerada pelo initdb. A matriz seguinte precisa
 provar quatro papéis e os memberships, além de repetir objetos/tipos.
+
+A fonte `e7909d43` passou os dois bootstraps em `44477614524`, com quatro
+papéis, configs/memberships e senha não transportada. Tipos e 154 testes de
+objetos passaram em `44477610703`; o arquivo dos quinze testes S3 levou
+1.277 ms. [Recibo](evidencias/globais-credenciais-44477614524.json). Isso não
+certifica um limite de latência em produção ou elimina toda variação do runner.
+
+### Executor comum para o arquivo guardado
+
+`cluster-isolado.ts` extrai o mesmo protocolo de cluster novo para uso pelo
+ensaio lógico e pela futura recuperação composta. Só recebe handle privado
+regular/single-link, inventário copiado antes de awaits e cancelamento; não
+recebe URL/credencial da origem. Confere PostgreSQL 18.6, locale, globais,
+dump/restauração e inventário antes de expor o callback privado. Abre o
+handle herdado por procfs com offset independente; o ensaio avança o handle
+emprestado antes da chamada para provar essa fronteira.
+
+`ferramentas-nativas.ts` centraliza ambiente mínimo, prazo/cancelamento,
+encerramento aguardado e classificação de aviso sem imprimir stderr. O helper
+fecha conexões, para o cluster e só remove o caminho canônico permitido.
+Falha e falha de limpeza são preservadas, com confirmação explícita dos
+temporários. O ensaio conserva separadamente a limpeza da fonte local e do
+cluster. Esta extração ainda precisa passar no Docker e nos tipos antes de
+ser usada na prova fria do arquivo efetivamente guardado.
+
+A próxima prova deve usar a mesma imagem 18.6 e fonte descartável 18.6,
+recuperar por índice/S3 sem DATABASE_URL da origem no worker, conferir arquivo,
+abrir dump/globais/fotografias e restaurar no cluster novo. As seis credenciais
+continuam exclusivas do bucket de homologação e as chaves do arquivo são
+sintéticas/descartáveis. Normalização de destinos/autoridades, ledger F7,
+controle durável, custódia e cadência continuam etapas separadas.
