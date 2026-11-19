@@ -56,6 +56,28 @@ para apagar perfis não selecionados.
 
 ## Recuperação e implantação
 
+### Plano financeiro v2 em composição
+
+O codec distingue `recreio-previa-encerramento-v2` da prévia legada v1.
+Somente encerramento admite esse formato, com revisão ativa da participação,
+cliente próprio exclusivo do Recreio e referências ordenadas de compras/trocas
+comprovadamente não enviadas. Três aceites separados vinculam encerramento,
+retirada dos perfis e cancelamento da renovação. Não há identidade, cliente do
+provedor ou plano financeiro vindo do formulário.
+
+O SHA autentica o plano privado completo; sua projeção de interface mostra
+efeitos/contadores e omite referências Stripe e IDs dos aceites financeiros.
+Mudança de modo, cliente, seleções ou revisão exige nova preparação. Bytes
+canônicos v1 continuam iguais e suas prévias não ganham autoridade financeira.
+O registro de preparação e a intenção mantêm seu próprio formato v1, separado
+da versão do conteúdo do plano. Não há alteração de DDL neste codec.
+
+A composição nativa ainda produz v1; este incremento não confirma encerramento,
+não chama Stripe e não muda participação. Seguem leitor financeiro próprio,
+preparação completa sob ciclo, confirmação/outbox e executor financeiro com
+recibos recuperáveis. Tentativa já admitida ou fato desconhecido não pode ser
+tratado como autorização nunca enviada ou ausência de cobrança.
+
 ### Barreira de participação em implementação
 
 `account_participations` distingue legado ativo (ausência/revisão zero), ativo

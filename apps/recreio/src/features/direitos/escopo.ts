@@ -14,6 +14,13 @@ function escopo(plano: PlanoDeDireitos) {
       gestao: m.gestao,
       outrosParticipantes: m.outrosParticipantes,
     })),
+    ...(plano.formato === "recreio-previa-encerramento-v2"
+      ? {
+          formato: plano.formato,
+          revisaoDaParticipacao: plano.revisaoDaParticipacao,
+          financeiro: plano.financeiro,
+        }
+      : {}),
   };
 }
 export function mesmoEscopoDeDireitos(anterior: PlanoDeDireitos, atual: PlanoDeDireitos) {

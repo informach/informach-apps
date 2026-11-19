@@ -22,6 +22,7 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { mesmoEscopoDeDireitos } from "./escopo";
 import {
+  apresentarPlanoDeDireitos,
   type PedidoDePreparacaoDeDireitos,
   type PlanoDeDireitos,
   PlanoDeDireitosSchema,
@@ -55,7 +56,7 @@ function recibo(
     preparacaoId: linha.id,
     planoSha256: linha.planSha256,
     expiraEm: linha.expiresAt.toISOString(),
-    plano,
+    plano: apresentarPlanoDeDireitos(plano),
     situacao: linha.cancelledAt
       ? ("cancelada" as const)
       : linha.expiresAt <= agora
