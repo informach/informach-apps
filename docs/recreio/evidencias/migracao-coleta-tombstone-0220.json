@@ -1,0 +1,24 @@
+{
+  "source": "21da85fcba3de7352f60128ac9bd76edefdbc2bf",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0220_recreio_coleta_tombstone.sql",
+      "bytes": 1053,
+      "sha256": "8c30a36349bc01512eec5fe48d5fed925d7fa0c5dbc6093b59d5e2ba9b9653a7"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0220_snapshot.json",
+      "bytes": 1047054,
+      "sha256": "e19828b452c41ac858ded84613f89c50ee10b039d43e8ac6f8a240848f196d56"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 33343,
+      "sha256": "50a74ba03d5a80149dc2dce87a091080e2cb3b1d576be0e8ea5af67d437f9bd6"
+    }
+  ],
+  "runId": 44489272058,
+  "artifactId": 14511118850,
+  "artifactZipSha256": "ba45e1054aa4e424e1334567143b5478fca579afbd5e40e50063429d78b7a2cb",
+  "productionApplied": false
+}

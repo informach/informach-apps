@@ -34,7 +34,19 @@ async function travar(tx: Transacao, id: string) {
     .for("update");
   if (!mundo) throw new FalhaDaColeta("FONTE");
   const [e] = await tx
-    .select()
+    .select({
+      id: deliveries.id,
+      spaceId: deliveries.spaceId,
+      bucketId: deliveries.bucketId,
+      bucketName: deliveries.bucketName,
+      storageScope: deliveries.storageScope,
+      leaseToken: deliveries.leaseToken,
+      cipherSha256: deliveries.cipherSha256,
+      objectKey: deliveries.objectKey,
+      state: deliveries.state,
+      attemptCount: deliveries.attemptCount,
+      retiredAt: deliveries.retiredAt,
+    })
     .from(deliveries)
     .where(and(eq(deliveries.id, id), eq(deliveries.spaceId, mundo.id)))
     .for("update");
@@ -66,7 +78,10 @@ async function fatos(tx: Transacao, id: string) {
   if (!r) throw new FalhaDaColeta("FONTE");
   return r;
 }
-function mesmoDestino(e: typeof deliveries.$inferSelect, alvo: DestinoDeCaptura) {
+function mesmoDestino(
+  e: Pick<typeof deliveries.$inferSelect, "bucketId" | "bucketName" | "storageScope">,
+  alvo: DestinoDeCaptura,
+) {
   if (
     e.bucketId !== alvo.bucketId ||
     e.bucketName !== alvo.bucketName ||

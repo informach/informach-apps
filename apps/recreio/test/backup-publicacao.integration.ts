@@ -459,7 +459,7 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
           () => null,
           (e: unknown) => e,
         );
-      expect(codigoDoPostgres(erro)).toBe("23503");
+      expect(codigoDoPostgres(erro)).toBe("23001");
     } finally {
       f.indice.encerrar();
     }
