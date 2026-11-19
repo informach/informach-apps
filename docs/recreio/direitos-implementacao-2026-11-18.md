@@ -49,6 +49,11 @@ mundos, artefatos privados, encerramento e homologação.
 
 ## Fonte e fatos existentes
 
+O [inventário técnico](inventario-direitos-2026-11-18.md) cobre explicitamente
+63 tabelas e 140 FKs do snapshot candidato 0215, incluindo referências pessoais
+sem cascata, cópias em consentimentos financeiros, textos em convites e bytes
+opacos dos mundos. Não é autorização destrutiva ou política de retenção.
+
 A proposta privada `artes-3d/paginas/recreio.html`, seção de conflitos, exige
 acesso/exportação/exclusão antes da venda. Mundos com outros membros permanecem;
 o jogo recebe `aoExcluirPerfil`, retira a autoria identificável e revê textos
@@ -137,3 +142,10 @@ exigem sua própria rodada. A opção auxiliar `verification_gate=integration`
 permite investigar esse componente no GitHub sem repetir builds de navegador
 em cada correção. `all` e os pushes de verificação conservam os dezesseis gates;
 esta opção não qualifica integração/produção por si só.
+
+
+`8647b310` concluiu depois os dezesseis gates em `44427172908`.
+O incremento `0e735ff4` passou em quality `44428544763` e integração
+`44428548764`: vinte cenários de direitos, 1155 integrações em 96 arquivos e
+cinco cenários HTTP em dois arquivos. Isso valida os recortes e a descoberta
+paginada; não conclui exportação integral, encerramento, armazenamento ou F7.

@@ -63,9 +63,11 @@ direções aprovadas, incluindo crédito/estorno, limpeza de todos os recursos
 confirmada. Não é Checkout ou webhook nativos. Rodada integral `44426286901`: dezesseis gates aprovados.
 CI compartilhado `44424819941` em curso. Preparação de F7 no
 [levantamento de direitos](recreio/direitos-implementacao-2026-11-18.md); recorte pessoal de progresso com quinze integrações PostgreSQL aprovadas
-em `44427172908`/`8647b310`. Inventário/cadastro e kernel de direitos em
-incremento seguinte; F7 não está concluído. Nenhum exportador ou exclusão
-foi implantado em produção.
+em `44427172908`/`8647b310`. Inventário/cadastro e kernel de direitos passaram em quality
+`44428544763` e integração `44428548764`/`0e735ff4` (vinte cenários de direitos,
+1155 integrações e cinco HTTP). F7 não está concluído. Nenhum exportador ou exclusão
+foi implantado em produção. Base de cifragem autenticada para objetos em
+candidata, ainda sem SDK S3 ou bucket: [F8 e limites](recreio/objetos-privados-2026-11-18.md).
 [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,

@@ -18,11 +18,17 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 
 ## Camadas
 
-Na candidata F7, `features/direitos` prepara somente o recorte pessoal de
-progresso/versões/conflitos/conquistas por perfil/jogo. Não é exportação completa
+Na candidata F7, `features/direitos` prepara recortes pessoais de cadastro e de
+progresso/versões/conflitos/conquistas por perfil/jogo, com inventário histórico
+paginado dos jogos persistidos. Não é exportação completa
 ou download publicado. Usa autoridade nativa recente própria ou responsabilidade
 explícita, independente de assinatura e gameplay; mutex dos dados antes do
 aparelho, integridade e auditoria estritas. [Escopo e pendências](../../docs/recreio/direitos-implementacao-2026-11-18.md).
+
+Na candidata F8, `features/objetos/criptografia.ts` oferece somente o envelope
+AES-256-GCM limitado em memória, com contexto autenticado, rotação de chaves e
+referência de integridade. Não é adapter S3 ou armazenamento implantado e não
+concede autorização para ler conteúdo. [Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
 
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
 o layout não exige jogador. Estante e mundos adultos conferem `paginaDoPortal`
