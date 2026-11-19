@@ -15,6 +15,7 @@ import {
   sessions,
   recreioSpaceMembers as spaceMembers,
   recreioSpaces as spaces,
+  recreioProfileWorldTraces as traces,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
@@ -848,5 +849,62 @@ describe("direitos: painel pessoal com autoridade atual", () => {
       .set({ minorContextGeneration: crypto.randomUUID() })
       .where(eq(devices.id, a.autor.sessaoDeAparelhoId));
     await expect(consultarMeusDireitos(a.autor)).rejects.toMatchObject({ code: "AUTH" });
+  });
+});
+
+describe("direitos: mundos de visita e escopo estável", () => {
+  it("encontra mundo visitado sem membro, autoria ou responsabilidade atual", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    const [mundo] = await db
+      .insert(spaces)
+      .values({
+        gameId: JOGO,
+        createdByProfileId: proprio(b),
+        stewardProfileId: proprio(b),
+        name: "Mundo de outro adulto",
+        contentPolicy: "livre",
+      })
+      .returning();
+    if (!mundo) throw new Error("World absent");
+    await db
+      .insert(spaceMembers)
+      .values({ spaceId: mundo.id, profileId: proprio(b), role: "steward", state: "active" });
+    await db.insert(traces).values({ profileId: proprio(a), spaceId: mundo.id });
+    const previa = await prepararPedidoDeDireitos(a.autor, {
+      tipo: "retirar_perfil",
+      perfis: [proprio(a)],
+    });
+    expect(previa.plano.mundos).toMatchObject([{ id: mundo.id, outrosParticipantes: 1 }]);
+    expect(JSON.stringify(previa.plano)).not.toContain(proprio(b));
+    expect(JSON.stringify(previa.plano)).not.toContain("Mundo de outro adulto");
+  });
+
+  it("progresso e nova posse não renovam nem invalidam a mesma prévia pessoal", async () => {
+    const a = await adulto();
+    const [mundo] = await db
+      .insert(spaces)
+      .values({
+        gameId: JOGO,
+        createdByProfileId: proprio(a),
+        stewardProfileId: proprio(a),
+        name: "Mundo contínuo",
+        contentPolicy: "livre",
+      })
+      .returning();
+    if (!mundo) throw new Error("World absent");
+    const pedido = { pedidoId: crypto.randomUUID(), tipo: "retirar_perfil", perfis: [proprio(a)] };
+    const previa = await prepararPedidoDeDireitos(a.autor, pedido);
+    await db
+      .update(spaces)
+      .set({ revision: 2, journalSeq: 9, leaseEpoch: 3, status: "active" })
+      .where(eq(spaces.id, mundo.id));
+    const repetida = await prepararPedidoDeDireitos(a.autor, pedido);
+    expect(repetida.desatualizada).toBe(false);
+    expect(repetida.plano).toEqual(previa.plano);
+    expect(repetida.planoSha256).toBe(previa.planoSha256);
+    expect(repetida.expiraEm).toBe(previa.expiraEm);
+    await db.update(spaces).set({ managementRevision: 2 }).where(eq(spaces.id, mundo.id));
+    expect((await prepararPedidoDeDireitos(a.autor, pedido)).desatualizada).toBe(true);
   });
 });

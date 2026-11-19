@@ -1,7 +1,37 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  check,
+  index,
+  integer,
+  jsonb,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { users } from "./core";
-import { recreio } from "./recreio";
+import { recreioProfiles as profiles, recreio, recreioSpaces as spaces } from "./recreio";
+
+/** Índice de privacidade, não presença nem permissão. A admissão pode deixar
+ * autoria no estado mesmo para visitante sem associação de membro. Não expira
+ * junto com SID/convite; só a retirada coordenada do perfil o elimina. */
+export const recreioProfileWorldTraces = recreio.table(
+  "profile_world_traces",
+  {
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    spaceId: uuid("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "restrict" }),
+    firstRecordedAt: timestamp("first_recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "recreio_profile_world_trace", columns: [t.profileId, t.spaceId] }),
+    index("recreio_world_profile_trace").on(t.spaceId, t.profileId),
+  ],
+);
 
 /** Prévia imutável, anterior ao consentimento. Não é ordem de exclusão,
  * capacidade de publicação externa ou autorização de restauração. IDs de perfis

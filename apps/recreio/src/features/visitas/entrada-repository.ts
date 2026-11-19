@@ -16,6 +16,7 @@ import type {
 } from "@informach/recreio/contrato";
 import { PERMISSAO_DE_VISITA_TTL_MS } from "@informach/recreio/contrato";
 import type { z } from "zod";
+import { registrarRastroPessoalDoMundo } from "@/features/direitos/rastros-repository";
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import type { Host } from "@/features/posse/service";
 import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
@@ -172,6 +173,7 @@ export async function admitirEntradaDeVisitaNoBanco(
         .where(and(eq(games.id, sessao.id), isNull(games.endedAt)))
         .returning({ id: games.id });
       if (!vinculada) throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      await registrarRastroPessoalDoMundo(tx, perfil.id, mundoId);
       await tx
         .update(visitSessions)
         .set({

@@ -1,5 +1,24 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, F7 ainda em implementação:** fonte candidata `aa95fb7b`
+concluiu os dezesseis gates `44535164302` (1330 integrações, 44 E2E comuns e
+252 casos da simulação). Prévia nativa de direitos, idempotência/cancelamento,
+tela e adapter puro do Morada qualificados; não há exportação integral ou
+execução de encerramento. Migration 0224 gerada e adotada intacta, 225 recibos
+na candidata. A última conferência de produção registra 204/0203,
+portal/Admin `d014bd90` e Morada `644b3841`; esta frente não promoveu as
+novas migrations/fontes. Livro externo entre duas épocas passou em `44521361720`, sem
+efeitos destrutivos reais. Checkout isolado preparado e job financeiro 200;
+o titular determinou concentrar todos os testes manuais no final da implementação.
+Nenhum pagamento humano homologado ou venda liberada.
+
+Segue ampliação candidata do índice de mundos visitados, preparação binária de
+fotos e escopo estável. Conferir [prévia e provas](recreio/preparacao-direitos-2026-11-19.md),
+[adapter](recreio/adapter-privacidade-morada-2026-11-19.md),
+[barreiras pendentes](recreio/congelamento-direitos-2026-11-19.md) e
+[homologação comercial](recreio/checkout-homologacao-2026-11-19.md).
+Nenhuma ativação dessas candidatas em produção.
+
 **18/11 — Recreio/F5 implantado com recursos desligados:** gestão/coadministração, convites dirigidos,
 sucessão parental, presença física, visitas temporárias, SDK e telas nativas estão
 implantados em `d014bd90`; a plataforma ainda não está concluída. Essa fonte concluiu os oito

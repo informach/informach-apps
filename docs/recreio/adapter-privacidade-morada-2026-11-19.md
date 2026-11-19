@@ -50,3 +50,17 @@ preexistente em vez do morador realmente criado pelo fundador. A fixture passou
 a selecionar o ID comprovado no recibo real de fundação e a exigir também que
 o vizinho permaneça idêntico. A regra de preservação de terceiros não foi
 alterada para satisfazer o teste. A correção ainda precisa de prova remota.
+
+
+Após corrigir a seleção da fixture, os catorze cenários novos passaram dentro
+dos 252 da simulação na rodada integral `44535164302`/`aa95fb7b`. Isso não
+qualifica alterações posteriores nem equivale à execução de retirada real.
+
+A composição binária seguinte confere SHA/tamanho antes de abrir gzip, exige
+UTF-8 e JSON produzidos sem ambiguidades pelo writer nativo e cruza mundo,
+tick e versão. Depois da transformação, prepara novo gzip/checksum dentro do
+teto do catálogo, sem gravar ou conceder autoridade. O orçamento aberto de
+64 MiB passou a ser uma constante compartilhada com o decoder do servidor;
+seu valor permaneceu o mesmo. Testes negativos incluem expansão excessiva,
+chaves JSON repetidas e metadados divergentes. A nova composição ainda requer
+gate remoto próprio; fonte do servidor em produção permanece fixada.

@@ -1,0 +1,124 @@
+{
+  "source": "aa95fb7b9de2bad763f09f35ffccb2c462a226fd",
+  "runId": 44535164302,
+  "status": "passed",
+  "jobs": [
+    {
+      "name": "Recreio / trial-ui",
+      "id": 135598522318,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / quality",
+      "id": 135598522577,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / commercial-checkout",
+      "id": 135598522622,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / e2e",
+      "id": 135598522663,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / commercial-reconciliation",
+      "id": 135598522681,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / trial-setup",
+      "id": 135598522704,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / versoes",
+      "id": 135598522735,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / trial-play",
+      "id": 135598522736,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / checkpoint",
+      "id": 135598522742,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / cliente",
+      "id": 135598522784,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / longa",
+      "id": 135598522797,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / commercial-setup",
+      "id": 135598522843,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / commercial-ui",
+      "id": 135598522917,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / integration",
+      "id": 135598522932,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / trial-experiment",
+      "id": 135598522973,
+      "conclusion": "success"
+    },
+    {
+      "name": "Recreio / equipe",
+      "id": 135598522991,
+      "conclusion": "success"
+    }
+  ],
+  "summaries": {
+    "quality": [
+      "Test Files  4 passed (4)",
+      "Tests  20 passed (20)",
+      "Test Files  30 passed (30)",
+      "Tests  252 passed (252)",
+      "Test Files  16 passed (16)",
+      "Tests  278 passed (278)",
+      "Test Files  20 passed (20)",
+      "Tests  350 passed (350)",
+      "Test Files  7 passed (7)",
+      "Tests  65 passed | 1 skipped (66)",
+      "Test Files  41 passed (41)",
+      "Tests  333 passed (333)",
+      "Test Files  23 passed (23)",
+      "Tests  171 passed (171)",
+      "Test Files  29 passed | 1 skipped (30)",
+      "Tests  166 passed | 3 skipped (169)",
+      "Test Files  21 passed (21)",
+      "Tests  188 passed (188)",
+      "Test Files  40 passed (40)",
+      "Tests  528 passed (528)"
+    ],
+    "integration": [
+      "Test Files  103 passed (103)",
+      "Tests  1330 passed (1330)",
+      "Test Files  3 passed (3)",
+      "Tests  16 passed (16)",
+      "Test Files  2 passed (2)",
+      "Tests  5 passed (5)"
+    ],
+    "e2e": [
+      "44 passed (14.0m)"
+    ]
+  },
+  "productionApplied": false,
+  "scopeLimit": "Sixteen candidate gates, native rights preparation/UI and pure Morada privacy adapter; no native erasure/export, manual Checkout, real key custody or production activation."
+}

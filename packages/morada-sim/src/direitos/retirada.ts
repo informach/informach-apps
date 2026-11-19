@@ -3,6 +3,7 @@ import { comandoDeEdicao } from "../comandos/identidade-da-edicao";
 import { verificarInvariantes } from "../dominio/invariantes";
 import { listar, obter } from "../dominio/tabela";
 import type { EstadoDoMundo } from "../dominio/tipos";
+import { FOTOGRAFIA_ABERTA_MAX_BYTES } from "../formatos/limites";
 import { copiar } from "../nucleo/canonico";
 
 /** Não é um perfil emitido pelo Recreio nem concede autoridade no jogo. O
@@ -33,7 +34,7 @@ function conferirAusencia(estado: EstadoDoMundo, perfilId: string) {
   } catch {
     throw new FalhaDaRetiradaDoMorada("INTEGRIDADE");
   }
-  if (texto.length > 16 * 1024 * 1024) throw new FalhaDaRetiradaDoMorada("LIMITE");
+  if (texto.length > FOTOGRAFIA_ABERTA_MAX_BYTES) throw new FalhaDaRetiradaDoMorada("LIMITE");
   if (texto.includes(perfilId)) throw new FalhaDaRetiradaDoMorada("REFERENCIA_REMANESCENTE");
 }
 function edicaoDoPerfil(comandoId: string, perfilId: string): boolean {

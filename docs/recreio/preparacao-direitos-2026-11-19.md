@@ -61,3 +61,18 @@ servidor. O seletor passou a ter associação explícita label/id, tema coerente
 espera pelo estado habilitado público (já condicionado à hidratação), em vez de
 inspecionar propriedade interna do React. Capturas sintéticas foram examinadas;
 a nova fonte exige nova rodada. Não houve promoção de fonte reprovada.
+
+
+`aa95fb7b` concluiu os dezesseis gates em `44535164302`: 1330 integrações
+PostgreSQL, dezesseis cenários de captura, cinco HTTP e 44 E2E comuns.
+Os dois cenários de direitos passaram; captura mobile de 390 px conferida,
+ZIP/SHA verificados. A simulação aprovou 252 casos, incluindo catorze novos
+do adapter. [Recibo da fonte](evidencias/rodada-integral-44535164302.json).
+O CI compartilhado dessa fonte é separado; não inferir seu resultado.
+
+Na ampliação seguinte, o SHA do plano completo continua sendo conferido, mas
+a comparação de desatualização considera pessoas/autoridade/vínculos/gestão.
+Checkpoint, diário e troca de posse não invalidam consentimento sobre a mesma
+participação: o executor precisará recapturá-los sob trava. Mudança de perfis,
+responsabilidade, mundo, gestão ou outros participantes exige nova prévia.
+O índice de mundos visitados amplia a descoberta sem conceder acesso.

@@ -34,6 +34,7 @@ import {
   comAutorDeMundos,
 } from "@/features/autoridade-de-jogo/mundos-repository";
 import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
+import { registrarRastroPessoalDoMundo } from "@/features/direitos/rastros-repository";
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { mundoCompativel } from "@/features/mundos/politica";
 import { materializarFotografia, mesmaFotografia } from "@/features/objetos/fotografia";
@@ -776,6 +777,7 @@ export async function comEntradaAtualDeMembro<T>(
         )
         .returning({ id: gameSessions.id });
       if (marcadas.length === 0) throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      await registrarRastroPessoalDoMundo(tx, pedido.perfilId, pedido.mundoId);
       const entrada: EntradaNoBanco = {
         membroId: MembroIdSchema.parse(membro.id),
         papel: membro.role,

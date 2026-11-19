@@ -7,6 +7,7 @@ import {
   recreioSessionSavePermits as permits,
   recreioWorldHostPresences as presences,
   recreioGameTickets as tickets,
+  recreioProfileWorldTraces as traces,
   recreioWorldVisitSessions as visitSessions,
   recreioWorldVisits as visits,
 } from "@informach/db/schema";
@@ -646,6 +647,12 @@ it("SDK real abre a finalidade de visita e a instância confirma/encerra o SID s
     sessaoDeVisitaId: aberta.sessaoDeVisitaId,
   });
   expect(entrada.visitaId).toBe(c.visitaId);
+  const rastros = await db
+    .select()
+    .from(traces)
+    .where(eq(traces.profileId, contexto.perfil.profileId));
+  expect(rastros).toHaveLength(1);
+  expect(rastros[0]?.spaceId).toBe(c.mundoId);
   await expect(contexto.mundos.abrir(c.mundoId)).rejects.toMatchObject({ codigo: "SEM_PERMISSAO" });
   await contexto.sessao.sair();
   expect(
@@ -660,6 +667,9 @@ it("SDK real abre a finalidade de visita e a instância confirma/encerra o SID s
     }),
   ).toMatchObject({ sidEncerrado: true, visitaEncerrada: true });
   expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+  expect(
+    await db.select().from(traces).where(eq(traces.profileId, contexto.perfil.profileId)),
+  ).toEqual(rastros);
 });
 
 it.each(["host", "concessao", "sid", "posse", "mundo"] as const)(
@@ -947,7 +957,13 @@ it("renovação não admite intenção preparada nem troca a identidade do vínc
   expect(
     (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]?.state,
   ).toBe("prepared");
+  expect(await db.select().from(traces).where(eq(traces.profileId, c.destino.perfil.id))).toEqual(
+    [],
+  );
   await admitir(c, s);
+  expect(
+    await db.select().from(traces).where(eq(traces.profileId, c.destino.perfil.id)),
+  ).toHaveLength(1);
   const alheio = crypto.randomUUID();
   expect(
     (await c.instancia.cliente.renovarVisitas([{ ...entrada(c, s), sessaoDeVisitaId: alheio }]))
@@ -1500,7 +1516,13 @@ it("auditoria de admissão recusada reverte vínculo e mundo do SID", async () =
   expect(
     (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]?.state,
   ).toBe("prepared");
+  expect(await db.select().from(traces).where(eq(traces.profileId, c.destino.perfil.id))).toEqual(
+    [],
+  );
   await admitir(c, s);
+  expect(
+    await db.select().from(traces).where(eq(traces.profileId, c.destino.perfil.id)),
+  ).toHaveLength(1);
 });
 
 it("visitante revogado ainda conclui apenas o salvamento do próprio SID já admitido", async () => {

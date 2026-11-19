@@ -8,6 +8,7 @@ import {
   recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
   recreioGameTickets as tickets,
+  recreioProfileWorldTraces as traces,
 } from "@informach/db/schema";
 import { type MundoId, MundoIdSchema, PerfilIdSchema, POSSE_TTL_MS } from "@informach/recreio";
 import {
@@ -569,6 +570,13 @@ describe("o que uma instância alcança", () => {
       .from(gameSessions)
       .where(eq(gameSessions.id, sessao.sid));
     expect(linha?.spaceId).toBe(mundoId);
+    const rastros = await db.select().from(traces).where(eq(traces.profileId, lia.perfil.id));
+    expect(rastros).toHaveLength(1);
+    expect(rastros[0]?.spaceId).toBe(mundoId);
+    expect((await entrar(sessao.sid, lia.perfil.id)).status).toBe(200);
+    expect(await db.select().from(traces).where(eq(traces.profileId, lia.perfil.id))).toEqual(
+      rastros,
+    );
 
     // Sessão válida de quem não é membro.
     expect(await entrar(sessaoDoBruno.sid, bruno.perfil.id)).toEqual({
@@ -584,6 +592,7 @@ describe("o que uma instância alcança", () => {
     expect(await entrar(crypto.randomUUID(), lia.perfil.id)).toEqual(encerrada);
     // Id que não é id.
     expect((await entrar("x", lia.perfil.id)).status).toBe(400);
+    expect(await db.select().from(traces).where(eq(traces.profileId, bruno.perfil.id))).toEqual([]);
   });
 
   it("sessão de jogo de outro jogo não entra no mundo", async () => {

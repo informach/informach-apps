@@ -8,6 +8,7 @@ import {
   recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
   recreioSpaces as spaces,
+  recreioProfileWorldTraces as traces,
   users,
 } from "@informach/db/schema";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/features/account/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import { mesmoEscopoDeDireitos } from "./escopo";
 import {
   type PedidoDePreparacaoDeDireitos,
   type PlanoDeDireitos,
@@ -45,7 +47,7 @@ function recibo(
   linha: typeof preparations.$inferSelect,
   plano: PlanoDeDireitos,
   agora: Date,
-  planoAtualSha: string,
+  desatualizada: boolean,
 ) {
   return {
     preparacaoId: linha.id,
@@ -57,7 +59,7 @@ function recibo(
       : linha.expiresAt <= agora
         ? ("expirada" as const)
         : ("preparada" as const),
-    desatualizada: planoAtualSha !== linha.planSha256,
+    desatualizada,
   };
 }
 
@@ -149,6 +151,8 @@ async function montarPlano(
             inArray(spaces.createdByProfileId, pedido.perfis),
             sql`exists(select 1 from ${members} where ${members.spaceId}=${spaces.id}
       and ${inArray(members.profileId, pedido.perfis)})`,
+            sql`exists(select 1 from ${traces} where ${traces.spaceId}=${spaces.id}
+      and ${inArray(traces.profileId, pedido.perfis)})`,
           ),
         )
         .orderBy(spaces.id)
@@ -203,7 +207,7 @@ export function prepararDireitosNoBanco(
       );
       const nativa = await autorizarContaNativa(tx, autor);
       const agora = await nativa.conferirPrazo(autor.login);
-      return recibo(existente, anterior, agora, planoSha256);
+      return recibo(existente, anterior, agora, !mesmoEscopoDeDireitos(anterior, plano));
     }
     const [{ quantidade } = { quantidade: 3 }] = await tx
       .select({ quantidade: sql<number>`count(*)`.mapWith(Number) })
@@ -254,7 +258,7 @@ export function prepararDireitosNoBanco(
     );
     const nativa = await autorizarContaNativa(tx, autor);
     const conferidoEm = await nativa.conferirPrazo(autor.login);
-    return recibo(linha, plano, conferidoEm, planoSha256);
+    return recibo(linha, plano, conferidoEm, false);
   });
 }
 
