@@ -9,18 +9,23 @@ import {
   recreioProfileDataKeys as keys,
   recreioMinorPolicies as policies,
   recreioSocialPreferences as preferences,
+  recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
   recreioMinorProtection as protection,
   sessions,
+  recreioSpaceMembers as spaceMembers,
+  recreioSpaces as spaces,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import {
+  cancelarPreviaDeDireitos,
   listarJogosComDadosPessoais,
   prepararCopiaDoCadastroPessoal,
   prepararCopiaPessoalDoJogo,
+  prepararPedidoDeDireitos,
 } from "@/features/direitos/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
@@ -494,6 +499,226 @@ describe("direitos: recorte pessoal por jogo sem autoridade de gameplay", () => 
       liberar.concluir(undefined);
       await trava;
       await resultado;
+    }
+  });
+});
+
+describe("direitos: preparação persistida anterior ao consentimento", () => {
+  it("prepara o próprio perfil suspenso sem assinatura e sem alterar seus dados", async () => {
+    const a = await adulto();
+    await dados(proprio(a));
+    await db
+      .update(profiles)
+      .set({ status: "suspended", coverageEnabled: false })
+      .where(eq(profiles.id, proprio(a)));
+    const previa = await prepararPedidoDeDireitos(a.autor, {
+      tipo: "retirar_perfil",
+      perfis: [proprio(a)],
+    });
+    expect(previa.plano).toMatchObject({
+      tipo: "retirar_perfil",
+      contaId: a.conta.id,
+      perfis: [{ id: proprio(a), tipo: "adult", responsabilidadeId: null }],
+      mundos: [],
+      identidadeGlobalPreservada: true,
+      financeiroSeparado: true,
+    });
+    expect(digest(Buffer.from(JSON.stringify(previa.plano)))).toBe(previa.planoSha256);
+    const [registro] = await db
+      .select()
+      .from(preparations)
+      .where(eq(preparations.id, previa.preparacaoId));
+    expect(registro?.plan).toEqual(previa.plano);
+    expect(registro?.cancelledAt).toBeNull();
+    expect((await copiar(a.autor, proprio(a))).chaves).toHaveLength(1);
+    expect(
+      (await eventosCom("preparationId", previa.preparacaoId)).map((e) => e.eventType),
+    ).toEqual(["recreio.rights_prepared"]);
+  });
+
+  it("admite conta sem jogador e encerramento de escopo vazio explícito", async () => {
+    const a = await adulto(false);
+    const previa = await prepararPedidoDeDireitos(a.autor, { tipo: "encerrar_conta", perfis: [] });
+    expect(previa.plano.perfis).toEqual([]);
+    expect(previa.plano.mundos).toEqual([]);
+    const [registro] = await db
+      .select()
+      .from(preparations)
+      .where(eq(preparations.id, previa.preparacaoId));
+    expect(registro && registro.expiresAt.getTime() - registro.createdAt.getTime()).toBe(
+      30 * 60_000,
+    );
+  });
+
+  it("responsável sem jogador prepara o menor; outro pagante não ganha essa autoridade", async () => {
+    const a = await adulto(false),
+      b = await adulto();
+    const p = await menor(a.autor);
+    const [grupo] = await db.select().from(groups).where(eq(groups.ownerUserId, b.conta.id));
+    if (!grupo) throw new Error("Payer group absent");
+    await db.update(profiles).set({ groupId: grupo.id }).where(eq(profiles.id, p.id));
+    expect(
+      (await prepararPedidoDeDireitos(a.autor, { tipo: "retirar_perfil", perfis: [p.id] })).plano
+        .perfis[0],
+    ).toMatchObject({ id: p.id, tipo: "minor", responsabilidadeId: expect.any(String) });
+    await expect(
+      prepararPedidoDeDireitos(b.autor, { tipo: "retirar_perfil", perfis: [p.id] }),
+    ).rejects.toMatchObject({ code: "PERFIL" });
+  });
+
+  it("não prepara outro adulto e exige todo o escopo pessoal no encerramento", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    const p = await menor(a.autor);
+    await expect(
+      prepararPedidoDeDireitos(a.autor, { tipo: "retirar_perfil", perfis: [proprio(b)] }),
+    ).rejects.toMatchObject({ code: "PERFIL" });
+    await expect(
+      prepararPedidoDeDireitos(a.autor, { tipo: "encerrar_conta", perfis: [proprio(a)] }),
+    ).rejects.toMatchObject({ code: "ESCOPO" });
+    const previa = await prepararPedidoDeDireitos(a.autor, {
+      tipo: "encerrar_conta",
+      perfis: [proprio(a), p.id].sort(),
+    });
+    expect(previa.plano.perfis).toHaveLength(2);
+  });
+
+  it("inclui participação anterior e autoria sem copiar nome, resumo ou identidade de terceiros", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    const [mundo] = await db
+      .insert(spaces)
+      .values({
+        gameId: JOGO,
+        createdByProfileId: proprio(a),
+        stewardProfileId: proprio(b),
+        name: "Nome privado",
+        contentPolicy: "livre",
+        summary: { segredo: "não exportar" },
+      })
+      .returning();
+    if (!mundo) throw new Error("World absent");
+    await db.insert(spaceMembers).values([
+      {
+        spaceId: mundo.id,
+        profileId: proprio(a),
+        role: "member",
+        state: "former",
+        leftAt: new Date(),
+      },
+      { spaceId: mundo.id, profileId: proprio(b), role: "steward", state: "active" },
+    ]);
+    const previa = await prepararPedidoDeDireitos(a.autor, {
+      tipo: "retirar_perfil",
+      perfis: [proprio(a)],
+    });
+    expect(previa.plano.mundos).toEqual([
+      {
+        id: mundo.id,
+        jogo: JOGO,
+        revisao: 0,
+        diario: 0,
+        gestao: 1,
+        cerca: 0,
+        estado: "hibernating",
+        outrosParticipantes: 1,
+      },
+    ]);
+    expect(JSON.stringify(previa.plano)).not.toContain(proprio(b));
+    expect(JSON.stringify(previa.plano)).not.toContain("Nome privado");
+    expect(JSON.stringify(previa.plano)).not.toContain("não exportar");
+  });
+
+  it("limita a três prévias abertas por conta e cancelamento próprio libera uma vaga", async () => {
+    const a = await adulto(false);
+    const pedido = { tipo: "encerrar_conta", perfis: [] };
+    const primeira = await prepararPedidoDeDireitos(a.autor, pedido);
+    await prepararPedidoDeDireitos(a.autor, pedido);
+    await prepararPedidoDeDireitos(a.autor, pedido);
+    await expect(prepararPedidoDeDireitos(a.autor, pedido)).rejects.toMatchObject({
+      code: "LIMITE",
+    });
+    const ref = { preparacaoId: primeira.preparacaoId, planoSha256: primeira.planoSha256 };
+    expect(await cancelarPreviaDeDireitos(a.autor, ref)).toEqual({ cancelada: true });
+    expect(await cancelarPreviaDeDireitos(a.autor, ref)).toEqual({ cancelada: true });
+    expect(
+      (await eventosCom("preparationId", primeira.preparacaoId)).filter(
+        (e) => e.eventType === "recreio.rights_preparation_cancelled",
+      ),
+    ).toHaveLength(1);
+    expect((await prepararPedidoDeDireitos(a.autor, pedido)).plano.perfis).toEqual([]);
+  });
+
+  it("nega cancelamento alheio e hash divergente sem mudar a prévia", async () => {
+    const a = await adulto(false),
+      b = await adulto(false);
+    const previa = await prepararPedidoDeDireitos(a.autor, { tipo: "encerrar_conta", perfis: [] });
+    const ref = { preparacaoId: previa.preparacaoId, planoSha256: previa.planoSha256 };
+    await expect(cancelarPreviaDeDireitos(b.autor, ref)).rejects.toMatchObject({
+      code: "DIREITOS",
+    });
+    await expect(
+      cancelarPreviaDeDireitos(a.autor, { ...ref, planoSha256: "0".repeat(64) }),
+    ).rejects.toMatchObject({ code: "DIREITOS" });
+    expect(
+      (await db.select().from(preparations).where(eq(preparations.id, previa.preparacaoId)))[0]
+        ?.cancelledAt,
+    ).toBeNull();
+  });
+
+  it.each(["login antigo", "aparelho revogado", "contexto infantil"] as const)(
+    "não persiste prévia por %s",
+    async (caso) => {
+      const a = await adulto(false);
+      const autor = { ...a.autor, login: { ...a.autor.login } };
+      if (caso === "login antigo") autor.login.criadoEm = new Date(Date.now() - 11 * 60_000);
+      if (caso === "aparelho revogado")
+        await db
+          .update(devices)
+          .set({ revokedAt: new Date() })
+          .where(eq(devices.id, autor.sessaoDeAparelhoId));
+      if (caso === "contexto infantil")
+        await db
+          .update(devices)
+          .set({ minorContextGeneration: crypto.randomUUID() })
+          .where(eq(devices.id, autor.sessaoDeAparelhoId));
+      await expect(
+        prepararPedidoDeDireitos(autor, { tipo: "encerrar_conta", perfis: [] }),
+      ).rejects.toMatchObject({ code: caso === "login antigo" ? "LOGIN_RECENTE" : "AUTH" });
+      expect(
+        await db.select().from(preparations).where(eq(preparations.requesterUserId, a.conta.id)),
+      ).toEqual([]);
+    },
+  );
+
+  it("auditoria indisponível reverte preparação e cancelamento", async () => {
+    const a = await adulto(false);
+    const previa = await prepararPedidoDeDireitos(a.autor, { tipo: "encerrar_conta", perfis: [] });
+    await db.execute(
+      sql`create function audit.recusar_previa_teste() returns trigger language plpgsql as $$ begin if new.event_type in ('recreio.rights_prepared','recreio.rights_preparation_cancelled') then raise exception 'auditoria indisponivel'; end if; return new; end $$`,
+    );
+    await db.execute(
+      sql`create trigger recusar_previa_teste before insert on audit.events for each row execute function audit.recusar_previa_teste()`,
+    );
+    try {
+      await expect(
+        prepararPedidoDeDireitos(a.autor, { tipo: "encerrar_conta", perfis: [] }),
+      ).rejects.toBeInstanceOf(AuditPersistenceError);
+      await expect(
+        cancelarPreviaDeDireitos(a.autor, {
+          preparacaoId: previa.preparacaoId,
+          planoSha256: previa.planoSha256,
+        }),
+      ).rejects.toBeInstanceOf(AuditPersistenceError);
+      const registros = await db
+        .select()
+        .from(preparations)
+        .where(eq(preparations.requesterUserId, a.conta.id));
+      expect(registros).toHaveLength(1);
+      expect(registros[0]?.cancelledAt).toBeNull();
+    } finally {
+      await db.execute(sql`drop trigger recusar_previa_teste on audit.events`);
+      await db.execute(sql`drop function audit.recusar_previa_teste()`);
     }
   });
 });

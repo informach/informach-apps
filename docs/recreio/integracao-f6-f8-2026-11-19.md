@@ -21,8 +21,9 @@ Rodadas remotas desta integração:
   aprovado. ZIP/SHA conferidos, todos os cenários de queda/corrupção e limpeza
   preservados após o merge. [Recibo](evidencias/captura-provider-44509240153.json).
 
-Os dois primeiros ainda estão em execução. A alteração posterior do migrator
-no IaC requer seu gate quality próprio; não pertence à fonte desse ensaio.
+Os dois primeiros concluíram com sucesso, conferidos novamente em 19/11.
+A alteração posterior do migrator no IaC (`5a69ed00`) também concluiu o gate
+quality `44510063163`. Esses resultados não ativam migrations ou serviços.
 
 Fontes de produção preservadas em `.railway/railway.ts`: portal/Admin em
 `d014bd90a895df452b83b9a2e6e683ac5749e0cb` e servidor Morada em

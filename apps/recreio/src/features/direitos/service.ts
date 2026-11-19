@@ -9,6 +9,31 @@ import {
 } from "./contrato";
 import { copiarDadosPessoaisDoJogo } from "./dados-repository";
 import { listarJogosPessoaisNoBanco } from "./inventario-repository";
+import {
+  PedidoDePreparacaoDeDireitosSchema,
+  ReferenciaDaPreparacaoSchema,
+} from "./preparacao-contrato";
+import { cancelarPreparacaoNoBanco, prepararDireitosNoBanco } from "./preparacao-repository";
+
+export async function prepararPedidoDeDireitos(autor: AutorNativoRecente, entrada: unknown) {
+  const pedido = PedidoDePreparacaoDeDireitosSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `previa-direitos:${autor.contaId}`,
+    max: 10,
+    janelaEmSegundos: 600,
+  });
+  return prepararDireitosNoBanco(autor, pedido);
+}
+
+export async function cancelarPreviaDeDireitos(autor: AutorNativoRecente, entrada: unknown) {
+  const referencia = ReferenciaDaPreparacaoSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `cancelar-previa-direitos:${autor.contaId}`,
+    max: 20,
+    janelaEmSegundos: 600,
+  });
+  return cancelarPreparacaoNoBanco(autor, referencia);
+}
 
 export async function prepararCopiaDoCadastroPessoal(autor: AutorNativoRecente, entrada: unknown) {
   const pedido = PedidoDeCadastroPessoalSchema.parse(entrada);

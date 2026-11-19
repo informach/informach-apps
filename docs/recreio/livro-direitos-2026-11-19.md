@@ -80,3 +80,11 @@ recebe a chave nova. A transição não apaga a cerca anterior nem suas entradas
 Essa porta de transporte não autoriza o corte: o coordenador operacional ainda
 precisa comprovar os efeitos nativos, identidade e autoridades atuais antes de
 usar a retomada. Nenhuma retomada automática foi adicionada ao portal.
+
+
+`44521361720`/`f7365313` concluiu tipos, 190 testes em quatorze arquivos e
+a prova externa ampliada: duas épocas/chaves, replay cronológico da cadeia
+inteira congelada, negativa ao escritor antigo, preservação da falha do
+consumidor e limpeza confirmada de doze objetos. ZIP e SHA conferidos no
+[recibo](evidencias/livro-provider-44521361720.json). O consumidor da prova é
+sintético; nenhum efeito nativo ou dado de produção foi executado.
