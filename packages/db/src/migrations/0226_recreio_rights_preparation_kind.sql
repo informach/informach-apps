@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."rights_preparations" ADD CONSTRAINT "recreio_rights_preparation_kind_identity" UNIQUE("id","requester_user_id","plan_sha256","kind");

@@ -23,5 +23,7 @@
   "artifactZipSha256": "89c56a7fab2a403c8a90420b71e277687f6c5ad91f865eb7e026587dbc5d3247",
   "productionApplied": false,
   "unchangedPreviousColumnsAndConstraints": true,
-  "newTables": ["recreio.rights_operations", "recreio.rights_subjects", "recreio.rights_worlds"]
+  "newTables": ["recreio.rights_operations", "recreio.rights_subjects", "recreio.rights_worlds"],
+  "status": "rejeitada_em_homologacao",
+  "reason": "FK precedia a nova restricao unica no DDL gerado; artefato nao aplicado. Regenerar em duas etapas."
 }

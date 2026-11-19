@@ -1,0 +1,26 @@
+{
+  "source": "d542f984a4ae70db7b9c2021c3f7c9a81d7875e8",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0226_recreio_rights_preparation_kind.sql",
+      "bytes": 156,
+      "sha256": "21243cb4ab6030a6b158d059918ea3d6540c1e0c6c334e393ca590c083bbf64c"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0226_snapshot.json",
+      "bytes": 1064244,
+      "sha256": "f8bbf9cca22c4b9e2a72e49ba3cbeb9cbdfc3fa2d0b10542d1ae1f3b86eb3508"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 34286,
+      "sha256": "36a4b34b7b024162000b6111f2a89ea882a57a4796669a543c7cc725852c96af"
+    }
+  ],
+  "runId": 44547273920,
+  "artifactId": 14540103484,
+  "artifactZipBytes": 74571,
+  "artifactZipSha256": "64484ab818e3f24a6bbdaa2d8427fedc6d4733733ced7dfdcefdd69a46456746",
+  "productionApplied": false,
+  "unchangedPreviousTablesExceptNewUnique": true
+}
