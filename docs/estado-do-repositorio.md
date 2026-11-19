@@ -121,8 +121,13 @@ limpeza de cluster/arquivos/quatro objetos e negativa anônima confirmadas.
 Não normaliza autoridades/destinos para tráfego nem qualifica produção.
 A 0219 acrescenta controle de publicação, destino independente, tentativa e bytes
 assinados duráveis; geração `44486780124` adotada intacta, ainda em candidata.
-Fechamento durável está em qualificação; coleta, custódia, replay F7, agenda e
-RPO/RTO continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
+Publicação durável e coleta restrita passaram em `44489934715` (1.289 casos
+PostgreSQL, dezesseis nativos, cinco HTTP); a composição no bucket real passou
+em `44491770523`/`44281736`, com retomada, liberação de reservas, coleta da foto,
+recuperação em cluster novo e limpeza. 0220 amplia lease para tombstone e
+acrescenta índice parcial; 221 recibos candidatos, sem implantação. Dezesseis
+gates e CI compartilhado dessa fonte estão em execução. Abandono conciliado,
+retirada durável do arquivo, custódia, replay F7, agenda e RPO/RTO continuam abertos. [Protocolo e limites](recreio/backup-e-retirada-2026-11-19.md)
 e [publicação durável](recreio/publicacao-duravel-2026-11-19.md).
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)

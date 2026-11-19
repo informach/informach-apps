@@ -59,3 +59,27 @@ de integridade nem publicação/limpeza no provedor. O executor passa a instalar
 explicitamente o gerenciador fixado com limite de 120 s e dependências com
 limite de 600 s, sem mudar versões/digests, desativar integridade ou trocar
 registry. A indisponibilidade de rede permanece uma falha, com término limitado.
+
+## Prova externa confirmada
+
+`44491770523`/`44281736` passou com o bucket restrito real: publicação durável,
+falha de auditoria após índice guardado, retomada sem arquivos locais por novo
+token, reserva liberada só após confirmação, foto redundante retirada pelo
+coletor nativo e recuperação do arquivo em cluster PostgreSQL novo e privado.
+Conteúdo/estrutura/globais/foto/vínculo foram conferidos; quatro objetos,
+arquivos e cluster sintéticos foram removidos. ZIP conferido por SHA/tamanho
+antes de adotar o [recibo](evidencias/captura-provider-44491770523.json).
+Só o fixture antecipa datas para testar a carência de coleta.
+
+A integração `44489934715`/`8154725f` passou: 1.289 casos PostgreSQL em 101
+arquivos (17 de publicação e 13 de coleta), dezesseis provas nativas, cinco
+HTTP e upgrades. Composição com coleta nativa posterior passou em
+`44491175912`/`68fd5653`. A imagem com bootstrap limitado passou nas duas
+identidades em `44491764923`/`44281736`; recibos dos ZIPs conferidos.
+Os dezesseis gates completos e CI compartilhado dessa fonte estão em execução
+em `44492285054` e `44492289805`. Nada foi implantado.
+
+Retirada durável do próprio backup e abandono conciliado de capturas ainda
+precisam conservar tombstone fora do banco e impedir a confirmação por worker
+antigo. Coleta de fotos não conclui esse controle nem autoriza apagar o índice
+ou o tombstone. Agenda, custódia, normalização/replay F7 e RPO/RTO seguem abertos.

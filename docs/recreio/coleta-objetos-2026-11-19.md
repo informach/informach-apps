@@ -29,3 +29,18 @@ Gates no GitHub: integridade, token antigo, reserva ativa, destaque/ponteiro,
 concorrência com captura e liberação, DELETE perdido/GET negativo, PUT tardio,
 falha de auditoria, limites e limpeza dos recursos sintéticos. Sem mudança de
 modo de armazenamento, migração automática ou exposição de conteúdo.
+
+## Evidência candidata
+
+A 0220 foi gerada em `44489272058`/`21da85fc` e adotada intacta, conferindo
+predecessor, hashes e alteração exclusiva da entrega. A geração anterior
+`44488715514` não foi adotada: ainda não incluía o índice parcial.
+`44489929595`/`8154725f` aprovou tipos do app e 163 testes de objetos, nove
+novos do coletor com SDK/HTTP reais. A integração `44489934715` aprovou os treze
+cenários de coleta entre 1.289 casos; testou barreira antes de mundo/entrega,
+reserva, ponteiro, concorrência, token, auditoria, tombstone e falha parcial.
+
+O coletor integrou a captura nativa em `44491175912`/`68fd5653`; a composição
+com bucket real passou em `44491770523`/`44281736`, inclusive restauração em
+cluster novo e limpeza. Datas artificiais de carência existem só no fixture.
+Nenhuma fotografia ou recibo de produção foi alterado por essas provas.
