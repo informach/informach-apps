@@ -209,3 +209,32 @@ avançar os writers. Os dezesseis gates da fonte anterior `38b544fe` passaram em
 `44433292118`; ela ainda não continha essas migrations. O CI compartilhado de
 `7eb50298` passou em `44424819941`, e o de `8647b310` passou em `44427177027`.
 A fonte final posterior exige os próprios checks aplicáveis.
+
+
+## Leitor nativo em qualificação
+
+A fonte posterior à 0217 implementa leitura limitada no Postgres e resolução
+explícita de referências confirmadas de bucket. O serviço usa uma capacidade
+privada do servidor; não recebe destino ou chave do navegador. A configuração
+`RECREIO_OBJECTS_MODE` nasce `off` e só admite `read`: nenhum modo de migração
+ou escrita está disponível. `read` exige ID/nome/escopo do bucket, endpoint
+HTTPS oficial, região, estilo, credenciais exclusivas, chave ativa e mapa de
+até dezesseis chaves AES-256 em base64 canônico. Homologação e produção têm
+nomes de bucket distintos; a partida recusa configuração incompleta sem
+imprimir valores. As chaves precisam de custódia e recuperação próprias antes
+de qualquer migração real.
+
+Antes de carregar `data`, o leitor consulta tamanho e metadados e aplica o teto
+do jogo. PG exige comprimento e SHA exatos. Bucket exige recibo `verified`,
+conteúdo/mundo/fotografia compatíveis e destino idêntico à composição atual.
+A rede roda fora da transação; depois, uma nova transação relê posse/cerca/prazo,
+a fotografia mais recente e sua confirmação. Uma troca no intervalo recusa a
+entrega e limpa o buffer aberto. Ausência, corrupção ou destino divergente não
+causam retorno silencioso de uma fotografia antiga.
+
+Os novos cenários usam PostgreSQL e SDK S3 reais com HTTP fechado, incluindo
+alterações concorrentes sob a trava do mundo. A promoção ao bucket permanece
+uma fixture explícita do teste de leitura; não é prova de worker, migração ou
+backup. Tipos, regressões e integração precisam de gates remotos desta fonte.
+Checkpoint, recuperação histórica, retenção e backups ainda precisam consumir
+o mesmo contrato antes de admitir qualquer ponteiro real em produção.

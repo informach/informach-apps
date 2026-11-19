@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, asc, db, eq, gt, gte, isNull, lt, ne, sql } from "@informach/db";
 import {
@@ -44,6 +45,7 @@ import type {
   ArmazenamentoDeMundos,
   EntradaGuardada,
   FotografiaParaGuardar,
+  LeitorDeFotografiasPrivadas,
   PaginaDoDiario,
 } from "./armazenamento";
 import { armazenamentoPg } from "./armazenamento-repository";
@@ -632,11 +634,56 @@ export async function reivindicarPosse(entrada: {
 
 export async function lerFotografiaDoMundo(
   pedido: PedidoComPosse,
+  leitor: LeitorDeFotografiasPrivadas | null = null,
 ): Promise<{ meta: MetaDeFotografia; bytes: Uint8Array } | null> {
-  return db.transaction(async (tx) => {
+  const teto = jogoDoCatalogo(pedido.jogo).limites.fotografiaMaxBytes;
+  const fonte = await db.transaction(async (tx) => {
     await conferirPosse(tx, pedido);
-    return armazenamento.lerUltimaFotografia(tx, pedido.mundoId);
+    const preparada = await armazenamento.prepararLeituraDaFotografia(tx, pedido.mundoId, teto);
+    await conferirPosse(tx, pedido);
+    return preparada;
   });
+  if (!fonte) return null;
+  // A leitura de pg já foi limitada e conferida sob posse atual, sem I/O externo.
+  if (fonte.origem.tipo === "pg") return { meta: fonte.meta, bytes: fonte.origem.bytes };
+  const origem = fonte.origem;
+  if (
+    !leitor ||
+    leitor.bucketId !== origem.bucketId ||
+    leitor.bucketName !== origem.bucketName ||
+    leitor.escopo !== origem.escopo
+  )
+    throw new ErroDoRecreio("INDISPONIVEL");
+  let bytes: Uint8Array;
+  try {
+    bytes = await leitor.ler(origem.objeto);
+  } catch {
+    throw new ErroDoRecreio("INDISPONIVEL");
+  }
+  try {
+    if (
+      bytes.length !== fonte.meta.bytes ||
+      createHash("sha256").update(bytes).digest("hex") !== fonte.meta.sha256
+    )
+      throw new ErroDoRecreio("INDISPONIVEL");
+    await db.transaction(async (tx) => {
+      await conferirPosse(tx, pedido);
+      const atual = await armazenamento.prepararLeituraDaFotografia(tx, pedido.mundoId, teto);
+      if (
+        !atual ||
+        atual.id !== fonte.id ||
+        JSON.stringify(atual.meta) !== JSON.stringify(fonte.meta) ||
+        atual.origem.tipo !== "bucket" ||
+        JSON.stringify(atual.origem) !== JSON.stringify(origem)
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
+      await conferirPosse(tx, pedido);
+    });
+    return { meta: fonte.meta, bytes };
+  } catch (erro) {
+    bytes.fill(0);
+    throw erro;
+  }
 }
 
 export async function lerDiarioDoMundo(

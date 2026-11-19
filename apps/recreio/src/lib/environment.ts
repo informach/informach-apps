@@ -1,6 +1,7 @@
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { getConfiguredProducts, isStripePriceIdConfigured } from "@informach/config";
 import { z } from "zod";
+import { configuracaoDosObjetos, objectEnvironmentSchema } from "./object-environment";
 
 export function isStripeTestSecret(value: unknown): value is string {
   return typeof value === "string" && /^(sk|rk)_test_[A-Za-z0-9_]{8,}$/.test(value);
@@ -38,6 +39,7 @@ const OrigensDoJogoSchema = z.strictObject({
 export type OrigensDoJogo = z.infer<typeof OrigensDoJogoSchema>;
 
 export const schema = z.object({
+  ...objectEnvironmentSchema.shape,
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().url(),
   BETTER_AUTH_SECRET: z.string().min(32),
@@ -158,6 +160,7 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
       `Invalid environment: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,
     );
   const value = parsed.data;
+  configuracaoDosObjetos(value);
   if (value.RECREIO_BILLING_MODE === "sandbox" || value.RECREIO_FINANCIAL_JOBS_MODE === "on") {
     if (
       value.STRIPE_MODE !== "dev" ||

@@ -38,6 +38,16 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("valida a composição de objetos na partida sem expor credenciais", () => {
+    expect(validateEnvironment(base).RECREIO_OBJECTS_MODE).toBe("off");
+    expect(() =>
+      validateEnvironment({
+        ...base,
+        RECREIO_OBJECTS_MODE: "read",
+        RECREIO_OBJECTS_SECRET_KEY: "NAO_MOSTRAR",
+      }),
+    ).toThrow(/^Invalid RECREIO_OBJECTS configuration$/);
+  });
   it("mantém cobrança fechada e só admite sandbox com catálogo e credenciais test", () => {
     expect(validateEnvironment(base).RECREIO_BILLING_MODE).toBe("off");
     expect(validateEnvironment(base).RECREIO_FINANCIAL_JOBS_MODE).toBe("off");

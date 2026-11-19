@@ -30,6 +30,7 @@ import {
 import { z } from "zod";
 import type { AutorDeMundos } from "@/features/autoridade-de-jogo/mundos-repository";
 import { enderecoDaInstanciaAceito, jogoQueAbre, limitesDoJogo } from "@/features/jogos/config";
+import { leitorDeFotografias } from "@/features/objetos/runtime";
 import { env } from "@/lib/env";
 import { audit } from "@/lib/observability";
 import {
@@ -165,12 +166,15 @@ export async function lerFotografia(
   mundoId: unknown,
   cerca: unknown,
 ): Promise<{ meta: MetaDeFotografia; bytes: Uint8Array } | null> {
-  return lerFotografiaDoMundo({
-    mundoId: mundoDoHost(mundoId),
-    jogo: host.jogo,
-    instanciaId: host.instanciaId,
-    cerca: naoNegativo.parse(cerca),
-  });
+  return lerFotografiaDoMundo(
+    {
+      mundoId: mundoDoHost(mundoId),
+      jogo: host.jogo,
+      instanciaId: host.instanciaId,
+      cerca: naoNegativo.parse(cerca),
+    },
+    leitorDeFotografias(),
+  );
 }
 
 export async function lerDiario(
