@@ -14,6 +14,7 @@ import {
   resumoDoRegistro,
 } from "../src/features/direitos/livro/assinatura";
 import { FalhaDoLivroDeDireitos, RAIZ_VAZIA } from "../src/features/direitos/livro/contrato";
+import { reaplicarLivroCongelado } from "../src/features/direitos/livro/leitura";
 import { exigir, FalhaDaProva } from "./backup/provas-arquivos";
 
 interface ReciboDaProva {
@@ -30,6 +31,11 @@ interface ReciboDaProva {
   anonymousReadDenied: boolean;
   cleanupConfirmed: boolean;
   durableFreezeVerified: boolean;
+  keyRotationVerified: boolean;
+  frozenChainVerified: boolean;
+  admittedIntentReadbackVerified: boolean;
+  consumerFailurePreserved: boolean;
+  nativeRightsEffectsApplied: false;
   productionDataTouched: false;
   productionCredentialsPresent: false;
   failure: string | null;
@@ -78,6 +84,7 @@ async function main() {
     ),
     livroId = randomUUID(),
     chave = randomBytes(32),
+    chaveNova = randomBytes(32),
     assinatura = criarAssinaturaDoLivro({
       livroId,
       chaveAtiva: "prova-v1",
@@ -96,11 +103,25 @@ async function main() {
     storage = criarArmazenamentoDoLivro({ cliente, bucket, assinatura, tempoLimiteMs: 20_000 }),
     prefixo = storage.prefixo,
     chavesProprias = new Set<string>();
+  const assinaturaNova = criarAssinaturaDoLivro({
+      livroId,
+      chaveAtiva: "prova-v2",
+      chaves: new Map([
+        ["prova-v1", chave],
+        ["prova-v2", chaveNova],
+      ]),
+    }),
+    storageNovo = criarArmazenamentoDoLivro({
+      cliente,
+      bucket,
+      assinatura: assinaturaNova,
+      tempoLimiteMs: 20_000,
+    });
   let limpeza = false;
   const recibo: ReciboDaProva = {
     source: variavel("GITHUB_SHA"),
     runId: variavel("GITHUB_RUN_ID"),
-    boundary: "synthetic_external_rights_ledger_cas",
+    boundary: "synthetic_external_rights_ledger_frozen_chain_epochs",
     status: "failed",
     bucket,
     objectKeys: [],
@@ -111,6 +132,11 @@ async function main() {
     anonymousReadDenied: false,
     cleanupConfirmed: false,
     durableFreezeVerified: false,
+    keyRotationVerified: false,
+    frozenChainVerified: false,
+    admittedIntentReadbackVerified: false,
+    consumerFailurePreserved: false,
+    nativeRightsEffectsApplied: false,
     productionDataTouched: false,
     productionCredentialsPresent: false,
     failure: null,
@@ -315,6 +341,85 @@ async function main() {
       "ADMISSAO_CONGELADA_NAO_RECUSADA",
     );
     recibo.durableFreezeVerified = true;
+    const primeiro = await reaplicarLivroCongelado({
+      storage,
+      maxEntradas: 10,
+      tempoLimiteMs: 90_000,
+      aplicar: async () => undefined,
+    });
+    exigir(primeiro.entradasReaplicadas === 1, "CADEIA_ORIGINAL_DIVERGENTE");
+    const novaCerca = await storageNovo.lerCabecalho(),
+      retomado = await storageNovo.retomarComNovaChave(
+        novaCerca,
+        resumoDoRegistro(Buffer.from(JSON.stringify(primeiro))),
+        "2026-11-19T10:03:00.000Z",
+      );
+    exigir(
+      retomado.documento.epoca === 1 &&
+        retomado.documento.geracao === 3 &&
+        retomado.chaveId === "prova-v2",
+      "RETOMADA_NAO_CONFIRMADA",
+    );
+    recusou = false;
+    try {
+      await storage.lerCabecalho();
+    } catch (e) {
+      recusou = e instanceof FalhaDoLivroDeDireitos && e.codigo === "INTEGRIDADE";
+    }
+    exigir(recusou, "LEITOR_ANTIGO_REATIVADO");
+    recibo.keyRotationVerified = true;
+    const novoDocumento = { ...assinatura.lerIntencao(intencao()), epoca: 1 },
+      novoIntento = assinaturaNova.assinarIntencao(novoDocumento),
+      shaNovo = resumoDoRegistro(novoIntento);
+    await storageNovo.publicarIntencao(novoIntento);
+    const headNovo = assinaturaNova.assinarCabecalho({
+        ...retomado.documento,
+        geracao: 4,
+        entradas: 2,
+        anteriorSha256: retomado.sha256,
+        raizSha256: resumoDoRegistro(
+          Buffer.from(JSON.stringify([retomado.documento.raizSha256, shaNovo])),
+        ),
+        ultimaIntencao: { operacaoId: novoDocumento.operacaoId, revisao: 1, sha256: shaNovo },
+        atualizadoEm: "2026-11-19T10:04:00.000Z",
+      }),
+      admitido = await storageNovo.trocarCabecalho(retomado, headNovo);
+    await storageNovo.congelarCabecalho(admitido, "2026-11-19T10:05:00.000Z");
+    const causa = new Error("fixture-noop-consumer-failure");
+    recusou = false;
+    try {
+      await reaplicarLivroCongelado({
+        storage: storageNovo,
+        maxEntradas: 10,
+        tempoLimiteMs: 90_000,
+        aplicar: async () => {
+          throw causa;
+        },
+      });
+    } catch (e) {
+      recusou = e === causa;
+    }
+    exigir(recusou, "ERRO_DO_CONSUMIDOR_OCULTO");
+    recibo.consumerFailurePreserved = true;
+    const recebidas: string[] = [];
+    const lido = await reaplicarLivroCongelado({
+      storage: storageNovo,
+      maxEntradas: 10,
+      tempoLimiteMs: 90_000,
+      aplicar: async (i, c) => {
+        exigir(c.sequencia === recebidas.length + 1, "ORDEM_DE_REPLAY_DIVERGENTE");
+        recebidas.push(i.operacaoId);
+      },
+    });
+    exigir(
+      lido.entradasReaplicadas === 2 &&
+        lido.geracao === 5 &&
+        JSON.stringify(recebidas) ===
+          JSON.stringify([atual.documento.ultimaIntencao?.operacaoId, novoDocumento.operacaoId]),
+      "REPLAY_DO_LIVRO_DIVERGENTE",
+    );
+    recibo.frozenChainVerified = true;
+    recibo.admittedIntentReadbackVerified = true;
     const url = new URL(endpoint.origin);
     if (estilo === "true") url.pathname = `/${bucket}/${prefixo}cabecalho.json`;
     else {
@@ -328,7 +433,7 @@ async function main() {
       await anonima.body?.cancel();
     }
     recibo.anonymousReadDenied = true;
-    exigir(chavesProprias.size === 8, "ESCOPO_DA_PROVA_DIVERGENTE");
+    exigir(chavesProprias.size === 12, "ESCOPO_DA_PROVA_DIVERGENTE");
     recibo.status = "passed";
   } catch (e) {
     recibo.failure = codigo(e);
@@ -338,7 +443,9 @@ async function main() {
     if (recibo.failure || recibo.cleanupFailure || !recibo.cleanupConfirmed)
       recibo.status = "failed";
     assinatura.encerrar();
+    assinaturaNova.encerrar();
     chave.fill(0);
+    chaveNova.fill(0);
     cliente.destroy();
     try {
       await arquivo.writeFile(`${JSON.stringify(recibo, null, 2)}\n`);
