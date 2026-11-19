@@ -50,6 +50,23 @@ os três aceites; repetir o gate antes de qualificar este consentimento.
 esperada pela compra já validada. A fixture agora passa o pedido pelo schema
 real de entrada antes de chamar o repositório, sem cast; repetir a qualificação.
 
+25f86c30 passou direitos 44625930222: 126 testes/11 arquivos, incluindo os sete
+novos casos, além do upgrade. Quality 44625934750 aprovado. A prova de integridade
+inclui contador sem tentativa, confirmação parcial, outro solicitante e datas
+infinitas. Não há conclusão financeira, efeito destrutivo de encerramento ou
+ativação em produção a partir desses resultados.
+
+Reader de inventário Stripe em candidata, somente GET: cliente próprio,
+contratos/compras de origem nativa, namespace e paginação completa limitada.
+Página repetida/vazia após continuação, contrato conhecido ausente e origem
+desconhecida falham. Checkout aberto ou completo ainda sem liquidação aparece
+como pendência, sem afirmar ausência. Não expira, cancela ou cria recursos.
+SDK/API continuam fixados; consultas às referências primárias por Context7:
+[assinaturas](https://docs.stripe.com/api/subscriptions/list) e
+[Checkouts](https://docs.stripe.com/api/checkout/sessions/list).
+Testes HTTP novos aguardam gate; composição do coordenador financeiro ainda
+pendente. Observação do inventário não é, isoladamente, conclusão de exclusão.
+
 ## Exportação
 
 A cópia de perfil já tem captura consistente, artefato cifrado de dez minutos,

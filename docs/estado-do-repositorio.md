@@ -21,7 +21,10 @@ provider 44620033752/8af11a7c, worker f89b6ac5 em qualidade/conciliação/integr
 quality/finanças 44622226513/44622231617; CSP corrigida separando a constante
 do Zod, nova jornada 44624092000 ainda em curso. O consentimento privado de
 encerramento agora vincula congelamento/outbox/fila financeira na mesma TX,
-sem conclusão ou ação pública, com sete casos novos aguardando gate. O portal restrito,
+sem conclusão ou ação pública; 126 testes/11 arquivos e upgrade 44625930222,
+quality 44625934750/25f86c30 aprovados. Reader de inventário completo ainda em
+candidata sem gate. APIs Sandbox 44626969668 e nova interface 44626975101 em
+curso. O portal restrito,
 a preservação do período pago e as capacidades antigas precisam ser provados
 antes de habilitar o encerramento. [Plano](recreio/cancelamento-nativo-2026-11-19.md)
 e [contratos/execução restante](recreio/encerramento-conta-2026-11-19.md).
