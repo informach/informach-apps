@@ -205,7 +205,10 @@ async function main() {
             copia,
             acesso,
             fotografia,
-            inventario: { ...fria.publicacao.inventario, sha256: "f".repeat(64) },
+            inventario: {
+              ...fria.publicacao.inventario,
+              sha256: `${fria.publicacao.inventario.sha256.startsWith("0") ? "1" : "0"}${fria.publicacao.inventario.sha256.slice(1)}`,
+            },
           });
         } catch (e) {
           divergencia = e instanceof FalhaDaNormalizacao && e.codigo === "INVENTARIO";

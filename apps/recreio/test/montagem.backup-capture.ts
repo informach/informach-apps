@@ -51,7 +51,16 @@ it(
       copiaUrl.pathname = `/${nome}`;
       let criada = false,
         fotoGravada = false,
-        copia: postgres.Sql | undefined;
+        copia: postgres.Sql | undefined,
+        falhaPrincipal: { erro: unknown } | undefined;
+      const falhasDeLimpeza: unknown[] = [];
+      async function tentarLimpeza(fn: () => Promise<unknown>) {
+        try {
+          await fn();
+        } catch (e) {
+          falhasDeLimpeza.push(e);
+        }
+      }
       try {
         const fotos = criarArmazenamentoPrivadoS3({
             cliente: s3.cliente,
@@ -318,26 +327,42 @@ it(
           acesso.encerrar();
         }
       } catch (erro) {
-        await s3.registrarFalhaControlada(
-          erro instanceof FalhaDaProva ? erro.codigo : "CAPTURA_INCONCLUSIVA",
-        );
-        throw erro;
-      } finally {
+        falhaPrincipal = { erro };
         try {
-          await copia?.end({ timeout: 5 });
-          if (criada) await fonte.unsafe(`drop database "${nome}" with (force)`);
-          if (fotoGravada) {
-            await fonte`update recreio.snapshot_object_deliveries set snapshot_id=null,state=case when retired_at is null then 'retiring' else 'retired' end,detached_at=coalesce(detached_at,clock_timestamp()),envelope=null,lease_token=null,lease_until=null where id=${entregaId}`;
-            await fonte`update recreio.space_snapshots set storage='pg',data=${original},object_key=null where id=${fotoId}`;
-          }
-        } finally {
-          indice.encerrar();
-          chaveFoto.fill(0);
-          chaveBackup.fill(0);
-          const encerramentos = await Promise.allSettled([fonte.end({ timeout: 5 }), s3.fechar()]);
-          expect(encerramentos.every((r) => r.status === "fulfilled")).toBe(true);
+          await s3.registrarFalhaControlada(
+            erro instanceof FalhaDaProva ? erro.codigo : "CAPTURA_INCONCLUSIVA",
+          );
+        } catch (relato) {
+          falhasDeLimpeza.push(relato);
         }
+      } finally {
+        await tentarLimpeza(async () => {
+          await copia?.end({ timeout: 5 });
+        });
+        if (criada) await tentarLimpeza(() => fonte.unsafe(`drop database "${nome}" with (force)`));
+        if (fotoGravada)
+          await tentarLimpeza(() =>
+            fonte.begin(async (tx) => {
+              await tx`select id from recreio.spaces where id=${mundoId} for update`;
+              await tx`update recreio.snapshot_object_deliveries set snapshot_id=null,state=case when retired_at is null then 'retiring' else 'retired' end,detached_at=coalesce(detached_at,clock_timestamp()),envelope=null,lease_token=null,lease_until=null where id=${entregaId}`;
+              await tx`update recreio.space_snapshots set storage='pg',data=${original},object_key=null where id=${fotoId}`;
+            }),
+          );
+        indice.encerrar();
+        chaveFoto.fill(0);
+        chaveBackup.fill(0);
+        const encerramentos = await Promise.allSettled([fonte.end({ timeout: 5 }), s3.fechar()]);
+        falhasDeLimpeza.push(
+          ...encerramentos.flatMap((r) => (r.status === "rejected" ? [r.reason] : [])),
+        );
       }
+      if (falhasDeLimpeza.length)
+        throw new AggregateError(
+          falhaPrincipal ? [falhaPrincipal.erro, ...falhasDeLimpeza] : falhasDeLimpeza,
+          "CAPTURA_E_LIMPEZA_INCONCLUSIVAS",
+        );
+      if (falhaPrincipal) throw falhaPrincipal.erro;
+      s3.conferirConclusao();
     }),
   process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1" ? 360_000 : 120_000,
 );

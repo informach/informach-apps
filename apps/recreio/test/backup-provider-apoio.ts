@@ -317,7 +317,7 @@ export async function criarBucketDaMontagem() {
       recibo.status = "failed";
       recibo.cleanupFailure = "LIMPEZA_INCONCLUSIVA";
     } finally {
-      if (!recibo.nativeRecoveryVerified) recibo.failure = "PROVA_INCONCLUSIVA";
+      if (!recibo.nativeRecoveryVerified) recibo.failure ??= "PROVA_INCONCLUSIVA";
       try {
         await guardar();
       } finally {
@@ -325,6 +325,9 @@ export async function criarBucketDaMontagem() {
         else cliente.destroy();
       }
     }
+    exigir(recibo.cleanupConfirmed, "LIMPEZA_PROVIDER_INCONCLUSIVA");
+  }
+  function conferirConclusao() {
     exigir(recibo.status === "passed" && recibo.cleanupConfirmed, "CAPTURA_PROVIDER_INCONCLUSIVA");
   }
   return {
@@ -338,6 +341,7 @@ export async function criarBucketDaMontagem() {
     confirmarArquivoPrivado,
     confirmarRetiradaDuravel,
     registrarFalhaControlada,
+    conferirConclusao,
     concluir,
     fechar,
   };
