@@ -295,3 +295,20 @@ e de duas passagens do livro não concluíram esse coordenador.
 Todos os gates pesados são remotos. A promoção exige fonte e DDL qualificados,
 backup atual recuperável, normalização/replay, custódia, agenda/alertas e ensaio
 final. A implantação das candidatas não foi realizada por este plano.
+
+### Coordenação financeira: prova preparada
+
+28411278 passou quality 44634257754 e direitos 44634262912. A rodada confirma
+compilação e regressões existentes; os novos onze casos financeiros ainda
+precisam do gate `commercial-reconciliation`. Eles usam PostgreSQL, o livro
+S3 por SDK/HTTP e o SDK Stripe contra transporte fechado: ausência admitida
+de cliente, inventário de cliente sem contrato, renovação após logout com
+aceite original, falha e retomada, namespace/titular divergentes, alteração
+durante I/O, concorrência e observação de outra operação ou copiada.
+
+Falha interna de banco ou auditoria permanece falha técnica, com tentativa
+durável e lease recuperável, sem registrar indisponibilidade fictícia do
+provedor. A confirmação e sua auditoria são atômicas. O caso de auditoria
+recusada verifica rollback e retomada; a renovação recebe a mesma correção.
+Nenhum desses casos autoriza limpeza da conta antes da prova financeira,
+conclui a conta ou demonstra implantação em produção.

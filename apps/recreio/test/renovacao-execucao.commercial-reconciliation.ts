@@ -223,9 +223,9 @@ describe("cancelamento: tentativa durável e confirmação com PostgreSQL/SDK re
       sql`create trigger recusar_renovacao_confirmacao before insert on audit.events for each row execute function audit.recusar_renovacao_confirmacao()`,
     );
     try {
-      expect(await f.processar()).toMatchObject({ confirmadas: 0, emConferencia: 1 });
+      expect(await f.processar()).toMatchObject({ confirmadas: 0, falhasTecnicas: 1 });
       expect(await f.linha()).toMatchObject({
-        state: "review",
+        state: "attempted",
         observedAt: null,
         confirmedAt: null,
       });
@@ -235,7 +235,7 @@ describe("cancelamento: tentativa durável e confirmação com PostgreSQL/SDK re
     }
     await db
       .update(cancellations)
-      .set({ nextAttemptAt: sql`clock_timestamp()` })
+      .set({ leaseToken: null, leaseUntil: null, nextAttemptAt: sql`clock_timestamp()` })
       .where(eq(cancellations.id, f.pedido.pedidoId));
     expect(await f.processar()).toMatchObject({ confirmadas: 1 });
     expect(f.posts).toHaveLength(1);

@@ -18,10 +18,10 @@ export type RuntimeDoCancelamentoDaRenovacao = {
   modo: StripeMode;
   renovacoes: RecreioRenewalProvider;
 };
-function motivo(error: unknown): RecreioRenewalReviewCode {
+function motivo(error: unknown): RecreioRenewalReviewCode | null {
   if (error instanceof RecreioRenewalReviewError) return error.code;
   if (error instanceof AppError && error.code === "ORIGEM_FINANCEIRA") return "foreign_contract";
-  return "provider_unavailable";
+  return null;
 }
 
 /** Durable reduction consent survives logout. Never fabricates native authority
@@ -51,11 +51,9 @@ export function criarProcessadorDeCancelamentoDaRenovacao(deps: {
           try {
             const tentativa = await iniciarCancelamentoDaRenovacaoLocked(trabalho);
             runtime ??= deps.obterRuntime();
-            assertAllowed(
-              runtime.modo === trabalho.modo,
-              "ORIGEM_FINANCEIRA",
-              "Ambiente financeiro divergente.",
-            );
+            if (runtime.modo !== trabalho.modo) {
+              throw new RecreioRenewalReviewError("namespace_mismatch");
+            }
             const budget = { deadlineMs: Date.now() + 90_000 };
             const observacao = await runtime.renovacoes.stop({ ...tentativa.entrada, budget });
             assertAllowed(
@@ -67,6 +65,7 @@ export function criarProcessadorDeCancelamentoDaRenovacao(deps: {
             resultado.confirmadas++;
           } catch (error) {
             const reasonCode = motivo(error);
+            if (reasonCode === null) throw error;
             await registrarFalhaDoCancelamentoDaRenovacaoLocked(trabalho, reasonCode);
             resultado.emConferencia++;
             relatar(reasonCode);

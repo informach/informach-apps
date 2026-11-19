@@ -25,19 +25,20 @@ export type RuntimeFinanceiroDoEncerramento = {
 };
 /** Only static classifications cross the operational/Sentry boundary. */
 export class FinanceiroDoEncerramentoIndisponivel extends Error {
-  constructor(readonly reasonCode: MotivoFinanceiroDoEncerramento) {
+  constructor(readonly reasonCode: MotivoFinanceiroDoEncerramento | "technical_failure") {
     super("Account closure financial coordination requires reconciliation");
     this.name = "FinanceiroDoEncerramentoIndisponivel";
   }
 }
-function motivo(error: unknown): MotivoFinanceiroDoEncerramento {
+function motivo(error: unknown): MotivoFinanceiroDoEncerramento | null {
   if (error instanceof RecreioRenewalReviewError) return error.code;
   if (error instanceof FalhaDoLivroDeDireitos) return "invalid_evidence";
   if (error instanceof AppError) {
     if (error.code === "DIREITOS_LIVRO") return "ledger_unavailable";
     if (error.code === "DIREITOS_INTEGRIDADE") return "invalid_evidence";
+    if (error.code === "INDISPONIVEL") return "scope_changed";
   }
-  return "provider_unavailable";
+  return null;
 }
 
 /** One financial receipt per pass. The durable consent, not a browser login,
@@ -88,6 +89,8 @@ export function criarProcessadorFinanceiroDoEncerramento(deps: {
           return { situacao: "posse_perdida" as const, operacaoId: trabalho.operacaoId };
         const reason =
           error instanceof FinanceiroDoEncerramentoIndisponivel ? error.reasonCode : motivo(error);
+        if (reason === null || reason === "technical_failure")
+          throw new FinanceiroDoEncerramentoIndisponivel("technical_failure");
         try {
           return await registrarFalhaFinanceiraDoEncerramentoLocked(trabalho, config, reason);
         } catch (failure) {

@@ -157,7 +157,7 @@ export async function lerOrigemFinanceiraDoEncerramentoLocked(
     };
   } catch (error) {
     if (error instanceof BillingError && !(error instanceof RecreioRenewalReviewError))
-      reject("foreign_contract");
+      reject("invalid_evidence");
     throw error;
   }
 }
