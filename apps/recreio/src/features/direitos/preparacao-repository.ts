@@ -17,6 +17,7 @@ import {
   autorizarContaNativaParaDireitos,
   lerContaNativa,
 } from "@/features/account/autoridade-repository";
+import { exigirParticipacaoAtivaLocked } from "@/features/account/participacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { mesmoEscopoDeDireitos } from "./escopo";
@@ -210,6 +211,7 @@ export function prepararDireitosNoBanco(
       const agora = await nativa.conferirPrazo(autor.login);
       return recibo(existente, anterior, agora, !mesmoEscopoDeDireitos(anterior, plano));
     }
+    await exigirParticipacaoAtivaLocked(tx, autor.contaId);
     const [{ quantidade } = { quantidade: 3 }] = await tx
       .select({ quantidade: sql<number>`count(*)`.mapWith(Number) })
       .from(preparations)

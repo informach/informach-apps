@@ -1,0 +1,30 @@
+{
+  "runId": 44607175365,
+  "source": "d3475f2eccdd583e8317314e3b410ce0708aac1b",
+  "artifactId": 14571805171,
+  "artifactZipBytes": 712092,
+  "artifactZipSha256": "b29892bf6ddf0960e79b9d37cd245d9616669466b66ca6dc023a67508709f6e8",
+  "screenshots": [
+    {
+      "state": "closing",
+      "name": "direitos-participacao-closing-390.png",
+      "bytes": 61558,
+      "sha256": "9b9aac14c363dcf1eba21c0314a8990d821ec9a4bf09b73bbde99d82fb7c59b0"
+    },
+    {
+      "state": "closed",
+      "name": "direitos-participacao-closed-390.png",
+      "bytes": 60346,
+      "sha256": "82e2d491952de2782157580f9e8df865bab552d000722100b6c67a4fc1bc4c70"
+    }
+  ],
+  "e2ePassed": 6,
+  "productionDataTouched": false,
+  "actualClosureConsentProved": false,
+  "visualReview": {
+    "width": 390,
+    "readable": true,
+    "overflowAbsent": true,
+    "managementAndDataLinksVisible": true
+  }
+}

@@ -149,6 +149,13 @@ describe("direitos: barreira da participação nativa", () => {
       ).rejects.toMatchObject(recusa);
       await expect(prepararCadastroDeMenor(f.autor)).rejects.toMatchObject(recusa);
       await expect(
+        prepararPedidoDeDireitos(f.autor, {
+          pedidoId: randomUUID(),
+          tipo: "encerrar_conta",
+          perfis: [],
+        }),
+      ).rejects.toMatchObject(recusa);
+      await expect(
         registrarConsentimentoNoBanco(f.autor, {
           pedidoId: randomUUID(),
           souAdulto: true,

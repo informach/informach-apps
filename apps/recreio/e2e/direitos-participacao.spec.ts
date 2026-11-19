@@ -41,6 +41,9 @@ for (const estado of ["closing", "closed"] as const) {
         }),
       ).toHaveCount(0);
       await a.page.goto("/conta/dados");
+      await expect(
+        a.page.getByRole("button", { name: "Preparar prévia", exact: true }),
+      ).toHaveCount(0);
       const regiao = a.page.getByRole("region", { name: "Uma cópia dos seus dados", exact: true });
       const preparar = regiao.getByRole("button", { name: "Preparar cópia", exact: true });
       await hidratado(preparar);

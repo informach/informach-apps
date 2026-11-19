@@ -119,6 +119,14 @@ criação e seleção de perfil. Novas provas de navegador usam somente estado
 estrutural em banco descartável e baixam o arquivo real; não consentem ou
 executam encerramento em produção.
 
+d3475f2e concluiu 111 casos/9 arquivos e upgrade 234→237 em 44607167200;
+as seis jornadas de navegador passaram em 44607175365 (38,7 s), com capturas
+390 px de ambos os estados inspecionadas: leitura, links e largura adequados.
+O recibo `evidencias/participacao-ui-44607175365.json` conserva fonte e hashes.
+A rodada completa 44607183659 permanece em execução nesta anotação. O ajuste
+seguinte também impede nova prévia depois de iniciar o encerramento, conservando
+histórico/cópias e replay da referência original; exige nova prova focada.
+
 Intenções externas conservam os IDs e o consentimento original. Reaplicação
 offline não pode criar usuários fictícios, atribuir ao operador o aceite do
 solicitante ausente no backup ou exigir um novo consentimento para retirar

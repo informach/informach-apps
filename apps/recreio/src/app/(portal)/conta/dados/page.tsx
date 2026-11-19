@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { CopiaPessoal } from "@/features/direitos/components/copia-pessoal";
 import { PainelDeDireitos } from "@/features/direitos/components/painel-de-direitos";
 import { retiradaDisponivel } from "@/features/direitos/consentimento-runtime";
@@ -11,6 +12,7 @@ import { AppError } from "@/lib/errors";
 export const metadata = { title: "Meus dados" };
 export default async function MeusDados() {
   const { ator } = await paginaDaGestao("/conta/dados");
+  const participacao = await consultarMinhaParticipacaoNoRecreio(ator);
   const estado = await consultarMeusDireitos(ator).catch((erro: unknown) => {
     if (erro instanceof AppError && erro.code === "AUTH") redirect("/entrar?encerrada=1");
     throw erro;
@@ -23,7 +25,11 @@ export default async function MeusDados() {
         assinatura.
       </p>
       {exportacaoDisponivel() && <CopiaPessoal perfis={estado.perfis} />}
-      <PainelDeDireitos estado={estado} podeRetirar={retiradaDisponivel()} />
+      <PainelDeDireitos
+        estado={estado}
+        podeRetirar={retiradaDisponivel()}
+        participacaoAtiva={participacao.estado === "active"}
+      />
       <Link
         href="/conta"
         className="mt-8 inline-flex min-h-11 items-center font-bold text-ceu underline"

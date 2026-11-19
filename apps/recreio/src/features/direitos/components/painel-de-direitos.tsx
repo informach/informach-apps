@@ -23,9 +23,11 @@ const situacoes = { preparada: "Preparada", expirada: "Vencida", cancelada: "Can
 export function PainelDeDireitos({
   estado,
   podeRetirar,
+  participacaoAtiva,
 }: {
   estado: Estado;
   podeRetirar: boolean;
+  participacaoAtiva: boolean;
 }) {
   const router = useRouter();
   const hidratado = useHydrated();
@@ -56,7 +58,8 @@ export function PainelDeDireitos({
     definirIncerta(false);
   }
   function preparar() {
-    if (bloqueado || !conferi || (tipo === "retirar_perfil" && !perfilId)) return;
+    if (!participacaoAtiva || bloqueado || !conferi || (tipo === "retirar_perfil" && !perfilId))
+      return;
     const atual = pedido ?? {
       pedidoId: crypto.randomUUID(),
       tipo,
@@ -119,112 +122,121 @@ export function PainelDeDireitos({
             A confirmação da exclusão ainda não está disponível nesta área.
           </p>
         )}
-        <form
-          className="mt-5 space-y-5"
-          onSubmit={(evento) => {
-            evento.preventDefault();
-            preparar();
-          }}
-        >
-          <fieldset disabled={bloqueado || incerta || pedido !== null} className="space-y-4">
-            <legend className="font-bold">O que deseja conferir?</legend>
-            <label className="flex min-h-11 items-center gap-3">
-              <input
-                type="radio"
-                name="tipo-direitos"
-                checked={tipo === "retirar_perfil"}
-                onChange={() => {
-                  definirTipo("retirar_perfil");
-                  conferir(false);
-                }}
-                className="size-5"
-              />
-              Retirar um perfil
-            </label>
-            <label className="flex min-h-11 items-center gap-3">
-              <input
-                type="radio"
-                name="tipo-direitos"
-                checked={tipo === "encerrar_conta"}
-                onChange={() => {
-                  definirTipo("encerrar_conta");
-                  conferir(false);
-                }}
-                className="size-5"
-              />
-              Encerrar minha participação no Recreio
-            </label>
-            {tipo === "retirar_perfil" && (
-              <div>
-                <label htmlFor="direitos-perfil" className="block font-semibold">
-                  Perfil
-                </label>
-                <select
-                  id="direitos-perfil"
-                  value={perfilId}
-                  onChange={(e) => {
-                    definirPerfil(e.target.value);
+        {participacaoAtiva ? (
+          <form
+            className="mt-5 space-y-5"
+            onSubmit={(evento) => {
+              evento.preventDefault();
+              preparar();
+            }}
+          >
+            <fieldset disabled={bloqueado || incerta || pedido !== null} className="space-y-4">
+              <legend className="font-bold">O que deseja conferir?</legend>
+              <label className="flex min-h-11 items-center gap-3">
+                <input
+                  type="radio"
+                  name="tipo-direitos"
+                  checked={tipo === "retirar_perfil"}
+                  onChange={() => {
+                    definirTipo("retirar_perfil");
                     conferir(false);
                   }}
-                  className="mt-2 h-12 w-full rounded-controle border border-linha-forte bg-fundo px-3 text-tinta"
-                  required
-                >
-                  <option value="">Escolha um perfil</option>
-                  {estado.perfis.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.apelido}
-                      {p.tipo === "minor" ? " — sob minha responsabilidade" : " — meu perfil"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {tipo === "retirar_perfil" && estado.perfis.length === 0 && (
-              <p className="text-tinta-suave">
-                Você não tem perfil próprio ou sob sua responsabilidade. Para conferir o
-                encerramento, escolha essa opção acima.
-              </p>
-            )}
-            {tipo === "encerrar_conta" && (
-              <div>
-                <p>O escopo inclui seu perfil e todos os perfis sob sua responsabilidade atual:</p>
-                {estado.perfis.length ? (
-                  <ul className="mt-3 list-disc space-y-2 pl-5">
+                  className="size-5"
+                />
+                Retirar um perfil
+              </label>
+              <label className="flex min-h-11 items-center gap-3">
+                <input
+                  type="radio"
+                  name="tipo-direitos"
+                  checked={tipo === "encerrar_conta"}
+                  onChange={() => {
+                    definirTipo("encerrar_conta");
+                    conferir(false);
+                  }}
+                  className="size-5"
+                />
+                Encerrar minha participação no Recreio
+              </label>
+              {tipo === "retirar_perfil" && (
+                <div>
+                  <label htmlFor="direitos-perfil" className="block font-semibold">
+                    Perfil
+                  </label>
+                  <select
+                    id="direitos-perfil"
+                    value={perfilId}
+                    onChange={(e) => {
+                      definirPerfil(e.target.value);
+                      conferir(false);
+                    }}
+                    className="mt-2 h-12 w-full rounded-controle border border-linha-forte bg-fundo px-3 text-tinta"
+                    required
+                  >
+                    <option value="">Escolha um perfil</option>
                     {estado.perfis.map((p) => (
-                      <li key={p.id}>{p.apelido}</li>
+                      <option key={p.id} value={p.id}>
+                        {p.apelido}
+                        {p.tipo === "minor" ? " — sob minha responsabilidade" : " — meu perfil"}
+                      </option>
                     ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 font-semibold">
-                    Sua conta não tem perfil de jogador ou responsabilidade por perfil.
-                  </p>
-                )}
-                <p className="mt-3 text-sm text-tinta-suave">
-                  Os dados dos demais adultos e participantes dos mundos precisam ser preservados.
-                  Esta prévia não transfere responsabilidades.
+                  </select>
+                </div>
+              )}
+              {tipo === "retirar_perfil" && estado.perfis.length === 0 && (
+                <p className="text-tinta-suave">
+                  Você não tem perfil próprio ou sob sua responsabilidade. Para conferir o
+                  encerramento, escolha essa opção acima.
                 </p>
-              </div>
-            )}
-            <label className="flex min-h-11 items-start gap-3">
-              <input
-                type="checkbox"
-                checked={conferi}
-                onChange={(e) => conferir(e.target.checked)}
-                className="mt-1 size-5 shrink-0"
-              />
-              <span>
-                Conferi a seleção e quero preparar a prévia. Isso ainda não autoriza exclusão.
-              </span>
-            </label>
-          </fieldset>
-          <button
-            type="submit"
-            className="rb rb-sol"
-            disabled={bloqueado || !conferi || (tipo === "retirar_perfil" && !perfilId)}
-          >
-            {pendente ? "Conferindo…" : pedido ? "Conferir esta prévia" : "Preparar prévia"}
-          </button>
-        </form>
+              )}
+              {tipo === "encerrar_conta" && (
+                <div>
+                  <p>
+                    O escopo inclui seu perfil e todos os perfis sob sua responsabilidade atual:
+                  </p>
+                  {estado.perfis.length ? (
+                    <ul className="mt-3 list-disc space-y-2 pl-5">
+                      {estado.perfis.map((p) => (
+                        <li key={p.id}>{p.apelido}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 font-semibold">
+                      Sua conta não tem perfil de jogador ou responsabilidade por perfil.
+                    </p>
+                  )}
+                  <p className="mt-3 text-sm text-tinta-suave">
+                    Os dados dos demais adultos e participantes dos mundos precisam ser preservados.
+                    Esta prévia não transfere responsabilidades.
+                  </p>
+                </div>
+              )}
+              <label className="flex min-h-11 items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={conferi}
+                  onChange={(e) => conferir(e.target.checked)}
+                  className="mt-1 size-5 shrink-0"
+                />
+                <span>
+                  Conferi a seleção e quero preparar a prévia. Isso ainda não autoriza exclusão.
+                </span>
+              </label>
+            </fieldset>
+            <button
+              type="submit"
+              className="rb rb-sol"
+              disabled={bloqueado || !conferi || (tipo === "retirar_perfil" && !perfilId)}
+            >
+              {pendente ? "Conferindo…" : pedido ? "Conferir esta prévia" : "Preparar prévia"}
+            </button>
+          </form>
+        ) : (
+          <p className="mt-5 text-tinta-suave">
+            Sua participação está em encerramento ou já foi encerrada. Acompanhe os pedidos abaixo.
+            Você pode continuar preparando uma cópia dos dados disponíveis da sua conta.
+          </p>
+        )}
         {erro && (
           <p role="alert" className="mt-4 font-semibold text-erro">
             {erro}
