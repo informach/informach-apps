@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Marca } from "@/components/desenhos";
 import { Sair } from "@/features/account/components/sair";
+import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { EscolherPerfil } from "@/features/perfis/components/escolher-perfil";
 import { SairDoAparelho } from "@/features/protecao/components/encerrar-aparelho";
 import { EscolherComPin } from "@/features/protecao/components/escolher-com-pin";
@@ -33,6 +34,8 @@ export default async function Perfis({
     throw erro;
   });
   const nativo = escolhas.restrito ? null : await paginaDaConta(volta);
+  if (nativo && (await consultarMinhaParticipacaoNoRecreio(nativo.ator)).estado !== "active")
+    redirect("/conta");
   const comPin = [
     ...(escolhas.restrito && escolhas.pinDaContaDefinido && escolhas.adulto
       ? [escolhas.adulto]

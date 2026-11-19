@@ -122,7 +122,13 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
   const bloqueado = !hidratado || pendente || conferir;
   return (
     <>
-      {estado.modo === "off" && (
+      {!estado.participacaoAtiva && (
+        <p className="painel mt-6 p-5">
+          Sua participação está em encerramento ou já foi encerrada. Você pode acompanhar seus
+          contratos, faturas e pedidos, sem iniciar uma nova compra.
+        </p>
+      )}
+      {estado.participacaoAtiva && estado.modo === "off" && (
         <p className="painel mt-6 p-5">
           {estado.financeiro.temCliente
             ? "Novas assinaturas não estão disponíveis neste momento. Você pode acompanhar seu contrato e seus pedidos abaixo."

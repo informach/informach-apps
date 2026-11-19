@@ -1,5 +1,21 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, barreira de encerramento candidata:** 0235/0236 geradas
+separadamente preservam UNIQUE antes da FK de `account_participations`;
+237 recibos candidatos. Admissão nativa e de jogo exigem atividade atual,
+enquanto direitos e consulta/cancelamento financeiro mantêm autoridade própria.
+Upgrade 234→237 preservou perfis e cópias. Novas provas e navegação em 390 px
+estão em qualificação; falhas de fixtures e a geração recusada estão registradas
+no [plano de encerramento](recreio/encerramento-conta-2026-11-19.md).
+Não há writer público de encerramento ou promoção em produção.
+
+Composição Live 21b5cd72 concluiu quality 44601426279 e os dezesseis gates
+44601444985. A fonte 851821a8 passou os dezesseis gates 44600003119 com a
+fonte publicada do Morada 644b3841/protocolo 1. Isso não homologa compra
+humana nem ativa vendas. Encerramento completo, cobertura integral das cópias,
+reaplicação antes de tráfego, custódia/agenda/alertas/custo e homologação final
+continuam em implementação. Testes manuais permanecem reunidos no final.
+
 **19/11 — Recreio, cópias pessoais e retirada em qualificação:** a candidata
 inclui recuperação do diário durável, escopo de mundos vinculado ao plano,
 confirmação/estado da retirada e cópias cifradas de perfil e conta/pagante sem

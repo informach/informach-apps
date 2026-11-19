@@ -3,6 +3,7 @@ import { ErroDoRecreio } from "@informach/recreio";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { temContextoPareado } from "@/features/protecao/http";
 import { getSession, requirePageUser } from "@/lib/auth";
 import { safeDestination } from "@/lib/destination";
@@ -63,6 +64,8 @@ export async function paginaDaGestao(next = "/conta") {
 /** Página do portal: exige alguém jogando. Sem perfil vai criar; sem escolha vai escolher. */
 export async function paginaDoPortal(next?: string) {
   const pagina = await paginaDaConta();
+  if ((await consultarMinhaParticipacaoNoRecreio(pagina.ator)).estado !== "active")
+    redirect("/conta");
   const perfil = pagina.ator.perfil;
   if (!perfil) {
     if (pagina.perfis.length > 0) {

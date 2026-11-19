@@ -110,6 +110,15 @@ typecheck recusou a fixture infantil, que usava número numa coluna UUID.
 Corrigido para UUID real, sem cast ou mudança no schema. Os casos nativos não
 haviam sido executados nessa rodada; a candidata precisa de nova qualificação.
 
+44606233777/8b2051c0 passou typecheck e 109/110 casos; a única falha era a
+expectativa nova de `trocas=null` numa conta com grupo próprio. O contrato
+existente devolve DTO com grupo/data e `contrato/pedido=null`; a fixture foi
+corrigida, sem alterar o reader. A navegação candidata passa a mostrar apenas
+a conta em encerramento, mantendo dados/assinatura e redirecionando estante,
+criação e seleção de perfil. Novas provas de navegador usam somente estado
+estrutural em banco descartável e baixam o arquivo real; não consentem ou
+executam encerramento em produção.
+
 Intenções externas conservam os IDs e o consentimento original. Reaplicação
 offline não pode criar usuários fictícios, atribuir ao operador o aceite do
 solicitante ausente no backup ou exigir um novo consentimento para retirar

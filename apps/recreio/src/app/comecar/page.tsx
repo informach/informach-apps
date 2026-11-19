@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Marca } from "@/components/desenhos";
 import { Sair } from "@/features/account/components/sair";
+import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { CriarPerfil } from "@/features/perfis/components/criar-perfil";
 import { paginaDaConta } from "@/features/sessao/ator";
 
@@ -11,6 +12,7 @@ export const metadata = { title: "Começar" };
 /** Primeiro uso: a conta ganha o seu perfil. Quem já tem um vai escolher quem joga. */
 export default async function Comecar() {
   const { user, ator, perfis } = await paginaDaConta("/comecar");
+  if ((await consultarMinhaParticipacaoNoRecreio(ator)).estado !== "active") redirect("/conta");
   if (perfis.length > 0) redirect(ator.perfil ? "/estante" : "/perfis");
   return (
     <main id="conteudo" className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10 sm:px-8">

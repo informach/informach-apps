@@ -56,6 +56,7 @@ export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
   );
   return {
     modo: ativa ? env.RECREIO_BILLING_MODE : "off",
+    participacaoAtiva: ativa,
     pagamentoDeTeste: env.STRIPE_MODE === "dev",
     compra,
     financeiro: { ...financeiro, podeContratar: ativa && financeiro.podeContratar },

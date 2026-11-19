@@ -18,7 +18,10 @@ import {
 import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/participacao-service";
 import { prepararIdentidadeDoJogo } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { VERSAO_DA_COMPRA } from "@/features/cobranca/constantes";
-import { prepararCompraNoBanco } from "@/features/cobranca/repository";
+import {
+  encerrarCompraNaoEnviadaNoBanco,
+  prepararCompraNoBanco,
+} from "@/features/cobranca/repository";
 import { consultarMinhaCobranca } from "@/features/cobranca/service";
 import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
 import { criarAssinaturaDoLivro, resumoDoRegistro } from "@/features/direitos/livro/assinatura";
@@ -292,7 +295,7 @@ describe("direitos: barreira da participação nativa", () => {
       modo: "off",
       financeiro: { podeContratar: false },
       compra: null,
-      trocas: null,
+      trocas: { contrato: null, pedido: null },
       perfis: [],
     });
     await db
@@ -304,6 +307,37 @@ describe("direitos: barreira da participação nativa", () => {
     });
     await expect(capturarDadosPessoaisDaConta(f.autor)).rejects.toMatchObject({ code: "AUTH" });
     await expect(consultarMinhaCobranca(f.autor)).rejects.toMatchObject({ code: "AUTH" });
+  });
+
+  it("conta em encerramento pode encerrar seu aceite de compra ainda não enviado, sem reabrir participação", async () => {
+    const f = await adulto();
+    const compra = await prepararCompraNoBanco(
+      f.autor,
+      {
+        pedidoId: randomUUID(),
+        produtoId: "recreio_individual_monthly",
+        valorCentavos: 5990,
+        moeda: "BRL",
+        intervalo: "month",
+        souAdulto: true,
+        aceitoCobrancaRecorrente: true,
+        versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
+        versaoDasCondicoes: VERSAO_DA_COMPRA,
+        perfis: [],
+      },
+      "dev",
+    );
+    await fechar(f);
+    expect(await encerrarCompraNaoEnviadaNoBanco(f.autor, compra.id)).toMatchObject({
+      id: compra.id,
+      resolucao: "not_started",
+      tentativaIniciadaEm: null,
+    });
+    expect((await consultarMinhaParticipacaoNoRecreio(f.autor)).estado).toBe("closing");
+    expect((await consultarMinhaCobranca(f.autor)).compra).toMatchObject({
+      id: compra.id,
+      resolucao: "not_started",
+    });
   });
 
   it("perfil que espera a identidade relê o encerramento confirmado antes de gravar", async () => {

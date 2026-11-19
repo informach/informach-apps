@@ -409,6 +409,8 @@ jobs:
             apps/recreio/tmp/telas/direitos-previa-conta-sem-jogador.png
             apps/recreio/tmp/telas/direitos-copia-pessoal-390.png
             apps/recreio/tmp/telas/direitos-copia-conta-sem-jogador-390.png
+            apps/recreio/tmp/telas/direitos-participacao-closing-390.png
+            apps/recreio/tmp/telas/direitos-participacao-closed-390.png
             apps/recreio/tmp/telas/perfil-proprio-editado.png
             apps/recreio/tmp/telas/saida-mundo-confirmacao.png
             apps/recreio/tmp/telas/participacoes-sem-acesso.png

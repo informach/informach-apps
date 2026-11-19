@@ -163,7 +163,7 @@ export function encerrarTrocaNaoEnviadaNoBanco(
     const grupoId = await pista(autor, id, modo);
     return db.transaction(async (tx) => {
       await limites(tx);
-      const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update");
+      const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update", "financeiro");
       const agora = await atual.nativa.conferirPrazo(autor.login);
       const [linha] = await tx
         .select()

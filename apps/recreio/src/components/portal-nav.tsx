@@ -10,12 +10,20 @@ const itens = [
   { href: "/conta", rotulo: "Conta", Icone: UserRound },
 ] as const;
 
-export function PortalNav({ temPerfil }: { temPerfil: boolean }) {
+export function PortalNav({
+  temPerfil,
+  participacaoAtiva = true,
+}: {
+  temPerfil: boolean;
+  participacaoAtiva?: boolean;
+}) {
   const caminho = usePathname();
   return (
     <nav aria-label="Portal" className="flex items-center gap-1">
       {itens
-        .filter((item) => item.href !== "/amigos" || temPerfil)
+        .filter((item) =>
+          participacaoAtiva ? item.href !== "/amigos" || temPerfil : item.href === "/conta",
+        )
         .map(({ href, rotulo, Icone }) => {
           const atual = caminho === href || caminho.startsWith(`${href}/`);
           return (
