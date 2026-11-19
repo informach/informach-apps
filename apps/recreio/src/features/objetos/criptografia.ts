@@ -55,6 +55,11 @@ const mesmoContexto = (a: ContextoDoObjeto, b: ContextoDoObjeto) =>
 export function conferirReferenciaDoObjeto(bruto: unknown): ReferenciaDoObjeto {
   const lida = ReferenciaSchema.safeParse(bruto);
   if (!lida.success) throw new FalhaDoObjetoPrivado("INTEGRIDADE");
+  if (
+    lida.data.bytesCifrados < lida.data.bytes + 40 ||
+    lida.data.bytesCifrados > lida.data.bytes + 1024
+  )
+    throw new FalhaDoObjetoPrivado("INTEGRIDADE");
   return lida.data;
 }
 

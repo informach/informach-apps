@@ -106,6 +106,23 @@ describe("objetos privados pelo SDK S3 real em HTTP fechado", () => {
       await f.fechar();
     }
   });
+  it.each([0, 1025])(
+    "referência com overhead impossível %i é recusada antes da rede",
+    async (extra) => {
+      const f = await fixture();
+      try {
+        await expect(
+          f.storage.recuperar({
+            ...f.preparado.referencia,
+            bytesCifrados: f.preparado.referencia.bytes + extra,
+          }),
+        ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+        expect(f.pedidos).toEqual([]);
+      } finally {
+        await f.fechar();
+      }
+    },
+  );
   it("recusa cliente com repetição automática habilitada", async () => {
     const f = await fixture(2000, 2);
     try {

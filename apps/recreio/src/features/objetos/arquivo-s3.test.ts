@@ -179,6 +179,17 @@ describe("arquivo privado: FileHandle/SDK/HTTP reais, readback sem dump aberto",
       },
       { maxAttempts: 2 },
     ));
+  it.each([0, 1025])(
+    "referência de arquivo com overhead impossível %i não inicia download",
+    async (extra) =>
+      cenario(async (f) => {
+        await expect(
+          f.transporte.recuperar({ ...f.ref, bytesCifrados: f.ref.bytes + extra }, f.aberto),
+        ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+        expect(f.rede.pedidos).toEqual([]);
+        expect((await f.aberto.stat()).size).toBe(0);
+      }),
+  );
   it("prazo cobre corpo lento e limpa o estágio parcial sem fechar o handle", async () =>
     cenario(
       async (f) => {

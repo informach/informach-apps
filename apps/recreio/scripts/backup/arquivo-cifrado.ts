@@ -57,6 +57,11 @@ export class FalhaDoArquivoCifrado extends Error {
 export function conferirReferenciaDoArquivoCifrado(bruto: unknown): ReferenciaDoArquivoCifrado {
   const lida = Referencia.safeParse(bruto);
   if (!lida.success) throw new FalhaDoArquivoCifrado("INTEGRIDADE");
+  if (
+    lida.data.bytesCifrados < lida.data.bytes + 40 ||
+    lida.data.bytesCifrados > lida.data.bytes + 1024
+  )
+    throw new FalhaDoArquivoCifrado("INTEGRIDADE");
   return lida.data;
 }
 const falhar = (codigo: FalhaDoArquivoCifrado["codigo"]): never => {

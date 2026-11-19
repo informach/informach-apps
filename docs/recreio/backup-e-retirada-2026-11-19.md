@@ -282,3 +282,10 @@ em outro objeto. A operação mantém o limite de uma fotografia em memória e
 não serve arquivos de dump. Testes com SDK/HTTP reais conferem envelope igual,
 uma única leitura e recusa de corrupção/parcial/comprimento ausente; pendentes
 no GitHub da nova fonte.
+
+A revisão seguinte alinha a validação das referências dos dois formatos ao
+limite de overhead já exigido nos recibos SQL: entre 40 e 1.024 bytes além do
+conteúdo aberto. Antes, os tetos individuais podiam admitir uma combinação
+impossível e só recusá-la depois da rede. Agora ela falha antes do GET; quatro
+casos SDK/HTTP verificam zero requisições e preservação da saída vazia. Gates
+da correção ainda pendentes; formatos e referências válidas não mudam.
