@@ -20,10 +20,18 @@ import { concluirProximaDrenagem } from "@/features/direitos/drenagem-repository
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
+import {
+  confirmarRecuperacaoDeDireitos,
+  prepararRecuperacaoDeDireitos,
+} from "@/features/direitos/recuperacao-diario-repository";
 import { consentirRetiradaNoBanco } from "@/features/direitos/retirada-consentimento-repository";
 import { prepararPedidoDeDireitos } from "@/features/direitos/service";
+import { limitesDoJogo } from "@/features/jogos/config";
 import { aceitarConvite, criarConvite } from "@/features/mundos/service";
+import { materializarFotografia } from "@/features/objetos/fotografia";
+import { montarMaterial, prepararRecuperacao } from "@/features/recuperacao/repository";
 import { processarProximaFotografiaDeDireitos } from "../scripts/direitos/fotografias";
+import { prepararRecuperacaoDoMorada } from "../scripts/direitos/morada";
 import { recuperarProximoDiarioDeDireitos } from "../scripts/direitos/recuperacao";
 import { aposentarInstancias, codigoDoBanco, novoJogador } from "./apoio";
 import {
@@ -419,5 +427,74 @@ describe("drenagem de direitos pelo contrato existente do host", () => {
       expect(
         await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id)),
       ).toHaveLength(2);
+    }));
+  it("duas preparações da mesma revisão só permitem uma confirmação", async () =>
+    cenario(async (f) => {
+      await f.host.cliente.liberarPosse({ mundoId: f.mundo.id, cerca: f.cerca, motivo: "erro" });
+      const config = {
+        assinatura: f.livro.assinatura,
+        prova: await conferirPrefixoDoLivro({
+          storage: f.storage,
+          maxEntradas: 100,
+          tempoLimiteMs: 2000,
+        }),
+      };
+      const a = await prepararRecuperacaoDeDireitos(config),
+        b = await prepararRecuperacaoDeDireitos(config);
+      if (!("tipo" in a) || !("tipo" in b)) throw new Error("Recovery material absent");
+      const ma = montarMaterial(a.base, await materializarFotografia(a.base.fonte, null)),
+        mb = montarMaterial(b.base, await materializarFotografia(b.base.fonte, null));
+      const recuperar = (m: typeof ma) =>
+        prepararRecuperacaoDoMorada(
+          m.foto.bytes,
+          {
+            mundoId: m.mundo.id,
+            schemaVersion: m.foto.schemaVersion,
+            tick: m.foto.tick,
+            sha256: m.foto.sha256,
+            bytes: m.foto.bytes.byteLength,
+          },
+          { diarioFonte: m.foto.journalSeq, diarioFinal: m.mundo.journalSeq, entradas: m.entradas },
+        );
+      const ra = recuperar(ma),
+        rb = recuperar(mb);
+      try {
+        expect(await confirmarRecuperacaoDeDireitos(config, a, ma, ra)).toBe(true);
+        await expect(confirmarRecuperacaoDeDireitos(config, b, mb, rb)).rejects.toMatchObject({
+          codigo: "MATERIAL_ALTERADO",
+        });
+        expect(
+          await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id)),
+        ).toHaveLength(2);
+      } finally {
+        ra.bytes.fill(0);
+        rb.bytes.fill(0);
+        ma.foto.bytes.fill(0);
+        mb.foto.bytes.fill(0);
+        for (const e of [...ma.entradas, ...mb.entradas]) e.bytes.fill(0);
+      }
+    }));
+  it("recuperação ordinária não atravessa a barreira de direitos por conhecer o mundo", async () =>
+    cenario(async (f) => {
+      await f.host.cliente.liberarPosse({ mundoId: f.mundo.id, cerca: f.cerca, motivo: "erro" });
+      const limites = limitesDoJogo("morada");
+      await expect(
+        prepararRecuperacao(
+          {
+            mundoId: f.mundo.id,
+            jogo: "morada",
+            revisaoFonte: 1,
+            revisaoEsperada: 1,
+            operacaoId: randomUUID(),
+            motivo: "fixture",
+            fotografiaMaxBytes: limites.fotografiaMaxBytes,
+            diarioPendenteMaxBytes: limites.diarioPendenteMaxBytes,
+          },
+          null,
+        ),
+      ).rejects.toMatchObject({ codigo: "MUNDO_NAO_PARADO" });
+      expect(
+        await db.select().from(snapshots).where(eq(snapshots.spaceId, f.mundo.id)),
+      ).toHaveLength(1);
     }));
 });

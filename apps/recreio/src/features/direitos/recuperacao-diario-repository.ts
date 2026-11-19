@@ -26,6 +26,7 @@ import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { type CoordenacaoDeEfeitos, comEfeitoNativoDeDireitos } from "./efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
+import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
 /** Preparação otimista, sem simulação/gzip/rede sob SQL. A impressão do material
  * e a operação são relidas antes da gravação: dois workers podem preparar,
@@ -144,7 +145,13 @@ async function conferirAtual(
     .from(subjects)
     .where(eq(subjects.operationId, op.id))
     .orderBy(subjects.profileReference);
-  conferirIntencaoNativa(op, p, selecionados, config.assinatura);
+  conferirIntencaoNativa(
+    op,
+    p,
+    selecionados,
+    config.assinatura,
+    await referenciasDeMundosDaOperacao(tx, op.id),
+  );
   await serializarContaNativa(tx, ContaIdSchema.parse(op.requesterUserId));
   const base = await lerMaterial(tx, r.pedido, "update", op.id);
   try {

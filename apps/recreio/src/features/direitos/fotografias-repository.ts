@@ -23,6 +23,7 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { comEfeitoNativoDeDireitos } from "./efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
+import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import type { conferirPrefixoDoLivro } from "./livro/leitura";
 
@@ -104,7 +105,13 @@ export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
       .from(subjects)
       .where(eq(subjects.operationId, operacao.id))
       .orderBy(subjects.profileReference);
-    conferirIntencaoNativa(operacao, preparacao, selecionados, config.assinatura);
+    conferirIntencaoNativa(
+      operacao,
+      preparacao,
+      selecionados,
+      config.assinatura,
+      await referenciasDeMundosDaOperacao(tx, operacao.id),
+    );
     const [pista] = await tx
       .select()
       .from(worlds)

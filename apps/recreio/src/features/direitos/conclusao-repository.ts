@@ -12,6 +12,7 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
+import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
 /** Conclusão da retirada, com retenções mínimas explícitas. Não encerra a
  * conta, não muda faturas e não apresenta referência retida como anônima. */
@@ -74,6 +75,7 @@ export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
         preparacao,
         alvos.map((s) => ({ id: s.profileReference })),
         config.assinatura,
+        await referenciasDeMundosDaOperacao(tx, op.id),
       );
       const retidos = alvos.filter((s) => s.phase === "minimized");
       const ids = retidos.map((s) => s.profileReference);

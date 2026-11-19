@@ -11,6 +11,7 @@ import { ZodError } from "zod";
 import { AppError } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
+import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarArmazenamentoDoLivro } from "./livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
@@ -64,10 +65,11 @@ export async function publicarProximoConsentimento(config: {
       .from(subjects)
       .where(eq(subjects.operationId, atual.id))
       .orderBy(subjects.profileReference);
-    return { atual, preparacao, selecionados };
+    const mundosSelecionados = await referenciasDeMundosDaOperacao(tx, atual.id);
+    return { atual, preparacao, selecionados, mundosSelecionados };
   });
   if (!reservada) return { situacao: "ociosa" as const };
-  const { atual, preparacao, selecionados } = reservada;
+  const { atual, preparacao, selecionados, mundosSelecionados } = reservada;
   const posse = and(
     eq(operations.id, atual.id),
     eq(operations.state, "publishing"),
@@ -76,7 +78,13 @@ export async function publicarProximoConsentimento(config: {
   );
   let prova: Awaited<ReturnType<typeof admitirIntencaoNoLivro>>, planoExterno: Buffer | undefined;
   try {
-    const { plano } = conferirIntencaoNativa(atual, preparacao, selecionados, config.assinatura);
+    const { plano } = conferirIntencaoNativa(
+      atual,
+      preparacao,
+      selecionados,
+      config.assinatura,
+      mundosSelecionados,
+    );
     planoExterno = serializarPlanoExterno(plano, atual.planSha256);
     prova = await admitirIntencaoNoLivro({
       ...config,

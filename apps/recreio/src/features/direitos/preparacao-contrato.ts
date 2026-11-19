@@ -1,6 +1,8 @@
 import { PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
 
+export const MAX_MUNDOS_DOS_DIREITOS = 512;
+
 const idsOrdenados = z
   .array(PerfilIdSchema.refine((id) => id === id.toLowerCase()))
   .max(256)
@@ -46,7 +48,7 @@ export const PlanoDeDireitosSchema = z
           outrosParticipantes: contador,
         }),
       )
-      .max(512),
+      .max(MAX_MUNDOS_DOS_DIREITOS),
     /** Cobrança/identidade global não são efeitos implícitos deste pedido. */
     identidadeGlobalPreservada: z.literal(true),
     financeiroSeparado: z.literal(true),

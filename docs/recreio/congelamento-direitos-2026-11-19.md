@@ -518,3 +518,17 @@ Fato inválido é revisão, erro inesperado continua falha, alteração concorre
 recusa publicação. Buffers próprios de foto aberta/comprimida são apagados,
 sem modificar o argumento do chamador. Não há promessa de recuperar andamento
 volátil que nunca entrou no diário. Falta a qualificação remota deste complemento.
+
+
+O complemento dfd4f07e passou o gate focado 44585435042, incluindo recuperação
+após falha do host, revisão de fato inválido e rollback da nova foto/auditoria.
+A validação tipada dos fatos de 6171cfae passou qualidade 44581948063 e o gate
+focado 44581954107. Seguem prova de concorrência otimista, recusa do CLI
+ordinário e conferência do conjunto completo de mundos contra o plano assinado.
+
+A conferência de intenção passa a comparar também todos os IDs/jogos dos
+recibos locais com a seleção original. Barreira e recibo locais coerentes com
+os CHECKs não ampliam o escopo consentido. A leitura é limitada ao máximo do
+contrato mais um item, para detectar excesso sem carregar um conjunto ilimitado.
+Publicação, fotos, efeitos, expurgo, conclusão e recuperação usam o mesmo
+contrato; um conjunto divergente exige revisão antes de tratar dados.

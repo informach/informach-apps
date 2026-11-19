@@ -12,6 +12,7 @@ export function conferirIntencaoNativa(
   preparacao: typeof recreioRightsPreparations.$inferSelect | undefined,
   selecionados: readonly { id: string }[],
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>,
+  mundos: readonly { id: string; jogo: string }[],
 ) {
   if (!preparacao || resumoDoRegistro(atual.signedIntent) !== atual.intentSha256)
     throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
@@ -40,6 +41,10 @@ export function conferirIntencaoNativa(
     !isDeepStrictEqual(
       selecionados.map((p) => p.id),
       doc.perfilIds,
+    ) ||
+    !isDeepStrictEqual(
+      plano.mundos.map((m) => ({ id: m.id, jogo: m.jogo })),
+      mundos,
     )
   )
     throw new FalhaDoLivroDeDireitos("INTEGRIDADE");

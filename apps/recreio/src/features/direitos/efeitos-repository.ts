@@ -15,6 +15,7 @@ import { ZodError } from "zod";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
+import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
 import type { conferirPrefixoDoLivro } from "./livro/leitura";
@@ -133,7 +134,13 @@ export async function comEfeitoNativoDeDireitos<T>(
         .from(subjects)
         .where(eq(subjects.operationId, op.id))
         .orderBy(subjects.profileReference);
-      conferirIntencaoNativa(op, preparacao, selecionados, config.assinatura);
+      conferirIntencaoNativa(
+        op,
+        preparacao,
+        selecionados,
+        config.assinatura,
+        await referenciasDeMundosDaOperacao(tx, op.id),
+      );
       const resultado = await executar(tx, op);
       const liberadas = await tx
         .update(operations)

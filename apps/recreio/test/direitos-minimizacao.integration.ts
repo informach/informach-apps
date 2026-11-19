@@ -14,9 +14,11 @@ import {
   recreioMinorProfiles as minors,
   recreioRightsOperations as operations,
   recreioProfiles as profiles,
+  recreioRightsWorldProjection,
   sessions,
   recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
+  recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
@@ -628,5 +630,66 @@ describe("minimização nativa sem reabrir autoridade", () => {
       expect((await db.select().from(profiles).where(eq(profiles.id, p.id)))[0]?.userId).toBe(
         a.conta.id,
       );
+    }));
+  it("barreira e recibo locais não ampliam os mundos do plano assinado", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        b = await adulto(),
+        p = await jogador(a),
+        outro = await jogador(b),
+        op = await f.admitir(a.autor, p.id);
+      const [mundo] = await db
+        .insert(spaces)
+        .values({
+          gameId: "morada",
+          name: "Mundo de outra pessoa",
+          contentPolicy: "family",
+          createdByProfileId: outro.id,
+          stewardProfileId: outro.id,
+        })
+        .returning();
+      if (!mundo) throw new Error("World absent");
+      // Corrupção local coerente com os CHECKs, posterior ao consentimento.
+      // O escopo externo original está vazio e não autoriza este mundo.
+      await db.insert(worlds).values({
+        operationId: op.operacaoId,
+        spaceId: mundo.id,
+        sourceStatus: "hibernating",
+        sourceRevision: 0,
+        sourceJournalSeq: 0,
+        sourceLeaseEpoch: mundo.leaseEpoch,
+        sourceManagementRevision: mundo.managementRevision,
+        snapshotCursor: 0,
+        phase: "dependencies",
+      });
+      const cerca = sql`${spaces.leaseEpoch}+1`,
+        gestao = sql`${spaces.managementRevision}+1`;
+      await db
+        .update(spaces)
+        .set({
+          status: "archived",
+          leaseEpoch: cerca,
+          managementRevision: gestao,
+          rightsOperationId: op.operacaoId,
+          rightsFrozenState: recreioRightsWorldProjection({
+            ...spaces,
+            status: sql`'archived'`,
+            leaseEpoch: cerca,
+            managementRevision: gestao,
+          }),
+        })
+        .where(eq(spaces.id, mundo.id));
+      expect(await f.executar()).toMatchObject({ situacao: "revisao" });
+      expect((await db.select().from(profiles).where(eq(profiles.id, p.id)))[0]).toMatchObject({
+        userId: a.conta.id,
+        nickname: "Pessoa privada",
+      });
+      expect((await db.select().from(spaces).where(eq(spaces.id, mundo.id)))[0]).toMatchObject({
+        rightsOperationId: op.operacaoId,
+        name: mundo.name,
+      });
+      expect(
+        (await db.select().from(operations).where(eq(operations.id, op.operacaoId)))[0],
+      ).toMatchObject({ state: "review", reviewCode: "integrity" });
     }));
 });

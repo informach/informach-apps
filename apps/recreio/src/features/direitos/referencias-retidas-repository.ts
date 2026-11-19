@@ -13,6 +13,7 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
+import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import { expurgarLoteDeReferencias } from "./referencias-lotes-repository";
 
 /** Passo SQL curto, sem posse externa: o lock da operação exclui outro
@@ -68,7 +69,13 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
         .from(subjects)
         .where(eq(subjects.operationId, op.id))
         .orderBy(subjects.profileReference);
-      conferirIntencaoNativa(op, preparacao, selecionados, config.assinatura);
+      conferirIntencaoNativa(
+        op,
+        preparacao,
+        selecionados,
+        config.assinatura,
+        await referenciasDeMundosDaOperacao(tx, op.id),
+      );
       await serializarContaNativa(tx, ContaIdSchema.parse(op.requesterUserId));
       const [alvo] = await tx
         .select()
