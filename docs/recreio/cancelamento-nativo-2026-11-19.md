@@ -1,5 +1,12 @@
 # Recreio: cancelamento de renovação no servidor
 
+A geração corrigida 44614009506/1270360b foi adotada sem editar os três
+arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
+todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já
+presentes. [Proveniência e hashes](evidencias/migracao-renovacao-44614009506.json).
+Os quatro testes de integridade preparados usam contrato nativo sintético
+conciliado; ainda não provam confirmação no provedor ou ação pública.
+
 A primeira geração 44612780165/809f40b5 foi preservada como evidência, mas
 não integrada: a validação de IDs opacos precisava conservar underscores,
 também presentes nas fixtures dos adapters existentes. Os três arquivos

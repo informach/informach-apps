@@ -1,20 +1,30 @@
 # Estado do trabalho no repositório
 
-**19/11 — Recreio, barreira de encerramento candidata:** 0235/0236 geradas
-separadamente preservam UNIQUE antes da FK de `account_participations`;
-237 recibos candidatos. Admissão nativa e de jogo exigem atividade atual,
-enquanto direitos e consulta/cancelamento financeiro mantêm autoridade própria.
-Upgrade 234→237 preservou perfis e cópias. Novas provas e navegação em 390 px
-estão em qualificação; falhas de fixtures e a geração recusada estão registradas
-no [plano de encerramento](recreio/encerramento-conta-2026-11-19.md).
-Não há writer público de encerramento ou promoção em produção.
+**19/11 — Recreio, encerramento ainda em implementação:** o preparador privado
+v2 e a origem financeira própria passaram quality 44611408303 e 119 casos/10
+arquivos em 44611402130/db59fc52, com upgrade 234→237 preservando perfis e cópias.
+V1 não ganha efeitos financeiros; V2 vincula cliente/namespace/seleções e mostra
+somente efeitos/contadores na interface. Tentativas já enviadas exigem sua
+conciliação original. Nenhuma ação pública confirma encerramento completo.
 
-Composição Live 21b5cd72 concluiu quality 44601426279 e os dezesseis gates
-44601444985. A fonte 851821a8 passou os dezesseis gates 44600003119 com a
-fonte publicada do Morada 644b3841/protocolo 1. Isso não homologa compra
-humana nem ativa vendas. Encerramento completo, cobertura integral das cópias,
+A barreira e a navegação d3475f2e concluíram os dezesseis gates 44607183659;
+111 casos e seis jornadas passaram em 44607167200/44607175365, capturas 390 px
+inspecionadas. O bloqueio de novas prévias 071ba841 passou novamente em
+44608003670/44608010896. Composição Live 21b5cd72 passou os dezesseis gates
+44601444985; isso não homologa compra humana ou ativa vendas.
+
+O cancelamento nativo da renovação está em implementação, separado de aceite,
+tentativa e confirmação. 0237 foi gerada e adotada intacta em 44614009506;
+238 recibos candidatos, qualificação em curso. O portal financeiro restrito,
+a preservação do período pago e as capacidades antigas precisam ser provados
+antes de habilitar o encerramento. [Plano](recreio/cancelamento-nativo-2026-11-19.md)
+e [contratos/execução restante](recreio/encerramento-conta-2026-11-19.md).
+
+Produção permanece na última conferência d014bd90 (portal/Admin), Morada
+644b3841/protocolo 1 e schema 204/0203. Nenhuma migration ou capacidade desta
+frente foi ativada. Encerramento completo, cobertura integral das cópias,
 reaplicação antes de tráfego, custódia/agenda/alertas/custo e homologação final
-continuam em implementação. Testes manuais permanecem reunidos no final.
+continuam abertos. Os testes manuais ficam reunidos no final.
 
 **19/11 — Recreio, cópias pessoais e retirada em qualificação:** a candidata
 inclui recuperação do diário durável, escopo de mundos vinculado ao plano,
