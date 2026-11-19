@@ -96,5 +96,12 @@ contagens e hash das referências; não extrai caminhos. As chaves são entregue
 somente a callback privado e suas cópias emprestadas são zeradas ao retornar,
 inclusive na falha. Encerrar revoga capacidades sem fechar o handle emprestado.
 Configuração e manifesto admitidos são copiados, sem aceitar mutação posterior
-do chamador. Testes dessas capacidades, inclusive cancelamento real em cópia
-de 32 MiB, ainda precisam dos gates remotos. Não representam restauração SQL.
+do chamador. Em `44463125293`/`3fb41482`, tipos e 101 testes de objetos passaram,
+incluindo trinta do composto e cancelamento real de cópia de 32 MiB.
+[Recibo](evidencias/arquivo-trechos-44463125293.json). A revisão seguinte verifica
+cancelamento também ao retornar do callback privado das chaves, antes de admitir
+sucesso, sempre zerando as cópias emprestadas. Esse ajuste ainda precisa passar.
+Essas capacidades não representam restauração SQL.
+
+O [índice de recuperação](indice-recuperacao-2026-11-19.md) deverá permitir
+localizar e autenticar o arquivo sem depender do banco original.

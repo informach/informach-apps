@@ -143,6 +143,23 @@ async function preparar(n = 2) {
 }
 
 describe("arquivo composto: arquivos reais, manifesto/chaves/envelopes fechados", () => {
+  it("cancelar no callback de chaves impede sucesso e zera suas cópias", async () =>
+    cenario(async (f) => {
+      const ref = await f.codec.montar(f.pedido, f.saida),
+        aberto = await f.codec.abrir(f.saida, ref),
+        ctrl = new AbortController();
+      const emprestadas: Uint8Array[] = [];
+      await expect(
+        aberto.comChaves(async (keys) => {
+          emprestadas.push(...keys.values());
+          ctrl.abort();
+          return "NAO_PUBLICAR";
+        }, ctrl.signal),
+      ).rejects.toMatchObject({ codigo: "INTERROMPIDO" });
+      expect(emprestadas).toHaveLength(2);
+      expect(emprestadas.every((k) => k.every((b) => b === 0))).toBe(true);
+      aberto.encerrar();
+    }));
   it("orçamento validado não cresce por mutação posterior da configuração", async () =>
     cenario(async (f) => {
       const politica = { ...config, limiteBytes: 1024 },

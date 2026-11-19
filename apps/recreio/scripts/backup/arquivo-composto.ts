@@ -560,7 +560,9 @@ export function criarArquivoComposto(config: {
       vida = new AbortController();
     const conferirFonte = async (signal: AbortSignal) => {
       exigir(!signal.aborted, "INTERROMPIDO");
-      exigir(mesma(v.fonte, await info(origem, limiteBytes)), "FONTE_ALTERADA");
+      const atual = await info(origem, limiteBytes);
+      exigir(!signal.aborted, "INTERROMPIDO");
+      exigir(mesma(v.fonte, atual), "FONTE_ALTERADA");
     };
     async function copiar(trecho: Trecho, destino: FileHandle, signal: AbortSignal) {
       await conferirFonte(signal);
@@ -652,7 +654,9 @@ export function criarArquivoComposto(config: {
             try {
               for (const [i, id] of v.trechos.idsChaves.entries())
                 chaves.set(id, Buffer.from(material.subarray(i * 32, i * 32 + 32)));
-              return await fn(chaves, signal);
+              const resultado = await fn(chaves, signal);
+              exigir(!signal.aborted, "INTERROMPIDO");
+              return resultado;
             } finally {
               material.fill(0);
               for (const k of chaves.values()) k.fill(0);

@@ -1,0 +1,13 @@
+{
+  "runId": 44463125293,
+  "jobId": 135354432180,
+  "source": "3fb41482afad00e639de1790ad314d0de65b66f1",
+  "conclusion": "success",
+  "objectTests": 101,
+  "compositeFileTests": 30,
+  "objectFiles": 6,
+  "frozenInstallVerified": true,
+  "appTypesVerified": true,
+  "productionApplied": false,
+  "scopeLimit": "Private real-file container and verified range capabilities; includes 32 MiB cancellation. Not SQL restore, provider backup publication, recovery index, custody or production qualification."
+}
