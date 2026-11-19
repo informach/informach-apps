@@ -120,6 +120,7 @@ const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
   ],
   [/^\/api\/jobs\/manutencao$/, () => import("@/app/api/jobs/manutencao/route")],
   [/^\/api\/jobs\/conciliacao$/, () => import("@/app/api/jobs/conciliacao/route")],
+  [/^\/api\/jobs\/renovacoes$/, () => import("@/app/api/jobs/renovacoes/route")],
   [/^\/api\/webhooks\/stripe$/, () => import("@/app/api/webhooks/stripe/route")],
 ];
 

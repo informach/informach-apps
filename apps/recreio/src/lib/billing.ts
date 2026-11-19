@@ -7,6 +7,7 @@ import {
 } from "@informach/billing/payment-facts";
 import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
+import { createStripeRecreioRenewals } from "@informach/billing/providers/stripe-recreio-renewals";
 import { createStripeRecreioUpgrades } from "@informach/billing/providers/stripe-recreio-upgrades";
 import { db } from "@informach/db";
 import Stripe from "stripe";
@@ -15,6 +16,7 @@ import { emailDoPagante } from "@/features/cobranca/clientes-repository";
 import type { RuntimeDeConciliacao } from "@/features/cobranca/conciliacao-runtime";
 import { criarConferenciaDeFinanciamento } from "@/features/cobranca/financiamento-stripe";
 import type { RuntimeDoPortal } from "@/features/cobranca/portal-service";
+import type { RuntimeDoCancelamentoDaRenovacao } from "@/features/cobranca/renovacao-execucao-service";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
 import type { RuntimeDeEnvioDoAumento } from "@/features/cobranca/troca-aumento-execucao-service";
 import type { RuntimeDeEnvioDaTroca } from "@/features/cobranca/troca-execucao-runtime";
@@ -25,6 +27,22 @@ import { assertAllowed } from "./errors";
 import { packageLogger } from "./observability";
 
 let runtime: RuntimeDeCompra | undefined;
+let renovacoes: RuntimeDoCancelamentoDaRenovacao | undefined;
+/** No sale catalog, webhook or portal dependency to stop an existing renewal. */
+export function getRuntimeDoCancelamentoDaRenovacao(): RuntimeDoCancelamentoDaRenovacao {
+  if (renovacoes) return renovacoes;
+  const chave = env.STRIPE_SECRET_KEY;
+  assertAllowed(
+    chave && segredoStripeCompativel(env.STRIPE_MODE, chave),
+    "INDISPONIVEL",
+    "A interrupção da renovação ainda não está configurada.",
+  );
+  renovacoes = {
+    modo: env.STRIPE_MODE,
+    renovacoes: createStripeRecreioRenewals({ secretKey: chave, mode: env.STRIPE_MODE }),
+  };
+  return renovacoes;
+}
 let composicao: ReturnType<typeof criarComposicao> | undefined;
 /** Configuração e clientes vivem só na composição; nunca em página/formulário. */
 function criarComposicao() {

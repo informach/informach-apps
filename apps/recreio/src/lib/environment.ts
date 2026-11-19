@@ -69,6 +69,8 @@ export const schema = z.object({
   RECREIO_BILLING_MODE: z.enum(MODOS_DA_COBRANCA).default("off"),
   /** Existing contracts keep reconciling independently from admitting new sales. */
   RECREIO_FINANCIAL_JOBS_MODE: z.enum(["off", "on"]).default("off"),
+  /** Stops only previously accepted renewals, independent from a new-sale catalog. */
+  RECREIO_RENEWAL_JOBS_MODE: z.enum(["off", "on"]).default("off"),
   STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -166,6 +168,11 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
     );
   const value = parsed.data;
   configuracaoDosObjetos(value);
+  if (
+    value.RECREIO_RENEWAL_JOBS_MODE === "on" &&
+    !segredoStripeCompativel(value.STRIPE_MODE, value.STRIPE_SECRET_KEY)
+  )
+    throw new Error("Invalid renewal environment: STRIPE_MODE, STRIPE_SECRET_KEY");
   if (
     envioComercialDisponivel(value.RECREIO_BILLING_MODE) ||
     value.RECREIO_FINANCIAL_JOBS_MODE === "on"

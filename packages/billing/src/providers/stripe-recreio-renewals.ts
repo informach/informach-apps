@@ -49,7 +49,11 @@ export function createStripeRecreioRenewals(config: {
   client?: Stripe;
   now?: () => Date;
 }): RecreioRenewalProvider {
-  if (!config.secretKey.startsWith(config.mode === "prod" ? "sk_live_" : "sk_test_"))
+  if (
+    !new RegExp(`^(?:sk|rk)_${config.mode === "prod" ? "live" : "test"}_[A-Za-z0-9_]+$`).test(
+      config.secretKey,
+    )
+  )
     review("namespace_mismatch");
   const stripe =
     config.client ??

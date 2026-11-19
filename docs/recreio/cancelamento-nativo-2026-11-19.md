@@ -20,6 +20,21 @@ o helper que lança erro precisava de declaração de função explícita para q
 o compilador reconhecesse os ramos inalcançáveis. Corrigido sem assertions,
 casts ou redução das conferências; a rodada original permanece reprovada.
 
+Worker em candidata: reserva individual de três minutos, ciclo financeiro antes
+das TX, tentativa/auditoria antes da rede, confirmação/auditoria/agendamento de
+conciliação atômicos e releitura da origem nos dois lados do I/O. Logout não
+anula aceite durável; nenhuma sessão é fabricada. Falhas usam enumeração e
+backoff até uma hora, sem corpo de erro do provedor. Contadores e datas originais
+são conservados. Testes novos de PostgreSQL/SDK incluem concorrência, resposta
+perdida, auditoria indisponível e executor antigo; aguardam qualificação remota.
+
+`POST /api/jobs/renovacoes` exige o segredo operacional; conferência/falha parcial
+retorna 503. `RECREIO_RENEWAL_JOBS_MODE=off` por padrão, separado do catálogo de
+novas vendas e da conciliação geral. Para interromper contratos existentes,
+bastam modo/chave Stripe compatíveis (inclusive chave restrita), sem exigir
+preços, portal ou webhook. Agenda/alertas e configuração do serviço continuam
+pendentes; nada foi habilitado por esta candidata.
+
 A geração corrigida 44614009506/1270360b foi adotada sem editar os três
 arquivos: 0237, 238 recibos candidatos. Prefixo e predecessor conferidos,
 todas as tabelas anteriores idênticas e as duas UNIQUEs referenciadas já

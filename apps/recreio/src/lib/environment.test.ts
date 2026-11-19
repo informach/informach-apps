@@ -86,6 +86,33 @@ describe("deployment environment", () => {
       }),
     ).toThrow(/^Invalid RECREIO_OBJECTS configuration$/);
   });
+  it("interrompe renovação com chave própria sem depender de catálogo novo ou portal", () => {
+    expect(validateEnvironment(base).RECREIO_RENEWAL_JOBS_MODE).toBe("off");
+    for (const [modo, chave] of [
+      ["dev", "rk_test_isolated"],
+      ["prod", "rk_live_isolated"],
+    ]) {
+      const value = validateEnvironment({
+        ...base,
+        RECREIO_RENEWAL_JOBS_MODE: "on",
+        STRIPE_MODE: modo,
+        STRIPE_SECRET_KEY: chave,
+      });
+      expect(value.RECREIO_RENEWAL_JOBS_MODE).toBe("on");
+      expect(value.RECREIO_BILLING_MODE).toBe("off");
+      expect(value.STRIPE_PORTAL_CONFIGURATION_ID).toBeUndefined();
+    }
+    for (const chave of [undefined, "rk_live_isolated", "NAO_MOSTRAR"]) {
+      expect(() =>
+        validateEnvironment({
+          ...base,
+          RECREIO_RENEWAL_JOBS_MODE: "on",
+          STRIPE_MODE: "dev",
+          STRIPE_SECRET_KEY: chave,
+        }),
+      ).toThrow("Invalid renewal environment: STRIPE_MODE, STRIPE_SECRET_KEY");
+    }
+  });
   it("mantém cobrança fechada e só admite sandbox com catálogo e credenciais test", () => {
     expect(validateEnvironment(base).RECREIO_BILLING_MODE).toBe("off");
     expect(validateEnvironment(base).RECREIO_FINANCIAL_JOBS_MODE).toBe("off");

@@ -23,6 +23,14 @@ do provedor, preço/valor, datas de login, termos, resposta externa ou URL de
 pagamento. Esse evento confirma o aceite; não confirma envio ou interrupção
 da renovação no provedor.
 
+`recreio.renewal_cancellation_attempt_started`,
+`recreio.renewal_cancellation_confirmed` e `recreio.renewal_cancellation_failed`
+registram somente `app`, `groupId`, `cancellationId`, `attemptCount`, `state`
+ou `reasonCode` enumerado. Jobs usam ator nulo e o recibo original como
+autoridade; não fabricar login nem duplicar referências Stripe, conteúdo,
+corpo de erro, credenciais ou hashes. Tentativa precede I/O; confirmação e
+auditoria são atômicas, após observação conferida. Falha não apaga o aceite.
+
 `recreio.plan_change_quoted`, `recreio.plan_change_accepted`,
 `recreio.plan_change_closed`, `recreio.plan_change_attempt_started` e
 `recreio.plan_change_provider_observed`, `recreio.plan_change_applied` e
