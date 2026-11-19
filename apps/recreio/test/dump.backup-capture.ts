@@ -80,7 +80,13 @@ async function restaurar(url: URL, entrada: FileHandle) {
     });
     filho.once("close", resolve);
   });
-  filho.stderr.on("data", () => {
+  const avisos = filho.stderr;
+  if (!avisos) {
+    filho.kill("SIGKILL");
+    await fechado;
+    throw new Error("Native fixture stderr unavailable");
+  }
+  avisos.on("data", () => {
     erro = true;
   });
   const timer = setTimeout(() => filho.kill("SIGKILL"), 60_000);
