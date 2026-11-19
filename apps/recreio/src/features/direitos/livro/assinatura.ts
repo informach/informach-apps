@@ -4,6 +4,7 @@ import {
   CabecalhoDeDireitosSchema,
   ChaveDoLivroSchema,
   FalhaDoLivroDeDireitos,
+  IdDoLivroSchema,
   IntencaoDeDireitosSchema,
   ShaDoLivroSchema,
 } from "./contrato";
@@ -25,21 +26,23 @@ export function criarAssinaturaDoLivro(config: {
   chaveAtiva: string;
   chaves: ReadonlyMap<string, Uint8Array>;
 }) {
-  const id = z.uuid().safeParse(config.livroId),
+  const id = IdDoLivroSchema.safeParse(config.livroId),
     ativa = ChaveDoLivroSchema.safeParse(config.chaveAtiva),
     chaves = new Map<string, Buffer>();
   if (!id.success || !ativa.success || config.chaves.size < 1 || config.chaves.size > 16)
     throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+  const livroId = id.data,
+    chaveAtiva = ativa.data;
   try {
     for (const [kid, key] of config.chaves) {
       if (!ChaveDoLivroSchema.safeParse(kid).success || key.length !== 32)
         throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
       chaves.set(
         kid,
-        Buffer.from(hkdfSync("sha256", key, id.data, "recreio.rights-ledger.mac.v1", 32)),
+        Buffer.from(hkdfSync("sha256", key, livroId, "recreio.rights-ledger.mac.v1", 32)),
       );
     }
-    if (!chaves.has(ativa.data)) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+    if (!chaves.has(chaveAtiva)) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
   } catch (erro) {
     for (const key of chaves.values()) key.fill(0);
     chaves.clear();
@@ -54,10 +57,10 @@ export function criarAssinaturaDoLivro(config: {
   };
   function assinar(documento: z.infer<typeof Envelope>["documento"]) {
     conferir();
-    if (documento.livroId !== id.data) return falhar();
-    const chave = chaves.get(ativa.data);
+    if (documento.livroId !== livroId) return falhar();
+    const chave = chaves.get(chaveAtiva);
     if (!chave) return falhar();
-    const corpo = { versao: 1, chaveId: ativa.data, documento },
+    const corpo = { versao: 1, chaveId: chaveAtiva, documento },
       mac = createHmac("sha256", chave).update(JSON.stringify(corpo)).digest("hex"),
       bytes = Buffer.from(JSON.stringify({ ...corpo, mac }), "utf8");
     if (bytes.length > MAX_REGISTRO) return falhar();
@@ -73,7 +76,7 @@ export function criarAssinaturaDoLivro(config: {
       return falhar();
     }
     const parsed = Envelope.safeParse(bruto);
-    if (!parsed.success || parsed.data.documento.livroId !== id.data) return falhar();
+    if (!parsed.success || parsed.data.documento.livroId !== livroId) return falhar();
     const e = parsed.data,
       key = chaves.get(e.chaveId);
     if (!key) return falhar();
@@ -93,7 +96,7 @@ export function criarAssinaturaDoLivro(config: {
     return e.documento;
   }
   return {
-    livroId: id.data,
+    livroId: livroId,
     assinarIntencao(entrada: unknown) {
       const p = IntencaoDeDireitosSchema.safeParse(entrada);
       if (!p.success) return falhar();
