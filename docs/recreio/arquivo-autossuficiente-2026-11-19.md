@@ -163,3 +163,28 @@ composição; não é teste do provedor externo. Os destinos e autoridades do SQ
 restaurado ainda não foram normalizados para tráfego e nenhuma reserva é
 liberada por essa prova. Controle durável, ledger F7, custódia e cadência
 operacional continuam pendentes.
+
+Composição `4e6d9b2b` aprovada em `44469243603` (16 provas), objetos
+`44469247207` (146 testes), quality `44469589117` e integração
+`44469593535`. [Recibo conjunto com limites](evidencias/captura-composta-44469243603.json).
+A fotografia foi recuperada sem buscar o objeto vivo; os dados do banco
+restaurado coincidiram com o inventário da visão. A prova usa HTTP fechado e
+restauração em outro banco do mesmo cluster, não desastre de cluster inteiro.
+
+### Prova externa preparada
+
+O workflow de objetos recebeu `capture_probe`, falso por padrão e isolado dos
+outros modos. Usa somente os seis segredos já autorizados, o bucket exato de
+homologação e PostgreSQL descartável no GitHub. O adapter de qualificação
+admite somente dois prefixos UUID novos, persiste recibo antes do PUT, conserva
+as chaves tentadas, remove a fotografia sintética depois de guardar o arquivo,
+recupera pelo índice, restaura/confere e testa a retirada. Ao final, apaga
+somente as quatro chaves sintéticas registradas, exige NoSuchKey em cada uma e
+LIST vazio nos dois prefixos. O tombstone só é apagado por se tratar de uma
+prova sintética sem workers; a operação real deverá conservá-lo.
+
+Primeiro qualificar a versão no HTTP fechado; depois executar explicitamente
+a prova externa e adotar o recibo apenas se restauração, retirada, acesso
+anônimo negado e limpeza tiverem sido confirmados. Chaves de cifragem são
+descartáveis, não credenciais de produção. Essa execução não habilita serviços,
+libera reservas ou comprova custódia recuperável/ledger F7/cadência/RPO/RTO.

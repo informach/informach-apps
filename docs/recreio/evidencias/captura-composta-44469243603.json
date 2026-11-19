@@ -1,0 +1,18 @@
+{
+  "source": "4e6d9b2b86163f97c79f52ab52460acec54690d9",
+  "conclusion": "success",
+  "captureRunId": 44469243603,
+  "captureJobId": 135374394637,
+  "objectsRunId": 44469247207,
+  "objectsJobId": 135374405491,
+  "qualityRunId": 44469589117,
+  "qualityJobId": 135375534846,
+  "integrationRunId": 44469593535,
+  "integrationJobId": 135375547143,
+  "captureTests": 16,
+  "objectTests": 146,
+  "appTypesVerified": true,
+  "frozenInstallVerified": true,
+  "productionApplied": false,
+  "scopeLimit": "SQL snapshot plus one native encrypted photo, composite, signed index, actual SDK over closed HTTP, destruction of local sources/live photo, isolated same-cluster restore and retirement. Not external provider, fresh cluster, normalized authorities/destinations, durable native publication, retained backup or production qualification."
+}

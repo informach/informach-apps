@@ -61,8 +61,33 @@ export async function criarBucketS3DeTeste(tempoLimiteMs = 2000, maxAttempts = 1
       res.end();
       return;
     }
+    if (req.method === "DELETE") {
+      objetos.delete(path);
+      tipos.delete(path);
+      res.writeHead(204);
+      res.end();
+      return;
+    }
     if (req.method !== "GET") {
       xml(res, 405, "MethodNotAllowed");
+      return;
+    }
+    const consulta = new URL(url, "http://127.0.0.1").searchParams;
+    if (consulta.get("list-type") === "2") {
+      const prefixo = consulta.get("prefix") ?? "";
+      const escapar = (s: string) =>
+        s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+      const itens = [...objetos]
+        .map(([p, b]) => ({ key: p.replace(/^\/recreio-fixture\//, ""), bytes: b.length }))
+        .filter((v) => v.key.startsWith(prefixo));
+      const max = Number(consulta.get("max-keys") ?? "1000");
+      res.writeHead(200, { "content-type": "application/xml" });
+      res.end(
+        `<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><IsTruncated>${itens.length > max}</IsTruncated><KeyCount>${Math.min(itens.length, max)}</KeyCount>${itens
+          .slice(0, max)
+          .map((v) => `<Contents><Key>${escapar(v.key)}</Key><Size>${v.bytes}</Size></Contents>`)
+          .join("")}</ListBucketResult>`,
+      );
       return;
     }
     const bytes = objetos.get(path);

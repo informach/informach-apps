@@ -13,8 +13,8 @@ import { conferirInventarios, inventariarBackup } from "../scripts/backup/invent
 import { criarMontadorDaCaptura } from "../scripts/backup/montar-captura";
 import { novoJogador } from "./apoio";
 import { conexao, restaurar, temporarios } from "./backup-arquivos-apoio";
+import { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { mundoDe } from "./jogo-apoio";
-import { criarBucketS3DeTeste } from "./objetos-s3-apoio";
 
 it(
   "recupera SQL e fotografia apenas pelo índice e arquivo guardados, sem fontes locais ou objeto vivo",
@@ -22,12 +22,8 @@ it(
     temporarios(async (arquivo) => {
       const url = conexao(),
         fonte = postgres(url.href, { max: 1, prepare: false }),
-        s3 = await criarBucketS3DeTeste();
-      const destino = {
-          bucketId: randomUUID(),
-          bucketName: "recreio-fixture",
-          escopo: "qualification" as const,
-        },
+        s3 = await criarBucketDaMontagem();
+      const destino = s3.destino,
         mundoId = await mundoDe(await novoJogador()),
         fotoId = randomUUID(),
         entregaId = randomUUID(),
@@ -56,6 +52,7 @@ it(
             limiteBytes: 4096,
           }).cifrar({ tipo: "fotografia", id: mundoId }, original),
           r = preparado.referencia;
+        await s3.admitirPrefixo("fotografia", mundoId);
         await fotos.enviar(preparado);
         const objectKey = `recreio/v1/fotografia/${mundoId}/${r.sha256Cifrado}`;
         await fonte`insert into recreio.space_snapshots (id,space_id,revision,fence,schema_version,journal_seq,tick,kind,storage,data,object_key,byte_size,sha256)
@@ -126,6 +123,7 @@ it(
             indice,
             tempoLimiteMs: 2000,
           });
+        await s3.admitirPrefixo("backup", ref.contexto.id);
         await transporte.enviar(ref, cifrado, readback);
         const publicacao = indice.assinar({
           tipo: "publicado",
@@ -139,12 +137,13 @@ it(
           inventario: capturada.inventario,
         });
         await indices.publicar(publicacao, ref.contexto.id);
+        await indices.publicar(publicacao, ref.contexto.id); // Replay pelo 412 e leitura integral.
         for (const h of [composto, cifrado, readback]) {
           await h.truncate(0);
           await h.sync();
         }
-        // A remoção na fixture representa a coleta do objeto vivo depois do backup.
-        s3.objetos.delete(`/recreio-fixture/${objectKey}`);
+        // Perda da fonte sintética após guardar o arquivo, não coletor de produção.
+        await s3.removerFoto(objectKey);
         const inicioDaRecuperacao = s3.pedidos.length;
         const fria = await indices.recuperar(ref.contexto.id);
         await transporte.recuperar(fria.publicacao.arquivo, recuperado);
@@ -201,6 +200,7 @@ it(
           await expect(indices.recuperar(ref.contexto.id)).rejects.toMatchObject({
             codigo: "RETIRADO",
           });
+          await s3.concluir();
         } finally {
           acesso.encerrar();
         }
@@ -213,11 +213,11 @@ it(
             await fonte`update recreio.space_snapshots set storage='pg',data=${original},object_key=null where id=${fotoId}`;
           }
         } finally {
-          await fonte.end({ timeout: 5 });
           indice.encerrar();
           chaveFoto.fill(0);
           chaveBackup.fill(0);
-          await s3.fechar();
+          const encerramentos = await Promise.allSettled([fonte.end({ timeout: 5 }), s3.fechar()]);
+          expect(encerramentos.every((r) => r.status === "fulfilled")).toBe(true);
         }
       }
     }),
