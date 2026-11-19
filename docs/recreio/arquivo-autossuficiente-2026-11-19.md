@@ -302,3 +302,20 @@ adicionais cobrem drift global e recusa da origem; oito testes de contrato
 cobrem senha, NUL, duplicação, operador, GUCs e membros fora do perfil. Tudo
 aguarda os gates remotos desta candidata. Não há reconstrução de credenciais
 antigas, normalização F7/autoridades para tráfego ou implantação.
+
+Recriação `6c9e47cc` aprovada nos dois operadores em `44475981474`; os dois
+ZIPs foram conferidos por tamanho/SHA e seus recibos exigem conteúdo,
+estrutura, globais e limpeza. Integração `44475973608` também aprovada.
+[Recibo](evidencias/globais-runtime-44475981474.json). O gate de objetos
+`44475977919` passou os tipos, mas um teste existente de transporte binário
+excedeu os 5 segundos. As comparações grandes passam a usar Buffer.equals,
+que confere integralmente tamanho/bytes e evita comparação genérica/diff de
+centenas de milhares de propriedades. Esse ajuste ainda precisa de nova
+execução; não se declara resolvido o timeout a partir da edição.
+
+A fixture seguinte inclui papel LOGIN com senha pública `ci` só na origem.
+A recriação admite somente ausência de senha nos papéis não operadores do
+alvo e confere novamente essa ausência ao final. São contagens booleanas no
+cluster descartável; nenhum hash/valor de senha é selecionado/transportado.
+O operador mantém a senha nova gerada pelo initdb. A matriz seguinte precisa
+provar quatro papéis e os memberships, além de repetir objetos/tipos.

@@ -70,7 +70,7 @@ jobs:
             const texto=readFileSync(process.env.RUNNER_TEMP+"/recreio-backup.jsonl","utf8");
             const resultados=texto.trim().split("\n").map(s=>JSON.parse(s));
             const resultado=resultados.at(-1);
-            if (!resultado?.ok || !resultado.conteudoIdentico || !resultado.estruturaIdentica || !resultado.globaisIdenticos || resultado.papeis!==3 || resultado.participacoesEmPapeis<4 || !resultado.temporariosRemovidos || resultado.tabelas<2 || resultado.bytes<=0 || texto.includes("FIXTURE_NAO_PUBLICAR_CONTEUDO")) process.exit(1);
+            if (!resultado?.ok || !resultado.conteudoIdentico || !resultado.estruturaIdentica || !resultado.globaisIdenticos || resultado.papeis!==4 || resultado.participacoesEmPapeis<4 || !resultado.temporariosRemovidos || resultado.tabelas<2 || resultado.bytes<=0 || texto.includes("FIXTURE_NAO_PUBLICAR_CONTEUDO")) process.exit(1);
           '
           intacta=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select count(*)=1 and bool_and(bytes=decode('0001ff','hex')) from recreio.space_snapshots")
           test "$intacta" = t

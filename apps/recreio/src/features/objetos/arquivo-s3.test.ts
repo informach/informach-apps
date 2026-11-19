@@ -45,12 +45,12 @@ describe("arquivo privado: FileHandle/SDK/HTTP reais, readback sem dump aberto",
     cenario(async (f) => {
       expect(await f.transporte.enviar(f.ref, f.cifrado, f.aberto)).toEqual(f.ref);
       const bytes = await readFile(join(f.root, "cifrado.bin"));
-      expect(f.rede.objetos.get(f.path)).toEqual(bytes);
+      expect(f.rede.objetos.get(f.path)?.equals(bytes)).toBe(true);
       expect(bytes.includes(texto.subarray(0, 64))).toBe(false);
-      expect(await readFile(join(f.root, "aberto.bin"))).toEqual(bytes);
+      expect((await readFile(join(f.root, "aberto.bin"))).equals(bytes)).toBe(true);
       const plain = await f.extra("saida-extra.bin");
       await f.codec.abrir(f.aberto, plain, f.ref);
-      expect(await readFile(join(f.root, "saida-extra.bin"))).toEqual(texto);
+      expect((await readFile(join(f.root, "saida-extra.bin"))).equals(texto)).toBe(true);
       const outro = await f.extra("segundo.bin");
       expect(await f.transporte.recuperar(f.ref, outro)).toEqual(f.ref);
       expect((await f.cifrado.stat()).size).toBe(f.ref.bytesCifrados);
@@ -65,9 +65,11 @@ describe("arquivo privado: FileHandle/SDK/HTTP reais, readback sem dump aberto",
       const outro = await f.extra("segundo.bin");
       await f.transporte.enviar(f.ref, f.cifrado, outro);
       expect(f.rede.objetos.size).toBe(1);
-      expect(await readFile(join(f.root, "segundo.bin"))).toEqual(
-        await readFile(join(f.root, "aberto.bin")),
-      );
+      expect(
+        (await readFile(join(f.root, "segundo.bin"))).equals(
+          await readFile(join(f.root, "aberto.bin")),
+        ),
+      ).toBe(true);
       expect(f.rede.pedidos.map((p) => p.metodo)).toEqual(["PUT", "GET", "PUT", "GET"]);
     }));
   it("PUT com resposta perdida não repete e recupera sem a cópia cifrada local", async () =>
@@ -82,7 +84,7 @@ describe("arquivo privado: FileHandle/SDK/HTTP reais, readback sem dump aberto",
       await f.transporte.recuperar(f.ref, f.aberto);
       const plain = await f.extra("saida-extra.bin");
       await f.codec.abrir(f.aberto, plain, f.ref);
-      expect(await readFile(join(f.root, "saida-extra.bin"))).toEqual(texto);
+      expect((await readFile(join(f.root, "saida-extra.bin"))).equals(texto)).toBe(true);
       expect(f.rede.objetos.size).toBe(1);
       expect(f.rede.pedidos.map((p) => p.metodo)).toEqual(["PUT", "GET"]);
     }));
@@ -96,7 +98,7 @@ describe("arquivo privado: FileHandle/SDK/HTTP reais, readback sem dump aberto",
         });
         expect((await f.aberto.stat()).size).toBe(0);
         expect((await f.cifrado.stat()).size).toBe(f.ref.bytesCifrados);
-        expect(await readFile(join(f.root, "origem.bin"))).toEqual(texto);
+        expect((await readFile(join(f.root, "origem.bin"))).equals(texto)).toBe(true);
       }),
   );
   it("412 com corpo divergente não confirma presença como integridade", async () =>
@@ -138,7 +140,7 @@ describe("arquivo privado: FileHandle/SDK/HTTP reais, readback sem dump aberto",
       await expect(f.transporte.enviar(f.ref, f.cifrado, f.cifrado)).rejects.toMatchObject({
         codigo: "CONFIGURACAO",
       });
-      expect(await readFile(join(f.root, "aberto.bin"))).toEqual(preservar);
+      expect((await readFile(join(f.root, "aberto.bin"))).equals(preservar)).toBe(true);
       expect(f.rede.pedidos).toEqual([]);
     }));
   it("recusa limite e chave ausente antes de GET/PUT", async () =>

@@ -180,6 +180,10 @@ export async function recriarGlobaisPostgres(
     );
     if (existentes.some((p) => !contexto.papeis.some((v) => v.nome === p.nome)))
       throw new FalhaDosGlobaisPostgres("ALVO_NAO_ISOLADO");
+    const [credenciais] = await tx.unsafe<{ quantidade: number }[]>(
+      "select count(*)::int as quantidade from pg_authid where rolname !~ '^pg_' and rolname<>current_user and rolpassword is not null",
+    );
+    if (credenciais?.quantidade !== 0) throw new FalhaDosGlobaisPostgres("ALVO_NAO_ISOLADO");
     for (const p of contexto.papeis)
       if (!existentes.some((r) => r.nome === p.nome))
         await tx.unsafe(`create role ${identificador(p.nome)} nologin`);
@@ -220,5 +224,9 @@ export async function recriarGlobaisPostgres(
     const restaurado = await inventariarGlobaisPostgres(tx);
     if (JSON.stringify(restaurado) !== JSON.stringify(contexto))
       throw new FalhaDosGlobaisPostgres("RECRIACAO_DIVERGENTE");
+    const [semSenhas] = await tx.unsafe<{ quantidade: number }[]>(
+      "select count(*)::int as quantidade from pg_authid where rolname !~ '^pg_' and rolname<>current_user and rolpassword is not null",
+    );
+    if (semSenhas?.quantidade !== 0) throw new FalhaDosGlobaisPostgres("RECRIACAO_DIVERGENTE");
   });
 }

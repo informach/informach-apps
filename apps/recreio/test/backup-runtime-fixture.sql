@@ -1,6 +1,8 @@
 -- Somente o container descartável do GitHub. Nenhum dado ou credencial real.
 CREATE SCHEMA recreio;
 CREATE ROLE recreio_backup_reader NOLOGIN;
+-- Senha publica SOMENTE desta fixture, que a recuperacao nao deve transportar.
+CREATE ROLE recreio_backup_login LOGIN PASSWORD 'ci';
 CREATE ROLE recreio_backup_parent NOLOGIN NOINHERIT CONNECTION LIMIT 3 VALID UNTIL '2030-01-01 00:00:00+00';
 ALTER ROLE recreio_backup_reader SET default_transaction_read_only=on;
 ALTER ROLE recreio_backup_reader SET statement_timeout='15000ms';
