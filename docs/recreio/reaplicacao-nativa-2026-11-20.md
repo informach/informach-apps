@@ -667,3 +667,19 @@ original antes do upgrade privado pela cadeia de migrations verificada; não usa
 leitores atuais contra schema antigo como se as tabelas já existissem. Custódia
 independente, finanças/identidade atuais, retenções após retomada e checkpoint do
 livro ainda precisam da implementação/prova indicadas nesta frente.
+
+
+0243 gerada em **44808850554** a partir de 68e568ab foi adotada sem alterar
+SQL/snapshot/journal. ZIP e arquivos conferidos por SHA-256, snapshot anterior
+intacto, apenas uma tabela aditiva e prefixo de 243 recibos preservado: candidata
+com 244 recibos/80 tabelas. [Proveniência](evidencias/migracao-avaliacoes-44808850554.json).
+Aplicação SQL e consumidores ainda exigem gates; produção continua 0203/204.
+
+A liberação limitada por mundo de a1a5ae28 passou direitos **44805260098**,
+qualidade **44805265107** e cluster frio **44805269975**. A rodada completa
+44801993382 passou 15 dos 16 gates, inclusive E2E. O único reprovado foi
+versões: prefetch RSC da ficha pública, ausente da lista conhecida durante
+o intervalo proposital sem processo. O teste agora deriva fichas de JOGOS,
+mantendo mesma origem, parâmetro RSC, dois erros de transporte específicos e
+janela da troca. Ações e console fora dela continuam estritos. Gate auxiliar
+versoes permite verificar esse reparo sem substituir a rodada all final.

@@ -1,5 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import path from "node:path";
+import { JOGOS } from "@informach/config/jogos";
 import { type ConsoleMessage, expect, test } from "@playwright/test";
 import {
   comecarVigia,
@@ -39,6 +40,7 @@ test.describe("troca de versão do portal", () => {
       await hidratado(campo);
       await campo.fill("Casa entre versões");
       const origem = new URL(pessoa.page.url()).origin;
+      const rotasPrefetch = ["/conta", "/perfis", "/amigos", ...JOGOS.map((j) => `/jogos/${j.id}`)];
       const prefetchDuranteATroca = (mensagem: ConsoleMessage): boolean => {
         if (
           ![
@@ -50,9 +52,7 @@ test.describe("troca de versão do portal", () => {
         const endereco = mensagem.location().url;
         if (!endereco.startsWith(`${origem}/`)) return false;
         const url = new URL(endereco);
-        return (
-          ["/conta", "/perfis", "/amigos"].includes(url.pathname) && url.searchParams.has("_rsc")
-        );
+        return rotasPrefetch.includes(url.pathname) && url.searchParams.has("_rsc");
       };
       // O teste troca dois processos na mesma porta: só estes GETs de prefetch
       // podem encontrar o intervalo sem servidor ou a conexão encerrada pela troca.

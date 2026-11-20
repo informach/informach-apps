@@ -1,0 +1,39 @@
+{
+  "source": "68e568ab421b474e25316ac34c4ef512cc915360",
+  "run": 44808850554,
+  "artifactId": 14663809659,
+  "artifact": "db-generated-44808850554-1",
+  "zipBytes": 84282,
+  "zipSha256": "1e5a093380bc32b18051d311ab9afefd44aeccf5e8ba8c328fb161a86f942d20",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0243_recreio_avaliacoes_recuperacao.sql",
+      "bytes": 7770,
+      "sha256": "7c1b7fe80d8db377b15346dcbb81575fe4ac09534110f539a7fa928562fbf8bb"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0243_snapshot.json",
+      "bytes": 1179063,
+      "sha256": "39c89e0e73e40b4ef406cf70f48b97afc361aadb2d1ef406b2367a915e39ba99"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 36904,
+      "sha256": "90d407a94db0582e61de580be3c9216d2de2830b64bb0a2ef44844cd4fdeee80"
+    }
+  ],
+  "verification": {
+    "previousSnapshotUnchanged": true,
+    "onlyAdditiveEvaluationTable": true,
+    "journalPrefixUnchanged": true,
+    "previousReceipts": 243,
+    "candidateReceipts": 244,
+    "onlyCreateTableConstraintsAndIndex": true,
+    "noDataMutation": true,
+    "noIdentityOrWorldForeignKeys": true
+  },
+  "limits": [
+    "Generated schema only; runtime and PostgreSQL gates pending.",
+    "No production migration or traffic enabled."
+  ]
+}
