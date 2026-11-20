@@ -425,3 +425,29 @@ prefixo próprio, dez objetos sintéticos foram removidos, dois clusters e arqui
 limpos. [Recibo](evidencias/retirada-nativa-cluster-frio-44796463771.json). Qualidade
 44796468303 e integração 44796473327 ainda em execução. A fotografia tipada acima
 é o incremento seguinte; não está incluída nesse recibo aprovado.
+
+
+6c7eb4d4 passou fotografia tipada/cluster frio **44797362860** e qualidade
+44797368369. Adapter operacional removeu o ID selecionado dos bytes gzip,
+conservou o outro fundador e as famílias, hash/metadados da foto e responsável/
+membro/mundo; retirada pessoal e limpeza dos dez objetos/dois clusters foram
+confirmadas. [Recibo](evidencias/foto-nativa-cluster-frio-44797362860.json). Integração
+44797372963 ainda em execução. Diário posterior à foto continua fora dessa prova.
+
+## Correção do teste de independência do SDK
+
+CI compartilhado 44780716449/b1d0d84e falhou no E2E de progresso; 48 testes
+passaram e seis foram ignorados por seus modos declarados. O trace original
+foi conservado fora do Git. A única URL que correspondeu a `morada|three` foi
+`/jogos/morada`, recurso fetch de prefetch da ficha editorial; não houve URL do
+motor nesse recorte. O predicado confundia metadados de catálogo com executável.
+
+A prova passa a recusar a rota `/jogar/morada` e scripts nomeados, além de ler
+os corpos dos scripts recebidos, inclusive chunks cujo nome é só hash. Three
+0.186.1 registra `window.__THREE__` no próprio módulo (fonte fixada inspecionada);
+o E2E recusa esse marcador no código recebido e sua presença antes/depois do
+fluxo. Leitura falha de script é inconclusiva e reprova. As recusas de API de
+mundos e as fronteiras estáticas dos imports continuam intactas. Nenhuma
+mudança no prefetch do produto ou exceção para importar engine no portal.
+Documentação Playwright 1.64.1 conferida para `resourceType` e `response.text`.
+Gates desta correção ainda pendentes.

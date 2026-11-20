@@ -4,9 +4,29 @@ import { novaPessoa } from "./apoio";
 test("jogo 2D sem mundos salva, sai e recupera progresso pelo SDK", async ({ browser }) => {
   const pessoa = await novaPessoa(browser, "Progresso");
   const { page } = pessoa;
-  const pedidos: string[] = [];
-  page.on("request", (request) => pedidos.push(new URL(request.url()).pathname));
+  const pedidos: { caminho: string; tipo: string }[] = [];
+  const scripts: Promise<{ ok: boolean; caminho: string; motor: boolean }>[] = [];
+  page.on("request", (request) =>
+    pedidos.push({
+      caminho: new URL(request.url()).pathname,
+      tipo: request.resourceType(),
+    }),
+  );
+  page.on("response", (response) => {
+    if (response.request().resourceType() !== "script") return;
+    const caminho = new URL(response.url()).pathname;
+    // Next's chunks can have only hashes in their URLs. Inspect downloaded
+    // JavaScript too: Three 0.186.1's own module registers __THREE__ on window.
+    // An unreadable body is inconclusive, never evidence that no motor arrived.
+    scripts.push(
+      response.text().then(
+        (body) => ({ ok: response.ok(), caminho, motor: body.includes("__THREE__") }),
+        () => ({ ok: false, caminho, motor: false }),
+      ),
+    );
+  });
   try {
+    expect(await page.evaluate(() => "__THREE__" in window)).toBe(false);
     await page.goto("/jogar/perfil-teste");
     await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeEnabled();
     await page.getByRole("button", { name: "Ganhar ponto" }).click();
@@ -20,9 +40,21 @@ test("jogo 2D sem mundos salva, sai e recupera progresso pelo SDK", async ({ bro
     await page.goto("/jogar/perfil-teste");
     await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeEnabled();
     await expect(page.getByLabel("Pontos salvos")).toHaveText("1");
-    expect(pedidos.some((caminho) => caminho === "/api/sdk/v1/dados")).toBe(true);
-    expect(pedidos.some((caminho) => caminho.startsWith("/api/sdk/v1/mundos"))).toBe(false);
-    expect(pedidos.some((caminho) => /morada|three/i.test(caminho))).toBe(false);
+    expect(pedidos.some(({ caminho }) => caminho === "/api/sdk/v1/dados")).toBe(true);
+    expect(pedidos.some(({ caminho }) => caminho.startsWith("/api/sdk/v1/mundos"))).toBe(false);
+    // The public editorial ficha /jogos/morada may be prefetched by the shelf;
+    // it is separate from the playable route, game chunks and simulation.
+    expect(
+      pedidos.filter(
+        ({ caminho, tipo }) =>
+          caminho.startsWith("/jogar/morada") ||
+          (tipo === "script" && /morada|three/i.test(caminho)),
+      ),
+    ).toEqual([]);
+    const lidos = await Promise.all(scripts);
+    expect(lidos.length).toBeGreaterThan(0);
+    expect(lidos.filter((script) => !script.ok || script.motor)).toEqual([]);
+    expect(await page.evaluate(() => "__THREE__" in window)).toBe(false);
     await page.getByRole("button", { name: "Salvar e sair" }).click();
     await expect(page).toHaveURL(/\/estante$/);
   } finally {
