@@ -6,6 +6,7 @@ import {
   confirmarPublicacao,
   prepararPublicacao,
 } from "./publicacao-repository";
+import { reconciliarPublicacaoDoBackup } from "./reconciliar-publicacao";
 import {
   assumirRetirada,
   confirmarAusenciaDoBackup,
@@ -25,6 +26,7 @@ export function provarCarregamentoDoControle() {
   );
   exigir(
     [
+      reconciliarPublicacaoDoBackup,
       capturarEPublicarBackup,
       abandonarCapturaSemArquivo,
       liberarReservasSemArquivo,

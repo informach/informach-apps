@@ -103,3 +103,22 @@ Não há ponte de teste, timeout maior, flag de bypass ou teste pesado local.
 O núcleo de publicação também reconfere a capacidade antes/depois do arquivo,
 PUT, índice e lote de reservas. Credenciais/ambiente, reconciliação e agenda
 produtiva permanecem nas etapas seguintes; gates desta candidata pendentes.
+
+
+## Publicação interrompida em candidata
+
+A retomada de publicação agora exige o destino completo na mesma transação da
+reserva; ID, nome e escopo divergentes não alteram a tentativa ou auditoria.
+O reconciliador, sob capacidade real de executor, lê o ciphertext original e
+retoma a confirmação/índice, sem novo IV/ciframento. Só NoSuchKey de GET pode
+iniciar abandono; ainda exige tombstone permanente assinado e relido, remoção
+restrita, confirmação de ausência e lote limitado antes de liberar reservas.
+Rede/permissão, NoSuchBucket, corrupção, chave, SQL e auditoria não viram ausência.
+
+A prova fria existente passa a usar essa composição na resposta perdida de
+publicação: arquivos locais descartados, índice já guardado e confirmação SQL
+pendente. Negativas adicionais usam controle/MAC sintéticos e HTTP fechado:
+NoSuchKey com tombstone/ausência e PUT tardio recusado; acesso negado, bucket
+ausente e ciphertext corrompido devem preservar reservas e não emitir retirada.
+Essas negativas não declaram dump autossuficiente; o caso de objeto presente
+continua a restauração SQL/foto real da prova fria. Gates pendentes.

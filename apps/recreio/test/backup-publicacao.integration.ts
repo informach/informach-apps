@@ -36,6 +36,34 @@ async function auditoriaRecusada(evento: string, executar: () => Promise<unknown
 }
 
 describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", () => {
+  it("retomada exige o destino inteiro sob a trava e conserva a tentativa alheia", async () => {
+    const f = await fixture(),
+      outra = await fixture();
+    try {
+      await prepararPublicacao(f.config);
+      await expirar(f.id);
+      const ler = () => db.select().from(publications).where(eq(publications.captureId, f.id)),
+        antes = await ler();
+      for (const destino of [
+        { ...f.destino, bucketId: outra.destino.bucketId },
+        { ...f.destino, bucketName: "outro-backups" },
+        { ...f.destino, escopo: "production" as const },
+      ])
+        await expect(assumirPublicacao(f.id, destino)).rejects.toMatchObject({
+          codigo: "CONFIGURACAO",
+        });
+      expect(await ler()).toEqual(antes);
+      const [eventos] = await db.execute<{
+        n: number;
+      }>(sql`select count(*)::int as n from audit.events
+        where event_type='recreio.backup_publication_claimed' and payload->>'captureId'=${f.id}`);
+      expect(eventos?.n).toBe(0);
+      expect((await assumirPublicacao(f.id, f.destino)).capturaId).toBe(f.id);
+    } finally {
+      f.indice.encerrar();
+      outra.indice.encerrar();
+    }
+  });
   it("fixa destino independente e ciphertext antes de qualquer confirmação", async () => {
     const f = await fixture();
     try {
@@ -50,7 +78,7 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
       });
       expect(await estados(f.id)).toEqual({ captura: "sealed", publicacao: "prepared", ativas: 0 });
       await expect(liberarReservasPublicadas(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
-      await expect(assumirPublicacao(f.id)).rejects.toMatchObject({ codigo: "OCUPADA" });
+      await expect(assumirPublicacao(f.id, f.destino)).rejects.toMatchObject({ codigo: "OCUPADA" });
     } finally {
       f.indice.encerrar();
     }
@@ -118,7 +146,7 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
       await expirar(f.id);
       await expect(confirmarArquivoGuardado(antigo)).rejects.toMatchObject({ codigo: "TENTATIVA" });
       await expect(renovarPublicacao(antigo)).rejects.toMatchObject({ codigo: "TENTATIVA" });
-      const atual = await assumirPublicacao(f.id);
+      const atual = await assumirPublicacao(f.id, f.destino);
       expect(atual.tentativa).not.toBe(antigo.tentativa);
       await expect(lerTentativaDePublicacao(antigo)).rejects.toMatchObject({ codigo: "TENTATIVA" });
       expect(await lerTentativaDePublicacao(atual)).toMatchObject({
@@ -181,7 +209,7 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
     const f = await pronta();
     try {
       await expirar(f.id);
-      const t = await assumirPublicacao(f.id);
+      const t = await assumirPublicacao(f.id, f.destino);
       expect((await lerTentativaDePublicacao(t)).indice?.equals(f.bytes)).toBe(true);
       expect((await prepararIndiceDuravel(t, f.bytes, f.indice)).equals(f.bytes)).toBe(true);
       await expect(confirmarPublicacao(f.t, f.bytes)).rejects.toMatchObject({

@@ -144,7 +144,7 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
       destino: f.destino,
     });
     await expect(lerTentativaDePublicacao(f.t)).rejects.toMatchObject({ codigo: "ESTADO" });
-    await expect(assumirPublicacao(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
+    await expect(assumirPublicacao(f.id, f.destino)).rejects.toMatchObject({ codigo: "ESTADO" });
     await expect(confirmarPublicacao(f.t, f.bytes)).rejects.toMatchObject({ codigo: "ESTADO" });
     await expect(liberarReservasPublicadas(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
     expect(await totalAtivas(f.id)).toBe(1);

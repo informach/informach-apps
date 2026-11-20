@@ -9,17 +9,18 @@ import { criarArmazenamentoPrivadoS3 } from "@/features/objetos/s3";
 import { criarCifradorDeArquivos } from "../scripts/backup/arquivo-cifrado";
 import { criarArquivoComposto } from "../scripts/backup/arquivo-composto";
 import { criarTransporteDeArquivosS3 } from "../scripts/backup/arquivo-s3";
+import { comExecucaoExclusivaDoBackup } from "../scripts/backup/execucao-exclusiva";
 import { criarIndiceDeRecuperacao } from "../scripts/backup/indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "../scripts/backup/indice-s3";
 import { conferirInventarios, inventariarBackup } from "../scripts/backup/inventario";
 import { criarMontadorDaCaptura } from "../scripts/backup/montar-captura";
 import { FalhaDaProva } from "../scripts/backup/provas-arquivos";
 import {
-  assumirPublicacao,
   liberarReservasPublicadas,
   prepararPublicacao,
 } from "../scripts/backup/publicacao-repository";
 import { publicarCapturaGuardada } from "../scripts/backup/publicar-captura";
+import { reconciliarPublicacaoDoBackup } from "../scripts/backup/reconciliar-publicacao";
 import { prepararRetirada } from "../scripts/backup/retirada-repository";
 import { criarRetiradaDoBackupS3 } from "../scripts/backup/retirada-s3";
 import { retirarCapturaGuardada } from "../scripts/backup/retirar-captura";
@@ -227,19 +228,34 @@ it(
           await h.sync();
         }
         await fonte`update recreio.backup_publications set created_at=created_at-interval '1 day',lease_until=clock_timestamp()-interval '1 second' where capture_id=${ref.contexto.id}`;
-        const retomada = await assumirPublicacao(ref.contexto.id);
-        await publicarCapturaGuardada({
-          tentativa: retomada,
-          destino,
-          transporte,
-          cifrador: codec,
-          composto: container,
-          indice,
-          indices,
-          recuperado: conferido,
-          aberto: abertoPublicacao,
+        const retomada = await comExecucaoExclusivaDoBackup(
+          { conexao: url.href, tempoLimiteMs: 120000 },
+          (execucao) =>
+            reconciliarPublicacaoDoBackup({
+              execucao,
+              capturaId: ref.contexto.id,
+              publicacao: {
+                destino,
+                transporte,
+                cifrador: codec,
+                composto: container,
+                indice,
+                indices,
+                recuperado: conferido,
+                aberto: abertoPublicacao,
+              },
+              retirada: criarRetiradaDoBackupS3({
+                cliente: s3.cliente,
+                destino,
+                indice,
+                tempoLimiteMs: 10000,
+              }),
+            }),
+        );
+        expect(retomada).toEqual({
+          situacao: "executada",
+          valor: { situacao: "publicada", capturaId: ref.contexto.id, reservasLiberadas: 1 },
         });
-        expect(await liberarReservasPublicadas(ref.contexto.id)).toBe(1);
         expect(await liberarReservasPublicadas(ref.contexto.id)).toBe(0);
         const [controle] = await fonte`select c.state as captura,p.state as publicacao,
           (select count(*)::int from recreio.backup_object_holds h where h.capture_id=c.id and h.released_at is null) as ativas

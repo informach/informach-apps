@@ -192,10 +192,18 @@ export async function prepararPublicacao(config: {
 }
 /** Retomada conserva ciphertext/destino/índice. Prazo vencido NÃO prova término
  * de I/O antigo; bytes imutáveis e PUT condicional continuam obrigatórios. */
-export async function assumirPublicacao(id: string) {
+export async function assumirPublicacao(id: string, destino: DestinoDeCaptura) {
+  const alvo = DestinoDeCapturaSchema.safeParse(destino);
+  exigir(alvo.success, "CONFIGURACAO");
   return db.transaction(async (tx) => {
     const c = await travarCaptura(tx, id),
       p = await travarPublicacao(tx, c);
+    exigir(
+      p.bucketId === alvo.data.bucketId &&
+        p.bucketName === alvo.data.bucketName &&
+        p.storageScope === alvo.data.escopo,
+      "CONFIGURACAO",
+    );
     exigir(p.state !== "published", "ESTADO");
     const [r] = await tx
       .select({ ocupada: sql<boolean>`${publications.leaseUntil}>clock_timestamp()` })
