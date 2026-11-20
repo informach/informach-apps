@@ -25,18 +25,20 @@ conclusão antigos; operações nativas antes/depois da captura foram reaplicada
 com diário/fotos, retirada, reserva nova preservada e rollback da auditoria
 terminal. A verificação técnica não libera tráfego ou liquida financeiro.
 Schema 0243 adotado intacto, 244 recibos/80 tabelas. CI compartilhado desta
-fonte **44824438593** ainda em execução; a base 91dcdf7a passou 44802000813.
+fonte **44824438593** passou; a33e94b7 passou o CI completo
+44815248297 e a base 91dcdf7a passou 44802000813.
 [Frente e provas](recreio/reaplicacao-nativa-2026-11-20.md).
 
-**Operação em implementação:** captura/cifragem/publicação nativas 131479c1
-passaram qualidade/integração/cluster 44817429183/44817433380/44817439675.
-Coordenação 05a335fb passou qualidade/captura/cluster
-44818706777/44818712000/44818717940: concorrência, sessão derrubada, espera da
-tarefa e escopo vencido/copiado. Reconciliação e5754c26 passou cluster,
-qualidade e integração 44822503406/44822507351/44822511082. [Plano e próximo passo](recreio/operacao-backup-2026-11-20.md).
-Falta finalizar ambiente/credenciais, fila/reconciliação, custódia e agenda,
-publicação seletiva somente do
-Recreio com identidade/finanças atuais e aceites operacionais/comerciais finais.
+**Operação em implementação:** coordenação, publicação, reconciliação e filas
+nativas qualificadas. f5b4116f passou qualidade/captura/cluster
+44832374709/44832378633/44832382761. Recuperador sem credencial da origem e
+limite GET por captura têm provas de tipos/captura/cluster; CLI completa passou
+44837783170/5fe5710e: origem indisponível, duas cópias privadas e limpeza
+confirmadas; qualidade/captura/cluster 44837795416/44837787315/44837791237.
+[Plano e provas](recreio/operacao-backup-2026-11-20.md).
+Faltam custódia/credenciais reais, agenda/alertas,
+publicação seletiva do Recreio com identidade/finanças atuais e aceites
+operacionais/comerciais finais. Nenhuma entrada operacional nova está ativa.
 
 **Provas reais recentes:** ensaio de 20/11 às 20h52 UTC restaurou conteúdo,
 estrutura e globais idênticos; serviço/temporários removidos, origem intacta,

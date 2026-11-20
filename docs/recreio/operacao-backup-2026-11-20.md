@@ -330,3 +330,25 @@ mesmo descriptor. O cenário de arquivo íntegro já guardado e confirmação
 perdida passa também a usar a fila operacional, incluindo sua alocação própria
 de arquivos; não somente o reconciliador unitário. Repetir CLI e captura fria
 antes de qualificar a correção. Nenhum serviço de produção foi alterado.
+
+
+## CLI completa qualificada — 5fe5710e
+
+A rodada [44837783170](https://github.com/informach/informach-apps/actions/runs/44837783170)
+passou. A imagem real capturou e releu 914.596 bytes cifrados no bucket de
+homologação; a segunda chamada confirmou a cadência sem duplicar a captura.
+O banco review ficou comprovadamente sem conexões e o objeto sintético de
+origem foi removido antes do recuperador. Sem credencial da origem, ele abriu
+somente a captura escolhida (sete GETs), conferiu inventário/recibos e restaurou
+duas cópias físicas privadas, cada uma com 244 recibos e sem migrations novas.
+Ambos os clusters, arquivos, containers e quatro objetos próprios tiveram
+limpeza confirmada; o banco review foi reabilitado. Dados reais não entraram
+no GitHub. [Recibo e hash do ZIP](evidencias/backup-operacional-cli-44837783170.json).
+
+Qualidade 44837795416, captura nativa 44837787315 e cluster externo 44837791237
+também passaram nesta fonte; o CI compartilhado ac5ae7d1 passou 44824438593.
+Isso qualifica as entradas e corrige as notas de gates pendentes acima, que
+registram a sequência histórica. Não demonstra custódia produtiva, recuperação
+financeira/identidades atuais, conteúdo jogado ou publicação seletiva F7.
+A agenda e as chaves/destinos reais continuam por implantar após preflight e
+backup durável anterior à atualização do schema compartilhado.

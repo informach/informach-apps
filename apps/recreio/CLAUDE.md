@@ -60,7 +60,7 @@ As projeções de denúncias/recursos próprios e seis fontes de aprovação for
 qualificadas, com índice UUID/autor sem forçar o otimizador entre 8.000 atos
 alheios. Concessões próprias e recibos/prazos técnicos passaram direitos e
 navegador nativo em 04dd3987/44760442710. Pareamentos/avisos/convites pessoais
-estão no incremento seguinte. A [matriz das 77 fontes](../../docs/recreio/cobertura-dados-pessoais-2026-11-20.md)
+estão no incremento seguinte. A [matriz das 80 fontes](../../docs/recreio/cobertura-dados-pessoais-2026-11-20.md)
 conserva lacunas e revisão de retenções; download não declara integralidade.
 
 A barreira `account_participations` distingue atividade, direitos e gestão
@@ -444,3 +444,18 @@ conserva o catálogo configurado. Reservas/commits/revisões usam o mesmo banco
 e escopo da coordenação. Revisão tem auditoria estrita; o commit zera sua cópia
 de bytes após SQL. Prova de filas vazias/carga sem credenciais não substitui
 transformação real de fotos ou fechamento F8.
+
+
+## Estado operacional conferido em 20/11
+
+A candidata tem 244 recibos/0243 e 80 fontes; produção permanece em 204/0203.
+A prova completa das CLIs em 5fe5710e passou no GitHub 44837783170:
+captura/cadência reais no bucket de homologação, banco review indisponível,
+objeto sintético original removido, recuperação somente pelo arquivo em dois
+clusters privados e limpeza confirmada. Qualidade/captura/cluster passaram
+44837795416/44837787315/44837791237. A recuperação técnica não publica tráfego
+nem fecha finanças/identidades atuais. Credenciais reais nunca vão ao GitHub.
+O CI compartilhado ac5ae7d1 passou 44824438593. Ensaio real preservou recibos
+históricos e atualizou apenas uma cópia privada de 204 para 244. Nenhuma nova
+entrada de backup, cron ou recurso comercial está ativa em produção.
+[Operação e pendências](../../docs/recreio/operacao-backup-2026-11-20.md).

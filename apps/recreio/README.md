@@ -116,6 +116,16 @@ A validação fica em `src/lib/environment.ts` e só cita o nome da variável re
 
 ## Verificar
 
+Nesta máquina, executar somente inspeção, edição e verificações leves. Os tipos,
+builds, testes, E2E e cargas abaixo rodam no GitHub Actions, conforme a orientação
+do titular. Não executar os gates pesados localmente.
+
+A prova `test:backup-operational` é exclusiva do workflow
+[CLI de backup](../../.github/workflows/recreio-backup-operacional.yml), com banco
+review descartável e bucket de homologação exato. Ela não habilita backup ou
+recuperação de produção. Composição, custódia e limites no
+[runbook operacional](../../docs/recreio/operacao-backup-2026-11-20.md).
+
 ```bash
 pnpm --filter @informach/recreio-app typecheck
 pnpm --filter @informach/recreio-app test              # regras puras, textos, fronteira do acesso, contraste

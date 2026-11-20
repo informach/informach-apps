@@ -1,0 +1,59 @@
+{
+  "source": "5fe5710e28d44d3f04fe1485ba261284c56cdccd",
+  "runId": "44837783170",
+  "status": "passed",
+  "syntheticDataOnly": true,
+  "productionDataTouched": false,
+  "gameContentValidated": false,
+  "sourceDatabaseUnavailableVerified": true,
+  "sourceObjectAbsenceVerified": true,
+  "sourceDatabaseReenabled": true,
+  "cleanupConfirmed": true,
+  "trafficAuthorized": false,
+  "captureId": "589fd2b8-40a1-4e67-9deb-be2a94509622",
+  "captureVerified": true,
+  "archiveBytes": 914596,
+  "cadenceVerified": true,
+  "recovery": {
+    "formato": "recreio-backup-recuperacao-v1",
+    "ok": true,
+    "localCleanupConfirmed": true,
+    "resultado": {
+      "capturaId": "589fd2b8-40a1-4e67-9deb-be2a94509622",
+      "sourceDatabaseCredentialsPresent": false,
+      "backupClientOnlySelectedCaptureRead": true,
+      "trafficAuthorized": false,
+      "backupReadRequests": 7,
+      "rodadas": [
+        {
+          "indice": 1,
+          "recibosAntes": 244,
+          "recibosDepois": 244,
+          "migrationsAplicadas": 0,
+          "recibosOriginaisPreservados": true,
+          "inventarioConferidoAntesDoUpgrade": true,
+          "clusterRemovido": true
+        },
+        {
+          "indice": 2,
+          "recibosAntes": 244,
+          "recibosDepois": 244,
+          "migrationsAplicadas": 0,
+          "recibosOriginaisPreservados": true,
+          "inventarioConferidoAntesDoUpgrade": true,
+          "clusterRemovido": true
+        }
+      ]
+    }
+  },
+  "ownedObjectCount": 4,
+  "evidence": {
+    "workflowRun": "https://github.com/informach/informach-apps/actions/runs/44837783170",
+    "artifactId": 14679741512,
+    "zipBytes": 721,
+    "zipSha256": "853dae2d761910060bc5b5c5e383e3be6040a6d5003ae282d24f704c62377403",
+    "qualityRun": 44837795416,
+    "nativeCaptureRun": 44837787315,
+    "externalColdRun": 44837791237
+  }
+}
