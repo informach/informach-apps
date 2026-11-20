@@ -1,0 +1,28 @@
+{
+  "source": "a7d5aa5eaf7962aed8758f101d3d041e15c251ec",
+  "runId": "44766663038",
+  "runUrl": "https://github.com/informach/informach-apps/actions/runs/44766663038",
+  "qualityRunId": "44766666583",
+  "status": "passed",
+  "visualInspectionCompleted": true,
+  "visualInspectionNote": "Desktop e 390 px legíveis, com avisos do alfa e sem rolagem horizontal. Nenhum jogo montado na ficha.",
+  "artifact": {
+    "id": 14643768237,
+    "zipBytes": 351528,
+    "zipSha256": "3e657437893b5439d6c2eaad7d38d38396c08447a2f1c430df230464dea37de2",
+    "files": [
+      {
+        "name": "ficha-morada-desktop.png",
+        "bytes": 189849,
+        "sha256": "ed38f053cc08f86d8ca1997664041c6a21ed1a7513e7283e051f93a5f206e8d5"
+      },
+      {
+        "name": "ficha-morada-390.png",
+        "bytes": 177249,
+        "sha256": "193c9c641592fa4a849e43a5e7592221545b109c76f613648b368fe2ef3f800a"
+      }
+    ]
+  },
+  "productionDataTouched": false,
+  "deployed": false
+}

@@ -26,7 +26,10 @@ const CLIENTES: Record<string, Carregador> = {
 // `RECREIO_CLIENTE_DE_TESTE`). Num build de produção a condição é falsa na
 // compilação, e o código do jogo de teste nem é empacotado.
 if (process.env.RECREIO_CLIENTE_DE_TESTE === "1") {
-  CLIENTES.teste = () => import("@/features/jogo-de-teste/cliente").then((m) => m.jogoDeTeste);
+  const contador: Carregador = () =>
+    import("@/features/jogo-de-teste/cliente").then((m) => m.jogoDeTeste);
+  CLIENTES.teste = contador;
+  CLIENTES["carga-teste"] = contador;
   CLIENTES["perfil-teste"] = () =>
     import("@/features/jogo-de-perfil/cliente").then((m) => m.jogoDePerfil);
 }

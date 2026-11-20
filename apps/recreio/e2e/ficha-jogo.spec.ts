@@ -49,7 +49,7 @@ test("ficha p√∫blica informa o alfa sem abrir o jogo, funciona em 390 px e mant√
   // requires the native login and the server's own admission checks.
   await page.getByRole("link", { name: "Ir para a estante", exact: true }).click();
   await expect(page).toHaveURL(/\/entrar(?:\?|$)/);
-  for (const id of ["nao-existe", "teste", "perfil-teste"]) {
+  for (const id of ["nao-existe", "teste", "perfil-teste", "carga-teste"]) {
     const resposta = await request.get(`/jogos/${id}`);
     expect(resposta.status()).toBe(404);
     expect(await resposta.text()).not.toContain("Prova de progresso por perfil");

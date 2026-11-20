@@ -18,7 +18,7 @@
  *
  * Lê o mesmo ambiente do portal: `NEXT_PUBLIC_APP_URL`, `RECREIO_HOST_SECRETS`
  * e `RECREIO_GAME_ORIGINS` (do processo ou de `apps/recreio/.env.local`).
- * Nunca roda em produção: o jogo `teste` só existe com `RECREIO_JOGO_DE_TESTE=1`.
+ * Nunca roda em produção: o jogo `teste` só existe com `RECREIO_JOGO_DO_CONTADOR=1`.
  *
  *   pnpm --filter @informach/recreio-app jogo-de-teste
  */
@@ -56,7 +56,19 @@ import {
   PRAZO_PARA_ENTRAR_MS,
   QUADRO_MAX_BYTES,
 } from "../../src/features/jogo-de-teste/protocolo";
-import { JOGO_DE_TESTE, JOGO_DE_TESTE_ID } from "../../src/features/jogos/catalogo";
+import { JOGO_DE_CARGA, JOGO_DE_TESTE } from "../../src/features/jogos/catalogo";
+
+const carga = process.env.RECREIO_CAPACITY_PROBE === "1";
+if (
+  carga &&
+  (process.env.GITHUB_ACTIONS !== "true" ||
+    process.env.CI !== "true" ||
+    process.env.RECREIO_ISOLATED_TEST !== "1")
+)
+  throw new Error("Load host requires isolated GitHub runner");
+const JOGO_DO_CONTADOR = carga ? JOGO_DE_CARGA : JOGO_DE_TESTE;
+const JOGO_DO_CONTADOR_ID = JOGO_DO_CONTADOR.id;
+
 import { PresencasDaInstancia } from "./presencas";
 import { SessoesVisitantesDaInstancia } from "./visitas";
 
@@ -76,13 +88,13 @@ function mapaDoAmbiente(nome: string): Record<string, unknown> {
 
 function configurar() {
   const portal = process.env.NEXT_PUBLIC_APP_URL;
-  const segredo = mapaDoAmbiente("RECREIO_HOST_SECRETS")[JOGO_DE_TESTE_ID];
+  const segredo = mapaDoAmbiente("RECREIO_HOST_SECRETS")[JOGO_DO_CONTADOR_ID];
   const origens = z
     .object({ ws: z.url() })
-    .safeParse(mapaDoAmbiente("RECREIO_GAME_ORIGINS")[JOGO_DE_TESTE_ID]);
+    .safeParse(mapaDoAmbiente("RECREIO_GAME_ORIGINS")[JOGO_DO_CONTADOR_ID]);
   if (!portal || typeof segredo !== "string" || !origens.success)
     throw new Error(
-      `Faltam NEXT_PUBLIC_APP_URL, RECREIO_HOST_SECRETS.${JOGO_DE_TESTE_ID} ou RECREIO_GAME_ORIGINS.${JOGO_DE_TESTE_ID}.ws`,
+      `Faltam NEXT_PUBLIC_APP_URL, RECREIO_HOST_SECRETS.${JOGO_DO_CONTADOR_ID} ou RECREIO_GAME_ORIGINS.${JOGO_DO_CONTADOR_ID}.ws`,
     );
   const publica = new URL(origens.data.ws);
   if (!publica.port) throw new Error("RECREIO_GAME_ORIGINS.teste.ws precisa dizer a porta");
@@ -106,10 +118,10 @@ function registrarNoLog(mensagem: string, dados: Record<string, unknown> = {}): 
 function clienteDoPortal(): ClienteDoHostComVisitas {
   return criarClienteDoHost({
     baseUrl: cfg.origemDoPortal,
-    jogo: JOGO_DE_TESTE_ID,
+    jogo: JOGO_DO_CONTADOR_ID,
     segredo: cfg.segredo,
-    fotografiaMaxBytes: JOGO_DE_TESTE.limites.fotografiaMaxBytes,
-    diarioMaxBytes: JOGO_DE_TESTE.limites.diarioPendenteMaxBytes,
+    fotografiaMaxBytes: JOGO_DO_CONTADOR.limites.fotografiaMaxBytes,
+    diarioMaxBytes: JOGO_DO_CONTADOR.limites.diarioPendenteMaxBytes,
   });
 }
 function produtorDePresencas(cliente: ClienteDoHostComVisitas): PresencasDaInstancia {
@@ -140,7 +152,7 @@ function sincronizarPresencas(apenasEncerramentos = false): void {
 }
 const verificador = criarVerificadorDeSessao({
   emissor: cfg.origemDoPortal,
-  jogo: JOGO_DE_TESTE_ID,
+  jogo: JOGO_DO_CONTADOR_ID,
   jwksUrl: `${cfg.origemDoPortal}/api/sdk/v1/jwks`,
 });
 
@@ -1084,6 +1096,16 @@ for (const sinal of ["SIGINT", "SIGTERM"] as const) process.on(sinal, iniciarDes
 // Windows um sinal encerra o processo na hora, sem chance de descer em ordem.
 process.on("message", (mensagem) => {
   if (mensagem === "descer") iniciarDescida();
+  const pedido = z.strictObject({ tipo: z.literal("medir"), id: z.uuid() }).safeParse(mensagem);
+  if (carga && pedido.success && process.send)
+    process.send({
+      tipo: "medida_contador",
+      id: pedido.data.id,
+      cpu: process.cpuUsage(),
+      rss: process.memoryUsage().rss,
+      mundos: mundos.size,
+      jogadores: [...mundos.values()].reduce((n, m) => n + m.jogadores.size, 0),
+    });
 });
 
 subir().catch((erro: unknown) => {

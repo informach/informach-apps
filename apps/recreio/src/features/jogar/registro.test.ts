@@ -31,6 +31,8 @@ describe("registro dos clientes de jogo", () => {
       expect(carregadorDoJogo("teste")).toBeNull();
       expect(temCliente("perfil-teste")).toBe(false);
       expect(carregadorDoJogo("perfil-teste")).toBeNull();
+      expect(temCliente("carga-teste")).toBe(false);
+      expect(carregadorDoJogo("carga-teste")).toBeNull();
       expect(jogosComCliente()).toEqual(["morada"]);
     },
   );
@@ -43,6 +45,8 @@ describe("registro dos clientes de jogo", () => {
     expect(typeof modulo?.montar).toBe("function");
     expect(temCliente("perfil-teste")).toBe(true);
     expect(typeof (await carregadorDoJogo("perfil-teste")?.())?.montar).toBe("function");
+    expect(temCliente("carga-teste")).toBe(true);
+    expect(typeof (await carregadorDoJogo("carga-teste")?.())?.montar).toBe("function");
   });
 
   it("o Morada tem cliente no portal, com ou sem a opção do jogo de teste", async () => {

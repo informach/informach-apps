@@ -133,7 +133,14 @@ Ficha pública candidata em `/jogos/[jogo]`: editorial/estado/classificação v�
 do catálogo central. Não carregar jogo, autenticação, arte licenciada ou banco
 para renderizá-la. Títulos sintéticos não têm ficha pública. Ler o catálogo
 não concede sessão nem ingresso; a entrada continua na estante e no kernel.
-[Contrato e prova pendente](../../docs/recreio/ficha-publica-jogos-2026-11-20.md).
+[Contrato e provas candidatas](../../docs/recreio/ficha-publica-jogos-2026-11-20.md).
+
+Carga do protocolo em implementação: título `carga-teste` interno com oito
+membros, sem alterar o contador comum de quatro. `e2e:capacity` recusa execução
+fora do GitHub, usa banco descartável e não recebe segredos externos. IPC do
+servidor de prova mede somente CPU/RSS/contagens. Não incluir esse título no
+catálogo público ou tratar o ensaio como capacidade/custo de produção.
+[Plano e limites](../../docs/recreio/capacidade-protocolo-2026-11-20.md).
 
 - `src/app`: rotas e composição. Páginas não importam o banco.
 - `src/features/<área>`: `components/` (telas), `actions.ts` (server actions), `service.ts` (sem Next), `repository.ts` (banco). Lógica pura fica em arquivo próprio, com teste (`estante/catalogo.ts`, `perfis/regras.ts`, `acesso/cobertura.ts`, `acesso/texto.ts`). O que precisa do Next sem ser ação fica em arquivo próprio da área (`sessao/ator.ts`, `sessao/http.ts`).

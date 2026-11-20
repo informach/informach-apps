@@ -1,0 +1,54 @@
+name: Recreio - protocolo com 1 2 4 8 jogadores
+
+on:
+  workflow_call:
+    inputs:
+      seconds:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  protocolo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+      NEXT_TELEMETRY_DISABLED: "1"
+      RECREIO_CAPACITY_SECONDS: ${{ inputs.seconds }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
+      - name: Medir caminho nativo sem credenciais ou servicos externos
+        run: pnpm --filter @informach/recreio-app e2e:capacity
+      - name: Conferir recibo e banco descartavel removido
+        run: pnpm --filter @informach/recreio-app exec tsx scripts/capacidade-conferir.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recreio-capacidade-protocolo-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/recreio/tmp/telas/recreio-capacidade-protocolo.json
+          if-no-files-found: error
+          retention-days: 30

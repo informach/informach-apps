@@ -14,8 +14,13 @@ on:
       verification_gate:
         description: Verificação auxiliar; somente all qualifica a rodada completa
         type: choice
-        options: [all, quality, integration, rights, rights-ui, catalog-ui, backup-capture, commercial-reconciliation, commercial-ui]
+        options: [all, quality, integration, rights, rights-ui, catalog-ui, capacity, backup-capture, commercial-reconciliation, commercial-ui]
         default: all
+      capacity_seconds:
+        description: Segundos reais por cenario de protocolo (somente no GitHub)
+        type: choice
+        options: ["60", "120", "180"]
+        default: "60"
       sandbox_catalog:
         description: Conferir catálogo real no Stripe Sandbox (sem clientes ou cobranças)
         type: boolean
@@ -90,6 +95,11 @@ jobs:
       RECREIO_S3_TEST_PATH_STYLE: ${{ secrets.RECREIO_S3_TEST_PATH_STYLE }}
       RECREIO_S3_TEST_ACCESS_KEY: ${{ secrets.RECREIO_S3_TEST_ACCESS_KEY }}
       RECREIO_S3_TEST_SECRET_KEY: ${{ secrets.RECREIO_S3_TEST_SECRET_KEY }}
+  capacity-proof:
+    if: github.event_name == 'workflow_dispatch' && !inputs.account_closure_probe && inputs.verification_gate == 'capacity'
+    uses: ./.github/workflows/recreio-capacidade.yml
+    with:
+      seconds: ${{ inputs.capacity_seconds }}
   sandbox-catalog:
     if: github.event_name == 'workflow_dispatch' && !inputs.account_closure_probe && inputs.sandbox_catalog && !inputs.sandbox_journey && !inputs.sandbox_plans
     name: Recreio / catálogo Stripe Sandbox real
@@ -215,7 +225,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   verify:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.account_closure_probe && !inputs.sandbox_catalog && !inputs.sandbox_journey && !inputs.sandbox_plans)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.account_closure_probe && !inputs.sandbox_catalog && !inputs.sandbox_journey && !inputs.sandbox_plans && inputs.verification_gate != 'capacity')
     name: Recreio / ${{ matrix.gate }}
     runs-on: ubuntu-latest
     timeout-minutes: 45

@@ -14,7 +14,9 @@ A normalização offline eebafa8b invalida sete fontes de convites pendentes,
 preserva histórias encerradas e prazos originais; bucket real/cluster frio
 44765446054 passou com limpeza dos quatro objetos. Não reaplica direitos F7 nem
 admite tráfego restaurado. [Contrato](recreio/normalizacao-recuperacao-2026-11-19.md).
-Nova ficha pública dos jogos está em implementação, ainda sem gate. Produção
+Ficha pública a7d5aa5e passou navegador 44766663038 e qualidade 44766666583;
+capturas desktop/390 px inspecionadas. Carga HTTP/PG/WS 1/2/4/8 com título interno
+está em implementação e ainda sem prova; [plano](recreio/capacidade-protocolo-2026-11-20.md). Produção
 continua no alfa fechado e sem estas novas capacidades. Testes humanos no final.
 
 **20/11 — Recreio, retenção técnica comprovada na interface:** 04dd3987 passou

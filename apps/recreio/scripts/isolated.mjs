@@ -36,6 +36,7 @@ if (
     "e2e-commercial-setup",
     "e2e-commercial-plans",
     "e2e-account-closure",
+    "e2e-capacidade",
     "e2e-stripe-sandbox",
     "e2e-trial-setup",
     "e2e-trial-experiment",
@@ -45,7 +46,7 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, backup-capture, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-account-closure, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, backup-capture, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-account-closure, e2e-capacidade, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const backupCapture = mode === "backup-capture";
@@ -54,6 +55,14 @@ const commercialSetup = mode === "commercial-setup";
 const commercialReconciliation = mode === "commercial-reconciliation";
 const jornadaDasTrocas = mode === "e2e-commercial-plans";
 const jornadaDoEncerramento = mode === "e2e-account-closure";
+const capacidade = mode === "e2e-capacidade";
+if (
+  capacidade &&
+  (process.env.GITHUB_ACTIONS !== "true" ||
+    process.env.CI !== "true" ||
+    process.env.GITHUB_REPOSITORY !== "informach/informach-apps")
+)
+  throw new Error("Protocol load runs only on the repository's GitHub runner");
 const commercialCheckout =
   mode === "commercial-checkout" || commercialReconciliation || jornadaDasTrocas;
 const jornadaDaCompra = mode === "e2e-commercial-setup";
@@ -64,6 +73,7 @@ const versoes = mode === "versoes";
 const equipe = mode === "equipe";
 const e2e =
   mode === "e2e" ||
+  capacidade ||
   versoes ||
   equipe ||
   jornadaDoTeste ||
@@ -200,7 +210,11 @@ const testEnv = {
   // com o segredo e o endereço daqui.
   RECREIO_HOST_SECRETS: JSON.stringify(
     e2e
-      ? { teste: randomBytes(32).toString("hex"), morada: randomBytes(32).toString("hex") }
+      ? {
+          teste: randomBytes(32).toString("hex"),
+          morada: randomBytes(32).toString("hex"),
+          ...(capacidade ? { "carga-teste": randomBytes(32).toString("hex") } : {}),
+        }
       : {
           morada: randomBytes(32).toString("hex"),
           "jogo-de-teste": randomBytes(32).toString("hex"),
@@ -210,6 +224,7 @@ const testEnv = {
     e2e
       ? {
           teste: { ws: `ws://localhost:${gamePort}` },
+          ...(capacidade ? { "carga-teste": { ws: `ws://localhost:${gamePort}` } } : {}),
           morada: {
             ws: `ws://localhost:${moradaPort}`,
             ...(artDir ? { assets: `http://localhost:${moradaPort}` } : {}),
@@ -218,6 +233,7 @@ const testEnv = {
       : { morada: { ws: "ws://localhost:3010" }, "jogo-de-teste": { ws: "ws://localhost:3011" } },
   ),
   RECREIO_JOGO_DE_TESTE: e2e ? "1" : "0",
+  RECREIO_CAPACITY_PROBE: capacidade ? "1" : "0",
   CRON_SECRET: randomBytes(32).toString("hex"),
   RECREIO_E2E_RUN_ID: e2eRunId,
   RECREIO_E2E_PORT: e2ePort,
@@ -409,6 +425,7 @@ try {
           ...(jornadaDasTrocas ? ["--config", "playwright.trocas.config.ts"] : []),
           ...(jornadaStripe ? ["--config", "playwright.stripe-sandbox.config.ts"] : []),
           ...(jornadaDoEncerramento ? ["--config", "playwright.encerramento.config.ts"] : []),
+          ...(capacidade ? ["--config", "playwright.capacidade.config.ts"] : []),
           ...process.argv.slice(3),
         ],
         app,

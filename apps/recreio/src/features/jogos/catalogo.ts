@@ -11,6 +11,7 @@ export type ManifestoDoJogo = Omit<GameManifest, "id"> & { id: string };
 
 export const JOGO_DE_TESTE_ID = "teste";
 export const JOGO_DE_PERFIL_ID = "perfil-teste";
+export const JOGO_DE_CARGA_ID = "carga-teste";
 
 /**
  * O jogo de teste: um contador por mundo, com a lista de quem está presente.
@@ -50,13 +51,14 @@ export const JOGO_DE_TESTE: ManifestoDoJogo = {
 
 /** Os jogos deste deploy, na ordem do catálogo público; o de teste vem por último. */
 export function catalogoDosJogos(comJogoDeTeste: boolean): readonly ManifestoDoJogo[] {
-  return comJogoDeTeste ? [...JOGOS, JOGO_DE_TESTE, JOGO_DE_PERFIL] : JOGOS;
+  return comJogoDeTeste ? [...JOGOS, JOGO_DE_TESTE, JOGO_DE_PERFIL, JOGO_DE_CARGA] : JOGOS;
 }
 
 /** O manifesto de um jogo deste deploy, ou `null`. Com a opção desligada, `teste` não existe. */
 export function manifestoNoCatalogo(jogo: string, comJogoDeTeste: boolean): ManifestoDoJogo | null {
   if (comJogoDeTeste && jogo === JOGO_DE_TESTE_ID) return JOGO_DE_TESTE;
   if (comJogoDeTeste && jogo === JOGO_DE_PERFIL_ID) return JOGO_DE_PERFIL;
+  if (comJogoDeTeste && jogo === JOGO_DE_CARGA_ID) return JOGO_DE_CARGA;
   return jogoPorId(jogo);
 }
 
@@ -78,4 +80,14 @@ export const JOGO_DE_PERFIL: ManifestoDoJogo = {
   conquistas: ["primeiro-ponto"],
   classificacao: { faixa: "L", descritores: [], interacoes: [] },
   limites: { ...JOGO_DE_TESTE.limites, mundosCriadosPorPerfil: 0 },
+};
+
+/** Independent protocol benchmark, not a new public title or a change to the
+ * four-member counter fixture. Eight native members use the normal kernel. */
+export const JOGO_DE_CARGA: ManifestoDoJogo = {
+  ...JOGO_DE_TESTE,
+  id: JOGO_DE_CARGA_ID,
+  nome: "Prova de carga",
+  rota: "/jogar/carga-teste",
+  capacidades: { ...JOGO_DE_TESTE.capacidades, mundos: { membrosMax: 8 } },
 };
