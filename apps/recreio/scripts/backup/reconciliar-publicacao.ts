@@ -44,7 +44,7 @@ export async function reconciliarPublicacaoDoBackup(config: {
     };
   }
   await conferirExecucaoDoBackup(execucao);
-  const reservasLiberadas = await liberarReservasPublicadas(config.capturaId);
+  const reservasLiberadas = await liberarReservasPublicadas(config.capturaId, publicacao.destino);
   await conferirExecucaoDoBackup(execucao);
   return { situacao: "publicada" as const, capturaId: config.capturaId, reservasLiberadas };
 }

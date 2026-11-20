@@ -213,7 +213,7 @@ it(
               Buffer.from(pendente?.index_body),
             ),
           ).toBe(true);
-          await expect(liberarReservasPublicadas(ref.contexto.id)).rejects.toMatchObject({
+          await expect(liberarReservasPublicadas(ref.contexto.id, destino)).rejects.toMatchObject({
             codigo: "ESTADO",
           });
         } finally {
@@ -256,7 +256,7 @@ it(
           situacao: "executada",
           valor: { situacao: "publicada", capturaId: ref.contexto.id, reservasLiberadas: 1 },
         });
-        expect(await liberarReservasPublicadas(ref.contexto.id)).toBe(0);
+        expect(await liberarReservasPublicadas(ref.contexto.id, destino)).toBe(0);
         const [controle] = await fonte`select c.state as captura,p.state as publicacao,
           (select count(*)::int from recreio.backup_object_holds h where h.capture_id=c.id and h.released_at is null) as ativas
           from recreio.backup_captures c join recreio.backup_publications p on p.capture_id=c.id where c.id=${ref.contexto.id}`;

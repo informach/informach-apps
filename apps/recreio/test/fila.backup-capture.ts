@@ -10,10 +10,12 @@ import {
   assumirPublicacao,
   confirmarArquivoGuardado,
   confirmarPublicacao,
+  liberarReservasPublicadas,
   prepararIndiceDuravel,
   prepararPublicacao,
 } from "../scripts/backup/publicacao-repository";
 import {
+  assumirRetirada,
   confirmarAusenciaDoBackup,
   confirmarMarcadorGuardado,
   lerRetirada,
@@ -53,6 +55,31 @@ async function consultar(f: Awaited<ReturnType<typeof nova>>) {
 }
 
 describe("bounded native backup queues (SQL/control fixtures; not external archive verification)", () => {
+  it("refuses a scanner ID with another destination before changing controls or releasing holds", async () => {
+    const f = await nova(1);
+    const badPhotos = { ...f.foto, bucketId: randomUUID() };
+    let antes = await controle();
+    await expect(abandonarCapturaSemArquivo(f.id, badPhotos)).rejects.toMatchObject({
+      codigo: "CONFIGURACAO",
+    });
+    await expect(liberarReservasSemArquivo(f.id, badPhotos)).rejects.toMatchObject({
+      codigo: "CONFIGURACAO",
+    });
+    expect(await controle()).toEqual(antes);
+    await prepararPublicacao(f.config);
+    const badArchive = { ...f.destino, bucketName: "foreign-native-archive" };
+    antes = await controle();
+    await expect(liberarReservasPublicadas(f.id, badArchive)).rejects.toMatchObject({
+      codigo: "CONFIGURACAO",
+    });
+    expect(await controle()).toEqual(antes);
+    await prepararRetirada(f.id, "abandonado", f.indice);
+    antes = await controle();
+    await expect(assumirRetirada(f.id, badArchive)).rejects.toMatchObject({
+      codigo: "CONFIGURACAO",
+    });
+    expect(await controle()).toEqual(antes);
+  });
   it("scopes unsealed/abandoned holds to the exact original destination and preserves every control row", async () => {
     const f = await nova(1);
     expect(await consultar(f)).toEqual({ ...vazia, semArquivo: [{ id: f.id }] });
@@ -67,9 +94,9 @@ describe("bounded native backup queues (SQL/control fixtures; not external archi
         arquivos: f.destino,
       }),
     ).rejects.toMatchObject({ codigo: "CONFIGURACAO" });
-    await abandonarCapturaSemArquivo(f.id);
+    await abandonarCapturaSemArquivo(f.id, f.foto);
     expect(await consultar(f)).toEqual({ ...vazia, reservasAbandonadas: [{ id: f.id }] });
-    expect(await liberarReservasSemArquivo(f.id)).toBe(1);
+    expect(await liberarReservasSemArquivo(f.id, f.foto)).toBe(1);
     expect(await consultar(f)).toEqual(vazia);
   });
 

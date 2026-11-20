@@ -12,7 +12,10 @@ import {
 import { z } from "zod";
 import { type DestinoDeCaptura, DestinoDeCapturaSchema } from "@/features/backup/contrato";
 import { AGORA, type Transacao } from "@/lib/repository";
-import { travarCapturaDeBackup as travarCaptura } from "./controle-repository";
+import {
+  conferirDestinoDoControle,
+  travarCapturaDeBackup as travarCaptura,
+} from "./controle-repository";
 import { FalhaDaPublicacao } from "./falha-controle";
 
 export { FalhaDaPublicacao } from "./falha-controle";
@@ -198,12 +201,7 @@ export async function assumirPublicacao(id: string, destino: DestinoDeCaptura) {
   return db.transaction(async (tx) => {
     const c = await travarCaptura(tx, id),
       p = await travarPublicacao(tx, c);
-    exigir(
-      p.bucketId === alvo.data.bucketId &&
-        p.bucketName === alvo.data.bucketName &&
-        p.storageScope === alvo.data.escopo,
-      "CONFIGURACAO",
-    );
+    conferirDestinoDoControle(p, alvo.data);
     exigir(p.state !== "published", "ESTADO");
     const [r] = await tx
       .select({ ocupada: sql<boolean>`${publications.leaseUntil}>clock_timestamp()` })
@@ -383,10 +381,11 @@ export async function confirmarPublicacao(bruto: TentativaDePublicacao, confirma
 }
 /** Lote limitado e repetível. Publicações antigas sem este controle não
  * satisfazem a prova. Não toma travas de mundo/entrega nem faz DELETE. */
-export async function liberarReservasPublicadas(id: string) {
+export async function liberarReservasPublicadas(id: string, destino: DestinoDeCaptura) {
   return db.transaction(async (tx) => {
     const c = await travarCaptura(tx, id),
       p = await travarPublicacao(tx, c);
+    conferirDestinoDoControle(p, destino);
     exigir(c.state === "verified" && p.state === "published", "ESTADO");
     indicePersistido(p);
     const lote = await tx

@@ -197,3 +197,26 @@ com temporários e serviço removidos. A proveniência exata dos SQLs originais
 foi encontrada no Git; não reescrever recibos nem reintroduzir DROP antigo
 na pasta executável. Perfil histórico explícito e nova prova sintética/real
 seguem em [upgrade privado](upgrade-privado-2026-11-20.md).
+
+
+## Passada operacional de reconciliação em candidata
+
+O scanner a6390c22 passou qualidade/captura/cluster
+44825578790/44825582709/44825587037. A composição seguinte exige capacidade
+real de executor durante toda a passada. Cada escritor reconfere o destino
+persistido sob sua trava; um ID de scanner não concede autoridade sobre outro
+bucket. Assumir retirada, abandonar captura e liberar reservas publicadas/sem
+arquivo recebem destino completo obrigatório, sem parâmetro opcional legado.
+
+Cada publicação recebe oito arquivos novos privados, com nomes fixos, sem
+caminho de entrada livre; propriedade, modo, inode e raiz /tmp conferidos.
+Encerramento/remoção são aguardados; falha de callback é preservada e falha de
+limpeza faz o job falhar. Não truncar saída preexistente para aceitá-la.
+
+A passada retoma os protocolos nativos e limita cada fase à fila existente.
+Falha de um item fica durável, permite progresso de outro e faz a passada
+inteira falhar; perda/expiração da posse impede iniciar outro item. Não há
+nova captura, decisão de retenção ou autorização de tráfego nesta função.
+Regressões preparadas usam arquivos reais, auditoria estrita e HTTP fechado;
+a prova do arquivo presente continua nos gates de captura/restauração.
+Ambiente/credenciais, custódia e cron ainda precisam da composição final.

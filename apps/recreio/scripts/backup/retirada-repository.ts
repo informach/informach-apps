@@ -12,7 +12,11 @@ import {
 import { z } from "zod";
 import { type DestinoDeCaptura, DestinoDeCapturaSchema } from "@/features/backup/contrato";
 import { AGORA, type Transacao } from "@/lib/repository";
-import { limitarControleDoBackup, travarCapturaDeBackup } from "./controle-repository";
+import {
+  conferirDestinoDoControle,
+  limitarControleDoBackup,
+  travarCapturaDeBackup,
+} from "./controle-repository";
 import { FalhaDaPublicacao } from "./falha-controle";
 import type { criarIndiceDeRecuperacao, RetiradaDoBackup } from "./indice-recuperacao";
 
@@ -145,7 +149,7 @@ export async function prepararRetirada(id: string, motivo: z.infer<typeof Motivo
     return { capturaId: id, tentativa };
   });
 }
-export async function assumirRetirada(id: string) {
+export async function assumirRetirada(id: string, destino: DestinoDeCaptura) {
   return db.transaction(async (tx) => {
     const b = await travarRetirada(tx, id),
       [r] = await tx
@@ -155,6 +159,7 @@ export async function assumirRetirada(id: string) {
         })
         .from(retirements)
         .where(eq(retirements.captureId, id));
+    conferirDestinoDoControle(b.p, destino);
     exigir(r?.livre && r.devida, "OCUPADA");
     const tentativa = randomUUID();
     await tx

@@ -96,12 +96,14 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
   it("abandono sem arquivo é repetível e só depois libera reservas", async () => {
     const f = await fixture("qualification", 1);
     limpezas.push(async () => f.indice.encerrar());
-    await expect(liberarReservasSemArquivo(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
-    await abandonarCapturaSemArquivo(f.id);
-    await abandonarCapturaSemArquivo(f.id);
+    await expect(liberarReservasSemArquivo(f.id, f.foto)).rejects.toMatchObject({
+      codigo: "ESTADO",
+    });
+    await abandonarCapturaSemArquivo(f.id, f.foto);
+    await abandonarCapturaSemArquivo(f.id, f.foto);
     expect(await totalAtivas(f.id)).toBe(1);
-    expect(await liberarReservasSemArquivo(f.id)).toBe(1);
-    expect(await liberarReservasSemArquivo(f.id)).toBe(0);
+    expect(await liberarReservasSemArquivo(f.id, f.foto)).toBe(1);
+    expect(await liberarReservasSemArquivo(f.id, f.foto)).toBe(0);
     expect(await db.select().from(holds).where(eq(holds.captureId, f.id))).toMatchObject([
       { releaseReason: "abandoned" },
     ]);
@@ -111,19 +113,23 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     const f = await fixture();
     limpezas.push(async () => f.indice.encerrar());
     await db.update(captures).set({ protocolVersion: 0 }).where(eq(captures.id, f.id));
-    await expect(abandonarCapturaSemArquivo(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
+    await expect(abandonarCapturaSemArquivo(f.id, f.foto)).rejects.toMatchObject({
+      codigo: "ESTADO",
+    });
     await expect(prepararPublicacao(f.config)).rejects.toMatchObject({ codigo: "ESTADO" });
   });
   it("arquivo admitido exige retirada, nunca abandono sem arquivo", async () => {
     const f = await selada();
-    await expect(abandonarCapturaSemArquivo(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
+    await expect(abandonarCapturaSemArquivo(f.id, f.foto)).rejects.toMatchObject({
+      codigo: "ESTADO",
+    });
     expect(await totalAtivas(f.id)).toBe(1);
   });
   it("falha de auditoria reverte abandono e conserva reservas", async () => {
     const f = await fixture("qualification", 1);
     limpezas.push(async () => f.indice.encerrar());
     await recusarAudit("recreio.backup_unsealed_abandoned", async () => {
-      await expect(abandonarCapturaSemArquivo(f.id)).rejects.toMatchObject({
+      await expect(abandonarCapturaSemArquivo(f.id, f.foto)).rejects.toMatchObject({
         name: "AuditPersistenceError",
       });
     });
@@ -146,7 +152,9 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     await expect(lerTentativaDePublicacao(f.t)).rejects.toMatchObject({ codigo: "ESTADO" });
     await expect(assumirPublicacao(f.id, f.destino)).rejects.toMatchObject({ codigo: "ESTADO" });
     await expect(confirmarPublicacao(f.t, f.bytes)).rejects.toMatchObject({ codigo: "ESTADO" });
-    await expect(liberarReservasPublicadas(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
+    await expect(liberarReservasPublicadas(f.id, f.destino)).rejects.toMatchObject({
+      codigo: "ESTADO",
+    });
     expect(await totalAtivas(f.id)).toBe(1);
   });
   it("retenção não se aplica a captura que nunca foi publicada/verificada", async () => {
@@ -187,7 +195,7 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     await expect(confirmarMarcadorGuardado(t, r.bytes, f.indice)).rejects.toMatchObject({
       codigo: "TENTATIVA",
     });
-    const novo = await assumirRetirada(f.id);
+    const novo = await assumirRetirada(f.id, f.destino);
     expect(novo.tentativa).not.toBe(t.tentativa);
     expect((await lerRetirada(novo, f.indice)).bytes.equals(r.bytes)).toBe(true);
     await expect(lerRetirada(t, f.indice)).rejects.toMatchObject({ codigo: "TENTATIVA" });
@@ -248,7 +256,7 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     );
     f.b.objetos.set(f.path, Buffer.from("PUT_TARDIO"));
     await expirar(f.id);
-    const nova = await assumirRetirada(f.id);
+    const nova = await assumirRetirada(f.id, f.destino);
     await retirarCapturaGuardada({
       tentativa: nova,
       indice: f.indice,
@@ -309,7 +317,7 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     expect(f.b.pedidos.slice(antes).some((p) => p.metodo === "DELETE")).toBe(false);
     f.b.estado.perderPut = false;
     await expirar(f.id);
-    const nova = await assumirRetirada(f.id);
+    const nova = await assumirRetirada(f.id, f.destino);
     await retirarCapturaGuardada({
       tentativa: nova,
       indice: f.indice,
@@ -327,7 +335,7 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     await expirar(f.id);
     expect(await listarRetiradasDevidas(f.destino)).toEqual([{ id: f.id }]);
     expect(await listarRetiradasDevidas({ ...f.destino, bucketName: "outro-backup" })).toEqual([]);
-    const nova = await assumirRetirada(f.id);
+    const nova = await assumirRetirada(f.id, f.destino);
     await expect(reagendarRetirada(t)).rejects.toMatchObject({ codigo: "TENTATIVA" });
     expect((await lerRetirada(nova, f.indice)).estado).toBe("prepared");
     expect(await listarRetiradasDevidas(f.destino)).toEqual([]);
@@ -347,14 +355,14 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
   it("falha de auditoria da liberação conserva a reserva abandonada", async () => {
     const f = await fixture("qualification", 1);
     limpezas.push(async () => f.indice.encerrar());
-    await abandonarCapturaSemArquivo(f.id);
+    await abandonarCapturaSemArquivo(f.id, f.foto);
     await recusarAudit("recreio.backup_abandoned_holds_released", async () => {
-      await expect(liberarReservasSemArquivo(f.id)).rejects.toMatchObject({
+      await expect(liberarReservasSemArquivo(f.id, f.foto)).rejects.toMatchObject({
         name: "AuditPersistenceError",
       });
     });
     expect(await totalAtivas(f.id)).toBe(1);
-    expect(await liberarReservasSemArquivo(f.id)).toBe(1);
+    expect(await liberarReservasSemArquivo(f.id, f.foto)).toBe(1);
   });
   it.each([
     "recreio.backup_retirement_prepared",
@@ -389,7 +397,7 @@ describe("abandono/retirada: controle nativo; payload sintético sem alegar dump
     ).toBe(evento.endsWith("marked") ? "prepared" : "marked");
     expect(await totalAtivas(f.id)).toBe(1);
     await expirar(f.id);
-    const nova = await assumirRetirada(f.id);
+    const nova = await assumirRetirada(f.id, f.destino);
     await retirarCapturaGuardada({
       tentativa: nova,
       indice: f.indice,

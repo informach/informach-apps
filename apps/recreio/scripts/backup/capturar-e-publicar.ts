@@ -110,7 +110,7 @@ export async function capturarEPublicarBackup(config: {
   // One bounded batch. Remaining holds are safe and belong to the reconciler;
   // publication success never implies an unbounded cleanup completed.
   await conferirExecucaoDoBackup(config.execucao);
-  const reservasLiberadas = await liberarReservasPublicadas(captura.capturaId);
+  const reservasLiberadas = await liberarReservasPublicadas(captura.capturaId, destino);
   await conferirExecucaoDoBackup(config.execucao);
   return { capturaId: captura.capturaId, publicada: true as const, reservasLiberadas };
 }

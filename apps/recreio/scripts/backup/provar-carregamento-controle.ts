@@ -1,4 +1,5 @@
 import { abandonarCapturaSemArquivo, liberarReservasSemArquivo } from "./abandono-repository";
+import { comArquivosPrivadosDoBackup } from "./arquivos-privados";
 import { capturarEPublicarBackup } from "./capturar-e-publicar";
 import { listarPendenciasDoBackup } from "./fila-repository";
 import { exigir } from "./provas-arquivos";
@@ -7,6 +8,7 @@ import {
   confirmarPublicacao,
   prepararPublicacao,
 } from "./publicacao-repository";
+import { reconciliarFilaDoBackup } from "./reconciliar-fila";
 import { reconciliarPublicacaoDoBackup } from "./reconciliar-publicacao";
 import {
   assumirRetirada,
@@ -29,6 +31,8 @@ export function provarCarregamentoDoControle() {
     [
       reconciliarPublicacaoDoBackup,
       listarPendenciasDoBackup,
+      reconciliarFilaDoBackup,
+      comArquivosPrivadosDoBackup,
       capturarEPublicarBackup,
       abandonarCapturaSemArquivo,
       liberarReservasSemArquivo,

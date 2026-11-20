@@ -77,7 +77,9 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
         indice: null,
       });
       expect(await estados(f.id)).toEqual({ captura: "sealed", publicacao: "prepared", ativas: 0 });
-      await expect(liberarReservasPublicadas(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
+      await expect(liberarReservasPublicadas(f.id, f.destino)).rejects.toMatchObject({
+        codigo: "ESTADO",
+      });
       await expect(assumirPublicacao(f.id, f.destino)).rejects.toMatchObject({ codigo: "OCUPADA" });
     } finally {
       f.indice.encerrar();
@@ -231,7 +233,9 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
         publicacao: "index_prepared",
         ativas: 1,
       });
-      await expect(liberarReservasPublicadas(f.id)).rejects.toMatchObject({ codigo: "ESTADO" });
+      await expect(liberarReservasPublicadas(f.id, f.destino)).rejects.toMatchObject({
+        codigo: "ESTADO",
+      });
       await confirmarPublicacao(f.t, f.bytes);
       await confirmarPublicacao(f.t, f.bytes);
       expect(await estados(f.id)).toEqual({
@@ -239,8 +243,8 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
         publicacao: "published",
         ativas: 1,
       });
-      expect(await liberarReservasPublicadas(f.id)).toBe(1);
-      expect(await liberarReservasPublicadas(f.id)).toBe(0);
+      expect(await liberarReservasPublicadas(f.id, f.destino)).toBe(1);
+      expect(await liberarReservasPublicadas(f.id, f.destino)).toBe(0);
     } finally {
       f.indice.encerrar();
     }
@@ -274,10 +278,13 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
       await confirmarPublicacao(f.t, f.bytes);
       expect(
         (
-          await Promise.all([liberarReservasPublicadas(f.id), liberarReservasPublicadas(f.id)])
+          await Promise.all([
+            liberarReservasPublicadas(f.id, f.destino),
+            liberarReservasPublicadas(f.id, f.destino),
+          ])
         ).sort((a, b) => a - b),
       ).toEqual([1, 100]);
-      expect(await liberarReservasPublicadas(f.id)).toBe(0);
+      expect(await liberarReservasPublicadas(f.id, f.destino)).toBe(0);
       const [r] = await db.execute<{ n: number; validas: number }>(
         sql`select count(*)::int as n,count(*) filter(where released_at is not null and release_reason='stored_archive')::int as validas from recreio.backup_object_holds where capture_id=${f.id}`,
       );
@@ -319,12 +326,12 @@ describe("publicação durável: PostgreSQL real, sem alegar I/O de provedor", (
       });
       await confirmarPublicacao(f.t, f.bytes);
       await auditoriaRecusada("recreio.backup_holds_released", async () => {
-        await expect(liberarReservasPublicadas(f.id)).rejects.toMatchObject({
+        await expect(liberarReservasPublicadas(f.id, f.destino)).rejects.toMatchObject({
           name: "AuditPersistenceError",
         });
       });
       expect((await estados(f.id))?.ativas).toBe(1);
-      expect(await liberarReservasPublicadas(f.id)).toBe(1);
+      expect(await liberarReservasPublicadas(f.id, f.destino)).toBe(1);
     } finally {
       f.indice.encerrar();
     }

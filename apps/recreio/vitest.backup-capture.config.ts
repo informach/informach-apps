@@ -5,5 +5,12 @@ import integration from "./vitest.integration.config";
 // ser filtradas do protocolo de backup só para tornar o teste verde.
 export default defineConfig({
   ...integration,
-  test: { ...integration.test, include: ["test/**/*.backup-capture.ts"] },
+  test: {
+    ...integration.test,
+    include: [
+      "test/**/*.backup-capture.ts",
+      "test/backup-publicacao.integration.ts",
+      "test/backup-retirada.integration.ts",
+    ],
+  },
 });

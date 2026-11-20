@@ -7,16 +7,20 @@ import {
   recreioBackupPublications as publications,
 } from "@informach/db/schema";
 import { z } from "zod";
-import { BARREIRA_CAPTURA_COLETA } from "@/features/backup/contrato";
+import { BARREIRA_CAPTURA_COLETA, type DestinoDeCaptura } from "@/features/backup/contrato";
 import { AGORA, codigoDoPostgres } from "@/lib/repository";
-import { limitarControleDoBackup, travarCapturaDeBackup } from "./controle-repository";
+import {
+  conferirDestinoDoControle,
+  limitarControleDoBackup,
+  travarCapturaDeBackup,
+} from "./controle-repository";
 import { FalhaDaPublicacao } from "./falha-controle";
 
 /** Exclusivo do protocolo que persiste referência ANTES de I/O. Não serve para
  * conciliar legacy ou habilitar jobs sobre banco recuperado sem normalização.
  * Barreira EXCLUSIVA precede captura: esperar/falhar, nunca abandonar uma visão
  * ainda coordenada e liberar a reserva enquanto o writer pode admitir PUT. */
-export async function abandonarCapturaSemArquivo(id: string) {
+export async function abandonarCapturaSemArquivo(id: string, destino: DestinoDeCaptura) {
   if (!z.uuid().safeParse(id).success) throw new FalhaDaPublicacao("CONFIGURACAO");
   try {
     return await db.transaction(async (tx) => {
@@ -25,6 +29,7 @@ export async function abandonarCapturaSemArquivo(id: string) {
         sql`select pg_advisory_xact_lock(${BARREIRA_CAPTURA_COLETA.grupo},${BARREIRA_CAPTURA_COLETA.chave})`,
       );
       const c = await travarCapturaDeBackup(tx, id);
+      conferirDestinoDoControle(c, destino);
       if (c.protocolVersion !== 1 || c.sealedAt !== null || c.verifiedAt !== null)
         throw new FalhaDaPublicacao("ESTADO");
       const [p] = await tx
@@ -53,12 +58,13 @@ export async function abandonarCapturaSemArquivo(id: string) {
 }
 /** Abandono confirmado não expira/apaga o recibo. Batches conservam o limite e
  * não tocam em mundo/entrega. Arquivo selado usa outro protocolo de retirada. */
-export async function liberarReservasSemArquivo(id: string) {
+export async function liberarReservasSemArquivo(id: string, destino: DestinoDeCaptura) {
   if (!z.uuid().safeParse(id).success) throw new FalhaDaPublicacao("CONFIGURACAO");
   return db.transaction(async (tx) => {
     await tx.execute(sql`select set_config('lock_timeout','5000ms',true),
       set_config('statement_timeout','15000ms',true),set_config('transaction_timeout','30000ms',true)`);
     const c = await travarCapturaDeBackup(tx, id);
+    conferirDestinoDoControle(c, destino);
     if (
       c.protocolVersion !== 1 ||
       c.state !== "abandoned" ||
