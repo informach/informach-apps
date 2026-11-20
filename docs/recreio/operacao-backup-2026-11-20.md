@@ -122,3 +122,11 @@ NoSuchKey com tombstone/ausência e PUT tardio recusado; acesso negado, bucket
 ausente e ciphertext corrompido devem preservar reservas e não emitir retirada.
 Essas negativas não declaram dump autossuficiente; o caso de objeto presente
 continua a restauração SQL/foto real da prova fria. Gates pendentes.
+
+
+a94129a9 foi recusada no cluster 44819780557: a fixture tardia recolocava
+só ciphertext, sem manifesto, e a leitura corretamente parava em manifesto
+ausente antes de conferir o tombstone. A correção acrescenta manifesto tardio
+assinado de protocolo MAC, sem criar confirmação SQL/verificação de arquivo.
+O teste continua exigindo RETIRADO, agora com ambos os objetos tardios; não
+aceita uma lista genérica de erros para passar. Não há mudança no leitor nativo.

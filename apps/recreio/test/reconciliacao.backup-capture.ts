@@ -105,6 +105,23 @@ async function cenario(tipo: "ausente" | "negado" | "bucket_ausente" | "corrompi
         const tarde = Buffer.alloc(ref.bytesCifrados);
         await cifrado.read(tarde, 0, tarde.length, 0);
         http.objetos.set(path, tarde);
+        // A signed late publication is a MAC-protocol fixture, not an actual
+        // file-verification receipt or native confirmation in the database.
+        const instante = new Date().toISOString();
+        http.objetos.set(
+          `/${f.destino.bucketName}/recreio/v1/backup/${f.id}/manifesto.json`,
+          f.indice.assinar({
+            tipo: "publicado",
+            capturaId: f.id,
+            destino: f.destino,
+            source: f.config.source,
+            iniciadaEm: instante,
+            conferidaEm: instante,
+            arquivo: ref,
+            composto,
+            inventario: { quantidade: 1, bytesCifrados: 100, sha256: f.config.arquivo.sha256 },
+          }),
+        );
         await expect(indices.recuperar(f.id)).rejects.toMatchObject({ codigo: "RETIRADO" });
         expect(
           http.pedidos.some(
