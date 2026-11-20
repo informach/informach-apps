@@ -5,6 +5,8 @@ import {
   customers,
   recreioDeviceSessions as devices,
   recreioPersonalExports as exports,
+  recreioEntitlements as grants,
+  recreioGroups as groups,
   recreioAccountParticipations as participations,
   recreioProfiles as profiles,
   sessions,
@@ -80,6 +82,74 @@ async function cenario(
 }
 
 describe("direitos: artefato temporário pessoal", () => {
+  it("inclui todas as concessões do próprio grupo mesmo sem jogador, sem emitir dados da equipe ou de outro grupo", async () =>
+    cenario(async (f) => {
+      const a = await semJogador(),
+        b = await semJogador();
+      const [ga] = await db.insert(groups).values({ ownerUserId: a.conta.id }).returning();
+      const [gb] = await db.insert(groups).values({ ownerUserId: b.conta.id }).returning();
+      if (!ga || !gb) throw new Error("Commercial group absent");
+      const [alheia] = await db
+        .insert(grants)
+        .values({
+          groupId: gb.id,
+          kind: "courtesy",
+          tier: "family",
+          startsAt: new Date("2020-01-01T00:00:00Z"),
+          endsAt: new Date("2021-01-01T00:00:00Z"),
+          reasonCode: "foreign_internal",
+        })
+        .returning();
+      await db.insert(grants).values(
+        Array.from({ length: 105 }, (_, n) => ({
+          groupId: ga.id,
+          kind: n === 0 ? ("trial" as const) : ("courtesy" as const),
+          tier: "individual" as const,
+          startsAt: new Date("2020-01-01T00:00:00Z"),
+          endsAt: new Date("2021-01-01T00:00:00Z"),
+          reasonCode: "internal_fixture",
+          grantedByUserId: b.conta.id,
+          ...(n === 0
+            ? {
+                revokedAt: new Date("2020-06-01T00:00:00Z"),
+                revokedByUserId: b.conta.id,
+                revokeReasonCode: "internal_revocation",
+              }
+            : {}),
+        })),
+      );
+      if (!alheia) throw new Error("Foreign grant absent");
+      const copia = await prepararArquivoPessoal(
+        a.autor,
+        { copiaId: randomUUID(), escopo: "account" },
+        f.cifrador,
+      );
+      const bytes = await abrirArquivoPessoal(a.autor, { copiaId: copia.copiaId }, f.cifrador);
+      try {
+        const texto = bytes.toString("utf8"),
+          linhas = texto.split("\n").filter((l) => l.startsWith('{"tipo":"concessao_propria"'));
+        expect(linhas).toHaveLength(105);
+        expect(texto).toContain('"revogadaEm":"2020-06-01T00:00:00.000Z"');
+        for (const privado of [
+          b.conta.id,
+          b.conta.email,
+          alheia.id,
+          ga.id,
+          gb.id,
+          "internal_fixture",
+          "foreign_internal",
+          "internal_revocation",
+          "grantedByUserId",
+          "revokedByUserId",
+        ])
+          expect(texto).not.toContain(privado);
+      } finally {
+        bytes.fill(0);
+      }
+      expect(await db.select().from(profiles).where(eq(profiles.userId, a.conta.id))).toHaveLength(
+        0,
+      );
+    }));
   it("encerramento invalida cópia anterior e publicação em voo, sem impedir nova cópia dos direitos", async () =>
     cenario(async (f) => {
       const a = await semJogador();

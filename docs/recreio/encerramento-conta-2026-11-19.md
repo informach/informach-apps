@@ -587,3 +587,34 @@ A nova paginação serial por fonte e seu EXPLAIN com 8.000 atos alheios e 205
 próprios ainda precisam passar no banco migrado do GitHub. A prova não desliga
 Seq Scan nem altera custos do otimizador. Índices gerados isoladamente não
 comprovam desempenho ou autorizam implantação.
+
+### Transparência de concessões e retenções — próximo incremento
+
+O inventário encontrou dois recortes ainda ausentes: concessões de cortesia/teste
+do próprio grupo comercial e recibos de tratamento dos perfis selecionados pelo
+próprio adulto. Incluir os períodos/datas da concessão somente por ownerUserId,
+sem equipe emissora/revogadora ou dados de membros. Incluir sujeito histórico,
+fase, política e datas originais somente por requesterUserId da operação, sem
+cadastro atual, responsável de terceiro, plano assinado ou conteúdo de mundo.
+Ambos conservam a fotografia e os limites existentes.
+
+Acompanhar retenção técnica no painel: quantidade ainda minimizada/em expurgo e
+prazo máximo original, sem IDs pessoais. Esse prazo não é prazo dos registros
+financeiros ou das denúncias. Não estender prazo, renovar credencial, inferir
+anonimização nem declarar tudo apagado. Provar antes/depois do vencimento real
+no caso de encerramento já existente e conferir isolação entre adultos na cópia
+das concessões. Tipos, direitos, navegador e composição nativa exigem GitHub.
+
+Em 20/11, 9de8dc15 passou direitos 44653254000 (149 casos/16 arquivos, upgrade
+até 241 recibos) e quality 44653258078. O EXPLAIN real selecionou o índice de
+ator/UUID sem desativar Seq Scan, entre 205 atos próprios e 8.000 alheios.
+Recibo em `evidencias/copias-indexadas-44653254000.json`. Não é prova de carga
+HTTP/WebSocket ou ativação em produção.
+
+A etapa seguinte acrescenta concessões por proprietário comercial, tratamento
+por autoria original e prazo técnico no painel. A cópia conserva fase/datas
+originais mesmo depois de o perfil vivo ser removido, sem nomes/credenciais;
+o painel não recebe IDs dos sujeitos. O caso nativo de token de dez segundos
+confere cópia/painel antes e depois do expurgo, sem reabrir a participação.
+105 concessões próprias e uma alheia são preparadas para comprovar paginação,
+conta sem jogador e exclusão de dados da equipe. Novos gates ainda obrigatórios.

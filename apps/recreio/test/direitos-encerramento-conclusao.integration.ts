@@ -15,9 +15,11 @@ import {
   users,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
+import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
 import { concluirProximoEncerramento } from "@/features/direitos/encerramento-conta-repository";
 import { minimizarProximoPerfil } from "@/features/direitos/minimizacao-repository";
 import { expurgarProximaReferencia } from "@/features/direitos/referencias-retidas-repository";
+import { consultarMeusDireitos } from "@/features/direitos/service";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
 import { convidarAdulto } from "@/features/grupo/convites-service";
 import { definirPinDaConta } from "@/features/protecao/service";
@@ -284,6 +286,21 @@ describe("encerramento: limpeza e recibo final nativos", () => {
           await db.select().from(subjects).where(eq(subjects.operationId, livro.recibo.operacaoId))
         )[0],
       ).toMatchObject({ phase: "minimized", retainedUntil: sessao.expiresAt });
+      const painel = await consultarMeusDireitos(a.autor);
+      expect(
+        painel.preparacoes.find((p) => p.operacao?.estado === "completed")?.operacao
+          ?.retencaoTecnica,
+      ).toEqual({ referencias: 1, prazoOriginalAte: sessao.expiresAt.toISOString() });
+      const retida = await capturarDadosPessoaisDaConta(a.autor);
+      try {
+        const texto = retida.bytes.toString("utf8");
+        expect(texto).toContain('"tipo":"tratamento_perfil"');
+        expect(texto).toContain('"fase":"minimized"');
+        expect(texto).toContain(sessao.expiresAt.toISOString());
+        expect(texto).not.toContain(a.jogador.perfil.apelido);
+      } finally {
+        retida.bytes.fill(0);
+      }
       await expect
         .poll(async () => expurgarProximaReferencia(await livro.coordenar()), {
           timeout: 15000,
@@ -302,6 +319,18 @@ describe("encerramento: limpeza e recibo final nativos", () => {
       expect(
         (await db.select().from(operations).where(eq(operations.id, livro.recibo.operacaoId)))[0],
       ).toMatchObject({ state: "completed", completedAt: fechada?.closedAt });
+      const fim = await consultarMeusDireitos(a.autor);
+      expect(
+        fim.preparacoes.find((p) => p.operacao?.estado === "completed")?.operacao?.retencaoTecnica,
+      ).toBeNull();
+      const removida = await capturarDadosPessoaisDaConta(a.autor);
+      try {
+        const texto = removida.bytes.toString("utf8");
+        expect(texto).toContain('"fase":"removed"');
+        expect(texto).toContain(sessao.expiresAt.toISOString());
+      } finally {
+        removida.bytes.fill(0);
+      }
     } finally {
       await livro.fechar();
     }

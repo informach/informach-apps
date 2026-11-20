@@ -1,5 +1,16 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, índices/paginação qualificados; transparência em candidata:**
+9de8dc15 passou direitos 44653254000 (149 casos/16 arquivos, upgrade até 241
+recibos) e quality 44653258078. Plano SQL nativo escolheu o índice sem forçar o
+otimizador, com 205 aprovações próprias entre 8.000 alheias; seis origens e sigilo
+comprovados. Nova etapa inclui concessões próprias sem jogador e recibos de
+tratamento dos perfis na cópia; painel mostra contagem/prazo técnico original.
+Testes preparados para concessões paginadas e retenção antes/depois do vencimento
+real; precisam de nova rodada. Produção segue sem as migrations/capacidades desta
+frente. Reaplicação F7/restauração antes de tráfego, cobertura formal, operação e
+homologação final permanecem abertas. Testes manuais só no final.
+
 **19/11 — Recreio, eficiência das cópias em qualificação:** as seis fontes de
 aprovações próprias passaram 44652204780/f2c5a444, com 205 atos e isolamento de
 contas. A nova paginação por UUID/autor usa índices aditivos gerados e revisados

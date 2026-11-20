@@ -12,6 +12,8 @@ import {
   recreioAccountClosureFinances as closureFinances,
   recreioAdultDeclarations as declarations,
   recreioDeviceSessions as devices,
+  recreioEntitlements as grants,
+  recreioGroups as groups,
   recreioGroupInvites as invites,
   recreioRightsOperations as operations,
   recreioNativePins as pins,
@@ -26,6 +28,7 @@ import { comContaPessoal } from "./autoridade-repository";
 import { copiarAprovacoesPessoaisNaTransacao } from "./captura-aprovacoes-repository";
 import { criarArquivoPessoal, LIMITES_DA_COPIA_PESSOAL as limites } from "./captura-contrato";
 import { copiarSegurancaPessoalNaTransacao } from "./captura-seguranca-repository";
+import { copiarTratamentoPessoalNaTransacao } from "./captura-tratamento-repository";
 
 /** Projeções da própria conta/pagante no Recreio. A mesma pessoa em outro
  * aplicativo não amplia o escopo; pertencer à família não concede faturas
@@ -60,6 +63,8 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "denuncia_propria",
             "recurso_restricao",
             "aprovacao_propria",
+            "concessao_propria",
+            "tratamento_perfil",
           ],
           dadosDePerfisIncluidos: false,
           referenciasDeDecisoesPropriasIncluidas: true,
@@ -102,6 +107,25 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             if (linhas.length < limites.pagina) return;
           }
         }
+        await paginas("concessao_propria", (apos) =>
+          tx
+            .select({
+              cursor: grants.id,
+              tipo: grants.kind,
+              plano: grants.tier,
+              inicioEm: grants.startsAt,
+              fimEm: grants.endsAt,
+              criadaEm: grants.createdAt,
+              revogadaEm: grants.revokedAt,
+            })
+            .from(grants)
+            .innerJoin(groups, eq(groups.id, grants.groupId))
+            .where(
+              and(eq(groups.ownerUserId, autor.contaId), apos ? gt(grants.id, apos) : undefined),
+            )
+            .orderBy(grants.id)
+            .limit(limites.pagina),
+        );
         await paginas("declaracao", (apos) =>
           tx
             .select({
@@ -339,6 +363,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
           prazo,
         );
         await copiarAprovacoesPessoaisNaTransacao(tx, autor.contaId, arquivo, prazo);
+        await copiarTratamentoPessoalNaTransacao(tx, autor.contaId, arquivo, prazo);
         await logAuditEventStrict(
           "recreio.account_personal_capture_prepared",
           autor.contaId,

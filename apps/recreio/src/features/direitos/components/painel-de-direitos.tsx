@@ -441,8 +441,24 @@ export function SituacaoDaRetirada({
           ? "O pedido precisa de uma conferência da equipe. O perfil continua bloqueado para jogar. Fale com a Informach para acompanhar."
           : "Retirada em processamento. O perfil está bloqueado para jogar e os mundos envolvidos podem ficar temporariamente indisponíveis para preservar o progresso dos participantes.";
   return (
-    <p className="mt-3 text-sm text-tinta-suave" role="status">
-      {texto}
-    </p>
+    <div className="mt-3 text-sm text-tinta-suave" role="status">
+      <p>{texto}</p>
+      {operacao.retencaoTecnica && (
+        <p className="mt-2">
+          Referências técnicas de perfis ainda retidas: {operacao.retencaoTecnica.referencias}.
+          {operacao.retencaoTecnica.prazoOriginalAte && (
+            <>
+              {" "}
+              Prazo original máximo:{" "}
+              <time dateTime={operacao.retencaoTecnica.prazoOriginalAte}>
+                {data(operacao.retencaoTecnica.prazoOriginalAte)}
+              </time>
+              . O expurgo será processado após o vencimento.
+            </>
+          )}{" "}
+          Registros financeiros e de segurança têm prazos próprios.
+        </p>
+      )}
+    </div>
   );
 }

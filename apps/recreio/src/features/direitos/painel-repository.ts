@@ -81,6 +81,15 @@ export function consultarPainelDeDireitosNoBanco(autor: IdentidadeNativa) {
         concluidaEm: operations.completedAt,
         financeiroEstado: finances.state,
         financeiroConfirmadoEm: finances.confirmedAt,
+        referenciasRetidas: sql<number>`(select count(*)::int from recreio.rights_subjects s
+          where s.operation_id=${operations.id} and s.phase in ('minimized','purging'))`.mapWith(
+          Number,
+        ),
+        prazoDaRetencao: sql<
+          string | null
+        >`(select to_char(max(s.retained_until) at time zone 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') from recreio.rights_subjects s
+          where s.operation_id=${operations.id} and s.phase in ('minimized','purging'))`,
       })
       .from(preparations)
       .leftJoin(operations, eq(operations.preparationId, preparations.id))
@@ -112,6 +121,13 @@ export function consultarPainelDeDireitosNoBanco(autor: IdentidadeNativa) {
               estado: r.operacaoEstado,
               consentidaEm: r.consentidaEm?.toISOString() ?? null,
               concluidaEm: r.concluidaEm?.toISOString() ?? null,
+              retencaoTecnica:
+                r.referenciasRetidas > 0
+                  ? {
+                      referencias: r.referenciasRetidas,
+                      prazoOriginalAte: r.prazoDaRetencao,
+                    }
+                  : null,
               financeiro: r.financeiroEstado
                 ? {
                     estado: r.financeiroEstado,
