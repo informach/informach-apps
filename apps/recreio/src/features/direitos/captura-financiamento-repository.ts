@@ -1,5 +1,5 @@
 import "server-only";
-import { type SQL, sql } from "@informach/db";
+import { type SQLWrapper, sql } from "@informach/db";
 import { z } from "zod";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
@@ -30,7 +30,7 @@ export async function copiarFinanciamentoPessoalNaTransacao(
   arquivo: ReturnType<typeof criarArquivoPessoal>,
   conferirPrazo: () => Promise<Date>,
 ) {
-  const fontes: { tipo: string; consulta: (apos: Chave | null) => SQL }[] = [
+  const fontes: { tipo: string; consulta: (apos: Chave | null) => SQLWrapper }[] = [
     {
       tipo: "contrato_nativo",
       consulta: (apos) => sql`
