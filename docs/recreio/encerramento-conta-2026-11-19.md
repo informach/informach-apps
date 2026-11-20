@@ -490,3 +490,19 @@ consentimento/outbox; o CLI privado real publica/confere/retira/conclui, sem SQL
 que fabrique closing/closed. Conferir estado final e preservação de outra conta,
 cópia nova de direitos e capturas de 390 px. Modo dedicado impede a inclusão
 acidental dessas jornadas no E2E comum sem custódia explícita.
+
+
+A prova Sandbox de APIs também passa a chamar o reader real do inventário antes
+da parada, com parada futura e depois do término pelo relógio de teste. Confere
+cliente/origem, contrato conhecido e inventário completo de Checkouts vazio.
+São leituras adicionais sobre o mesmo cliente sintético já limpo pela prova;
+não representam consentimento/encerramento nativo, Checkout humano ou venda Live.
+O resultado precisa de nova execução de APIs antes de ser qualificado.
+
+
+79cbe893 foi recusada no typecheck 44646079208/44646083176: o fixture precisava
+validar a variável opcional do livro antes do SQL e a chave opcional devolvida
+pelo SDK antes do manifesto. Corrigidas as duas fronteiras por valores locais
+validados, sem cast, valor substituto ou relaxamento do inventário. A prova no
+bucket não foi iniciada a partir dessa fonte recusada. A qualificação precisa
+ser repetida na correção.

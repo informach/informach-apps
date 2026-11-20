@@ -320,16 +320,19 @@ async function limpar(paths: ReturnType<typeof fronteira>) {
       const manifesto: z.infer<typeof Manifesto> = [];
       const unicas = new Set<string>();
       for (const obj of keys) {
+        const key = obj.Key;
         exigir(
-          obj.Key?.startsWith(prefixo) && permitido.test(obj.Key.slice(prefixo.length)),
+          typeof key === "string" &&
+            key.startsWith(prefixo) &&
+            permitido.test(key.slice(prefixo.length)),
           "CHAVE_FORA_DO_ESCOPO",
         );
-        exigir(!unicas.has(obj.Key), "INVENTARIO_REPETIDO");
-        unicas.add(obj.Key);
-        const bytes = await lerObjeto(r.cliente, r.bucket, obj.Key);
+        exigir(!unicas.has(key), "INVENTARIO_REPETIDO");
+        unicas.add(key);
+        const bytes = await lerObjeto(r.cliente, r.bucket, key);
         exigir(bytes, "OBJETO_DESAPARECEU");
         try {
-          manifesto.push({ key: obj.Key, bytes: bytes.length, sha256: sha(bytes) });
+          manifesto.push({ key, bytes: bytes.length, sha256: sha(bytes) });
         } finally {
           bytes.fill(0);
         }

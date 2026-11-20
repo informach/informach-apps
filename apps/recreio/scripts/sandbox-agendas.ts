@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
+import { createStripeRecreioClosureInventory } from "@informach/billing/providers/stripe-recreio-closure-inventory";
 import { createStripeRecreioRenewals } from "@informach/billing/providers/stripe-recreio-renewals";
 import {
   createStripeRecreioUpgrades,
@@ -464,6 +465,41 @@ async function main() {
         subscriptionId: sub.id,
         origin,
       };
+      const inventario = createStripeRecreioClosureInventory({
+        secretKey: key,
+        mode: "dev",
+        client: stripe,
+        now: () => {
+          verify(clock, "test_clock_missing");
+          return new Date(clock.frozen_time * 1000);
+        },
+      });
+      const encerramentoId = randomUUID();
+      const conferirInventario = () =>
+        inventario.inspect({
+          operationId: encerramentoId,
+          customerId: customer.id,
+          payerId: origin.payerId,
+          purchases: [{ authorizationId: origin.authorizationId, productId: origin.productId }],
+          contracts: [
+            {
+              subscriptionId: sub.id,
+              authorizationId: origin.authorizationId,
+              productId: origin.productId,
+            },
+          ],
+          budget: { deadlineMs: Date.now() + 90_000 },
+        });
+      const antesDoCancelamento = await conferirInventario();
+      verify(
+        antesDoCancelamento.subscriptions.length === 1 &&
+          antesDoCancelamento.subscriptions[0]?.id === sub.id &&
+          !antesDoCancelamento.subscriptions[0].terminal &&
+          antesDoCancelamento.subscriptions[0].stopsAt === null &&
+          antesDoCancelamento.checkouts.length === 0 &&
+          /^[a-f0-9]{64}$/.test(antesDoCancelamento.sha256),
+        "closure_inventory_before_stop_differs",
+      );
       const observacao = await renovacoes.stop(cancelamento);
       const repeticao = await renovacoes.stop(cancelamento);
       verify(
@@ -472,6 +508,16 @@ async function main() {
           /^[a-f0-9]{64}$/.test(observacao.sha256) &&
           repeticao.sha256 === observacao.sha256,
         "native_renewal_stop_not_confirmed",
+      );
+      const agendadoNoInventario = await conferirInventario();
+      verify(
+        agendadoNoInventario.subscriptions.length === 1 &&
+          agendadoNoInventario.subscriptions[0]?.id === sub.id &&
+          !agendadoNoInventario.subscriptions[0].terminal &&
+          agendadoNoInventario.subscriptions[0].stopsAt?.getTime() ===
+            observacao.stopsAt.getTime() &&
+          agendadoNoInventario.checkouts.length === 0,
+        "closure_inventory_scheduled_stop_differs",
       );
       const canceling = await stripe.subscriptions.retrieve(sub.id);
       verify(
@@ -489,6 +535,15 @@ async function main() {
           encerrado.stopsAt === null &&
           /^[a-f0-9]{64}$/.test(encerrado.sha256),
         "native_renewal_terminal_not_confirmed",
+      );
+      const terminadoNoInventario = await conferirInventario();
+      verify(
+        terminadoNoInventario.subscriptions.length === 1 &&
+          terminadoNoInventario.subscriptions[0]?.id === sub.id &&
+          terminadoNoInventario.subscriptions[0].terminal &&
+          terminadoNoInventario.subscriptions[0].stopsAt === null &&
+          terminadoNoInventario.checkouts.length === 0,
+        "closure_inventory_terminal_differs",
       );
       let paymentIntentId: string | undefined;
       for await (const allocation of stripe.invoicePayments.list({
@@ -542,6 +597,9 @@ async function main() {
         nativeRenewalProviderScheduled: true,
         nativeRenewalProviderTerminal: true,
         nativeRenewalReplayPreserved: true,
+        closureInventoryBeforeStopVerified: true,
+        closureInventoryScheduledVerified: true,
+        closureInventoryTerminalVerified: true,
         refundId: refund.id,
         refundDetectedByReader: true,
       });

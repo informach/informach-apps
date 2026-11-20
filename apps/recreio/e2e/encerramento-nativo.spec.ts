@@ -69,6 +69,12 @@ test("consentimento real encerra conta com e sem jogador, mantendo outra conta e
   const c = await novaPessoa(browser, "Sem jogador", { semPerfil: true });
   const client = banco();
   try {
+    const livroId = process.env.RECREIO_RIGHTS_LEDGER_ID;
+    if (
+      !livroId ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(livroId)
+    )
+      throw new Error("Synthetic ledger identity absent");
     const [preservado] =
       await client`select p.* from recreio.profiles p join core.users u on u.id=p.user_id where u.email=${b.email}`;
     expect(preservado).toBeDefined();
@@ -152,7 +158,7 @@ test("consentimento real encerra conta com e sem jogador, mantendo outra conta e
         await client`select p.state,p.revision,o.state as operation_state,f.state as financial_state
         from core.users u join recreio.account_participations p on p.user_id=u.id
         join recreio.rights_operations o on o.id=p.operation_id join recreio.account_closure_finances f on f.operation_id=o.id
-        where u.email=${email} and o.ledger_id=${process.env.RECREIO_RIGHTS_LEDGER_ID}::uuid`;
+        where u.email=${email} and o.ledger_id=${livroId}::uuid`;
       expect(row).toMatchObject({
         state: "closed",
         revision: 3,
@@ -181,7 +187,7 @@ test("consentimento real encerra conta com e sem jogador, mantendo outra conta e
         formato: "recreio-encerramento-ui-v1",
         source: process.env.GITHUB_SHA,
         runId: process.env.GITHUB_RUN_ID,
-        livroId: process.env.RECREIO_RIGHTS_LEDGER_ID,
+        livroId,
         semJogador: true,
         perfilProprio: true,
         outraContaPreservada: true,
