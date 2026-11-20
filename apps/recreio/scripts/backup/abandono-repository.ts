@@ -1,5 +1,5 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, asc, db, eq, inArray, isNull, sql } from "@informach/db";
 import {
   recreioBackupCaptures as captures,

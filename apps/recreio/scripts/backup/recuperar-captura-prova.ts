@@ -21,6 +21,7 @@ import { conferirInventarios, FalhaDeInventario, inventariarBackup } from "./inv
 import { normalizarCapacidadesRestauradas } from "./normalizar-capacidades";
 import { FalhaDaNormalizacao, normalizarFotografiasRestauradas } from "./normalizar-fotografias";
 import { provarCapacidadesRecuperadas } from "./provar-capacidades-recuperadas";
+import { provarCarregamentoDoControle } from "./provar-carregamento-controle";
 import { provarFontesHistoricasRecuperadas } from "./provar-fontes-historicas";
 import { provarRetiradaNativaPosterior } from "./provar-retirada-nativa";
 import { exigir, FalhaDaProva, limparDiretorioDeProva } from "./provas-arquivos";
@@ -422,6 +423,7 @@ async function main() {
         capturaId: id,
         ok: true,
         freshCluster: true,
+        ...provarCarregamentoDoControle(),
         conteudoIdentico: prova.conteudoIdentico,
         estruturaIdentica: prova.estruturaIdentica,
         globaisIdenticos: prova.globaisIdenticos,

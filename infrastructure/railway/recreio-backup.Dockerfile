@@ -9,7 +9,9 @@ COPY . .
 RUN timeout --signal=TERM --kill-after=10s 120s corepack install
 RUN COREPACK_ENABLE_NETWORK=0 timeout --signal=TERM --kill-after=10s 600s pnpm install --frozen-lockfile --prod=false
 RUN pnpm --filter @informach/morada-server exec esbuild ../recreio/scripts/backup/ensaiar.ts --bundle --platform=node --format=esm --outfile=/build/ensaiar-backup.mjs
-RUN pnpm --filter @informach/morada-server exec esbuild ../recreio/scripts/backup/recuperar-captura-prova.ts --bundle --platform=node --format=cjs --conditions=react-server --tsconfig=../recreio/tsconfig.json --outfile=/build/recuperar-captura-prova.cjs
+RUN pnpm --filter @informach/morada-server exec esbuild ../recreio/scripts/backup/recuperar-captura-prova.ts --bundle --platform=node --format=cjs --conditions=react-server --tsconfig=../recreio/tsconfig.json --outfile=/build/recuperar-captura-prova.cjs --metafile=/build/recuperar-captura-prova.meta.json
+
+RUN node apps/recreio/scripts/backup/conferir-fronteira-bundle.mjs /build/recuperar-captura-prova.meta.json /build/apps/morada-server
 
 FROM postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
 COPY --from=builder /usr/local/bin/node /usr/local/bin/node

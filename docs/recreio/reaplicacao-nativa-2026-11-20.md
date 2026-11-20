@@ -794,3 +794,16 @@ dump real ao GitHub. [Resultado e limites](ensaio-backup-producao.md).
 Permanece separada a implementação do executor agendado cifrado, custódia e
 recuperação sem o serviço original, upgrade privado de versões antigas e
 publicação seletiva com identidade/finanças atuais.
+
+
+## Executor operacional: fronteira da auditoria
+
+Publicação, retirada de arquivo e abandono ainda importavam a entrada inteira
+de @informach/auth só para auditoria. A composição operacional passa a usar
+@informach/auth/audit, a mesma implementação estrita. O worker frio carrega
+os módulos nativos sem DATABASE_URL/login/SendGrid/Stripe, sem executar seus
+efeitos. A imagem exige um metafile que contenha esses três módulos e recuse
+a entrada de login ou Better Auth no bundle. É fronteira estrutural e prova
+de carga do código; não afirma que backup/retirada produtivos foram executados.
+O Dockerfile e o futuro serviço agendado precisam passar nos gates antes de
+ativação. Nenhuma dependência/versão, banco, credencial ou chave foi alterada.
