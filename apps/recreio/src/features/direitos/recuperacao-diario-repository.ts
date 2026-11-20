@@ -1,18 +1,16 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth/audit";
-import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
+import { and, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
   recreioSpaces as spaces,
-  recreioRightsSubjects as subjects,
   recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { ContaIdSchema, MundoIdSchema } from "@informach/recreio";
 import { type ResumoDoMundo, ResumoDoMundoSchema } from "@informach/recreio/contrato";
 import { serializarContaNativa } from "@/features/account/serializacao-repository";
 import { travarColetaDeObjetos } from "@/features/backup/captura-repository";
-import { limitesDoJogo } from "@/features/jogos/config";
 import { armazenamentoPg } from "@/features/posse/armazenamento-repository";
 import {
   lerMaterial,
@@ -23,15 +21,20 @@ import {
 } from "@/features/recuperacao/repository";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import {
+  bancoDaCoordenacao,
+  conferirCoordenacaoDeDireitos,
+  conferirIntencaoDaCoordenacao,
+  escopoDaCoordenacao,
+  resolverLimitesDaCoordenacao,
+} from "./coordenacao-repository";
 import { type CoordenacaoDeEfeitos, comEfeitoNativoDeDireitos } from "./efeitos-repository";
-import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
-import { conferirIntencaoNativa } from "./intencao-nativa";
-import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
 /** Preparação otimista, sem simulação/gzip/rede sob SQL. A impressão do material
  * e a operação são relidas antes da gravação: dois workers podem preparar,
  * mas só o primeiro que ainda tem a mesma revisão pode confirmar a foto. */
-export function prepararRecuperacaoDeDireitos(config: CoordenacaoDeEfeitos) {
+export async function prepararRecuperacaoDeDireitos(config: CoordenacaoDeEfeitos) {
+  const limitesDoManifesto = await resolverLimitesDaCoordenacao(config);
   return comEfeitoNativoDeDireitos(config, "recuperacao", async (tx, op) => {
     await serializarContaNativa(tx, ContaIdSchema.parse(op.requesterUserId));
     const [alvo] = await tx
@@ -65,7 +68,7 @@ export function prepararRecuperacaoDeDireitos(config: CoordenacaoDeEfeitos) {
       "DIREITOS_DEPENDENCIA",
       "O jogo precisa de um adapter de recuperação.",
     );
-    const limite = limitesDoJogo(alvo.mundo.gameId);
+    const limite = limitesDoManifesto(alvo.mundo.gameId);
     const pedido: PedidoDeRecuperacao = {
       mundoId: MundoIdSchema.parse(alvo.mundo.id),
       jogo: alvo.mundo.gameId,
@@ -108,18 +111,16 @@ async function conferirAtual(
   material: MaterialDeRecuperacao,
 ) {
   const livroId = config.assinatura.livroId;
+  conferirCoordenacaoDeDireitos(config);
   assertAllowed(
-    config.prova.cabecalho.documento.livroId === livroId &&
-      config.prova.cabecalho.documento.estado === "aberto" &&
-      config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva &&
-      config.prova.referencias.some(
-        (ref) =>
-          ref.operacaoId === r.operacao.id &&
-          ref.revisao === r.operacao.revision &&
-          ref.sha256 === r.operacao.intentSha256,
-      ),
+    config.prova.referencias.some(
+      (ref) =>
+        ref.operacaoId === r.operacao.id &&
+        ref.revisao === r.operacao.revision &&
+        ref.sha256 === r.operacao.intentSha256,
+    ),
     "DIREITOS_LIVRO",
-    "Livro indisponível para recuperação.",
+    "Intenção ausente do prefixo verificado.",
   );
   const [op] = await tx
     .select()
@@ -128,6 +129,7 @@ async function conferirAtual(
       and(
         eq(operations.id, r.operacao.id),
         eq(operations.ledgerId, livroId),
+        escopoDaCoordenacao(config),
         inArray(operations.state, ["admitted", "running"]),
         or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
       ),
@@ -139,19 +141,7 @@ async function conferirAtual(
     "DIREITOS_INTEGRIDADE",
     "A intenção nativa mudou.",
   );
-  const p = await lerPreparacaoInterativaDaOperacao(tx, op);
-  const selecionados = await tx
-    .select({ id: subjects.profileReference })
-    .from(subjects)
-    .where(eq(subjects.operationId, op.id))
-    .orderBy(subjects.profileReference);
-  conferirIntencaoNativa(
-    op,
-    p,
-    selecionados,
-    config.assinatura,
-    await referenciasDeMundosDaOperacao(tx, op.id),
-  );
+  await conferirIntencaoDaCoordenacao(tx, op, config);
   await serializarContaNativa(tx, ContaIdSchema.parse(op.requesterUserId));
   const base = await lerMaterial(tx, r.pedido, "update", op.id);
   try {
@@ -177,7 +167,9 @@ export async function confirmarRecuperacaoDeDireitos(
   material: MaterialDeRecuperacao,
   resultado: ResultadoDeRecuperacaoDeDireitos,
 ) {
-  const limite = limitesDoJogo(r.pedido.jogo),
+  const banco = bancoDaCoordenacao(config),
+    limitesDoManifesto = await resolverLimitesDaCoordenacao(config);
+  const limite = limitesDoManifesto(r.pedido.jogo),
     tick = material.entradas.reduce((n, e) => Math.max(n, e.tick), material.foto.tick);
   assertAllowed(
     resultado.bytes.byteLength > 0 &&
@@ -189,7 +181,7 @@ export async function confirmarRecuperacaoDeDireitos(
     "DIREITOS_INTEGRIDADE",
     "Resultado de recuperação inválido.",
   );
-  return db.transaction(async (tx) => {
+  return banco.transaction(async (tx) => {
     await limites(tx);
     await travarColetaDeObjetos(tx);
     const op = await conferirAtual(tx, config, r, material);
@@ -237,7 +229,8 @@ export function revisarRecuperacaoDeDireitos(
   r: ReservaDeRecuperacaoDeDireitos,
   material: MaterialDeRecuperacao,
 ) {
-  return db.transaction(async (tx) => {
+  const banco = bancoDaCoordenacao(config);
+  return banco.transaction(async (tx) => {
     await limites(tx);
     const op = await conferirAtual(tx, config, r, material);
     if (!op) return false;

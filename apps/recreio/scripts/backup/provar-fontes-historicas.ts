@@ -10,6 +10,10 @@ import {
 } from "../../src/features/direitos/coordenacao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
 import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
+import {
+  compactarDiarioDeDireitos,
+  reservarFotografiaDeDireitos,
+} from "../../src/features/direitos/fotografias-repository";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import {
   criarAssinaturaDoLivro,
@@ -20,6 +24,7 @@ import { conferirPrefixoDoLivro } from "../../src/features/direitos/livro/leitur
 import { admitirIntencaoNoLivro } from "../../src/features/direitos/livro/publicacao";
 import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
 import { PlanoDeDireitosSchema } from "../../src/features/direitos/preparacao-contrato";
+import { prepararRecuperacaoDeDireitos } from "../../src/features/direitos/recuperacao-diario-repository";
 import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
 import { AppError } from "../../src/lib/errors";
 import { criarBucketDoLivro } from "../../test/livro-s3-apoio";
@@ -162,7 +167,12 @@ export async function provarFontesHistoricasRecuperadas(
       expurgarProximaReferencia,
       concluirProximaRetirada,
     ];
-    for (const executar of executores) {
+    for (const executar of [
+      ...executores,
+      reservarFotografiaDeDireitos,
+      compactarDiarioDeDireitos,
+      prepararRecuperacaoDeDireitos,
+    ]) {
       let bloqueou = false;
       try {
         await executar(configComum);
@@ -297,6 +307,9 @@ export async function provarFontesHistoricasRecuperadas(
             const resposta = await executar(coordenacao);
             exigir(resposta.situacao === "ociosa");
           }
+          exigir((await reservarFotografiaDeDireitos(coordenacao)) === null);
+          exigir((await compactarDiarioDeDireitos(coordenacao)).situacao === "ociosa");
+          exigir((await prepararRecuperacaoDeDireitos(coordenacao)).situacao === "ociosa");
           let copiada = false;
           try {
             await minimizarProximoPerfil({ ...coordenacao });
@@ -422,6 +435,8 @@ export async function provarFontesHistoricasRecuperadas(
     historicalAdmissionIdempotenceVerified: true as const,
     historicalBackupGuardianPreserved: true as const,
     historicalOperationScopeExpired: true as const,
+    nativePhotographicWorkersLoadedWithoutAppCredentials: true as const,
+    privatePhotographicQueuesBound: true as const,
     historicalPersonalErasureExecuted: false as const,
     historicalSourceEffectsExecuted: false as const,
   };

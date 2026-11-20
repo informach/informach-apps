@@ -436,3 +436,11 @@ vínculos antigos do backup. Esse snapshot não transfere responsabilidade.
 Guarda atual interativa e autoria histórica assinada conservam contratos
 distintos. Encerramento financeiro, operações nativas anteriores ao backup e
 reaplicação integral ainda exigem os incrementos/provas indicados na frente.
+
+
+Filas fotográficas em candidata: limites são resolvidos antes da transação;
+recuperação usa o catálogo canônico sem hosts/login e a composição online
+conserva o catálogo configurado. Reservas/commits/revisões usam o mesmo banco
+e escopo da coordenação. Revisão tem auditoria estrita; o commit zera sua cópia
+de bytes após SQL. Prova de filas vazias/carga sem credenciais não substitui
+transformação real de fotos ou fechamento F8.

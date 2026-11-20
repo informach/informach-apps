@@ -60,6 +60,8 @@ const Recibo = z.strictObject({
   historicalAdmissionIdempotenceVerified: z.literal(true),
   historicalBackupGuardianPreserved: z.literal(true),
   historicalOperationScopeExpired: z.literal(true),
+  nativePhotographicWorkersLoadedWithoutAppCredentials: z.literal(true),
+  privatePhotographicQueuesBound: z.literal(true),
   historicalPersonalErasureExecuted: z.literal(false),
   historicalSourceEffectsExecuted: z.literal(false),
   authoritiesNormalizedForTraffic: z.literal(false),

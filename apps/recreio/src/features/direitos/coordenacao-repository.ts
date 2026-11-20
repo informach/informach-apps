@@ -1,5 +1,6 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
+import type { LimitesDoJogo } from "@informach/config/jogos";
 import { and, type Database, db, eq, inArray, isNull, sql } from "@informach/db";
 import {
   recreioGuardianLinks as guardians,
@@ -11,6 +12,7 @@ import {
   recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
 import { z } from "zod";
+import { manifestoNoCatalogo } from "@/features/jogos/catalogo";
 import {
   CONSULTA_CAPACIDADES_TEMPORARIAS,
   CONSULTA_CONVITES_PENDENTES,
@@ -81,6 +83,31 @@ export function conferirCoordenacaoDeDireitos(config: CoordenacaoDeEfeitos) {
 export function bancoDaCoordenacao(config: CoordenacaoDeEfeitos) {
   conferirCoordenacaoDeDireitos(config);
   return contexto(config)?.banco ?? db;
+}
+
+/** Resolve composition before opening a SQL transaction. Offline recovery uses
+ * the canonical manifest, including retired games; it never loads host/login
+ * configuration or treats publication/classification as erasure authority. */
+export async function resolverLimitesDaCoordenacao(
+  config: CoordenacaoDeEfeitos,
+): Promise<(jogo: string) => LimitesDoJogo> {
+  conferirCoordenacaoDeDireitos(config);
+  if (contexto(config))
+    return (jogo) => {
+      conferirCoordenacaoDeDireitos(config);
+      const manifesto = manifestoNoCatalogo(jogo, false);
+      assertAllowed(
+        manifesto,
+        "DIREITOS_DEPENDENCIA",
+        "O manifesto histórico do jogo precisa de suporte.",
+      );
+      return manifesto.limites;
+    };
+  const { limitesDoJogo } = await import("@/features/jogos/config");
+  return (jogo) => {
+    conferirCoordenacaoDeDireitos(config);
+    return limitesDoJogo(jogo);
+  };
 }
 /** Private scope is restricted to withdrawn profiles until the historical
  * financial coordinator is implemented. Closure is never silently settled. */

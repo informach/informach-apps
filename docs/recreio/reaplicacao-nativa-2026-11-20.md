@@ -261,3 +261,31 @@ antiga preservada, escopo exclusivo e vencimento. Nenhum apagador pessoal roda:
 ao final é desfeito apenas o congelamento sintético e o inventário completo
 deve voltar a ser idêntico, inclusive microssegundos. Não é retirada executada
 ou prova de aceite nativo; ambas continuam necessárias na composição final.
+
+
+## Admissão qualificada e fotografias em candidata
+
+6d7edda3 passou qualidade 44787689932 e integração 44787694501. O cluster frio
+44787685798 recusou a prova porque a captura não tinha menor sem mundo. A fonte
+e1e39c73 cria essa família pelos serviços nativos ANTES de capturar; cluster
+frio 44788555964 passou, com guarda antiga preservada, conta histórica ausente,
+admissão repetida, datas/MAC originais, auditoria única, escopo vencido e limpeza
+com inventário idêntico. [Recibo](evidencias/admissao-cluster-frio-44788555964.json).
+Apenas o congelamento sintético foi revertido; nenhum apagador pessoal foi
+chamado. A decisão histórica continua sendo MAC de fixture, sem alegação de
+aceite nativo. [Coordenação anterior](evidencias/coordenacao-cluster-frio-44784096494.json).
+
+O próximo incremento vincula também as filas/commits de fotos e recuperação
+do diário ao banco/escopo ativos e ao mesmo verificador da decisão original.
+Limites vêm do catálogo canônico na recuperação, sem avaliar host, login ou
+publicação como permissão. A composição online continua usando o catálogo do
+deploy, resolvido antes de abrir SQL. O reader externo de recuperação só é
+carregado quando a função online correspondente precisa dele.
+
+Revisão de fotografia passa a exigir coordenação e registra bloqueio com
+auditoria estrita na mesma transação. A cópia de bytes do commit é zerada
+somente depois da transação. Prova fria preparada carrega oito workers, exige
+recusa normal do livro congelado e consulta as filas fotográficas privadas
+vazias. Isso não comprova transformação/reaplicação de fotos; a composição
+operacional, admissão das operações já existentes, encerramento financeiro e
+prova integral em outro cluster continuam pendentes.

@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, asc, db, desc, eq, gt, isNull, sql } from "@informach/db";
 import {
   events,
@@ -14,7 +14,6 @@ import { DIARIO_RECUPERACAO_MAX_ENTRADAS } from "@informach/recreio/contrato";
 import { z } from "zod";
 import { FalhaDoObjetoPrivado } from "@/features/objetos/criptografia";
 import { materializarFotografia, mesmaFotografia } from "@/features/objetos/fotografia";
-import { leitorDeFotografias } from "@/features/objetos/runtime";
 import type {
   LeitorDeFotografiasPrivadas,
   ReferenciaDeFotografia,
@@ -239,13 +238,17 @@ export function montarMaterial(
 
 export async function prepararRecuperacao(
   pedido: PedidoDeRecuperacao,
-  leitor: LeitorDeFotografiasPrivadas | null = leitorDeFotografias(),
+  leitor?: LeitorDeFotografiasPrivadas | null,
 ): Promise<MaterialDeRecuperacao> {
+  const leitorEfetivo =
+    leitor === undefined
+      ? (await import("@/features/objetos/runtime")).leitorDeFotografias()
+      : leitor;
   const base = await db.transaction((tx) => lerMaterial(tx, pedido, "share"));
   if (base.fonte.origem.tipo === "pg") return montarMaterial(base, base.fonte.origem.bytes);
   let bytes: Uint8Array;
   try {
-    bytes = await materializarFotografia(base.fonte, leitor);
+    bytes = await materializarFotografia(base.fonte, leitorEfetivo);
   } catch {
     throw new RecusaDeRecuperacao("ARMAZENAMENTO_INDISPONIVEL");
   }

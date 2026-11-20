@@ -80,6 +80,7 @@ export async function processarProximaFotografiaDeDireitos(config: {
     const marcada = await revisarFotografiaDeDireitos(
       reserva,
       integridade ? "integrity" : "dependency",
+      { assinatura: config.assinatura, prova },
     );
     return {
       situacao: marcada ? ("revisao" as const) : ("posse_perdida" as const),

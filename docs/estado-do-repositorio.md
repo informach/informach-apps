@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, admissão histórica qualificada:** e1e39c73 passou cluster
+frio 44788555964; qualidade/integração da implementação 6d7edda3 passaram
+44787689932/44787694501. Menor veio da própria captura nativa, solicitante
+ausente e guarda antiga preservada; sem apagador pessoal, com auditoria,
+repetição, escopo vencido e inventário limpo. Filas fotográficas privadas
+estão na próxima candidata. [Frente](recreio/reaplicacao-nativa-2026-11-20.md).
+
 **20/11 — Recreio, importação no cluster frio comprovada:** 5c57ce23 passou
 bucket/cluster 44778991297 e qualidade 44778997078, com plano inteiro, conta
 ausente, mapa presente/ausente, repetição/divergências e limpeza. Corrigida
