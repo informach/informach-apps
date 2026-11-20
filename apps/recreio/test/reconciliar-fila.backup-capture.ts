@@ -6,7 +6,12 @@ import { criarArquivoComposto } from "../scripts/backup/arquivo-composto";
 import { criarTransporteDeArquivosS3 } from "../scripts/backup/arquivo-s3";
 import { comExecucaoExclusivaDoBackup } from "../scripts/backup/execucao-exclusiva";
 import { criarArmazenamentoDoIndiceS3 } from "../scripts/backup/indice-s3";
-import { prepararPublicacao } from "../scripts/backup/publicacao-repository";
+import {
+  confirmarArquivoGuardado,
+  confirmarPublicacao,
+  prepararIndiceDuravel,
+  prepararPublicacao,
+} from "../scripts/backup/publicacao-repository";
 import { FalhaDaFilaDoBackup, reconciliarFilaDoBackup } from "../scripts/backup/reconciliar-fila";
 import { criarRetiradaDoBackupS3 } from "../scripts/backup/retirada-s3";
 import { conexao } from "./backup-arquivos-apoio";
@@ -88,6 +93,13 @@ it("fails the overall pass on a native audit refusal but progresses another item
             await expect(
               reconciliarFilaDoBackup({ ...config, execucao: { ...execucao } }),
             ).rejects.toMatchObject({ codigo: "ENCERRADA" });
+            await expect(
+              reconciliarFilaDoBackup({
+                ...config,
+                execucao,
+                politica: { intervaloSegundos: 0, retencaoDias: 28 },
+              }),
+            ).rejects.toMatchObject({ codigo: "CONFIGURACAO" });
             return reconciliarFilaDoBackup({ ...config, execucao });
           },
         );
@@ -160,5 +172,47 @@ it("reconciles an actually missing synthetic object through signed tombstone and
     expect(f.indice.conferir(marker, f.id).tipo).toBe("retirado");
     expect(http.pedidos.some((p) => p.metodo === "PUT")).toBe(true);
     expect(http.pedidos.every((p) => p.assinado)).toBe(true);
+  });
+});
+
+it("applies automatic retention through native marker/absence and re-evaluates cadence after retirement", async () => {
+  await cenario(async ({ f, http, config }) => {
+    // Old captured_at belongs to this explicit SQL/MAC fixture only.
+    // This never redates a real capture, consent or deadline.
+    const t = await prepararPublicacao(f.config),
+      v = await confirmarArquivoGuardado(t),
+      bytes = await prepararIndiceDuravel(t, f.indice.assinar(v), f.indice);
+    await confirmarPublicacao(t, bytes);
+    const result = await comExecucaoExclusivaDoBackup(
+      { conexao: conexao().href, tempoLimiteMs: 30000 },
+      (execucao) =>
+        reconciliarFilaDoBackup({
+          ...config,
+          execucao,
+          politica: { intervaloSegundos: 18000, retencaoDias: 28 },
+        }),
+    );
+    expect(result).toEqual({
+      situacao: "executada",
+      valor: {
+        observadas: 1,
+        abandonadas: 0,
+        publicadas: 0,
+        retiradas: 1,
+        reservasLiberadas: 1,
+        falhas: 0,
+        capturaNecessaria: true,
+        idadeDaUltimaCapturaSegundos: null,
+        retencoesPendentes: 0,
+      },
+    });
+    const marker = http.objetos.get(
+      `/${f.destino.bucketName}/recreio/v1/backup/${f.id}/retirado.json`,
+    );
+    if (!marker) throw new Error("Native automatic retention marker is missing");
+    const decoded = f.indice.conferir(marker, f.id);
+    expect(decoded.tipo).toBe("retirado");
+    if (decoded.tipo !== "retirado") throw new Error("Unexpected signed marker type");
+    expect(decoded.motivo).toBe("retencao");
   });
 });

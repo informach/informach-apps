@@ -220,3 +220,39 @@ nova captura, decisão de retenção ou autorização de tráfego nesta função
 Regressões preparadas usam arquivos reais, auditoria estrita e HTTP fechado;
 a prova do arquivo presente continua nos gates de captura/restauração.
 Ambiente/credenciais, custódia e cron ainda precisam da composição final.
+
+
+## Entrada operacional e política em candidata
+
+O reconciliador 53e742e2 passou qualidade/captura/cluster
+44828469839/44828475049/44828480078. O gate nativo inclui onze arquivos,
+com publicação/retirada, fila, arquivos reais e falha de auditoria/repetição.
+
+A nova entrada operar-backup.ts compõe os ports nativos com configuração
+explícita, sem credenciais de login/SMTP/Stripe, argumentos livres ou migração
+da origem. Exige schema pronto, fonte/ambiente admitidos, SSL explícito,
+limites e destinos separados em produção. O processo fecha seu próprio pool
+e os clientes S3 após aguardar as tarefas; erros de limpeza fazem o job falhar.
+O modo off não importa dependências operacionais. O Docker mantém o ensaio
+anterior como entrada padrão; modo operacional precisa ser explicitamente
+configurado. Não habilitado em produção.
+
+A política SQL é somente leitura, usa a data original da captura e o relógio
+do PostgreSQL, e limita vinte candidatos de retenção. Publicar/repetir hoje
+uma captura antiga não reinicia sua idade. Retirada automática reconfere
+destino e idade sob a trava nativa, antes do tombstone/ausência/liberação.
+Parâmetros inválidos são recusados antes dos efeitos na fila. Não há booleano
+de scanner ou data do operador que conceda permissão de retirar.
+
+Configuração operacional a preparar após gates: cadência de seis horas,
+intervalo mínimo de cinco horas para não perder uma rodada por causa do tempo
+da captura anterior, retenção de 28 dias, limite de 1 GiB e fotos de até 4 MiB.
+Estes valores não são agenda ativa nem RPO/RTO contratual. O limite aceito de
+retenção é 1–88 dias; não há preservação infinita de arquivos antigos por falta
+de uma cópia mais nova. Alertas e prova real precisam acompanhar a ativação.
+
+Gates novos devem cobrir tipos/negativas de configuração, política nativa e
+entra/saída Docker off/inválida, sem relaxar o JSONL. A composição completa da
+CLI com provedor real ainda precisa de prova separada, além dos ports nativos.
+Custódia separada, recuperação sem credenciais da origem e primeira execução
+produtiva cifrada continuam pendentes; nenhuma credencial real vai ao GitHub.

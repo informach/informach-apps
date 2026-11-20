@@ -2,6 +2,7 @@ import { abandonarCapturaSemArquivo, liberarReservasSemArquivo } from "./abandon
 import { comArquivosPrivadosDoBackup } from "./arquivos-privados";
 import { capturarEPublicarBackup } from "./capturar-e-publicar";
 import { listarPendenciasDoBackup } from "./fila-repository";
+import { avaliarPoliticaDoBackup } from "./politica-repository";
 import { exigir } from "./provas-arquivos";
 import {
   assumirPublicacao,
@@ -14,6 +15,7 @@ import {
   assumirRetirada,
   confirmarAusenciaDoBackup,
   listarRetiradasDevidas,
+  prepararRetiradaPorRetencao,
 } from "./retirada-repository";
 
 /** Qualification of the real native control modules without a login/provider
@@ -31,6 +33,8 @@ export function provarCarregamentoDoControle() {
     [
       reconciliarPublicacaoDoBackup,
       listarPendenciasDoBackup,
+      avaliarPoliticaDoBackup,
+      prepararRetiradaPorRetencao,
       reconciliarFilaDoBackup,
       comArquivosPrivadosDoBackup,
       capturarEPublicarBackup,

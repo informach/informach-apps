@@ -13,6 +13,7 @@ for (const arquivo of [
   "fila-repository.ts",
   "reconciliar-fila.ts",
   "arquivos-privados.ts",
+  "politica-repository.ts",
   "capturar-e-publicar.ts",
   "abandono-repository.ts",
   "publicacao-repository.ts",

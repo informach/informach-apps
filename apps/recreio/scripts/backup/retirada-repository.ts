@@ -93,11 +93,40 @@ async function vigente(
     .where(eq(retirements.captureId, b.c.id));
   exigir(r?.viva, "TENTATIVA");
 }
-export async function prepararRetirada(id: string, motivo: z.infer<typeof Motivo>, indice: Indice) {
+export function prepararRetirada(id: string, motivo: z.infer<typeof Motivo>, indice: Indice) {
+  return prepararRetiradaInterna(id, motivo, indice);
+}
+/** Automatic retention must recheck both destination and age under the same
+ * native capture/publication locks. No caller date or scan boolean is used. */
+export async function prepararRetiradaPorRetencao(
+  id: string,
+  destino: DestinoDeCaptura,
+  dias: number,
+  indice: Indice,
+) {
+  exigir(z.number().int().min(1).max(88).safeParse(dias).success, "CONFIGURACAO");
+  return prepararRetiradaInterna(id, "retencao", indice, { destino, dias });
+}
+async function prepararRetiradaInterna(
+  id: string,
+  motivo: z.infer<typeof Motivo>,
+  indice: Indice,
+  politica?: { destino: DestinoDeCaptura; dias: number },
+) {
   const m = Motivo.safeParse(motivo);
   exigir(m.success, "CONFIGURACAO");
   return db.transaction(async (tx) => {
     const { c, p } = await travarBase(tx, id);
+    if (politica) {
+      conferirDestinoDoControle(p, politica.destino);
+      const [idade] = await tx
+        .select({
+          elegivel: sql<boolean>`${captures.capturedAt}<=clock_timestamp()-(${politica.dias * 86400}::integer*interval '1 second')`,
+        })
+        .from(captures)
+        .where(eq(captures.id, id));
+      exigir(idade?.elegivel, "ESTADO");
+    }
     const [existente] = await tx
       .select({ id: retirements.captureId })
       .from(retirements)

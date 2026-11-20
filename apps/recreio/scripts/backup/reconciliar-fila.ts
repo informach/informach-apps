@@ -5,12 +5,14 @@ import { comArquivosPrivadosDoBackup } from "./arquivos-privados";
 import { conferirExecucaoDoBackup, type ExecucaoDoBackup } from "./execucao-exclusiva";
 import { FalhaDaPublicacao } from "./falha-controle";
 import { listarPendenciasDoBackup } from "./fila-repository";
+import { avaliarPoliticaDoBackup, conferirParametrosDaPolitica } from "./politica-repository";
 import { liberarReservasPublicadas } from "./publicacao-repository";
 import { reconciliarPublicacaoDoBackup } from "./reconciliar-publicacao";
 import {
   assumirRetirada,
   liberarReservasRetiradas,
   listarRetiradasDevidas,
+  prepararRetiradaPorRetencao,
 } from "./retirada-repository";
 import { retirarCapturaGuardada } from "./retirar-captura";
 
@@ -44,9 +46,11 @@ export async function reconciliarFilaDoBackup(config: {
   fotografias: DestinoDeCaptura;
   publicacao: Omit<Contexto["publicacao"], "recuperado" | "aberto">;
   retirada: Contexto["retirada"];
+  politica?: { intervaloSegundos: number; retencaoDias: number };
 }) {
   const { execucao, publicacao, retirada } = config;
   await conferirExecucaoDoBackup(execucao);
+  if (config.politica) conferirParametrosDaPolitica(config.politica);
   if (
     publicacao.transporte.bucketName !== publicacao.destino.bucketName ||
     publicacao.indices.bucketName !== publicacao.destino.bucketName ||
@@ -126,6 +130,48 @@ export async function reconciliarFilaDoBackup(config: {
       resumo.retiradas++;
       resumo.reservasLiberadas += await liberarReservasRetiradas(r.id, publicacao.indice);
     });
+  let cobertura:
+    | {
+        capturaNecessaria: boolean;
+        idadeDaUltimaCapturaSegundos: number | null;
+        retencoesPendentes: number;
+      }
+    | undefined;
+  if (config.politica) {
+    const alvo = {
+      ...config.politica,
+      fotografias: config.fotografias,
+      arquivos: publicacao.destino,
+    };
+    const politica = await avaliarPoliticaDoBackup(alvo);
+    for (const r of politica.retencoes)
+      await item(async () => {
+        const tentativa = await prepararRetiradaPorRetencao(
+          r.id,
+          publicacao.destino,
+          alvo.retencaoDias,
+          publicacao.indice,
+        );
+        await conferirExecucaoDoBackup(execucao);
+        await retirarCapturaGuardada({
+          tentativa,
+          indice: publicacao.indice,
+          indices: publicacao.indices,
+          transporte: retirada,
+        });
+        await conferirExecucaoDoBackup(execucao);
+        resumo.retiradas++;
+        resumo.reservasLiberadas += await liberarReservasRetiradas(r.id, publicacao.indice);
+      });
+    await conferirExecucaoDoBackup(execucao);
+    const atual = await avaliarPoliticaDoBackup(alvo);
+    await conferirExecucaoDoBackup(execucao);
+    cobertura = {
+      capturaNecessaria: atual.capturaNecessaria,
+      idadeDaUltimaCapturaSegundos: atual.idadeDaUltimaCapturaSegundos,
+      retencoesPendentes: atual.retencoes.length,
+    };
+  }
   if (erros.length) throw new FalhaDaFilaDoBackup({ ...resumo }, erros);
-  return { ...resumo };
+  return { ...resumo, ...cobertura };
 }
