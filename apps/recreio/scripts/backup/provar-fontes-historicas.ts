@@ -4,6 +4,10 @@ import { eq, sql } from "@informach/db";
 import { recreioRightsRecoverySources as sources } from "@informach/db/schema";
 import type postgres from "postgres";
 import { concluirProximaRetirada } from "../../src/features/direitos/conclusao-repository";
+import {
+  bancoDaCoordenacao,
+  comCoordenacaoPrivadaDeDireitos,
+} from "../../src/features/direitos/coordenacao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
 import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
@@ -145,13 +149,14 @@ export async function provarFontesHistoricasRecuperadas(
       assinatura,
       prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 10, tempoLimiteMs: 10000 }),
     };
-    for (const executar of [
+    const executores = [
       minimizarProximoPerfil,
       retirarProximosDadosPessoais,
       concluirProximaDrenagem,
       expurgarProximaReferencia,
       concluirProximaRetirada,
-    ]) {
+    ];
+    for (const executar of executores) {
       let bloqueou = false;
       try {
         await executar(configComum);
@@ -235,6 +240,75 @@ export async function provarFontesHistoricasRecuperadas(
         reverteu = true;
       }
       exigir(reverteu && isDeepStrictEqual(fontes, await ler()));
+      const parametros = {
+        banco,
+        execucaoId: primeira.execucaoId,
+        capturaSha256,
+        fonte: config.fonte,
+        assinatura: nova,
+        storage,
+        maxEntradas: 10,
+        maxBytesPlanos: 65536,
+        tempoLimiteMs: 30000,
+      };
+      let admitiuDivergente = false,
+        recusou = false;
+      try {
+        await comCoordenacaoPrivadaDeDireitos({
+          ...parametros,
+          capturaSha256: "0".repeat(64),
+          executar: async () => {
+            admitiuDivergente = true;
+          },
+        });
+      } catch (e) {
+        if (!(e instanceof AppError) || e.code !== "DIREITOS_INTEGRIDADE") throw e;
+        recusou = true;
+      }
+      exigir(recusou && !admitiuDivergente);
+      http.objetos.delete(path);
+      let ultimoAusente = false;
+      try {
+        await comCoordenacaoPrivadaDeDireitos({
+          ...parametros,
+          executar: async () => {
+            admitiuDivergente = true;
+          },
+        });
+      } catch (e) {
+        if (!(e instanceof FalhaDoLivroDeDireitos) || e.codigo !== "AUSENTE") throw e;
+        ultimoAusente = true;
+      } finally {
+        http.objetos.set(path, guardado);
+      }
+      exigir(ultimoAusente && !admitiuDivergente);
+      const vencida = await comCoordenacaoPrivadaDeDireitos({
+        ...parametros,
+        executar: async (coordenacao) => {
+          exigir(bancoDaCoordenacao(coordenacao) === banco);
+          for (const executar of executores) {
+            const resposta = await executar(coordenacao);
+            exigir(resposta.situacao === "ociosa");
+          }
+          let copiada = false;
+          try {
+            await minimizarProximoPerfil({ ...coordenacao });
+          } catch (e) {
+            if (!(e instanceof AppError) || e.code !== "DIREITOS_LIVRO") throw e;
+            copiada = true;
+          }
+          exigir(copiada);
+          return coordenacao;
+        },
+      });
+      let expirou = false;
+      try {
+        await minimizarProximoPerfil(vencida);
+      } catch (e) {
+        if (!(e instanceof AppError) || e.code !== "DIREITOS_LIVRO") throw e;
+        expirou = true;
+      }
+      exigir(expirou);
       return banco;
     });
     let encerrou = false;
@@ -328,6 +402,11 @@ export async function provarFontesHistoricasRecuperadas(
     historicalNativeConnectionClosed: true as const,
     nativeSqlWorkersLoadedWithoutAppCredentials: true as const,
     ordinarySqlWorkersRefusedFrozenLedger: true as const,
+    privateSqlCoordinationBound: true as const,
+    privateSqlCoordinationDivergenceRefused: true as const,
+    privateSqlCoordinationFullPreflightVerified: true as const,
+    privateSqlCoordinationCopyRefused: true as const,
+    privateSqlCoordinationExpired: true as const,
     historicalSourceEffectsExecuted: false as const,
   };
 }

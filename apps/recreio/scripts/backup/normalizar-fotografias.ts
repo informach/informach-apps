@@ -2,6 +2,11 @@ import type { FileHandle } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import type postgres from "postgres";
 import { criarCifradorDeObjetos } from "../../src/features/objetos/criptografia";
+import {
+  CONSULTA_DESTINO_PRIVADO,
+  conferirDestinoPrivado,
+  RecusaDoClusterPrivado,
+} from "../../src/features/recuperacao/cluster-privado";
 import type { criarArquivoComposto } from "./arquivo-composto";
 import type { PublicacaoDoBackup } from "./indice-recuperacao";
 
@@ -25,23 +30,13 @@ function exigir(v: unknown, codigo: FalhaDaNormalizacao["codigo"]): asserts v {
 /** Capacidade offline do executor: nenhum TCP ou nome de banco livre. Não é
  * uma autorização de corte nem uma forma de operar o PostgreSQL original. */
 export async function exigirBancoPrivadoDeRecuperacao(copia: postgres.Sql) {
-  const [r] = await copia.unsafe<
-    { banco: string; porta: string; socket: string; rede: string; versao: string; local: boolean }[]
-  >(`
-    select pg_catalog.current_database() as banco,pg_catalog.current_setting('port') as porta,
-      pg_catalog.current_setting('unix_socket_directories') as socket,pg_catalog.current_setting('listen_addresses') as rede,
-      pg_catalog.current_setting('server_version_num') as versao,pg_catalog.inet_server_addr() is null as local`);
-  exigir(
-    r &&
-      /^recreio_restore_[a-f0-9]{24}$/.test(r.banco) &&
-      r.porta === "55432" &&
-      /^\/tmp\/recreio-backup-[A-Za-z0-9]+$/.test(r.socket) &&
-      r.rede === "" &&
-      r.local &&
-      r.versao === "180006",
-    "DESTINO_NAO_PRIVADO",
-  );
-  return Object.freeze({ ...r });
+  const [r] = await copia.unsafe(CONSULTA_DESTINO_PRIVADO);
+  try {
+    return conferirDestinoPrivado(r);
+  } catch (erro) {
+    if (!(erro instanceof RecusaDoClusterPrivado)) throw erro;
+    throw new FalhaDaNormalizacao("DESTINO_NAO_PRIVADO");
+  }
 }
 /** Reidrata somente no cluster novo já comparado ao inventário autenticado.
  * Fonte é o arquivo composto; não há cliente S3 nem credencial da origem aqui.

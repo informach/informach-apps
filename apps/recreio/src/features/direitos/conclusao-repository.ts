@@ -1,6 +1,6 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth/audit";
-import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
+import { and, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
   recreioRightsSubjects as subjects,
@@ -11,25 +11,23 @@ import {
   conferirConclusaoDosPerfis,
   conferirPrazosDaConclusao,
 } from "./conclusao-perfis-repository";
-import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
-import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
-import { conferirIntencaoNativa } from "./intencao-nativa";
-import { referenciasDeMundosDaOperacao } from "./intencao-repository";
+import {
+  bancoDaCoordenacao,
+  type CoordenacaoDeEfeitos,
+  conferirCoordenacaoDeDireitos,
+  conferirIntencaoDaCoordenacao,
+  escopoDaCoordenacao,
+} from "./coordenacao-repository";
 
 /** Conclusão da retirada, com retenções mínimas explícitas. Não encerra a
  * conta, não muda faturas e não apresenta referência retida como anônima. */
 export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
   const livroId = config.assinatura.livroId;
-  assertAllowed(
-    config.prova.cabecalho.documento.livroId === livroId &&
-      config.prova.cabecalho.documento.estado === "aberto" &&
-      config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva,
-    "DIREITOS_LIVRO",
-    "Livro indisponível para conclusão.",
-  );
+  conferirCoordenacaoDeDireitos(config);
+  const banco = bancoDaCoordenacao(config);
   let selecionada: string | null = null;
   try {
-    return await db.transaction(async (tx) => {
+    return await banco.transaction(async (tx) => {
       await tx.execute(sql`set local statement_timeout='5s'`);
       await tx.execute(sql`set local lock_timeout='2s'`);
       await tx.execute(sql`set local transaction_timeout='15s'`);
@@ -39,6 +37,7 @@ export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
         .where(
           and(
             eq(operations.ledgerId, livroId),
+            escopoDaCoordenacao(config),
             eq(operations.kind, "retirar_perfil"),
             inArray(operations.state, ["admitted", "running"]),
             sql`${operations.nextAttemptAt}<=${AGORA}`,
@@ -62,20 +61,13 @@ export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
         "DIREITOS_LIVRO",
         "Intenção ausente do prefixo verificado.",
       );
-      const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
       const alvos = await tx
         .select()
         .from(subjects)
         .where(eq(subjects.operationId, op.id))
         .orderBy(subjects.profileReference)
         .for("update");
-      conferirIntencaoNativa(
-        op,
-        preparacao,
-        alvos.map((s) => ({ id: s.profileReference })),
-        config.assinatura,
-        await referenciasDeMundosDaOperacao(tx, op.id),
-      );
+      await conferirIntencaoDaCoordenacao(tx, op, config);
       const retidos = await conferirConclusaoDosPerfis(tx, op, alvos);
       // O CHECK impede completed com lease: concluir e liberar no mesmo comando.
       await tx
@@ -110,13 +102,14 @@ export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
   } catch (erro) {
     if (selecionada)
       try {
-        await db
+        await banco
           .update(operations)
           .set({ nextAttemptAt: sql`${AGORA}+interval '1 minute'`, updatedAt: AGORA })
           .where(
             and(
               eq(operations.id, selecionada),
               eq(operations.ledgerId, livroId),
+              escopoDaCoordenacao(config),
               inArray(operations.state, ["admitted", "running"]),
               or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
             ),

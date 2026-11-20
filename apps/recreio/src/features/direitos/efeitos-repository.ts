@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth/audit";
-import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
+import { and, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,
   recreioSpaceJournal as journal,
@@ -14,20 +14,20 @@ import { ZodError } from "zod";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import {
+  bancoDaCoordenacao,
+  type CoordenacaoDeEfeitos,
+  conferirCoordenacaoDeDireitos,
+  conferirIntencaoDaCoordenacao,
+  escopoDaCoordenacao,
+} from "./coordenacao-repository";
+import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
 } from "./encerramento-efeitos-repository";
-import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
-import { conferirIntencaoNativa } from "./intencao-nativa";
-import { referenciasDeMundosDaOperacao } from "./intencao-repository";
-import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
-import type { conferirPrefixoDoLivro } from "./livro/leitura";
 
-export type CoordenacaoDeEfeitos = {
-  assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
-  prova: Awaited<ReturnType<typeof conferirPrefixoDoLivro>>;
-};
+export type { CoordenacaoDeEfeitos } from "./coordenacao-repository";
+
 async function limites(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
   await tx.execute(sql`set local lock_timeout='2s'`);
@@ -45,13 +45,8 @@ export async function comEfeitoNativoDeDireitos<T>(
 ) {
   const livroId = config.assinatura.livroId,
     token = randomUUID();
-  assertAllowed(
-    config.prova.cabecalho.documento.livroId === livroId &&
-      config.prova.cabecalho.documento.estado === "aberto" &&
-      config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva,
-    "DIREITOS_LIVRO",
-    "Livro indisponível para execução.",
-  );
+  conferirCoordenacaoDeDireitos(config);
+  const banco = bancoDaCoordenacao(config);
   const possuiDados = sql`exists(select 1 from ${subjects} where ${subjects.operationId}=${operations.id} and ${subjects.phase}='selected' and (
     exists(select 1 from ${keys} where ${keys.profileId}=${subjects.profileReference}) or
     exists(select 1 from ${achievements} where ${achievements.profileId}=${subjects.profileReference})))`;
@@ -70,7 +65,7 @@ export async function comEfeitoNativoDeDireitos<T>(
           : fase === "dados"
             ? sql`(${baseDoCadastro}) and (${possuiDados})`
             : sql`(${baseDoCadastro}) and not (${possuiDados})`;
-  const reservada = await db.transaction(async (tx) => {
+  const reservada = await banco.transaction(async (tx) => {
     await limites(tx);
     const [op] = await tx
       .select()
@@ -78,6 +73,7 @@ export async function comEfeitoNativoDeDireitos<T>(
       .where(
         and(
           eq(operations.ledgerId, livroId),
+          escopoDaCoordenacao(config),
           escopoFinanceiroDosEfeitos(),
           inArray(operations.state, ["admitted", "running"]),
           sql`${operations.nextAttemptAt}<=${AGORA}`,
@@ -121,7 +117,7 @@ export async function comEfeitoNativoDeDireitos<T>(
       "DIREITOS_LIVRO",
       "Intenção ausente do prefixo verificado.",
     );
-    return await db.transaction(async (tx) => {
+    return await banco.transaction(async (tx) => {
       await limites(tx);
       const [op] = await tx.select().from(operations).where(posse).for("update");
       assertAllowed(op, "DIREITOS_POSSE", "A reserva do processamento terminou.");
@@ -132,19 +128,7 @@ export async function comEfeitoNativoDeDireitos<T>(
         "DIREITOS_INTEGRIDADE",
         "A intenção nativa mudou.",
       );
-      const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
-      const selecionados = await tx
-        .select({ id: subjects.profileReference })
-        .from(subjects)
-        .where(eq(subjects.operationId, op.id))
-        .orderBy(subjects.profileReference);
-      const { plano } = conferirIntencaoNativa(
-        op,
-        preparacao,
-        selecionados,
-        config.assinatura,
-        await referenciasDeMundosDaOperacao(tx, op.id),
-      );
+      const { plano } = await conferirIntencaoDaCoordenacao(tx, op, config);
       await conferirFinanceiroDosEfeitos(tx, op, plano);
       const resultado = await executar(tx, op);
       const liberadas = await tx
@@ -169,7 +153,7 @@ export async function comEfeitoNativoDeDireitos<T>(
         ["DIREITOS", "DIREITOS_LIVRO", "DIREITOS_INTEGRIDADE"].includes(erro.code));
     const dependencia = erro instanceof AppError && erro.code === "DIREITOS_DEPENDENCIA";
     if (integridade || dependencia)
-      return db.transaction(async (tx) => {
+      return banco.transaction(async (tx) => {
         await limites(tx);
         const linhas = await tx
           .update(operations)
@@ -199,7 +183,7 @@ export async function comEfeitoNativoDeDireitos<T>(
     // Registra só a próxima tentativa, preservando o erro original e a
     // ausência de efeitos (a transação acima já reverteu).
     try {
-      await db
+      await banco
         .update(operations)
         .set({
           leaseToken: null,

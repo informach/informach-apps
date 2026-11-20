@@ -15,6 +15,7 @@ import type { Transacao } from "@/lib/repository";
 import { conferirIntencaoDoPlano } from "./intencao-persistida";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { lerPlanoDeDireitos } from "./plano-persistido";
+import type { PlanoDeDireitos } from "./preparacao-contrato";
 
 /** Normal workers cannot execute an imported decision through the interactive
  * path. The future offline coordinator needs its own verified cluster/fence
@@ -44,6 +45,45 @@ const Mapa = z
     }),
   )
   .max(512);
+
+/** Complete signed selection plus actual live/absent world identity. */
+export async function conferirMapaHistoricoDeMundos(
+  tx: Transacao,
+  plano: PlanoDeDireitos,
+  entrada: unknown,
+) {
+  const mapa = Mapa.parse(entrada);
+  assertAllowed(
+    isDeepStrictEqual(
+      mapa.map((m) => ({ id: m.mundoReferencia, jogo: m.jogo })),
+      plano.mundos.map((m) => ({ id: m.id, jogo: m.jogo })),
+    ) && mapa.every((m) => m.mundoVivoId === null || m.mundoVivoId === m.mundoReferencia),
+    "DIREITOS_INTEGRIDADE",
+    "O mapa não corresponde à seleção completa.",
+  );
+  const vivos = mapa.length
+    ? await tx
+        .select({ id: spaces.id, jogo: spaces.gameId })
+        .from(spaces)
+        .where(
+          inArray(
+            spaces.id,
+            mapa.map((m) => m.mundoReferencia),
+          ),
+        )
+        .limit(513)
+    : [];
+  assertAllowed(
+    mapa.every((m) =>
+      m.mundoVivoId === null
+        ? !vivos.some((v) => v.id === m.mundoReferencia)
+        : vivos.some((v) => v.id === m.mundoVivoId && v.jogo === m.jogo),
+    ),
+    "DIREITOS_INTEGRIDADE",
+    "As referências vivas da recuperação mudaram.",
+  );
+  return mapa;
+}
 
 /** Read/validation only. This does NOT authenticate the external prefix or
  * authorize native effects, mint authority, finish the run or admit traffic. */
@@ -83,36 +123,7 @@ export async function lerPlanoHistoricoRecuperado(
     },
     op.requesterUserId,
   );
-  const mapa = Mapa.parse(fonte.origem.worldMap);
-  assertAllowed(
-    isDeepStrictEqual(
-      mapa.map((m) => ({ id: m.mundoReferencia, jogo: m.jogo })),
-      plano.mundos.map((m) => ({ id: m.id, jogo: m.jogo })),
-    ) && mapa.every((m) => m.mundoVivoId === null || m.mundoVivoId === m.mundoReferencia),
-    "DIREITOS_INTEGRIDADE",
-    "O mapa não corresponde à seleção completa.",
-  );
-  const vivos = mapa.length
-    ? await tx
-        .select({ id: spaces.id, jogo: spaces.gameId })
-        .from(spaces)
-        .where(
-          inArray(
-            spaces.id,
-            mapa.map((m) => m.mundoReferencia),
-          ),
-        )
-        .limit(513)
-    : [];
-  assertAllowed(
-    mapa.every((m) =>
-      m.mundoVivoId === null
-        ? !vivos.some((v) => v.id === m.mundoReferencia)
-        : vivos.some((v) => v.id === m.mundoVivoId && v.jogo === m.jogo),
-    ),
-    "DIREITOS_INTEGRIDADE",
-    "As referências vivas da recuperação mudaram.",
-  );
+  const mapa = await conferirMapaHistoricoDeMundos(tx, plano, fonte.origem.worldMap);
   return {
     plano,
     mapa,

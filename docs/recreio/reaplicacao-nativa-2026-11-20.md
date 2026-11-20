@@ -202,3 +202,31 @@ na recuperação. Fotografias/recuperação do diário ainda precisam separar a
 consulta de limites do catálogo das configurações de hosts/login. O coordenador
 privado, a admissão de operações recuperadas e a reconciliação financeira
 continuam obrigatórios e ainda não foram liberados.
+
+
+## Coordenação privada SQL em candidata
+
+O controle do destino privado e as consultas de capacidades possuem uma única
+fonte, usada pelo normalizador e pelo coordenador. A factory recebe a conexão
+nativa própria, consulta o PostgreSQL real, confere execução/captura/fonte,
+chave seguinte distinta, cabeçalho congelado, prefixo/planos inteiros e todas
+as fontes/mapas persistidos. Leituras têm limites de 5 s por instrução, 2 s
+por trava e 15 s por transação, sem rede dentro das transações.
+
+A coordenação é registrada apenas no processo e apenas durante o callback.
+Cópia do objeto e uso após o término são recusados antes do singleton. Os
+workers SQL de retirada/dados/drenagem/conclusão/expurgo passam a receber o
+banco e escopo dessa coordenação: só operações recuperadas da execução e da
+cerca, com intenção original e seleção completas conferidas de novo. Filas
+interativas continuam com livro aberto/chave corrente e excluem essa origem.
+A factory não cria operações, consentimentos ou efeitos, não libera tráfego
+e não resolve encerramento financeiro; o escopo privado atual aceita somente
+retirada, mantendo cobrança/encerramento fora dele até sua implementação.
+
+A prova preparada admite o contexto no cluster frio e consulta as cinco filas
+vazias pelo banco privado. Exige recusa de captura divergente, último plano
+ausente antes do callback, objeto copiado e coordenação vencida. Não deve ser
+apresentada como execução de retirada: não há operação nativa importada nessa
+prova e `historicalSourceEffectsExecuted` permanece falso. Admissão histórica,
+perfis ausentes/responsabilidades antigas, fotos/diário e finanças continuam
+pendentes de implementação e prova.

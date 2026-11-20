@@ -1,6 +1,6 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth/audit";
-import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
+import { and, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
   recreioProfiles as profiles,
@@ -10,14 +10,17 @@ import { ContaIdSchema } from "@informach/recreio";
 import { serializarContaNativa } from "@/features/account/serializacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
-import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
+import {
+  bancoDaCoordenacao,
+  type CoordenacaoDeEfeitos,
+  conferirCoordenacaoDeDireitos,
+  conferirIntencaoDaCoordenacao,
+  escopoDaCoordenacao,
+} from "./coordenacao-repository";
 import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
 } from "./encerramento-efeitos-repository";
-import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
-import { conferirIntencaoNativa } from "./intencao-nativa";
-import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import { expurgarLoteDeReferencias } from "./referencias-lotes-repository";
 
 /** Passo SQL curto, sem posse externa: o lock da operação exclui outro
@@ -25,16 +28,11 @@ import { expurgarLoteDeReferencias } from "./referencias-lotes-repository";
  * nunca lhes atribui lease ou muda a data original de conclusão. */
 export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
   const livroId = config.assinatura.livroId;
-  assertAllowed(
-    config.prova.cabecalho.documento.livroId === livroId &&
-      config.prova.cabecalho.documento.estado === "aberto" &&
-      config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva,
-    "DIREITOS_LIVRO",
-    "Livro indisponível para execução.",
-  );
+  conferirCoordenacaoDeDireitos(config);
+  const banco = bancoDaCoordenacao(config);
   let selecionada: string | null = null;
   try {
-    return await db.transaction(async (tx) => {
+    return await banco.transaction(async (tx) => {
       await tx.execute(sql`set local statement_timeout='5s'`);
       await tx.execute(sql`set local lock_timeout='2s'`);
       await tx.execute(sql`set local transaction_timeout='15s'`);
@@ -44,6 +42,7 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
         .where(
           and(
             eq(operations.ledgerId, livroId),
+            escopoDaCoordenacao(config),
             escopoFinanceiroDosEfeitos(true),
             sql`not exists(select 1 from recreio.rights_worlds w where w.operation_id=${operations.id} and w.phase<>'completed')`,
             inArray(operations.state, ["admitted", "running", "completed"]),
@@ -66,19 +65,7 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
         "DIREITOS_LIVRO",
         "Intenção ausente do prefixo verificado.",
       );
-      const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
-      const selecionados = await tx
-        .select({ id: subjects.profileReference })
-        .from(subjects)
-        .where(eq(subjects.operationId, op.id))
-        .orderBy(subjects.profileReference);
-      const { plano } = conferirIntencaoNativa(
-        op,
-        preparacao,
-        selecionados,
-        config.assinatura,
-        await referenciasDeMundosDaOperacao(tx, op.id),
-      );
+      const { plano } = await conferirIntencaoDaCoordenacao(tx, op, config);
       await conferirFinanceiroDosEfeitos(tx, op, plano, true);
       await serializarContaNativa(tx, ContaIdSchema.parse(op.requesterUserId));
       const [alvo] = await tx
@@ -209,13 +196,14 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
     // original continua visível ao job. Uma operação concluída não retrocede.
     if (selecionada)
       try {
-        await db
+        await banco
           .update(operations)
           .set({ nextAttemptAt: sql`${AGORA}+interval '1 minute'`, updatedAt: AGORA })
           .where(
             and(
               eq(operations.id, selecionada),
               eq(operations.ledgerId, livroId),
+              escopoDaCoordenacao(config),
               or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
             ),
           );

@@ -418,3 +418,12 @@ estrito por `@informach/auth/audit`, com transação explícita. Isso separa a c
 do job das credenciais do portal; não concede permissão histórica ou exceção à
 cerca. Cinco workers SQL estão em qualificação sem credenciais de app no cluster
 frio, exigindo a recusa normal do livro congelado.
+
+
+Na candidata de recuperação, `direitos/coordenacao-repository` conserva uma
+coordenação privada temporária vinculada à conexão real, execução, captura e
+cerca congelada, depois do preflight inteiro. Copiar o objeto ou usá-lo depois
+do callback não conserva a capacidade. Workers SQL escolhem banco/escopo pela
+coordenação, nunca por flag ou variável de banco alterada. O contexto privado
+atual exclui encerramento financeiro e não cria operações nem libera tráfego;
+admissão e efeitos históricos continuam em implementação.

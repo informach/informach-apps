@@ -5,6 +5,7 @@ import {
 } from "@informach/db/schema";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
+import { comCoordenacaoPrivadaDeDireitos } from "@/features/direitos/coordenacao-repository";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import {
   admitirColeta,
@@ -12,6 +13,7 @@ import {
   listarColetasDevidas,
 } from "@/features/objetos/coleta-repository";
 import { reservarEntregaDaFotografia } from "@/features/objetos/entregas-repository";
+import { RecusaDoClusterPrivado } from "@/features/recuperacao/cluster-privado";
 import { codigoDoPostgres } from "@/lib/repository";
 import { comConexaoPrivadaDeDireitos } from "../scripts/backup/conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "../scripts/backup/importar-fontes-direitos";
@@ -75,6 +77,25 @@ describe("normalização: recusas/quarentena em PostgreSQL real; sem liberar tr�
           tempoLimiteMs: 5000,
         }),
       ).rejects.toMatchObject({ codigo: "DESTINO_NAO_PRIVADO" });
+      expect(http.pedidos).toEqual([]);
+      let coordenou = false;
+      await expect(
+        comCoordenacaoPrivadaDeDireitos({
+          banco: db,
+          storage,
+          assinatura: livro.assinatura,
+          execucaoId: livro.livroId,
+          capturaSha256: "a".repeat(64),
+          fonte: "b".repeat(40),
+          maxEntradas: 10,
+          maxBytesPlanos: 65536,
+          tempoLimiteMs: 5000,
+          executar: async () => {
+            coordenou = true;
+          },
+        }),
+      ).rejects.toBeInstanceOf(RecusaDoClusterPrivado);
+      expect(coordenou).toBe(false);
       expect(http.pedidos).toEqual([]);
     } finally {
       livro.encerrar();

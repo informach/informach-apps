@@ -1,4 +1,8 @@
 import type postgres from "postgres";
+import {
+  CONSULTA_CAPACIDADES_TEMPORARIAS,
+  CONSULTA_CONVITES_PENDENTES,
+} from "../../src/features/recuperacao/cluster-privado";
 import { exigirBancoPrivadoDeRecuperacao, FalhaDaNormalizacao } from "./normalizar-fotografias";
 
 const TABELAS = [
@@ -111,31 +115,9 @@ export async function normalizarCapacidadesRestauradas(copia: postgres.Sql) {
 /** Read-only prerequisite shared by normalization and the offline importer.
  * Zero ephemeral capabilities does not prove current identity or F7 effects. */
 export async function conferirCapacidadesRestauradas(tx: Pick<postgres.Sql, "unsafe">) {
-  const [convites] = await tx.unsafe<{ quantidade: number }[]>(`select (
-      (select count(*) from recreio.friend_codes where consumed_at is null and revoked_at is null)+
-      (select count(*) from recreio.friend_requests where state='pending')+
-      (select count(*) from recreio.group_invites where state='pending')+
-      (select count(*) from recreio.space_invites where state in ('pending_approval','sent'))+
-      (select count(*) from recreio.directed_space_invites where state='pending')+
-      (select count(*) from recreio.space_visit_invites where state='pending')+
-      (select count(*) from recreio.space_stewardship_requests where state='pending')
-    )::int as quantidade`);
+  const [convites] = await tx.unsafe<{ quantidade: number }[]>(CONSULTA_CONVITES_PENDENTES);
   if (convites?.quantidade !== 0) throw new FalhaDaNormalizacao("INTEGRIDADE");
-  const [restantes] = await tx.unsafe<{ quantidade: number }[]>(`select (
-      (select count(*) from recreio.device_sessions where revoked_at is null)+
-      (select count(*) from recreio.paired_credentials where token_hash is not null)+
-      (select count(*) from recreio.pairing_requests)+
-      (select count(*) from recreio.game_tickets)+
-      (select count(*) from recreio.session_handoffs)+
-      (select count(*) from recreio.session_save_permits)+
-      (select count(*) from recreio.game_sessions where ended_at is null)+
-      (select count(*) from recreio.space_leases where released_at is null or state<>'released')+
-      (select count(*) from recreio.game_instances where state<>'gone')+
-      (select count(*) from recreio.world_host_presences where closed_at is null)+
-      (select count(*) from recreio.world_visits where ended_at is null)+
-      (select count(*) from recreio.world_visit_sessions where closed_at is null)+
-      (select count(*) from recreio.personal_exports where state='ready' or encrypted_bytes is not null or reference is not null)
-    )::int as quantidade`);
+  const [restantes] = await tx.unsafe<{ quantidade: number }[]>(CONSULTA_CAPACIDADES_TEMPORARIAS);
   if (restantes?.quantidade !== 0) throw new FalhaDaNormalizacao("INTEGRIDADE");
   return { convites, restantes };
 }
