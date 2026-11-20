@@ -32,7 +32,8 @@
     "revogar": "node --conditions=react-server --import tsx scripts/revogar.ts",
     "processar-direitos": "node --conditions=react-server --import tsx scripts/processar-direitos.ts",
     "restaurar-morada": "node --conditions=react-server --import tsx scripts/restaurar-morada.ts",
-    "gerar-chave": "node scripts/gerar-chave.mjs"
+    "gerar-chave": "node scripts/gerar-chave.mjs",
+    "test:backup-operational": "node scripts/isolated.mjs backup-operational"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1172.0",

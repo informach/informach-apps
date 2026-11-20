@@ -1,0 +1,69 @@
+name: Recreio - CLI completa de backup e recuperacao
+
+on:
+  push:
+    branches: ["verify/backup-operational-*"]
+  workflow_dispatch:
+    inputs:
+      expected_bucket:
+        description: Bucket exclusivo de homologacao ja autorizado
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-backup-operacional-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  operacional:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+      RECREIO_BACKUP_OPERATIONAL_PROBE: "1"
+      RECREIO_BACKUP_OPERATIONAL_DOCKER_IMAGE: recreio-backup-operacional:ci
+      RECREIO_S3_EXPECTED_BUCKET: ${{ inputs.expected_bucket }}
+      RECREIO_S3_TEST_BUCKET: ${{ secrets.RECREIO_S3_TEST_BUCKET }}
+      RECREIO_S3_TEST_ENDPOINT: ${{ secrets.RECREIO_S3_TEST_ENDPOINT }}
+      RECREIO_S3_TEST_REGION: ${{ secrets.RECREIO_S3_TEST_REGION }}
+      RECREIO_S3_TEST_PATH_STYLE: ${{ secrets.RECREIO_S3_TEST_PATH_STYLE }}
+      RECREIO_S3_TEST_ACCESS_KEY: ${{ secrets.RECREIO_S3_TEST_ACCESS_KEY }}
+      RECREIO_S3_TEST_SECRET_KEY: ${{ secrets.RECREIO_S3_TEST_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - name: Construir a imagem operacional exata e conferir fronteiras
+        run: docker build -f infrastructure/railway/recreio-backup.Dockerfile -t recreio-backup-operacional:ci .
+      - name: Capturar, conferir cadencia, perder origem e restaurar duas copias privadas
+        run: pnpm --filter @informach/recreio-app test:backup-operational
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recreio-backup-operacional-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recreio-backup-operacional.json
+          if-no-files-found: warn
+          retention-days: 30

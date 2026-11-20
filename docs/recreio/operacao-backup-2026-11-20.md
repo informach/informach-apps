@@ -286,3 +286,32 @@ Parser de armazenamento e limites é compartilhado com o capturador, mantendo
 o contrato já existente de S3/chaveiro. A nova composição e seu limite de
 leitura ainda precisam de gates e da prova CLI inteira no bucket sintético
 autorizado. Nenhuma das duas entradas foi ativada em produção.
+
+
+1423d6cd passou a imagem de restauração/off/inválida em 44834307319 e as
+fronteiras de bundle. A qualificação foi recusada por inferência de genéricos
+no teste que agrupava comandos S3 de tipos diferentes. e039c21f mantém cada
+chamada tipada individualmente por callback; nenhuma asserção de tipo ou
+permissão foi ampliada. Rodadas 44834730401/44834733649/44834736688 pendentes.
+
+## Prova das CLIs completas em preparação
+
+Perfil backup-operational é separado e só roda mediante flag explícita no
+GitHub informach/informach-apps, bucket exato recreio-homologacao-c0xyqx e
+imagem fixa. Não oferece fallback para mocks ou outro endpoint. Usa as seis
+credenciais de homologação já autorizadas, sem acrescentar credenciais reais.
+
+A prova usa duas chamadas da imagem real para captura/cadência; uma fotografia
+cifrada sintética e sentinela SQL alheia entram no arquivo. Depois remove só
+o objeto sintético e desabilita conexões somente no banco review descartável,
+terminando suas sessões pelo administrador do PostgreSQL local do job. O
+recuperador recebe só o arquivo/chave, restaura duas cópias privadas e não
+publica tráfego. São bytes opacos: não se declara jogo, diversão ou conteúdo
+familiar homologado a partir dessa fixture.
+
+O banco é reabilitado antes de qualquer consulta final, inclusive em falha.
+A limpeza recupera referências duráveis de publicação e apaga/rele apenas
+objetos próprios, exigindo NoSuchKey, sem tratar erro de bucket/permissão como
+ausência. Containers têm nomes/labels únicos e posse conferida antes de retirar.
+Relatório público contém somente estados/contagens/IDs técnicos, nunca chaves,
+URL do banco ou conteúdo. A prova ainda não foi executada.

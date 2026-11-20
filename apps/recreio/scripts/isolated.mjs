@@ -28,6 +28,7 @@ if (
   ![
     "integration",
     "backup-capture",
+    "backup-operational",
     "trial-setup",
     "trial-experiment",
     "commercial-setup",
@@ -46,10 +47,27 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, backup-capture, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-account-closure, e2e-capacidade, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, backup-capture, backup-operational, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-account-closure, e2e-capacidade, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const backupCapture = mode === "backup-capture";
+const backupOperational = mode === "backup-operational";
+if (
+  backupOperational &&
+  (process.env.GITHUB_ACTIONS !== "true" ||
+    process.env.CI !== "true" ||
+    process.env.GITHUB_REPOSITORY !== "informach/informach-apps" ||
+    process.env.RECREIO_BACKUP_OPERATIONAL_PROBE !== "1" ||
+    process.env.RECREIO_BACKUP_OPERATIONAL_DOCKER_IMAGE !== "recreio-backup-operacional:ci" ||
+    process.env.RECREIO_S3_TEST_BUCKET !== "recreio-homologacao-c0xyqx" ||
+    process.env.RECREIO_S3_EXPECTED_BUCKET !== process.env.RECREIO_S3_TEST_BUCKET ||
+    process.env.RECREIO_S3_TEST_ENDPOINT !== "https://t3.storageapi.dev" ||
+    process.env.RECREIO_S3_TEST_REGION !== "auto" ||
+    !["true", "false"].includes(process.env.RECREIO_S3_TEST_PATH_STYLE) ||
+    !process.env.RECREIO_S3_TEST_ACCESS_KEY ||
+    !process.env.RECREIO_S3_TEST_SECRET_KEY)
+)
+  throw new Error("Operational backup proof requires its explicit GitHub/homologation boundary");
 const trialExperiment = mode === "trial-experiment";
 const commercialSetup = mode === "commercial-setup";
 const commercialReconciliation = mode === "commercial-reconciliation";
@@ -437,19 +455,21 @@ try {
         "vitest",
         "run",
         "--config",
-        backupCapture
-          ? "vitest.backup-capture.config.ts"
-          : commercialReconciliation
-            ? "vitest.commercial-reconciliation.config.ts"
-            : commercialCheckout
-              ? "vitest.commercial-checkout.config.ts"
-              : commercialSetup
-                ? "vitest.commercial-setup.config.ts"
-                : trialExperiment
-                  ? "vitest.trial-experiment.config.ts"
-                  : trialSetup
-                    ? "vitest.trial-setup.config.ts"
-                    : "vitest.integration.config.ts",
+        backupOperational
+          ? "vitest.backup-operational.config.ts"
+          : backupCapture
+            ? "vitest.backup-capture.config.ts"
+            : commercialReconciliation
+              ? "vitest.commercial-reconciliation.config.ts"
+              : commercialCheckout
+                ? "vitest.commercial-checkout.config.ts"
+                : commercialSetup
+                  ? "vitest.commercial-setup.config.ts"
+                  : trialExperiment
+                    ? "vitest.trial-experiment.config.ts"
+                    : trialSetup
+                      ? "vitest.trial-setup.config.ts"
+                      : "vitest.integration.config.ts",
         ...process.argv.slice(3),
       ],
       app,
