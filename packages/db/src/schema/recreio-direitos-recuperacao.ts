@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -118,4 +119,93 @@ export const recreioRightsRecoverySources = recreio.table(
     jsonb_array_length(${t.worldMap}) between 0 and 512 and pg_column_size(${t.worldMap})<=131072`,
     ),
   ],
+);
+
+/** One assessment per restore, while the first historical source stays
+ * immutable. Readiness is a durable receipt for the inherited worker lease;
+ * it never recreates an account, changes consent or alone authorizes effects. */
+export const recreioRightsRecoveryEvaluations = recreio.table(
+  "rights_recovery_evaluations",
+  {
+    runId: uuid("run_id").notNull(),
+    operationId: uuid("operation_id").notNull(),
+    ledgerId: uuid("ledger_id").notNull(),
+    requesterReference: text("requester_reference").notNull(),
+    kind: text("kind").$type<"retirar_perfil" | "encerrar_conta">().notNull(),
+    planSha256: text("plan_sha256").notNull(),
+    worldMap: jsonb("world_map").$type<unknown[]>().notNull(),
+    state: text("state")
+      .$type<"staged" | "ready" | "verified" | "review">()
+      .notNull()
+      .default("staged"),
+    origin: text("origin").$type<"native" | "recovered">(),
+    preparationReference: uuid("preparation_reference"),
+    recoverySourceReference: uuid("recovery_source_reference"),
+    admittedHeadSha256: text("admitted_head_sha256"),
+    intentSha256: text("intent_sha256"),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    reviewCode: text("review_code").$type<
+      "integrity" | "scope" | "identity" | "finance" | "dependency" | "execution"
+    >(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => {
+    const pronta = sql`${t.origin} is not null and ${t.readyAt} is not null and
+      ${t.admittedHeadSha256} is not null and ${t.intentSha256} is not null and
+      ((${t.origin}='native' and ${t.preparationReference} is not null and ${t.recoverySourceReference} is null) or
+       (${t.origin}='recovered' and ${t.preparationReference} is null and ${t.recoverySourceReference} is not null and
+        ${t.recoverySourceReference}=${t.operationId}))`;
+    const pendente = sql`${t.origin} is null and ${t.readyAt} is null and
+      ${t.admittedHeadSha256} is null and ${t.intentSha256} is null and
+      ${t.preparationReference} is null and ${t.recoverySourceReference} is null`;
+    return [
+      primaryKey({ columns: [t.runId, t.operationId] }),
+      foreignKey({
+        name: "recreio_rights_recovery_evaluation_run",
+        columns: [t.runId, t.ledgerId],
+        foreignColumns: [recreioRightsRecoveryRuns.id, recreioRightsRecoveryRuns.ledgerId],
+      }).onDelete("restrict"),
+      foreignKey({
+        name: "recreio_rights_recovery_evaluation_source",
+        columns: [t.operationId, t.requesterReference, t.planSha256, t.kind, t.ledgerId],
+        foreignColumns: [
+          recreioRightsRecoverySources.operationId,
+          recreioRightsRecoverySources.requesterReference,
+          recreioRightsRecoverySources.planSha256,
+          recreioRightsRecoverySources.kind,
+          recreioRightsRecoverySources.ledgerId,
+        ],
+      }).onDelete("restrict"),
+      index("recreio_rights_recovery_evaluation_queue").on(t.runId, t.state, t.operationId),
+      check(
+        "recreio_rights_recovery_evaluation_scope",
+        sql`
+        ${t.kind} in ('retirar_perfil','encerrar_conta') and char_length(${t.requesterReference}) between 1 and 256 and
+        ${t.planSha256} ~ '^[a-f0-9]{64}$' and
+        (${t.admittedHeadSha256} is null or ${t.admittedHeadSha256} ~ '^[a-f0-9]{64}$') and
+        (${t.intentSha256} is null or ${t.intentSha256} ~ '^[a-f0-9]{64}$')`,
+      ),
+      check(
+        "recreio_rights_recovery_evaluation_worlds",
+        sql`jsonb_typeof(${t.worldMap})='array' and
+        jsonb_array_length(${t.worldMap}) between 0 and 512 and pg_column_size(${t.worldMap})<=131072`,
+      ),
+      check(
+        "recreio_rights_recovery_evaluation_state",
+        sql`
+        (${t.state}='staged' and (${pendente}) and ${t.verifiedAt} is null and ${t.reviewCode} is null) or
+        (${t.state}='ready' and (${pronta}) and ${t.verifiedAt} is null and ${t.reviewCode} is null) or
+        (${t.state}='verified' and (${pronta}) and ${t.verifiedAt} is not null and ${t.reviewCode} is null) or
+        (${t.state}='review' and ((${pendente}) or (${pronta})) and ${t.verifiedAt} is null and
+          ${t.reviewCode} is not null and ${t.reviewCode} in ('integrity','scope','identity','finance','dependency','execution'))`,
+      ),
+      check(
+        "recreio_rights_recovery_evaluation_times",
+        sql`isfinite(${t.createdAt}) and
+        (${t.readyAt} is null or (isfinite(${t.readyAt}) and ${t.readyAt}>=${t.createdAt})) and
+        (${t.verifiedAt} is null or (isfinite(${t.verifiedAt}) and ${t.readyAt} is not null and ${t.verifiedAt}>=${t.readyAt}))`,
+      ),
+    ];
+  },
 );

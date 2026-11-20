@@ -623,3 +623,47 @@ retirada pessoal, preservação/limpeza confirmadas.
 anterior à separação da liberação de mundos. Origem nativa já existente d3f0432c
 passou direitos 44801318469 e qualidade 44801324830, somente leitura/negativas;
 retomada sob capacidade privada ainda pendente.
+
+
+## Avaliação por execução e recibo de retomada — schema em geração
+
+A fonte histórica usa `operation_id` como PK e guarda sua primeira execução.
+Reaproveitá-la como avaliação corrente impediria uma segunda restauração ou
+exigiria sobrescrever a origem. Outra lacuna: limpar lease em cada chamada de
+retomada poderia cancelar a reserva de um worker novo no mesmo cluster.
+Auditoria não será usada como banco operacional para contornar essas causas.
+
+Uma tabela aditiva `rights_recovery_evaluations` terá PK execução/operação e
+FKs compostas para execução/livro e fonte original/ator/plano/tipo/livro. Guarda
+o mapa atual e os estados staged/ready/verified/review. O recibo ready fixa a
+origem, preparação ou fonte, hash da intenção e cabeçalho originalmente admitido.
+É uma avaliação técnica por restauração, sem FK para autor histórico ou mundo
+ausente, sem criar identidade, e não autoriza efeitos/tráfego por si. Datas de
+consentimento/admissão/conclusão da operação permanecem originais.
+
+A admissão fixa escreverá o recibo e reconciliará o lease herdado uma única vez,
+na mesma transação da auditoria. Repetição não limpará lease/backoff de worker
+novo. Escopo filho exigirá recibo pronto, cadeia inteira, origem/MAC/mapeamento
+atual e cluster privado. A mesma regra deverá tratar origem nativa e origem
+recuperada já presente em um backup posterior, preservando a fonte anterior.
+Operações de publicação/revisão e financeiro não viram autorização automática.
+
+Há uma implementação nativa e fixture de consentimento anterior em andamento
+no worktree; ela ainda não usa esse recibo durável e NÃO foi qualificada ou
+ativada. A geração publicará somente o schema aditivo a partir da fonte a1a5ae28;
+os arquivos SQL/snapshot/journal deverão ser adotados intactos do GitHub e
+conferidos estruturalmente antes de ligar os consumidores. Não aplicar DDL em
+produção. A base qualificada permanece 0242/243 recibos/79 tabelas até a adoção.
+
+Provas a acrescentar: duas decisões nativas no mesmo livro (antes/depois do
+backup), efeito parcial anterior conservado, lease de crash sintético reconciliado
+com repetição, conclusão antiga imutável, duas recuperações consecutivas e recusa
+de recibo/execução/origem divergentes. Uma nova recuperação exige avaliação nova,
+não reescrita de fonte, conta, consentimento ou datas antigas.
+
+A publicação continua restrita ao Recreio, sem restaurar o dump inteiro sobre o
+PostgreSQL compartilhado. Backup de versão antiga exige conferência do inventário
+original antes do upgrade privado pela cadeia de migrations verificada; não usar
+leitores atuais contra schema antigo como se as tabelas já existissem. Custódia
+independente, finanças/identidade atuais, retenções após retomada e checkpoint do
+livro ainda precisam da implementação/prova indicadas nesta frente.
