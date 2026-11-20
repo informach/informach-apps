@@ -9,9 +9,10 @@ import { promisify } from "node:util";
 import { EDI_TOOLS, type EdiToolId } from "@informach/config/edi-tools";
 import { compareReleaseVersions, type ReleaseManifest } from "@informach/edi-contracts";
 import { fetchPublicRelease, githubResponse } from "@informach/edi-releases/public";
-import { lock } from "proper-lockfile";
+import { check, lock } from "proper-lockfile";
 import type { DesktopConfig } from "./contracts";
 import { type InstallationFileSystem, verifyInstalledApplication } from "./installation-integrity";
+import { MAX_TOOL_INSTANCES, runtimeLockName } from "./runtime-lock";
 
 const execute = promisify(execFile);
 /** A failure written for people. Anything else reaches the Hub as a generic sentence. */
@@ -106,12 +107,23 @@ export function createInstallationManager(
       if (current && compareReleaseVersions(manifest.version, current) <= 0) return;
       await mkdir(config.directory, { recursive: true, mode: 0o700 });
       // The same heartbeat lock is held for the complete lifetime of each tool.
-      releaseLock = await lock(join(config.directory, `${id}.runtime`), {
+      releaseLock = await lock(join(config.directory, runtimeLockName(id)), {
         realpath: false,
         stale: 30000,
         update: 5000,
         retries: 0,
       });
+      // A tool open in several windows: the others hold locks of their own (runtime-lock.ts).
+      for (let instance = 2; instance <= MAX_TOOL_INSTANCES; instance++)
+        if (
+          await check(join(config.directory, runtimeLockName(id, instance)), {
+            realpath: false,
+            stale: 30000,
+          })
+        )
+          throw Object.assign(new Error("Outra janela da ferramenta está aberta."), {
+            code: "ELOCKED",
+          });
       // A different updater may have completed between the early check and this lock.
       // Re-read its signed installation before deciding to replace any files.
       const lockedCurrent = await installed(id);

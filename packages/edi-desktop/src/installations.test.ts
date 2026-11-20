@@ -10,6 +10,7 @@ import { lock } from "proper-lockfile";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { writeInstallationReceipt } from "./installation-integrity";
 import { createInstallationManager, type InstallActivity } from "./installations";
+import { runtimeLockName } from "./runtime-lock";
 
 // Keep signature verification, streaming, filesystem and inter-process locks real.
 // The native execution boundary is tested with actual NSIS in edi-upgrade.yml.
@@ -190,6 +191,28 @@ describe("installer download recovery", () => {
     expect(execution.files).toEqual([]);
     const card = (await f.manager.list()).find((app) => app.id === "edisvg");
     expect(card).toMatchObject({ installed: true, version: "1.0.1", error: null });
+  });
+  it("waits for every window of a tool open in several, not only the first", async () => {
+    const f = await fixture();
+    f.setMode("complete");
+    await f.installed("edisvg", "1.0.0");
+    // Window 1 closed; window 2 is still open and holds its own runtime lock.
+    const releaseSecond = await lock(join(f.directory, runtimeLockName("edisvg", 2)), {
+      realpath: false,
+      retries: 0,
+    });
+    onTestFinished(() => releaseSecond().catch(() => undefined));
+    await expect(f.manager.install("edisvg")).rejects.toThrow(
+      "Feche esta ferramenta para instalar a atualização. Seu trabalho não será interrompido.",
+    );
+    expect(execution.files).toEqual([]);
+    // Closed: the update goes on.
+    await releaseSecond();
+    await expectFailure(
+      f.manager.install("edisvg"),
+      "Fixture stopped at native installer execution",
+    );
+    expect(execution.files).toEqual([f.installer]);
   });
   it("does not downgrade a tool updated by another process during the initial check", async () => {
     const f = await fixture();

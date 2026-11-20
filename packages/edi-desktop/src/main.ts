@@ -28,6 +28,7 @@ import { createGrantFile, migrateLegacyToken, removeAllGrantFiles } from "./gran
 import { verifyInstalledApplication } from "./installation-integrity";
 import { desktopJobs } from "./jobs";
 import { createReleaseAcceptance } from "./release-policy";
+import { runtimeLockName } from "./runtime-lock";
 import { createSignedUpdater, UPDATE_VERIFIER_MARKER } from "./update-provider";
 import { createVault } from "./vault";
 
@@ -101,7 +102,17 @@ export function createEdiDesktop(options: {
   getRecoveryWindow?: () => BrowserWindow | null | undefined;
   /** The computer was signed out: stop AI runs and close windows that held MCP tokens. */
   onSignedOut?: () => void;
+  /**
+   * A tool open in several windows at once, each its own process (EdiSVG): this one's number,
+   * from 1. Window 1 holds `<appId>.runtime` and looks for updates; another holds
+   * `<appId>.janela-<n>.runtime` (installations.ts waits for every one of them).
+   */
+  instance?: number;
+  /** Other windows of this tool are open: an update downloaded is not installed on quitting. */
+  otherInstancesOpen?: () => boolean;
 }) {
+  const instance = options.instance ?? 1;
+  if (!Number.isInteger(instance) || instance < 1) throw new Error("Invalid tool instance");
   const config = desktopConfigSchema.parse(JSON.parse(process.env.EDI_DESKTOP_CONFIG ?? "{}"));
   fileAuthority = createFileAuthority(
     EDI_TOOLS.find((tool) => tool.id === options.appId)?.projectExtensions ?? [],
@@ -118,6 +129,7 @@ export function createEdiDesktop(options: {
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   let unsubscribeVault: ReturnType<typeof watch> | undefined;
   let runtimeLock: (() => Promise<void>) | undefined;
+  const runtimeFile = () => join(directory, runtimeLockName(options.appId, instance));
   let sessionVault: ReturnType<typeof createVault> | undefined;
   let vaultClosing = false;
   let vaultClosed = false;
@@ -369,7 +381,7 @@ export function createEdiDesktop(options: {
     },
     async start() {
       await mkdir(directory, { recursive: true, mode: 0o700 });
-      runtimeLock = await lock(join(directory, `${options.appId}.runtime`), {
+      runtimeLock = await lock(runtimeFile(), {
         realpath: false,
         stale: 30000,
         update: 5000,
@@ -387,6 +399,12 @@ export function createEdiDesktop(options: {
       const quitAfterThisQuit = () => setImmediate(() => app.quit());
       app.on("will-quit", (event) => {
         controller?.cancelRefresh();
+        if (pendingInstaller && updater && !quitVerified && options.otherInstancesOpen?.()) {
+          // Other windows of this tool still run from these files: the update waits for a quit
+          // with none open (it is looked for again at the next start).
+          updater.autoInstallOnAppQuit = false;
+          pendingInstaller = undefined;
+        }
         if (pendingInstaller && updater && !quitVerified) {
           // All editor close/save handlers have completed by will-quit. Recheck
           // the actual cached bytes immediately before the updater can execute.
@@ -454,7 +472,7 @@ export function createEdiDesktop(options: {
         }
         if (runtimeLock) {
           try {
-            unlockSync(join(directory, `${options.appId}.runtime`), { realpath: false });
+            unlockSync(runtimeFile(), { realpath: false });
           } catch (error) {
             logFailure("runtime_lock_release_failed", error);
           }
@@ -620,33 +638,37 @@ export function createEdiDesktop(options: {
           trustedKeys: config.updateKeys,
           fileSystem: electronInstallationFileSystem,
         });
-        updater = createSignedUpdater({
-          appId: options.appId,
-          repository: config.distributionRepository,
-          trustedKeys: config.updateKeys,
-          channel: config.updateChannel,
-          acceptRelease: releaseAcceptance,
-        });
-        updater.on("checking-for-update", () => {
-          controller?.setUpdate("checking");
-        });
-        updater.on("update-not-available", () => {
-          controller?.setUpdate("idle");
-        });
-        updater.on("download-progress", () => {
-          controller?.setUpdate("downloading");
-        });
-        updater.on("update-downloaded", (event) => {
-          pendingInstaller = event.downloadedFile;
-          controller?.setUpdate("ready");
-        });
-        updater.on("error", (error) => {
-          controller?.setUpdate("error");
-          logFailure("update_failed", error);
-        });
-        await updater.checkForUpdates().catch((error: unknown) => {
-          logFailure("update_check_failed", error);
-        });
+        // One window looks for updates (a tool open in several: the first).
+        if (instance === 1) {
+          const signed = createSignedUpdater({
+            appId: options.appId,
+            repository: config.distributionRepository,
+            trustedKeys: config.updateKeys,
+            channel: config.updateChannel,
+            acceptRelease: releaseAcceptance,
+          });
+          updater = signed;
+          signed.on("checking-for-update", () => {
+            controller?.setUpdate("checking");
+          });
+          signed.on("update-not-available", () => {
+            controller?.setUpdate("idle");
+          });
+          signed.on("download-progress", () => {
+            controller?.setUpdate("downloading");
+          });
+          signed.on("update-downloaded", (event) => {
+            pendingInstaller = event.downloadedFile;
+            controller?.setUpdate("ready");
+          });
+          signed.on("error", (error) => {
+            controller?.setUpdate("error");
+            logFailure("update_failed", error);
+          });
+          await signed.checkForUpdates().catch((error: unknown) => {
+            logFailure("update_check_failed", error);
+          });
+        }
       }
       await controller.refresh();
       unsubscribeVault = watch(directory, { persistent: false }, (_kind, name) => {

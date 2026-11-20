@@ -388,3 +388,48 @@ test("the project of a lesson is made beside it the first time, and opened the n
     await rm(directory, { recursive: true });
   }
 });
+
+test("a project open in another EdiSVG window is neither opened nor written here", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "edisvg-outra-janela-"));
+  try {
+    const mine = join(directory, "Aula 1.edisvg");
+    const theirs = join(directory, "Aula 2.edisvg");
+    await writeFile(mine, JSON.stringify(newProject()));
+    await writeFile(theirs, JSON.stringify(newProject()));
+    let chosen = theirs;
+    const files = createProjectFiles({
+      chooseOpen: async () => chosen,
+      chooseSave: async () => chosen,
+      confirm: async () => "discard",
+      elsewhere: (path) =>
+        path.toLowerCase() === theirs.toLowerCase() ? "Aberto na janela 2." : null,
+    });
+    // An empty window: nothing in it yet, also once the window sends the project back with its
+    // own defaults; an edit of the person's makes it a window with work.
+    const empty = newProject();
+    await files.recover(empty, { persist: false });
+    assert.equal(files.isEmpty(), true);
+    await files.changed({ ...empty, inputs: { humor: 0.25, acenando: true } });
+    assert.equal(files.isEmpty(), true);
+    await files.changed({ ...empty, inputs: { humor: 0.25, acenando: true }, name: "Aula" });
+    assert.equal(files.isEmpty(), false);
+    await files.close();
+    assert.equal(files.isEmpty(), true);
+    await assert.rejects(files.open(), /Aberto na janela 2/);
+    await assert.rejects(files.openLinked(theirs), /Aberto na janela 2/);
+    assert.equal(files.status().path, null);
+    chosen = mine;
+    const opened = await files.open();
+    assert.equal(opened.status.path, mine);
+    assert.equal(files.isEmpty(), false);
+    // Saved as the other window's file: refused, and this window's file is untouched.
+    await files.changed({ ...opened.project, name: "Outro nome" });
+    chosen = theirs;
+    await assert.rejects(files.save(true), /Aberto na janela 2/);
+    assert.equal(files.status().path, mine);
+    // Saving to its own file needs no question.
+    assert.equal((await files.save()).saved, true);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});

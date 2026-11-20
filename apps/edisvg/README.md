@@ -2,6 +2,29 @@
 
 Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e `shared`. O canvas e os painéis existentes permanecem em JavaScript; interfaces novas, como o painel de pranchetas, usam React/TypeScript integrado sem reescrita visual integral.
 
+## Várias janelas (uma aula por janela)
+
+O EdiSVG abre quantas janelas forem precisas, até 8, para editar várias aulas ao mesmo tempo: o pipeline de uma roda enquanto outra é editada, e as exportações e os renders das animações vinculadas de cada janela correm em paralelo. Cada janela é um processo próprio, com a sua assistente e os seus pipelines, sobre o mesmo perfil (`%APPDATA%\edisvg`). As receitas, os guias de estilo e as fontes padrão continuam valendo para todas.
+
+- **Abrir outra:** Arquivo › **Nova janela** (Ctrl+Shift+N). No app instalado, abrir o EdiSVG de novo (atalho, Hub) também abre outra janela; no modo de trabalho (`pnpm edi:work edisvg`) a nova janela sai do menu.
+- **Um projeto, uma janela:** abrir (Abrir projeto…, duplo clique no `.edisvg`) ou "Salvar como" num projeto que já está aberto em outra janela não abre uma segunda cópia: a janela dona dele vem para a frente.
+- **Pedidos do EdiAula** ("Nova animação do EdiSVG", "Editar no EdiSVG"): vão para a janela que tem o projeto daquela aula aberto; senão, para uma janela vazia (sem arquivo e sem edição); senão, o EdiSVG abre uma janela nova para o pedido. O EdiAula não mudou.
+- **Recuperação e fila de renders por janela:** a janela 1 mantém os arquivos de antes (`recovery-v1.json`, `fila-de-renders.json`); a janela *n* usa `recovery-v1-janela-n.json` e `fila-de-renders-janela-n.json`. A fila de uma janela que fechou com renders pendentes é adotada pela próxima que abrir.
+- **Claude Code e Codex de fora do app** ("Conectar") falam com a janela 1, na porta 47322. As outras janelas usam uma porta que o sistema dá, para a assistente e os pipelines delas. Se a 47322 estiver ocupada, a janela 1 também usa uma porta do sistema.
+
+Como funciona (`src/main/instances.ts`):
+- **Registro das janelas:** a pasta `janelas\` do perfil tem um arquivo por janela (`<n>.json`: processo, projeto aberto, se está vazia). O número de uma janela que caiu fica livre de novo.
+- **Perfil do navegador:** a janela *n* tem o seu (`janelas\sessao-n`, localStorage e cache), porque o Chromium o trava para um processo. Ela leva junto o `Local State` da janela 1, onde fica a chave com que a licença da suíte foi selada.
+- **Pedidos:** a janela pega o pedido renomeando `pedidos\<id>.json` para `<id>.janela-n`. Um pedido pego por uma janela que caiu volta para a fila (`linkRequests.ts`).
+- **Manifesto dos renders** (`vinculos.json`): é gravado sob uma trava entre processos (`proper-lockfile`). Um `.part.webm` só é apagado depois de 10 min parado, porque pode ser de um render de outra janela (`linkRender.ts`).
+- **Pastas temporárias e pacotes de aula** dos pipelines: são por janela (`edisvg-lesson-screen-janela-n`, `pipeline-lessons-janela-n`).
+- **Suíte (`packages/edi-desktop`):**
+  - cada janela tem a sua trava de runtime (`edisvg.janela-n.runtime`);
+  - o instalador do Hub espera todas as janelas fecharem;
+  - só a janela 1 procura atualizações;
+  - uma atualização baixada não é instalada enquanto houver outra janela aberta.
+- **Modo de trabalho:** o `edi:work` mantém a licença enquanto houver janela aberta, e não só até a primeira janela fechar.
+
 ## Exportar uma animação para um aplicativo web
 
 Em Exportar, escolha **Animação para web**, a prancheta com o desenho e a animação ou máquina
