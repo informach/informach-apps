@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { INFORMACH_MIGRATION_HISTORY } from "../migration-provenance";
 import journal from "../migrations/meta/_journal.json" with { type: "json" };
 
 const RELEASE = "d014bd90a895df452b83b9a2e6e683ac5749e0cb";
@@ -21,6 +22,8 @@ async function main() {
   assert.equal(process.env.CI, "true");
   assert.equal(process.platform, "linux");
   assert.equal(process.argv.length, 2);
+  const historical = process.env.RECREIO_FIXTURE_HISTORY === "historical";
+  assert.ok(["published", "historical"].includes(process.env.RECREIO_FIXTURE_HISTORY ?? ""));
   const url = new URL(process.env.DATABASE_URL ?? "");
   assert.equal(url.protocol, "postgres:");
   assert.equal(url.hostname, "127.0.0.1");
@@ -44,13 +47,36 @@ async function main() {
     assert.deepEqual(JSON.parse(oldJournal.toString("utf8")), prefix);
     await mkdir(join(folder, "meta"));
     await writeFile(join(folder, "meta/_journal.json"), oldJournal);
+    // Verify exact original and later published Git blobs, independently of
+    // the live history reader. Historical SQL is executed only while this
+    // synthetic fixture is empty, before any profiles/content are inserted.
+    const originals = new Map<number, Buffer>();
+    for (const artifact of INFORMACH_MIGRATION_HISTORY.artifacts) {
+      const entry = prefix.entries[artifact.index];
+      assert.equal(entry?.tag, artifact.tag);
+      assert.equal(entry?.when, artifact.folderMillis);
+      const path = `${MIGRATIONS}/${artifact.tag}.sql`;
+      const original = execFileSync("git", ["show", `${artifact.originalCommit}:${path}`]);
+      assert.equal(
+        createHash("sha256").update(original).digest("hex"),
+        artifact.historicalSqlSha256,
+      );
+      assert.equal(
+        createHash("sha256").update(oldFile(path)).digest("hex"),
+        artifact.publishedSqlSha256,
+      );
+      originals.set(artifact.index, original);
+    }
     for (const entry of prefix.entries) {
       const sql = oldFile(`${MIGRATIONS}/${entry.tag}.sql`);
       assert.deepEqual(
         sql,
         await readFile(fileURLToPath(new URL(`../migrations/${entry.tag}.sql`, import.meta.url))),
       );
-      await writeFile(join(folder, `${entry.tag}.sql`), sql);
+      await writeFile(
+        join(folder, `${entry.tag}.sql`),
+        historical ? (originals.get(entry.idx) ?? sql) : sql,
+      );
     }
     await migrate(drizzle(migrator), { migrationsFolder: folder });
     await raw.begin(async (tx) => {
@@ -100,7 +126,8 @@ async function main() {
         receipts: 204,
         worlds: 2,
         snapshots: 10,
-        oldSqlAndJournalPrefixUnchanged: true,
+        publishedSqlAndJournalPrefixUnchanged: true,
+        historicalReceiptVariantsExecutedInEmptyFixture: historical ? originals.size : 0,
         gameContentValidated: false,
         productionAccess: false,
       }),

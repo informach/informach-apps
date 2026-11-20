@@ -8,6 +8,7 @@ on:
       - ".github/workflows/recreio-backup-upgrade.yml"
       - "apps/recreio/scripts/backup/**"
       - "packages/db/src/migration-chain*"
+      - "packages/db/src/migration-provenance*"
       - "packages/db/src/testing/recreio-restored-upgrade-fixture.ts"
       - "packages/db/src/migrations/**"
       - "packages/db/package.json"
@@ -44,10 +45,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres_user: [postgres, ci]
+        include:
+          - postgres_user: postgres
+            history: published
+          - postgres_user: ci
+            history: historical
     env:
       CI: "true"
       RECREIO_FIXTURE_USER: ${{ matrix.postgres_user }}
+      RECREIO_FIXTURE_HISTORY: ${{ matrix.history }}
       RECREIO_FIXTURE_CONTAINER: recreio-upgrade-fixture-${{ github.run_id }}-${{ matrix.postgres_user }}
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +64,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Obter somente a release publica de origem
-        run: git fetch --no-tags origin d014bd90a895df452b83b9a2e6e683ac5749e0cb
+        run: git fetch --no-tags origin d014bd90a895df452b83b9a2e6e683ac5749e0cb 8945f70faa35280e479bff361a135fe83458abc7 3b53c2733f7878c30377bec038c5dcb18042ae8d
       - name: Construir exatamente o executor operacional
         run: docker build -f infrastructure/railway/recreio-backup.Dockerfile -t recreio-backup:ci .
       - name: Iniciar somente a origem descartável
@@ -100,10 +106,12 @@ jobs:
             const r=rows.at(-1);
             const flags=["ok","conteudoIdentico","estruturaIdentica","globaisIdenticos","temporariosRemovidos",
               "upgradePrivadoExecutado","timestampsAndHashesVerified","inventoryComparedBeforeUpgrade",
-              "originalRecreioColumnValuesPreserved","unrelatedTableDataPreserved","globalsPreserved"];
+              "originalRecreioColumnValuesPreserved","unrelatedTableDataPreserved","globalsPreserved","originalMigrationReceiptsPreserved"];
             if(!r || flags.some(k=>r[k]!==true) || r.receiptsBefore!==204 || r.receiptsAfter!==244 ||
               r.migrationsApplied!==40 || r.sourceDatabaseMutated!==false || r.trafficAuthorized!==false ||
-              r.tablesAfter<=r.tablesBefore || r.bytes<=0) process.exit(1);
+              r.tablesAfter<=r.tablesBefore || r.bytes<=0 ||
+              r.historyProfile!=="informach-historical-sql-2026-11-20" ||
+              r.historicalReceiptVariantsVerified!==(process.env.RECREIO_FIXTURE_HISTORY==="historical"?2:0)) process.exit(1);
           '
           original=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select (select count(*)=204 from drizzle.__drizzle_migrations) and (select count(*)=10 from recreio.space_snapshots) and to_regclass('recreio.rights_recovery_evaluations') is null")
           test "$original" = t

@@ -1,7 +1,9 @@
+import { isDeepStrictEqual } from "node:util";
 import { type MigrationMeta, readMigrationFiles } from "drizzle-orm/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import type postgres from "postgres";
+import { INFORMACH_MIGRATION_HISTORY, type MigrationHistoryProfile } from "./migration-provenance";
 
 export class MigrationChainError extends Error {
   constructor(
@@ -26,7 +28,10 @@ type FileIdentity = Pick<MigrationMeta, "hash" | "folderMillis">;
 export function verifyRestoredMigrationPrefix(
   files: readonly FileIdentity[],
   applied: readonly Receipt[],
+  history: MigrationHistoryProfile = "published-only",
 ) {
+  if (history !== "published-only" && history !== INFORMACH_MIGRATION_HISTORY.id)
+    throw new MigrationChainError("FILES_INVALID");
   if (files.length === 0 || files.length > 4096) throw new MigrationChainError("FILES_INVALID");
   for (let i = 0; i < files.length; i++) {
     const f = files[i],
@@ -50,6 +55,7 @@ export function verifyRestoredMigrationPrefix(
     )
   )
     throw new MigrationChainError("HISTORY_FUTURE");
+  let historicalVariantsVerified = 0;
   for (let i = 0; i < applied.length; i++) {
     const receipt = applied[i],
       file = files[i];
@@ -58,12 +64,30 @@ export function verifyRestoredMigrationPrefix(
       !file ||
       !/^[1-9]\d*$/.test(receipt.createdAt) ||
       !Number.isSafeInteger(Number(receipt.createdAt)) ||
-      Number(receipt.createdAt) !== file.folderMillis ||
-      receipt.hash !== file.hash
+      Number(receipt.createdAt) !== file.folderMillis
     )
       throw new MigrationChainError("HISTORY_INCONSISTENT");
+    if (receipt.hash !== file.hash) {
+      const artifact =
+        history === INFORMACH_MIGRATION_HISTORY.id
+          ? INFORMACH_MIGRATION_HISTORY.artifacts.find(
+              (a) =>
+                a.index === i &&
+                a.folderMillis === file.folderMillis &&
+                a.publishedSqlSha256 === file.hash &&
+                a.historicalSqlSha256 === receipt.hash,
+            )
+          : undefined;
+      if (!artifact) throw new MigrationChainError("HISTORY_INCONSISTENT");
+      historicalVariantsVerified++;
+    }
   }
-  return { before: applied.length, target: files.length, pending: files.length - applied.length };
+  return {
+    before: applied.length,
+    target: files.length,
+    pending: files.length - applied.length,
+    historicalVariantsVerified,
+  };
 }
 
 /** Explicit dedicated client and trusted release directory only. Caller owns
@@ -72,6 +96,7 @@ export function verifyRestoredMigrationPrefix(
 export async function migrateOwnedCopyWithVerifiedHistory(config: {
   connection: postgres.Sql;
   migrationsFolder: string;
+  history?: MigrationHistoryProfile;
 }) {
   if (config.connection.options.max !== 1) throw new MigrationChainError("CONNECTION_NOT_OWNED");
   const files = readMigrationFiles({ migrationsFolder: config.migrationsFolder });
@@ -80,17 +105,28 @@ export async function migrateOwnedCopyWithVerifiedHistory(config: {
       "select to_regclass('drizzle.__drizzle_migrations')::text as name",
     );
     if (!table?.name) throw new MigrationChainError("HISTORY_MISSING");
-    return config.connection.unsafe<{ hash: string; created_at: string }[]>(
-      "select hash,created_at::text from drizzle.__drizzle_migrations order by created_at,id limit 4097",
+    return config.connection.unsafe<{ id: string; hash: string; created_at: string }[]>(
+      "select id::text,hash,created_at::text from drizzle.__drizzle_migrations order by created_at,id limit 4097",
     );
   };
   const receipts = (rows: Awaited<ReturnType<typeof readHistory>>) =>
     rows.map((r) => ({ hash: r.hash, createdAt: r.created_at }));
-  const before = verifyRestoredMigrationPrefix(files, receipts(await readHistory()));
+  const originalReceipts = await readHistory();
+  const before = verifyRestoredMigrationPrefix(files, receipts(originalReceipts), config.history);
   if (before.pending)
     await migrate(drizzle(config.connection), { migrationsFolder: config.migrationsFolder });
-  const after = verifyRestoredMigrationPrefix(files, receipts(await readHistory()));
+  const currentReceipts = await readHistory();
+  const after = verifyRestoredMigrationPrefix(files, receipts(currentReceipts), config.history);
+  if (
+    !isDeepStrictEqual(
+      Array.from(currentReceipts.slice(0, originalReceipts.length)),
+      Array.from(originalReceipts),
+    )
+  )
+    throw new MigrationChainError("HISTORY_INCONSISTENT");
   if (after.pending !== 0) throw new MigrationChainError("HISTORY_INCOMPLETE");
+  if (after.historicalVariantsVerified !== before.historicalVariantsVerified)
+    throw new MigrationChainError("HISTORY_INCONSISTENT");
   const current = readMigrationFiles({ migrationsFolder: config.migrationsFolder });
   if (
     current.length !== files.length ||
@@ -102,5 +138,8 @@ export async function migrateOwnedCopyWithVerifiedHistory(config: {
     receiptsAfter: after.target,
     migrationsApplied: before.pending,
     timestampsAndHashesVerified: true as const,
+    historyProfile: config.history ?? "published-only",
+    historicalReceiptVariantsVerified: before.historicalVariantsVerified,
+    originalMigrationReceiptsPreserved: true as const,
   };
 }

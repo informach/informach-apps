@@ -105,6 +105,7 @@ export async function atualizarCopiaPrivada(config: {
         valor: await migrateOwnedCopyWithVerifiedHistory({
           connection: migracao,
           migrationsFolder: MIGRATIONS_FOLDER,
+          history: "informach-historical-sql-2026-11-20",
         }),
       };
     } catch (erro) {

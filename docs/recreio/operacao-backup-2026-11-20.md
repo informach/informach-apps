@@ -190,3 +190,10 @@ controle antes/depois da consulta, destinos divergentes, nova posse, etapas
 de retirada, limite/ordem e exclusão de legado. Não declaram prova externa
 do arquivo. Tipos/captura/cluster desta extensão ainda precisam de gates;
 o processo operacional que consumirá as pistas continua em implementação.
+
+
+O ensaio real 14b56ada/8cf0fdb1 recusou dois hashes históricos antes do DDL,
+com temporários e serviço removidos. A proveniência exata dos SQLs originais
+foi encontrada no Git; não reescrever recibos nem reintroduzir DROP antigo
+na pasta executável. Perfil histórico explícito e nova prova sintética/real
+seguem em [upgrade privado](upgrade-privado-2026-11-20.md).

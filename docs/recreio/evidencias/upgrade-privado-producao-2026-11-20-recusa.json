@@ -1,0 +1,51 @@
+{
+  "status": "refused_before_upgrade",
+  "source": "8cf0fdb184c0da8507cead0da1c48dc79c937d05",
+  "qualifiedSyntheticRun": "44825042003",
+  "projectId": "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+  "environmentId": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+  "temporaryServiceId": "620bc48b-d539-45e2-abb9-2498f95da4b9",
+  "deploymentId": "14b56ada-4de6-4d5c-a77c-30e2242a3e26",
+  "operationId": "8d5150a8-1fd7-4a57-a4a2-25a11301ec02",
+  "startedAt": "2026-11-20T22:06:23.482112783Z",
+  "refusedAt": "2026-11-20T22:06:43.178622367Z",
+  "phase": "upgrade_copia_privada",
+  "code": "UPGRADE_HISTORY_INCONSISTENT",
+  "temporaryFilesRemoved": true,
+  "temporaryServiceDeleted": true,
+  "temporaryServiceAbsenceVerified": true,
+  "servicesAfterCleanup": 38,
+  "volumesAfterCleanup": 4,
+  "bucketsAfterCleanup": 1,
+  "productionMigrationReceipts": 204,
+  "productionSourceReadOnly": true,
+  "originalDatabaseMigrated": false,
+  "trafficAuthorized": false,
+  "historicalArtifactsVerifiedAgainstGit": [
+    {
+      "index": 10,
+      "tag": "0010_create_ai_mastra_schema",
+      "folderMillis": 1777727429199,
+      "originalCommit": "8945f70faa35280e479bff361a135fe83458abc7",
+      "historicalSqlSha256": "ec4eaec8b1fdd2fe5c05a5baa6faa11ab7bccb3b4fa1d709b7bda1f58b17d6fd",
+      "publishedSqlSha256": "be4e2118ab5f1ab161bb579a74b29a101df09dd1c542150058c22a4e228aa011",
+      "historicalSqlBytes": 384,
+      "sourceReceiptMatchesOriginalGitBlob": true
+    },
+    {
+      "index": 52,
+      "tag": "0052_late_rage",
+      "folderMillis": 1789432818807,
+      "originalCommit": "3b53c2733f7878c30377bec038c5dcb18042ae8d",
+      "historicalSqlSha256": "c26ec04b0eb74eb0a2548e6d83c4e57369a36701aaec6bb9985df97ea9848bb4",
+      "publishedSqlSha256": "8d4418dc0b99e445c1eae9170fdb8214fa2cf972df0cb7e53c824a9082af07fd",
+      "historicalSqlBytes": 130,
+      "sourceReceiptMatchesOriginalGitBlob": true
+    }
+  ],
+  "limits": [
+    "Failed production-copy qualification, not a completed upgrade.",
+    "Historical receipts were not rewritten; neither historical SQL variant was replayed.",
+    "The two old artifacts are accounted for by exact original Git blob identities; unknown hashes remain failures."
+  ]
+}

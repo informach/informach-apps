@@ -34,7 +34,8 @@ Coordenação 05a335fb passou qualidade/captura/cluster
 tarefa e escopo vencido/copiado. Reconciliação e5754c26 passou cluster,
 qualidade e integração 44822503406/44822507351/44822511082. [Plano e próximo passo](recreio/operacao-backup-2026-11-20.md).
 Falta finalizar ambiente/credenciais, fila/reconciliação, custódia e agenda,
-upgrade privado após comparar o inventário, publicação seletiva somente do
+upgrade privado após comparar o inventário (recusa real e perfil histórico em
+[qualificação](recreio/upgrade-privado-2026-11-20.md)), publicação seletiva somente do
 Recreio com identidade/finanças atuais e aceites operacionais/comerciais finais.
 
 **Provas reais recentes:** ensaio de 20/11 às 20h52 UTC restaurou conteúdo,
