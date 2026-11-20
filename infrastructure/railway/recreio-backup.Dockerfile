@@ -17,6 +17,8 @@ FROM postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0dd
 COPY --from=builder /usr/local/bin/node /usr/local/bin/node
 COPY --from=builder /build/ensaiar-backup.mjs /opt/recreio/ensaiar-backup.mjs
 COPY --from=builder /build/recuperar-captura-prova.cjs /opt/recreio/recuperar-captura-prova.cjs
+COPY --from=builder /build/packages/db/src/migrations/*.sql /opt/recreio/migrations/
+COPY --from=builder /build/packages/db/src/migrations/meta/_journal.json /opt/recreio/migrations/meta/_journal.json
 RUN node --version && postgres --version
 ENTRYPOINT ["node", "/opt/recreio/ensaiar-backup.mjs"]
 CMD []

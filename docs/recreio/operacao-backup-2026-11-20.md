@@ -137,3 +137,31 @@ registrava Content-Type application/json no servidor HTTP fechado; o leitor
 recusou integridade antes da conferência do tombstone. A fixture agora conserva
 esse metadado HTTP e confere o MAC antes de simular a escrita tardia. Decoder
 e exigência de RETIRADO permanecem estritos. Nenhum dado/serviço real alterado.
+
+
+A candidata e5754c26 passou cluster frio externo 44822503406, qualidade
+44822507351 e integração 44822511082. Nenhum bypass foi acrescentado.
+
+## Upgrade da cópia restaurada
+
+O executor de ensaio ganha modo explícito RECREIO_BACKUP_PRIVATE_UPGRADE=1,
+desligado por padrão. Compara novamente conteúdo, estrutura e globais antes
+de qualquer DDL; deriva o cliente de migração somente do socket/banco privado
+já conferido, sem URL livre nem pool da aplicação. O migrador oficial exige
+um prefixo exato dos recibos, inclusive SHA-256 SQL e timestamp; histórico
+ausente, alterado, incompleto ou futuro é recusado. Não há seed, reparação
+de recibos, atualização da origem ou autorização de tráfego.
+
+Depois do upgrade, compara os valores de todas as colunas originais do Recreio,
+todas as tabelas dos outros schemas e os fatos globais. Usa cliente separado
+para que os codecs do Drizzle não alterem a leitura crua do inventário.
+Somente resumos saem do banco, sem linhas ou dados pessoais nos relatórios.
+
+O workflow recreio-backup-upgrade.yml prepara no GitHub a release pública
+d014bd90 com 204 recibos, duas famílias sintéticas, dois mundos, dez fotografias
+e sentinela alheia. A imagem operacional precisa provar 204→244/40 migrações
+só na cópia e recusar checksum adulterado em outra captura sintética, com
+limpeza em ambos os casos. Estas fotografias são bytes opacos de migração;
+não comprovam conteúdo jogável nem consentimento. Gates ainda pendentes.
+Depois deles, repetir a prova com uma captura real somente leitura no Railway,
+antes de qualquer atualização do banco original ou promoção à main remota.

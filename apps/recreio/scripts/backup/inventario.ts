@@ -60,6 +60,29 @@ function consultaResumida(consulta: string): string {
   return `select encode(sha256(convert_to(row_to_json(registro)::text, 'UTF8')), 'hex') as linha
     from (${consulta}) registro order by linha`;
 }
+
+/** Preserve the exact original column projection across an additive private
+ * upgrade. Uses the same row-hash/cursor protocol as the backup inventory;
+ * only fixed-size summaries leave PostgreSQL, never personal rows. */
+export async function resumirCamposOriginaisDoRecreio(
+  leitor: Leitor,
+  tabela: string,
+  campos: readonly string[],
+) {
+  const identificador = (v: string) => {
+    if (v.length === 0 || Buffer.byteLength(v, "utf8") > 63 || v.includes("\0"))
+      throw new FalhaDeInventario("FORMATO_DIVERGENTE");
+    return `"${v.replaceAll('"', '""')}"`;
+  };
+  if (campos.length === 0 || campos.length > 1600 || new Set(campos).size !== campos.length)
+    throw new FalhaDeInventario("FORMATO_DIVERGENTE");
+  return resumir(
+    leitor,
+    consultaResumida(
+      `select ${campos.map(identificador).join(",")} from "recreio".${identificador(tabela)}`,
+    ),
+  );
+}
 async function conjunto(
   leitor: Leitor,
   partes: readonly (readonly [string, string])[],

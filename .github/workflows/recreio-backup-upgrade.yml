@@ -1,0 +1,148 @@
+name: Recreio - upgrade privado de copia restaurada
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "verify/recreio-private-upgrade-*"]
+    paths:
+      - ".github/workflows/recreio-backup-upgrade.yml"
+      - "apps/recreio/scripts/backup/**"
+      - "packages/db/src/migration-chain*"
+      - "packages/db/src/testing/recreio-restored-upgrade-fixture.ts"
+      - "packages/db/src/migrations/**"
+      - "packages/db/package.json"
+      - "infrastructure/railway/recreio-backup.Dockerfile*"
+      - "pnpm-lock.yaml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-backup-upgrade-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contratos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/db typecheck
+      - run: pnpm --filter @informach/db exec vitest run src/migration-chain.test.ts
+      - run: pnpm --filter @informach/recreio-app typecheck
+  restauracao:
+    needs: contratos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres_user: [postgres, ci]
+    env:
+      CI: "true"
+      RECREIO_FIXTURE_USER: ${{ matrix.postgres_user }}
+      RECREIO_FIXTURE_CONTAINER: recreio-upgrade-fixture-${{ github.run_id }}-${{ matrix.postgres_user }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Obter somente a release publica de origem
+        run: git fetch --no-tags origin d014bd90a895df452b83b9a2e6e683ac5749e0cb
+      - name: Construir exatamente o executor operacional
+        run: docker build -f infrastructure/railway/recreio-backup.Dockerfile -t recreio-backup:ci .
+      - name: Iniciar somente a origem descartável
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name "$RECREIO_FIXTURE_CONTAINER" \
+            --label informach.fixture=recreio-backup \
+            --env POSTGRES_PASSWORD=ci --env POSTGRES_DB=fixture \
+            --env POSTGRES_USER="$RECREIO_FIXTURE_USER" \
+            --publish 127.0.0.1:55431:5432 \
+            postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+          printf '%s\n' 'RECREIO_FIXTURE_STARTED=1' >> "$GITHUB_ENV"
+          pronto=false
+          for tentativa in {1..60}; do
+            # O servidor temporario do entrypoint aceita socket antes de criar
+            # POSTGRES_DB. Exigir consulta autenticada no TCP do servidor final.
+            if docker exec --env PGPASSWORD=ci "$RECREIO_FIXTURE_CONTAINER" psql --host 127.0.0.1 --username "$RECREIO_FIXTURE_USER" --dbname fixture --no-password --tuples-only --no-align --command 'select 1' | grep -qx 1; then
+              pronto=true
+              break
+            fi
+            sleep 1
+          done
+          test "$pronto" = true
+      - name: Preparar origem sintetica na release publica de producao
+        env:
+          DATABASE_URL: postgres://${{ matrix.postgres_user }}:ci@127.0.0.1:55431/fixture
+        run: pnpm --filter @informach/db exec tsx src/testing/recreio-restored-upgrade-fixture.ts
+      - name: Restaurar, comparar e atualizar somente a copia privada
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host --env CI=true --env RECREIO_BACKUP_PRIVATE_UPGRADE=1 \
+            --env "RECREIO_BACKUP_DATABASE_URL=postgres://${RECREIO_FIXTURE_USER}:ci@127.0.0.1:55431/fixture" \
+            recreio-backup:ci | tee "$RUNNER_TEMP/recreio-backup.jsonl"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const rows=readFileSync(process.env.RUNNER_TEMP+"/recreio-backup.jsonl","utf8").trim().split("\n").map(s=>JSON.parse(s));
+            const r=rows.at(-1);
+            const flags=["ok","conteudoIdentico","estruturaIdentica","globaisIdenticos","temporariosRemovidos",
+              "upgradePrivadoExecutado","timestampsAndHashesVerified","inventoryComparedBeforeUpgrade",
+              "originalRecreioColumnValuesPreserved","unrelatedTableDataPreserved","globalsPreserved"];
+            if(!r || flags.some(k=>r[k]!==true) || r.receiptsBefore!==204 || r.receiptsAfter!==244 ||
+              r.migrationsApplied!==40 || r.sourceDatabaseMutated!==false || r.trafficAuthorized!==false ||
+              r.tablesAfter<=r.tablesBefore || r.bytes<=0) process.exit(1);
+          '
+          original=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select (select count(*)=204 from drizzle.__drizzle_migrations) and (select count(*)=10 from recreio.space_snapshots) and to_regclass('recreio.rights_recovery_evaluations') is null")
+          test "$original" = t
+      - name: Recusar checksum adulterado antes de qualquer upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Only this disposable synthetic source is corrupted. Never real receipts.
+          docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -v ON_ERROR_STOP=1 -c "update drizzle.__drizzle_migrations set hash=repeat('0',64) where id=(select min(id) from drizzle.__drizzle_migrations)"
+          set +e
+          docker run --rm --network host --env CI=true --env RECREIO_BACKUP_PRIVATE_UPGRADE=1 \
+            --env "RECREIO_BACKUP_DATABASE_URL=postgres://${RECREIO_FIXTURE_USER}:ci@127.0.0.1:55431/fixture" \
+            recreio-backup:ci > "$RUNNER_TEMP/recreio-upgrade-recusa.jsonl" 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 1
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const r=readFileSync(process.env.RUNNER_TEMP+"/recreio-upgrade-recusa.jsonl","utf8").trim().split("\n").map(s=>JSON.parse(s)).at(-1);
+            if(!r || r.ok!==false || r.fase!=="upgrade_copia_privada" ||
+              r.codigo!=="UPGRADE_HISTORY_INCONSISTENT" || r.temporariosRemovidos!==true) process.exit(1);
+          '
+          original=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select (select count(*)=204 from drizzle.__drizzle_migrations) and to_regclass('recreio.rights_recovery_evaluations') is null")
+          test "$original" = t
+      - name: Preservar somente o relatório sem conteúdo
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-upgrade-fixture-${{ matrix.postgres_user }}
+          path: |
+            ${{ runner.temp }}/recreio-backup.jsonl
+            ${{ runner.temp }}/recreio-upgrade-recusa.jsonl
+          if-no-files-found: error
+          retention-days: 30
+      - name: Encerrar somente a origem criada neste job
+        if: always() && env.RECREIO_FIXTURE_STARTED == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rotulo=$(docker inspect --format '{{ index .Config.Labels "informach.fixture" }}' "$RECREIO_FIXTURE_CONTAINER")
+          test "$rotulo" = recreio-backup
+          docker rm --force --volumes "$RECREIO_FIXTURE_CONTAINER"

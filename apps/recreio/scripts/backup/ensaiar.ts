@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { mkdtemp, open, realpath, rm, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import { MigrationChainError } from "@informach/db/migration-chain";
 import postgres from "postgres";
+import { atualizarCopiaPrivada, FalhaDoUpgradePrivado } from "./atualizar-copia-privada";
 import { comBancoRestaurado, FalhaDoClusterIsolado } from "./cluster-isolado";
 import { ambienteNativo, FalhaDaFerramentaNativa, ferramentaNativa } from "./ferramentas-nativas";
 import { FalhaDosGlobaisPostgres } from "./globais-postgres";
@@ -55,6 +57,10 @@ function origemAutorizada(): { url: URL; fixture: boolean } {
 async function principal(): Promise<void> {
   process.umask(0o077);
   const { url, fixture } = origemAutorizada();
+  const modoUpgrade = process.env.RECREIO_BACKUP_PRIVATE_UPGRADE;
+  if (modoUpgrade !== undefined && modoUpgrade !== "" && modoUpgrade !== "1")
+    throw new FalhaDeEnsaio("MODO_UPGRADE_INVALIDO");
+  const atualizar = modoUpgrade === "1";
   delete process.env.RECREIO_BACKUP_DATABASE_URL;
   const inicio = performance.now();
   const operacao = randomUUID();
@@ -136,10 +142,18 @@ async function principal(): Promise<void> {
     destinoLimpo = false;
     const entrada = await open(arquivo, "r");
     let restauracao: Awaited<ReturnType<typeof comBancoRestaurado>>;
+    let upgrade: Awaited<ReturnType<typeof atualizarCopiaPrivada>> | undefined;
     try {
       // O helper abre o descritor herdado com offset próprio.
       await entrada.read(Buffer.alloc(1), 0, 1, null);
-      restauracao = await comBancoRestaurado({ dump: entrada, inventario: fatos });
+      restauracao = await comBancoRestaurado(
+        { dump: entrada, inventario: fatos },
+        async (copia) => {
+          if (!atualizar) return;
+          fase = "upgrade_copia_privada";
+          upgrade = await atualizarCopiaPrivada({ copia, inventarioOriginal: fatos });
+        },
+      );
       destinoLimpo = restauracao.temporariosRemovidos;
     } finally {
       await entrada.close();
@@ -159,6 +173,8 @@ async function principal(): Promise<void> {
       globaisIdenticos: true,
       papeis: fatos.globais.papeis.length,
       participacoesEmPapeis: fatos.globais.membros.length,
+      upgradePrivadoExecutado: atualizar,
+      ...upgrade,
     };
   } catch (erro) {
     if (erro instanceof FalhaDoClusterIsolado) destinoLimpo = erro.temporariosRemovidos;
@@ -181,14 +197,7 @@ async function principal(): Promise<void> {
   }
   temporariosRemovidos = temporariosRemovidos && destinoLimpo;
   if (falha || !resultado) {
-    const codigo =
-      falha instanceof FalhaDeEnsaio ||
-      falha instanceof FalhaDeInventario ||
-      falha instanceof FalhaDosGlobaisPostgres ||
-      falha instanceof FalhaDoClusterIsolado ||
-      falha instanceof FalhaDaFerramentaNativa
-        ? falha.codigo
-        : "ENSAIO_NAO_CONFIRMADO";
+    const codigo = codigoSeguro(falha);
     console.error(JSON.stringify({ operacao, ok: false, fase, codigo, temporariosRemovidos }));
     process.exitCode = 1;
     return;
@@ -200,6 +209,26 @@ async function principal(): Promise<void> {
       totalMs: Math.round(performance.now() - inicio),
     }),
   );
+}
+
+/** Causes can wrap a private upgrade refusal after cluster cleanup. Only
+ * enumerated codes escape; never SQL text, connection strings or row data. */
+function codigoSeguro(falha: unknown): string {
+  const fila: unknown[] = [falha];
+  for (let n = 0; n < 8 && n < fila.length; n++) {
+    const erro = fila[n];
+    if (erro instanceof MigrationChainError) return `UPGRADE_${erro.code}`;
+    if (erro instanceof FalhaDoUpgradePrivado) return `UPGRADE_${erro.codigo}`;
+    if (erro instanceof AggregateError) fila.push(...erro.errors.slice(0, 8));
+    if (erro instanceof Error && erro.cause !== undefined) fila.push(erro.cause);
+  }
+  return falha instanceof FalhaDeEnsaio ||
+    falha instanceof FalhaDeInventario ||
+    falha instanceof FalhaDosGlobaisPostgres ||
+    falha instanceof FalhaDoClusterIsolado ||
+    falha instanceof FalhaDaFerramentaNativa
+    ? falha.codigo
+    : "ENSAIO_NAO_CONFIRMADO";
 }
 
 void principal().catch((erro: unknown) => {

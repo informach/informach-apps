@@ -1,7 +1,7 @@
 import { createDatabaseConnection, type Database, sql } from "@informach/db";
 import type postgres from "postgres";
-import { z } from "zod";
-import { exigirBancoPrivadoDeRecuperacao, FalhaDaNormalizacao } from "./normalizar-fotografias";
+import { conferirClienteDaCopiaPrivada } from "./conexao-privada";
+import { FalhaDaNormalizacao } from "./normalizar-fotografias";
 
 /** Dedicated native repository connection derived ONLY from the already owned
  * private cluster. Never reads or changes DATABASE_URL, closes the server pool,
@@ -11,26 +11,8 @@ export async function comConexaoPrivadaDeDireitos<T>(
   copia: postgres.Sql,
   executar: (banco: Database) => Promise<T>,
 ) {
-  const destino = await exigirBancoPrivadoDeRecuperacao(copia);
-  const opcoes = z
-    .object({
-      host: z.tuple([z.string().regex(/^\/tmp\/recreio-backup-[A-Za-z0-9]+$/)]),
-      port: z.tuple([z.literal(55432)]),
-      database: z.string().regex(/^recreio_restore_[a-f0-9]{24}$/),
-      user: z.string().min(1).max(63),
-      pass: z.string().min(1),
-    })
-    .parse(copia.options);
-  if (destino.banco !== opcoes.database || destino.socket !== opcoes.host[0])
-    throw new FalhaDaNormalizacao("DESTINO_NAO_PRIVADO");
-  const conexao = createDatabaseConnection({
-    host: opcoes.host[0],
-    port: opcoes.port[0],
-    database: opcoes.database,
-    username: opcoes.user,
-    password: opcoes.pass,
-    ssl: false,
-  });
+  const { opcoes, destino } = await conferirClienteDaCopiaPrivada(copia);
+  const conexao = createDatabaseConnection(opcoes);
   let resultado: { ok: true; valor: T } | { ok: false; erro: unknown };
   try {
     const [prova] = await conexao.db.execute<{
