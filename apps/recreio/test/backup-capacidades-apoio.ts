@@ -49,8 +49,8 @@ export async function semearCapacidadesDaCaptura(
         '2020-01-01','2020-01-01','2020-01-02','2020-01-01 01:00:00+00','left',nextval('recreio.game_session_end_seq'))`;
     await tx`insert into recreio.game_tickets (jti,profile_id,device_session_id,game_id,expires_at)
       values (${ticket},${jogador.perfil.id},${jogador.ator.sessaoDeAparelhoId},'morada',clock_timestamp()+interval '1 minute')`;
-    await tx`insert into recreio.session_handoffs (profile_id,from_session_id,to_device_session_id,ticket_jti,policy_version,mode,expires_at)
-      select id,${sid},${jogador.ator.sessaoDeAparelhoId},${ticket},policy_version,'profile',clock_timestamp()+interval '1 minute'
+    await tx`insert into recreio.session_handoffs (profile_id,from_session_id,to_device_session_id,ticket_jti,policy_version,mode,requested_at,expires_at)
+      select id,${sid},${jogador.ator.sessaoDeAparelhoId},${ticket},policy_version,'profile',statement_timestamp(),statement_timestamp()+interval '1 minute'
       from recreio.profiles where id=${jogador.perfil.id}`;
     await tx`insert into recreio.session_save_permits (session_id,profile_id,policy_version,mode,cutoff_at,expires_at)
       select ${sid},id,policy_version,'profile',statement_timestamp()+interval '10 minutes',statement_timestamp()+interval '10 minutes 30 seconds'

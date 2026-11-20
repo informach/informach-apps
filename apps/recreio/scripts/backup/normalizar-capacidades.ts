@@ -2,10 +2,20 @@ import type postgres from "postgres";
 import { exigirBancoPrivadoDeRecuperacao, FalhaDaNormalizacao } from "./normalizar-fotografias";
 
 const TABELAS = [
-  "device_sessions", "paired_credentials", "pairing_requests", "game_tickets",
-  "session_handoffs", "session_save_permits", "game_sessions", "game_instances",
-  "space_leases", "world_host_presences", "world_visits", "world_visit_sessions",
-  "personal_exports",+] as const;
+  "device_sessions",
+  "paired_credentials",
+  "pairing_requests",
+  "game_tickets",
+  "session_handoffs",
+  "session_save_permits",
+  "game_sessions",
+  "game_instances",
+  "space_leases",
+  "world_host_presences",
+  "world_visits",
+  "world_visit_sessions",
+  "personal_exports",
+] as const;
 
 /** ONLY a new private/offline cluster, after the authenticated inventory was
  * compared. This removes transient capabilities, not current identity, F7

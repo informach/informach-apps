@@ -108,3 +108,9 @@ Integrar ao executor do cluster frio, preservando as provas anteriores de
 fotografia/quarentena/queda/limpeza. `authoritiesNormalizedForTraffic` continua
 false: reaplicação F7, identidade/cobrança atuais, capacidades de convite,
 chaves/destinos novos e admissão de tráfego ainda não estão comprovados.
+
+A inspeção da candidata 11b9b7a2 encontrou um marcador de patch residual no
+array de tabelas e corrigiu a origem antes de qualificá-la. A fixture também
+fixa requested_at/expiry do handoff no mesmo instante SQL para respeitar a
+janela exata de sessenta segundos, sem relaxar o CHECK. Os gates da correção
+precisam passar, inclusive a composição externa com cluster frio.
