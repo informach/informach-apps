@@ -23,28 +23,46 @@ it("blocks write/list and cross-capture or foreign-bucket reads before the actua
     const pedidos = http.pedidos.length;
     expect(pedidos).toBe(1);
     expect(contador.requisicoes()).toBe(1);
-    for (const command of [
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: `recreio/v1/backup/${id}/manifesto.json`,
-        Body: "synthetic",
-      }),
-      new DeleteObjectCommand({ Bucket: bucket, Key: `recreio/v1/backup/${id}/manifesto.json` }),
-      new ListObjectsV2Command({ Bucket: bucket }),
-      new GetObjectCommand({
-        Bucket: "foreign-bucket",
-        Key: `recreio/v1/backup/${id}/manifesto.json`,
-      }),
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: `recreio/v1/backup/${randomUUID()}/manifesto.json`,
-      }),
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: `recreio/v1/backup/${id}/nested/manifesto.json`,
-      }),
+    for (const enviar of [
+      () =>
+        http.cliente.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: `recreio/v1/backup/${id}/manifesto.json`,
+            Body: "synthetic",
+          }),
+        ),
+      () =>
+        http.cliente.send(
+          new DeleteObjectCommand({
+            Bucket: bucket,
+            Key: `recreio/v1/backup/${id}/manifesto.json`,
+          }),
+        ),
+      () => http.cliente.send(new ListObjectsV2Command({ Bucket: bucket })),
+      () =>
+        http.cliente.send(
+          new GetObjectCommand({
+            Bucket: "foreign-bucket",
+            Key: `recreio/v1/backup/${id}/manifesto.json`,
+          }),
+        ),
+      () =>
+        http.cliente.send(
+          new GetObjectCommand({
+            Bucket: bucket,
+            Key: `recreio/v1/backup/${randomUUID()}/manifesto.json`,
+          }),
+        ),
+      () =>
+        http.cliente.send(
+          new GetObjectCommand({
+            Bucket: bucket,
+            Key: `recreio/v1/backup/${id}/nested/manifesto.json`,
+          }),
+        ),
     ])
-      await expect(http.cliente.send(command)).rejects.toThrow("BACKUP_RECOVERY_COMMAND_REFUSED");
+      await expect(enviar()).rejects.toThrow("BACKUP_RECOVERY_COMMAND_REFUSED");
     expect(http.pedidos.length).toBe(pedidos);
     expect(contador.requisicoes()).toBe(1);
   } finally {
