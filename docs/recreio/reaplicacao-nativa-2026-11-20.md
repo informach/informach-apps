@@ -513,3 +513,34 @@ Fad2a884 falhou antes de executar diário: TS18048 no acesso opcional da fixture
 foram publicadas em 10197642; repetição 44799702439/44799708245/44799713119.
 Qualidade e integração das fontes anteriores 2a955293 e 6c7eb4d4 passaram; os
 recibos aprovados dessas fontes continuam distintos da prova nova de diário.
+
+
+## Leitura da origem nativa já existente — candidata
+
+`conferirFonteNativaRecuperada` compara a operação com sua preparação nativa
+original, MAC, seleção inteira, fonte/plano externo e mapa da execução. Conserva
+o cabeçalho antigo e devolve o par que ainda precisa da conferência de inclusão
+na cadeia. Não grava, não troca origem, não limpa lease, não admite efeitos e
+não confirma financeiro. O leitor da origem importada conserva a exigência de
+seu cabeçalho congelado; ambos compartilham somente a consulta da fonte.
+
+A integração preparada cria família/consentimento/outbox nativos e congela o
+livro por HTTP/S3 fechado. Metadados de execução são fixtures: não é um cluster
+restaurado nem uma autorização. Exige par ancestral válido, recusa execução
+normal com livro congelado, recusa outra execução/mapa divergente e compara a
+operação inteira após as leituras. Nenhuma data, preparação ou origem deve mudar.
+Gates pendentes. Vinculação da prova à capacidade privada/retomada ainda falta.
+
+A execução 44799702439 chegou às conferências finais do diário e reprovou
+`DIARIO_NATIVO_DIVERGENTE`. Nenhum aceite foi relaxado: contadores, mundo,
+identificadores, famílias, acesso e metadados agora possuem classificadores
+fixos separados em 2ed8518b, sem valores/conteúdo/SQL no diagnóstico. Prova
+44800675986 em execução para identificar o predicado; original 3aecf157 está
+qualificando os pares ancestrais em 44800202826/44800207843.
+
+Para o ensaio nativo anterior ao backup, preparar uma decisão publicada antes
+da captura e outra depois no mesmo livro, conservar a primeira preparação e
+suas datas e provar ambas no cluster descartável. Se houver lease/backoff
+herdado, reconciliar só esses campos de worker sob prova integral, com auditoria
+própria e repetição sem novo evento. Operação já concluída deve preservar também
+o instante de conclusão; estado em revisão/publicação não passa automaticamente.

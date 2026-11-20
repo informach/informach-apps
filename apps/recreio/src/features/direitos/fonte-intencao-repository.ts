@@ -12,7 +12,9 @@ import {
 import { z } from "zod";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import { conferirIntencaoNativa } from "./intencao-nativa";
 import { conferirIntencaoDoPlano } from "./intencao-persistida";
+import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { lerPlanoDeDireitos } from "./plano-persistido";
 import type { PlanoDeDireitos } from "./preparacao-contrato";
@@ -85,17 +87,7 @@ export async function conferirMapaHistoricoDeMundos(
   return mapa;
 }
 
-/** Read/validation only. This does NOT authenticate the external prefix or
- * authorize native effects, mint authority, finish the run or admit traffic. */
-export async function lerPlanoHistoricoRecuperado(
-  tx: Transacao,
-  op: typeof operations.$inferSelect,
-) {
-  assertAllowed(
-    op.preparationId === null && op.recoverySourceId !== null && op.recoverySourceId === op.id,
-    "DIREITOS_INTEGRIDADE",
-    "Proveniência de recuperação ausente.",
-  );
+async function lerFontePersistidaDaOperacao(tx: Transacao, op: typeof operations.$inferSelect) {
   const [fonte] = await tx
     .select({ origem: sources, execucao: runs })
     .from(sources)
@@ -109,6 +101,21 @@ export async function lerPlanoHistoricoRecuperado(
         eq(sources.ledgerId, op.ledgerId),
       ),
     );
+  return fonte;
+}
+
+/** Read/validation only. This does NOT authenticate the external prefix or
+ * authorize native effects, mint authority, finish the run or admit traffic. */
+export async function lerPlanoHistoricoRecuperado(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+) {
+  assertAllowed(
+    op.preparationId === null && op.recoverySourceId !== null && op.recoverySourceId === op.id,
+    "DIREITOS_INTEGRIDADE",
+    "Proveniência de recuperação ausente.",
+  );
+  const fonte = await lerFontePersistidaDaOperacao(tx, op);
   assertAllowed(
     fonte && fonte.execucao.frozenHeadSha256 === op.admittedHeadSha256,
     "DIREITOS_INTEGRIDADE",
@@ -160,4 +167,71 @@ export async function conferirIntencaoHistoricaRecuperada(
     "A época da intenção excede a cerca histórica.",
   );
   return { ...historica, intencao: conferida.intencao };
+}
+
+/** Read-only comparison for a native-origin operation that was already in the
+ * dump. Its preparation/admission/completion are NEVER rewritten as a fresh
+ * import. The caller must separately authenticate membership of the exact old
+ * admitted header, then bind the proof to an actual private execution scope. */
+export async function conferirFonteNativaRecuperada(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+  assinatura: ReturnType<typeof criarAssinaturaDoLivro>,
+  escopo: { execucaoId: string; cercaSha256: string },
+) {
+  const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op),
+    fonte = await lerFontePersistidaDaOperacao(tx, op);
+  assertAllowed(
+    fonte &&
+      fonte.execucao.id === escopo.execucaoId &&
+      fonte.execucao.state === "replaying" &&
+      fonte.execucao.frozenHeadSha256 === escopo.cercaSha256 &&
+      op.ledgerEpoch <= fonte.execucao.frozenEpoch &&
+      (op.state === "admitted" || op.state === "running" || op.state === "completed") &&
+      op.admittedHeadSha256 !== null &&
+      op.admittedAt !== null,
+    "DIREITOS_INTEGRIDADE",
+    "A admissão nativa exige conferência histórica.",
+  );
+  const selecionados = await tx
+    .select({ id: subjects.profileReference })
+    .from(subjects)
+    .where(eq(subjects.operationId, op.id))
+    .orderBy(subjects.profileReference)
+    .limit(257);
+  const conferida = conferirIntencaoNativa(
+    op,
+    preparacao,
+    selecionados,
+    assinatura,
+    await referenciasDeMundosDaOperacao(tx, op.id),
+  );
+  const planoExterno = lerPlanoDeDireitos(
+    {
+      requesterUserId: fonte.origem.requesterReference,
+      kind: fonte.origem.kind,
+      planSha256: fonte.origem.planSha256,
+      plan: fonte.origem.plan,
+    },
+    op.requesterUserId,
+  );
+  assertAllowed(
+    isDeepStrictEqual(conferida.plano, planoExterno),
+    "DIREITOS_INTEGRIDADE",
+    "O plano externo não corresponde à preparação nativa.",
+  );
+  const mapa = await conferirMapaHistoricoDeMundos(tx, planoExterno, fonte.origem.worldMap);
+  return {
+    ...conferida,
+    mapa,
+    execucao: fonte.execucao,
+    admissaoPersistida: {
+      operacaoId: op.id,
+      revisao: op.revision,
+      sha256: op.intentSha256,
+      cabecalhoSha256: op.admittedHeadSha256,
+    },
+    origemNativaPreservada: true as const,
+    execucaoAutorizada: false as const,
+  };
 }
