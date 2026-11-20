@@ -1,4 +1,4 @@
-import { execFile, spawn } from "node:child_process";
+import { type ExecFileOptionsWithStringEncoding, execFile, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 
@@ -17,6 +17,7 @@ export async function executarImagemDeBackup(env: Record<string, string>) {
   const name = `recreio-backup-cli-${randomBytes(12).toString("hex")}`;
   const label = "recreio-backup-cli",
     path = process.env.PATH;
+  const ambienteDocker: NodeJS.ProcessEnv = { PATH: path, NODE_ENV: "production" };
   const args = [
     "run",
     "--rm",
@@ -47,7 +48,7 @@ export async function executarImagemDeBackup(env: Record<string, string>) {
       overflow: boolean;
     }>((resolve, reject) => {
       const child = spawn("docker", args, {
-        env: { PATH: path, ...env },
+        env: { ...env, ...ambienteDocker },
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       });
@@ -119,7 +120,12 @@ export async function executarImagemDeBackup(env: Record<string, string>) {
     resultado = { ok: false, error };
   }
   // Inspect by exact name before removing only our own labelled container.
-  const options = { env: { PATH: path }, timeout: 15000, maxBuffer: 65536 };
+  const options: ExecFileOptionsWithStringEncoding = {
+    env: ambienteDocker,
+    timeout: 15000,
+    maxBuffer: 65536,
+    encoding: "utf8",
+  };
   const listar = () =>
     exec(
       "docker",
