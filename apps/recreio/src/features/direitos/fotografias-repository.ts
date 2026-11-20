@@ -167,7 +167,6 @@ export async function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
     return {
       tipo: "fotografia" as const,
       operacao,
-      preparacao,
       selecionados,
       mundo: atual,
       passo: pista,

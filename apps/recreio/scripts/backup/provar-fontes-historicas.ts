@@ -309,7 +309,8 @@ export async function provarFontesHistoricasRecuperadas(
           }
           exigir((await reservarFotografiaDeDireitos(coordenacao)) === null);
           exigir((await compactarDiarioDeDireitos(coordenacao)).situacao === "ociosa");
-          exigir((await prepararRecuperacaoDeDireitos(coordenacao)).situacao === "ociosa");
+          const recuperacao = await prepararRecuperacaoDeDireitos(coordenacao);
+          exigir("situacao" in recuperacao && recuperacao.situacao === "ociosa");
           let copiada = false;
           try {
             await minimizarProximoPerfil({ ...coordenacao });
