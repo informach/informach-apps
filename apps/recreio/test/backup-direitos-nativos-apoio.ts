@@ -81,7 +81,7 @@ export async function prepararDireitosPosterioresACaptura(
   });
   const foto = simulacao.fotografar(),
     acesso = simulacao.estado.acessos.find((a) => a.perfilId === preservadoId);
-  exigir(acesso?.permissoes.includes("gastar"), "ACESSO_DO_OUTRO_FUNDADOR_AUSENTE");
+  exigir(acesso && acesso.permissoes.includes("gastar"), "ACESSO_DO_OUTRO_FUNDADOR_AUSENTE");
   exigir(
     simulacao.aplicar({
       t: "conceder_acesso",
