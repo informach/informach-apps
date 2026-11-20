@@ -529,3 +529,21 @@ obter denúncia. Provar mais de uma página, segredo da outra ponta, recurso de
 outro adulto fechado e conta sem jogador com autoria preservada. Essa ampliação
 não altera as retenções de segurança nem concede acesso administrativo.
 Revisão de aprovações e inventário formal de todas as fontes continua na sequência.
+
+### Aprovações pessoais na cópia da conta
+
+A ampliação de segurança 6b8f6a56 passou direitos/qualidade
+44649454419/44649458688. A próxima candidata inclui seis fontes de aprovações
+originais do adulto: amizade, convite/visita do menor, decisões de gestão de
+convite/visita no mundo e proposta de sucessão do menor. Cada fonte filtra o
+ator persistido, nunca pagante/família/destinatário ou papel atual. Projeção
+explícita traz tipo do ato, referência histórica própria e data; sem nomes,
+outra ponta, gerações, hashes ou conteúdo. O manifesto distingue essas
+referências dos cadastros de perfis, que não integram a cópia da conta.
+
+Paginação por cursor composto ASCII/C em merge de fontes fixas, cem por página,
+na mesma fotografia e autorização; limites de bytes/linhas/prazo continuam
+ativos. Preparar teste PostgreSQL com as seis origens não vazias, 205 atos de
+amizade, outra conta sem jogador, atos de terceiros e sigilo de gerações. É
+cobertura de projeção de registros sintéticos com FK/CHECK, não homologação das
+jornadas de aprovação/sucessão. Essa prova precisa passar antes de qualificar.

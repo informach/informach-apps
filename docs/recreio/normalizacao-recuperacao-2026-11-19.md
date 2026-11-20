@@ -114,3 +114,14 @@ array de tabelas e corrigiu a origem antes de qualificá-la. A fixture também
 fixa requested_at/expiry do handoff no mesmo instante SQL para respeitar a
 janela exata de sessenta segundos, sem relaxar o CHECK. Os gates da correção
 precisam passar, inclusive a composição externa com cluster frio.
+
+A correção f5e658ec passou na composição externa 44650838063. O recibo do
+cluster frio confirmou zero capacidades temporárias restantes, rollback antes
+do último efeito, segunda execução idêntica e preservação de todas as demais
+tabelas (incluindo identidade/perfis/cobrança). A restauração/fotos/quarentena,
+queda de conexão anterior, três GETs só no prefixo do backup e limpeza dos quatro
+objetos, cluster e arquivos também passaram. Artefato original de 1.096 bytes
+preservado com SHA em `evidencias/capacidades-cluster-frio-44650838063.json`.
+`authoritiesNormalizedForTraffic` permanece false. Não é replay F7/admissão ou
+prova de recuperação de dados reais. O gate quality 44650821007 passou; a
+integração geral 44650832114 ainda precisa de conclusão.

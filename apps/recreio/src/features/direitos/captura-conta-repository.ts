@@ -23,6 +23,7 @@ import type { AutorNativoRecente } from "@/features/account/autoridade-repositor
 import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { comContaPessoal } from "./autoridade-repository";
+import { copiarAprovacoesPessoaisNaTransacao } from "./captura-aprovacoes-repository";
 import { criarArquivoPessoal, LIMITES_DA_COPIA_PESSOAL as limites } from "./captura-contrato";
 import { copiarSegurancaPessoalNaTransacao } from "./captura-seguranca-repository";
 
@@ -58,8 +59,10 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "pedido_direitos",
             "denuncia_propria",
             "recurso_restricao",
+            "aprovacao_propria",
           ],
           dadosDePerfisIncluidos: false,
+          referenciasDeDecisoesPropriasIncluidas: true,
           conteudoCompartilhadoIncluido: false,
           dadosDeOutrosAplicativosIncluidos: false,
         });
@@ -335,6 +338,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
           arquivo,
           prazo,
         );
+        await copiarAprovacoesPessoaisNaTransacao(tx, autor.contaId, arquivo, prazo);
         await logAuditEventStrict(
           "recreio.account_personal_capture_prepared",
           autor.contaId,

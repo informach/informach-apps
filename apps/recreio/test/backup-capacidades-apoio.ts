@@ -82,4 +82,5 @@ export async function semearCapacidadesDaCaptura(
       values (${visitanteSid},${visita},${mundoId},${familia.perfil.id},'active',
         statement_timestamp(),statement_timestamp(),statement_timestamp(),statement_timestamp()+interval '30 seconds')`;
   });
+  return { familia, conviteId: convite };
 }

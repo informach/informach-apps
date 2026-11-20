@@ -1,5 +1,14 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, capacidades temporárias recuperadas qualificadas:**
+f5e658ec passou quality 44650821007 e a prova externa 44650838063: cluster novo,
+zero capacidades temporárias restantes, rollback, repetição e demais tabelas
+preservadas; quatro objetos/cluster/arquivos removidos. Não admite tráfego nem
+reaplica F7. Integração geral 44650832114 ainda em curso. A cópia de aprovações
+originais está na candidata seguinte, com prova das seis fontes preparada.
+Nenhuma migration/capacidade desta etapa foi ativada em produção. Testes
+manuais permanecem reunidos para o final.
+
 **19/11 — Recreio, normalização de capacidades restauradas em implementação:**
 A fonte 6b8f6a56 passou direitos/qualidade 44649454419/44649458688, incluindo
 cópias de denúncias/recursos próprios, paginação e sigilo de terceiros. A etapa
