@@ -19,12 +19,14 @@ import {
   sessions,
   recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
+  recreioProfileWorldTraces as traces,
   recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { concluirProximaRetirada } from "@/features/direitos/conclusao-repository";
+import { liberarProximoMundoDeDireitos } from "@/features/direitos/liberacao-mundo-repository";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { minimizarProximoPerfil } from "@/features/direitos/minimizacao-repository";
@@ -75,6 +77,20 @@ function compor(r: Awaited<ReturnType<typeof runtime>>) {
     });
   return {
     storage,
+    async fotografar() {
+      return processarProximaFotografiaDeDireitos({
+        assinatura,
+        storage,
+        leitor: null,
+        politica: { retirarTextosDaFundacao: true },
+      });
+    },
+    async liberar() {
+      return liberarProximoMundoDeDireitos({
+        assinatura,
+        prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 100, tempoLimiteMs: 2000 }),
+      });
+    },
     async admitir(autor: AutorNativoRecente, perfilId: string) {
       const previa = await prepararPedidoDeDireitos(autor, {
         pedidoId: randomUUID(),
@@ -144,6 +160,103 @@ async function cenario(fn: (f: ReturnType<typeof compor>) => Promise<void>) {
 }
 
 describe("minimização nativa sem reabrir autoridade", () => {
+  it("libera um mundo por passagem com sujeito ausente e reverte a liberação se a auditoria falhar", async () =>
+    cenario(async (f) => {
+      const a = await adulto(),
+        b = await adulto(),
+        perfil = await jogador(a),
+        outro = await jogador(b);
+      const casas = await db
+        .insert(spaces)
+        .values(
+          ["Um", "Dois"].map((nome) => ({
+            gameId: "morada",
+            name: `Compartilhado ${nome}`,
+            contentPolicy: "family" as const,
+            createdByProfileId: outro.id,
+            stewardProfileId: outro.id,
+          })),
+        )
+        .returning();
+      expect(casas).toHaveLength(2);
+      await db.insert(members).values(
+        casas.map((m) => ({
+          spaceId: m.id,
+          profileId: outro.id,
+          role: "steward" as const,
+          state: "active" as const,
+        })),
+      );
+      await db.insert(traces).values(casas.map((m) => ({ profileId: perfil.id, spaceId: m.id })));
+      const membrosAntes = await db.select().from(members).where(eq(members.profileId, outro.id));
+      const op = await f.admitir(a.autor, perfil.id);
+      await f.fotografar(); // Both empty worlds reach dependencies through the actual adapter.
+      expect(await f.liberar()).toEqual({ situacao: "ociosa" }); // A live selected subject remains.
+      expect((await f.executar()).situacao).toBe("perfil_minimizado");
+      const etapas = () =>
+        db
+          .select()
+          .from(worlds)
+          .where(eq(worlds.operationId, op.operacaoId))
+          .orderBy(worlds.spaceId);
+      expect((await etapas()).map((m) => m.phase)).toEqual(["dependencies", "dependencies"]);
+      expect(await f.expurgar()).toEqual({ situacao: "ociosa" });
+      // Emulate an absence receipt in a restored copy, AFTER the real native
+      // minimizer has removed personal content. This is a state fixture, not a
+      // claim of a full cold restore; the original consent/preparation remain.
+      await db.transaction(async (tx) => {
+        await tx
+          .update(subjects)
+          .set({ phase: "removed", liveProfileId: null, completedAt: sql`statement_timestamp()` })
+          .where(eq(subjects.operationId, op.operacaoId));
+        await tx.delete(profiles).where(eq(profiles.id, perfil.id));
+      });
+      expect(await f.liberar()).toMatchObject({ situacao: "mundo_liberado", quantidade: 1 });
+      expect((await etapas()).filter((m) => m.phase === "completed")).toHaveLength(1);
+      expect(await f.concluir()).toEqual({ situacao: "ociosa" });
+      const antesDaFalha = await etapas();
+      await db.execute(sql`create function audit.recusar_liberacao_mundo_fixture() returns trigger language plpgsql as $$ begin
+        if new.event_type='recreio.rights_world_released' then raise exception 'auditoria indisponivel'; end if; return new; end $$`);
+      await db.execute(sql`create trigger recusar_liberacao_mundo_fixture before insert on audit.events
+        for each row execute function audit.recusar_liberacao_mundo_fixture()`);
+      try {
+        await expect(f.liberar()).rejects.toBeInstanceOf(AuditPersistenceError);
+        expect(await etapas()).toEqual(antesDaFalha);
+        const pendente = antesDaFalha.find((m) => m.phase === "dependencies");
+        if (!pendente) throw new Error("Pending world absent");
+        expect(
+          (await db.select().from(spaces).where(eq(spaces.id, pendente.spaceId)))[0],
+        ).toMatchObject({ status: "archived", rightsOperationId: op.operacaoId });
+      } finally {
+        await db.execute(sql`drop trigger recusar_liberacao_mundo_fixture on audit.events`);
+        await db.execute(sql`drop function audit.recusar_liberacao_mundo_fixture()`);
+      }
+      // Only the synthetic worker retry is released; no consent/retention date changes.
+      await db
+        .update(operations)
+        .set({ nextAttemptAt: sql`statement_timestamp()` })
+        .where(eq(operations.id, op.operacaoId));
+      expect(await f.liberar()).toMatchObject({ situacao: "mundo_liberado", quantidade: 1 });
+      expect(await f.liberar()).toEqual({ situacao: "ociosa" });
+      expect((await etapas()).map((m) => m.phase)).toEqual(["completed", "completed"]);
+      expect(await f.concluir()).toMatchObject({
+        situacao: "retirada_concluida",
+        referenciasRetidas: 0,
+      });
+      expect(await db.select().from(members).where(eq(members.profileId, outro.id))).toEqual(
+        membrosAntes,
+      );
+      for (const casa of casas)
+        expect((await db.select().from(spaces).where(eq(spaces.id, casa.id)))[0]).toMatchObject({
+          name: casa.name,
+          status: casa.status,
+          stewardProfileId: outro.id,
+          createdByProfileId: outro.id,
+          rightsOperationId: null,
+          rightsFrozenState: null,
+        });
+    }));
+
   it("remove preferências e código agora, preservando apenas a referência do token até o prazo original", async () =>
     cenario(async (f) => {
       const a = await adulto(),
@@ -385,6 +498,11 @@ describe("minimização nativa sem reabrir autoridade", () => {
       expect(recibo?.retainedUntil?.toISOString()).toBe(prazo.toISOString());
       expect(recibo?.phase).toBe("minimized");
       expect(await f.expurgar()).toEqual({ situacao: "ociosa" });
+      expect((await db.select().from(spaces).where(eq(spaces.id, mundo.id)))[0]).toMatchObject({
+        status: "archived",
+        rightsOperationId: op.operacaoId,
+      });
+      expect(await f.liberar()).toMatchObject({ situacao: "mundo_liberado", quantidade: 1 });
       expect(await f.concluir()).toMatchObject({
         situacao: "retirada_concluida",
         referenciasRetidas: 1,
@@ -447,6 +565,7 @@ describe("minimização nativa sem reabrir autoridade", () => {
       if (!antigo) throw new Error("Former member absent");
       await f.admitir(a.autor, perfil.id);
       expect((await f.executar()).situacao).toBe("perfil_minimizado");
+      expect(await f.liberar()).toMatchObject({ situacao: "mundo_liberado", quantidade: 1 });
       expect((await db.select().from(members).where(eq(members.id, antigo.id)))[0]?.leftAt).toEqual(
         saiu,
       );

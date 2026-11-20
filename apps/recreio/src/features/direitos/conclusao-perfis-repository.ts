@@ -11,12 +11,12 @@ import { AGORA, type Transacao } from "@/lib/repository";
 
 /** Parent operation is locked. Shared by withdrawal and account closure;
  * a retained identifier is neither erased nor represented as anonymous. */
-export async function conferirConclusaoDosPerfis(
+export async function conferirPerfisMinimizados(
   tx: Transacao,
   op: typeof operations.$inferSelect,
   alvos: readonly (typeof subjects.$inferSelect)[],
 ) {
-  const retidos = alvos.filter((s) => s.phase === "minimized");
+  const retidos = alvos.filter((s) => s.phase === "minimized" || s.phase === "purging");
   const ids = retidos.map((s) => s.profileReference);
   const cadastros = ids.length
     ? await tx
@@ -32,7 +32,7 @@ export async function conferirConclusaoDosPerfis(
         s.retentionPolicyVersion === "perfil-2026-11-19" &&
         s.minimizedAt !== null &&
         ((s.phase === "removed" && s.liveProfileId === null && s.completedAt !== null) ||
-          (s.phase === "minimized" &&
+          ((s.phase === "minimized" || s.phase === "purging") &&
             s.liveProfileId === s.profileReference &&
             s.completedAt === null &&
             cadastros.some(
@@ -50,6 +50,20 @@ export async function conferirConclusaoDosPerfis(
     ),
     "DIREITOS_INTEGRIDADE",
     "Os sujeitos ainda não têm recibo de retirada.",
+  );
+  return retidos;
+}
+
+export async function conferirConclusaoDosPerfis(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+  alvos: readonly (typeof subjects.$inferSelect)[],
+) {
+  const retidos = await conferirPerfisMinimizados(tx, op, alvos);
+  assertAllowed(
+    alvos.every((s) => s.phase !== "purging"),
+    "DIREITOS_INTEGRIDADE",
+    "O expurgo das referências ainda precisa terminar.",
   );
   const passos = await tx.select().from(worlds).where(eq(worlds.operationId, op.id));
   assertAllowed(

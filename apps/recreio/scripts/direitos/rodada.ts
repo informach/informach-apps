@@ -7,6 +7,7 @@ import {
   type RuntimeFinanceiroDoEncerramento,
 } from "../../src/features/direitos/encerramento-financeiro-execucao-service";
 import { resumoDaFilaDeDireitos } from "../../src/features/direitos/fila-repository";
+import { liberarProximoMundoDeDireitos } from "../../src/features/direitos/liberacao-mundo-repository";
 import type { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
 import { conferirPrefixoDoLivro } from "../../src/features/direitos/livro/leitura";
@@ -58,6 +59,10 @@ export async function processarRodadaDeDireitos(config: Config) {
     { nome: "fotografias", executar: () => processarProximaFotografiaDeDireitos(config) },
     { nome: "dados", executar: async () => retirarProximosDadosPessoais(await efeito()) },
     { nome: "cadastro", executar: async () => minimizarProximoPerfil(await efeito()) },
+    {
+      nome: "liberacao_mundo",
+      executar: async () => liberarProximoMundoDeDireitos(await efeito()),
+    },
     { nome: "referencias", executar: async () => expurgarProximaReferencia(await efeito()) },
     { nome: "conclusao", executar: async () => concluirProximaRetirada(await efeito()) },
     {

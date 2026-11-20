@@ -211,69 +211,6 @@ export function minimizarProximoPerfil(config: CoordenacaoDeEfeitos) {
       returning s.phase
     `);
     const fase = z.enum(["minimized", "purging"]).parse(retencao?.phase);
-    const pendentes = await tx
-      .select({ id: subjects.profileReference })
-      .from(subjects)
-      .where(and(eq(subjects.operationId, op.id), eq(subjects.phase, "selected")))
-      .limit(1);
-    const liberarMundos = pendentes.length === 0;
-    if (liberarMundos) {
-      const alvosDaOperacao = await tx
-        .select({ id: subjects.profileReference })
-        .from(subjects)
-        .where(eq(subjects.operationId, op.id))
-        .orderBy(subjects.profileReference);
-      const retirados = new Set(alvosDaOperacao.map((p) => p.id));
-      for (const mundo of mundos) {
-        const passo = passos.find((p) => p.spaceId === mundo.id);
-        assertAllowed(passo, "DIREITOS_INTEGRIDADE", "Etapa do mundo ausente.");
-        const outros = await tx.$count(
-          members,
-          and(
-            eq(members.spaceId, mundo.id),
-            sql`${members.profileId} is not null and ${members.profileId}<>${perfil.id}::uuid`,
-            sql`${members.state}<>'former'`,
-          ),
-        );
-        const criadoPeloPerfil =
-          mundo.createdByProfileId !== null && retirados.has(mundo.createdByProfileId);
-        // O rótulo do mundo criado pelo perfil também é retirado; o estado do
-        // jogo permanece e o resumo atual já foi regenerado a partir da foto.
-        const nome = criadoPeloPerfil ? "Mundo preservado" : mundo.name;
-        const steward =
-          mundo.stewardProfileId !== null && retirados.has(mundo.stewardProfileId)
-            ? null
-            : mundo.stewardProfileId;
-        const criador = criadoPeloPerfil ? null : mundo.createdByProfileId;
-        assertAllowed(
-          outros === 0 ||
-            (mundo.stewardProfileId !== null && !retirados.has(mundo.stewardProfileId)),
-          "DIREITOS_INTEGRIDADE",
-          "Um mundo compartilhado ainda precisa de responsável.",
-        );
-        const estado =
-          passo.sourceStatus === "deleted" || (outros === 0 && steward === null && criador === null)
-            ? "deleted"
-            : passo.sourceStatus;
-        await tx
-          .update(spaces)
-          .set({
-            name: nome,
-            stewardProfileId: steward,
-            createdByProfileId: criador,
-            ...(passo.sourceRevision === 0 ? { summary: null } : {}),
-            status: estado,
-            rightsOperationId: null,
-            rightsFrozenState: null,
-            updatedAt: AGORA,
-          })
-          .where(eq(spaces.id, mundo.id));
-        await tx
-          .update(worlds)
-          .set({ phase: "completed", completedAt: AGORA })
-          .where(and(eq(worlds.operationId, op.id), eq(worlds.spaceId, mundo.id)));
-      }
-    }
     await logAuditEventStrict(
       "recreio.rights_profile_minimized",
       op.requesterUserId,
@@ -282,7 +219,7 @@ export function minimizarProximoPerfil(config: CoordenacaoDeEfeitos) {
         operationId: op.id,
         kind: op.kind,
         profileCount: 1,
-        worldCount: liberarMundos ? mundos.length : 0,
+        worldCount: 0,
         retained: fase === "minimized",
       },
       { writer: tx },

@@ -570,3 +570,56 @@ conservado fora do Git. Gates da correção pendentes.
 pares ancestrais válidos e recusas por cabeça anterior/ausente/hash/repetição
 foram qualificados. Qualidade/integração 10197642 passaram 44799708245/44799713119;
 aquele cluster frio continua reprovado pelo oráculo de metadados acima.
+
+
+## Liberação limitada de mundos — implementação seguinte
+
+A liberação atual fica no último perfil minimizado. Isso deixa uma seleção
+inteiramente ausente sem executor dessa transição e concentra todos os mundos
+em uma transação. A correção separará uma etapa SQL de liberação, um mundo por
+passagem, sob a mesma intenção, operação, coordenação e conferência financeira.
+
+- A minimização continua retirando cadastro/vínculos e registrando o recibo; não
+  libera mundo nem remove sua autoria antes do tratamento do estado de jogo.
+- A nova fila só admite sujeitos minimizados/em expurgo/removidos, fotos/diário
+  concluídos e um mundo em dependências. Conferirá projeções mínimas, cursores,
+  cercas e responsável remanescente; não fabrica responsável ou aceite.
+- O expurgo já exige todos os mundos concluídos. Manter essa guarda para que a
+  FK de um perfil ainda não apague a referência de autoria necessária para
+  limpar o rótulo do mundo. A conclusão conserva a mesma exigência.
+- A etapa própria entra entre cadastro e referências no executor e na prova
+  fria. Auditoria é atômica com cada liberação; uma revisão impede liberação.
+- Testar seleção ausente, dois mundos em passagens distintas, terceiro e estado
+  preservados, e falha de auditoria com rollback. Atualizar os testes que antes
+  esperavam a liberação dentro da minimização; não esconder a etapa no helper.
+
+Não altera o schema, não libera tráfego de restauração e não implementa a
+retomada nativa/financeira ainda pendente. Gates antes de qualquer ativação.
+
+
+A etapa `liberarProximoMundoDeDireitos` foi implementada em candidata e entrou
+entre cadastro e referências. Usa a mesma reserva/coordenação/MAC/financeiro e
+limites SQL; processa um mundo, confere cursores/cercas, projeções mínimas e
+responsável remanescente, e registra `rights_world_released` atomicamente. A
+conclusão continua recusando sujeitos em expurgo; compartilhar a conferência
+mínima não torna `purging` um estado concluído. Nenhuma migration foi criada.
+
+A regressão nativa preparada possui dois mundos vazios de outro responsável,
+seleção assinada por autoria histórica e minimização real do perfil. Depois
+emula um recibo de ausência na cópia, sem inventar identidade/consentimento.
+Exige uma liberação por chamada, conclusão bloqueada entre as duas, rollback
+de mundo/etapa após falha estrita de auditoria e preservação dos membros/donos/
+nomes. É fixture de estados de recuperação, não restauração fria completa com
+seleção ausente. A prova fria com sujeito presente passa a chamar a nova etapa
+explicitamente; o executor ordinário consulta seis workers SQL sob a cerca.
+Gates desse incremento pendentes.
+
+
+91dcdf7a passou o diário nativo/cluster frio **44801988161**, com fato real
+confirmado no mesmo tick, recuperação, duas fotos tratadas, compactação e
+retirada pessoal, preservação/limpeza confirmadas.
+[Recibo](evidencias/diario-nativo-cluster-frio-44801988161.json). Rodada completa
+44801993382 e CI compartilhado 44802000813 ainda em execução. Este recibo é
+anterior à separação da liberação de mundos. Origem nativa já existente d3f0432c
+passou direitos 44801318469 e qualidade 44801324830, somente leitura/negativas;
+retomada sob capacidade privada ainda pendente.

@@ -14,6 +14,7 @@ import {
 } from "../../src/features/direitos/coordenacao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
 import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
+import { liberarProximoMundoDeDireitos } from "../../src/features/direitos/liberacao-mundo-repository";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
 import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
@@ -226,6 +227,7 @@ export async function provarRetiradaNativaPosterior(config: {
               const dados = await retirarProximosDadosPessoais(filha);
               if (dados.situacao === "dados_removidos") dadosApagados += dados.quantidade;
               await minimizarProximoPerfil(filha);
+              await liberarProximoMundoDeDireitos(filha);
               await expurgarProximaReferencia(filha);
               passos++;
               const fim = await concluirProximaRetirada(filha);

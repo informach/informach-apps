@@ -40,7 +40,7 @@ async function limites(tx: Transacao) {
  * monopoliza a fila. Erro inesperado continua sendo erro do job. */
 export async function comEfeitoNativoDeDireitos<T>(
   config: CoordenacaoDeEfeitos,
-  fase: "recuperacao" | "drenagem" | "diario" | "dados" | "cadastro",
+  fase: "recuperacao" | "drenagem" | "diario" | "dados" | "cadastro" | "liberacao",
   executar: (tx: Transacao, operacao: typeof operations.$inferSelect) => Promise<T>,
 ) {
   const livroId = config.assinatura.livroId,
@@ -62,9 +62,15 @@ export async function comEfeitoNativoDeDireitos<T>(
         ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='draining')`
         : fase === "diario"
           ? sql`exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies' and exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId}))`
-          : fase === "dados"
-            ? sql`(${baseDoCadastro}) and (${possuiDados})`
-            : sql`(${baseDoCadastro}) and not (${possuiDados})`;
+          : fase === "liberacao"
+            ? sql`exists(select 1 from ${subjects} where ${subjects.operationId}=${operations.id}) and
+              not exists(select 1 from ${subjects} where ${subjects.operationId}=${operations.id} and ${subjects.phase}='selected') and
+              exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and ${worlds.phase}='dependencies') and
+              not exists(select 1 from ${worlds} where ${worlds.operationId}=${operations.id} and
+                (${worlds.phase} not in ('dependencies','completed') or exists(select 1 from ${journal} where ${journal.spaceId}=${worlds.spaceId})))`
+            : fase === "dados"
+              ? sql`(${baseDoCadastro}) and (${possuiDados})`
+              : sql`(${baseDoCadastro}) and not (${possuiDados})`;
   const reservada = await banco.transaction(async (tx) => {
     await limites(tx);
     const [op] = await tx

@@ -177,6 +177,7 @@ export type AuditEventType =
   | "recreio.rights_profile_removed"
   | "recreio.rights_world_drained"
   | "recreio.rights_world_recovered"
+  | "recreio.rights_world_released"
   | "recreio.rights_withdrawal_completed"
   | "recreio.achievement_unlocked"
   | "recreio.device_session_revoked"

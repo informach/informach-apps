@@ -16,6 +16,7 @@ import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import { concluirProximaRetirada } from "@/features/direitos/conclusao-repository";
 import { concluirProximaDrenagem } from "@/features/direitos/drenagem-repository";
+import { liberarProximoMundoDeDireitos } from "@/features/direitos/liberacao-mundo-repository";
 import { minimizarProximoPerfil } from "@/features/direitos/minimizacao-repository";
 import { expurgarProximaReferencia } from "@/features/direitos/referencias-retidas-repository";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
@@ -130,8 +131,15 @@ describe("encerramento: efeitos pessoais dependem da confirmação financeira or
       expect(await expurgarProximaReferencia(await livro.coordenar())).toMatchObject({
         situacao: "ociosa",
       });
+      expect(await liberarProximoMundoDeDireitos(await livro.coordenar())).toMatchObject({
+        situacao: "ociosa",
+      });
       expect(await minimizarProximoPerfil(await livro.coordenar())).toMatchObject({
         situacao: "perfil_minimizado",
+      });
+      expect(await liberarProximoMundoDeDireitos(await livro.coordenar())).toMatchObject({
+        situacao: "mundo_liberado",
+        quantidade: 1,
       });
       expect((await db.select().from(spaces).where(eq(spaces.id, mundo.id)))[0]).toMatchObject({
         status: mundo.status,

@@ -15,6 +15,7 @@ import {
   compactarDiarioDeDireitos,
   reservarFotografiaDeDireitos,
 } from "../../src/features/direitos/fotografias-repository";
+import { liberarProximoMundoDeDireitos } from "../../src/features/direitos/liberacao-mundo-repository";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import {
   criarAssinaturaDoLivro,
@@ -166,6 +167,7 @@ export async function provarFontesHistoricasRecuperadas(
     };
     const executores = [
       minimizarProximoPerfil,
+      liberarProximoMundoDeDireitos,
       retirarProximosDadosPessoais,
       concluirProximaDrenagem,
       expurgarProximaReferencia,
