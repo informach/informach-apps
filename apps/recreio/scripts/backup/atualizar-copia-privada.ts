@@ -75,6 +75,19 @@ export async function atualizarCopiaPrivada(config: {
       prepare: false,
       connect_timeout: 10,
       idle_timeout: 1,
+      // The default driver prints raw multi-line notice objects. Operational
+      // output is JSONL and must never include SQL identifiers or messages.
+      onnotice: (aviso) => {
+        console.log(
+          JSON.stringify({
+            fase: "upgrade_copia_privada",
+            avisoPostgres:
+              typeof aviso.code === "string" && /^[0-9A-Z]{5}$/.test(aviso.code)
+                ? aviso.code
+                : "NATIVE_NOTICE",
+          }),
+        );
+      },
       connection: {
         application_name: "recreio-private-copy-migrator",
         lock_timeout: 2000,

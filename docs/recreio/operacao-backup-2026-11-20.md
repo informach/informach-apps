@@ -165,3 +165,11 @@ limpeza em ambos os casos. Estas fotografias são bytes opacos de migração;
 não comprovam conteúdo jogável nem consentimento. Gates ainda pendentes.
 Depois deles, repetir a prova com uma captura real somente leitura no Railway,
 antes de qualquer atualização do banco original ou promoção à main remota.
+
+
+44824373761/ac5ae7d1 passou contratos/tipos e concluiu o upgrade sintético
+204→244 nas duas origens, com preservação dos valores/globais e limpeza.
+O gate completo foi recusado porque os avisos padrão do postgres.js não eram
+JSONL. A correção registra somente o SQLSTATE validado em evento JSON, sem
+mensagem/identificador SQL; o leitor estrito do relatório não foi afrouxado.
+Repetir também a negativa de checksum antes de considerar o perfil aprovado.
