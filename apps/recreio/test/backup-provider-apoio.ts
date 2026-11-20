@@ -106,6 +106,7 @@ export async function criarBucketDaMontagem() {
     nativeCollectionVerified: false,
     durableArchiveRetirementVerified: false,
     archiveAnonymousReadDenied: false,
+    nativeRightsAnonymousReadDenied: false,
   };
   let frio: ReciboDoClusterFrio | undefined;
   const guardar = async () => {
@@ -137,7 +138,10 @@ export async function criarBucketDaMontagem() {
         exigir(
           /^recreio\/v1\/(fotografia|backup)\/[a-f0-9-]{36}\/(?:[a-f0-9]{64}|manifesto\.json|retirado\.json)$/.test(
             key,
-          ),
+          ) ||
+            /^recreio\/v1\/direitos\/[a-f0-9-]{36}\/(?:cabecalho\.json|historico\/[0-9]{16}-[a-f0-9]{64}\.json|planos\/[a-f0-9]{64}\.json|intencoes\/[a-f0-9-]{36}-1\.json)$/.test(
+              key,
+            ),
           "CHAVE_INVALIDA",
         );
         chaves.add(key);
@@ -165,10 +169,10 @@ export async function criarBucketDaMontagem() {
     },
     { step: "initialize", name: "recreioCaptureQualificationBoundary" },
   );
-  async function admitirPrefixo(tipo: "fotografia" | "backup", id: string) {
+  async function admitirPrefixo(tipo: "fotografia" | "backup" | "direitos", id: string) {
     exigir(z.uuid().safeParse(id).success, "CONTEXTO_INVALIDO");
     const prefixo = `recreio/v1/${tipo}/${id}/`;
-    exigir(prefixos.size < 2 && !prefixos.has(prefixo), "PREFIXO_JA_ADMITIDO");
+    exigir(prefixos.size < 3 && !prefixos.has(prefixo), "PREFIXO_JA_ADMITIDO");
     prefixos.add(prefixo);
     const lista = await cliente.send(
       new ListObjectsV2Command({ Bucket: destino.bucketName, Prefix: prefixo, MaxKeys: 2 }),
@@ -266,11 +270,20 @@ export async function criarBucketDaMontagem() {
     exigir(recibo.durableArchiveRetirementVerified, "RETIRADA_DURAVEL_AUSENTE");
     exigir(!externa || recibo.archiveAnonymousReadDenied, "PRIVACIDADE_DO_ARQUIVO_AUSENTE");
     exigir(process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE !== "1" || frio, "CLUSTER_FRIO_AUSENTE");
-    exigir(chaves.size === 4 && prefixos.size === 2, "INVENTARIO_DA_PROVA_DIVERGENTE");
+    const comDireitos = process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1";
+    exigir(
+      [...chaves].filter((k) => !k.startsWith("recreio/v1/direitos/")).length === 4 &&
+        [...chaves].filter((k) => k.startsWith("recreio/v1/direitos/")).length ===
+          (comDireitos ? 6 : 0) &&
+        prefixos.size === (comDireitos ? 3 : 2),
+      "INVENTARIO_DA_PROVA_DIVERGENTE",
+    );
     if (externa) {
       for (const key of chaves)
-        if (key.startsWith("recreio/v1/backup/")) await negativaAnonima(key);
+        if (key.startsWith("recreio/v1/backup/") || key.startsWith("recreio/v1/direitos/"))
+          await negativaAnonima(key);
       recibo.anonymousReadDenied = true;
+      recibo.nativeRightsAnonymousReadDenied = comDireitos;
     }
     recibo.nativeRecoveryVerified = true;
     recibo.retirementVerified = true;

@@ -351,3 +351,36 @@ existentes, finanças e publicação final continuam pendentes.
    das FKs/recibos, novos destinos/chaves e prova antes de liberar tráfego.
 5. Manter custódia independente, agenda/alertas, retenção/checkpoint do livro,
    RPO/RTO/custo observados, gates finais e testes humanos no final.
+
+
+## Consentimento nativo posterior à captura — candidata
+
+22645047 passou cluster frio 44790153497, qualidade 44790159030 e integração
+44790163929. 40798712 passou 44791374487/44791379919/44791385771. A composição
+f466c178 passou cluster frio 44793400837 e qualidade 44793407072; integração
+44793412931 ainda está em execução. Recibos derivados estão em `evidencias/`,
+com hashes dos ZIPs originais conservados fora do repositório. Esses recibos
+ainda não executaram apagador pessoal.
+
+A nova prova prepara uma família pelos serviços nativos antes da captura, com
+um progresso opaco e uma conquista do perfil selecionado e de outro perfil.
+Somente depois de publicar/conferir o backup, usa login recente, prévia,
+confirmação nativa, outbox e publicação reais. A decisão posterior é guardada
+no bucket exclusivo de homologação, em prefixo próprio do livro, e congelada.
+O filho recebe apenas coordenadas/chaves sintéticas e as seis credenciais já
+restritas; não recebe banco da origem, autenticação, Stripe ou host de jogo.
+
+A primeira restauração continua provando normalização/recusas e inventário
+intacto. Uma segunda restauração descartável recebe o livro externo por cliente
+GET restrito ao prefixo exato, importa/admite o pedido e executa os workers
+nativos de dados, minimização, referências e conclusão, com limite de passagens.
+Confere ausência do alvo, identidade global e dados do outro perfil, auditoria
+anterior e tabelas alheias. Não recoloca dados apagados para simular inventário
+intacto. Ambos os clusters e todos os objetos sintéticos precisam ser removidos.
+
+Os campos antigos de fixture MAC passam a se chamar
+`macFixturePersonalErasureExecuted`/`macFixtureSourceEffectsExecuted`; a prova
+nativa tem campos separados `nativePostCapture*`. As restrições GET dos dois
+clientes também são declaradas separadamente. Os recibos históricos conservam
+o formato original. Gates da nova prova pendentes; não é recuperação integral,
+não inclui foto/diário tipados, finanças, operações prévias ou publicação.

@@ -461,7 +461,7 @@ export async function provarFontesHistoricasRecuperadas(
     privateCoordinationCancellationVerified: true as const,
     privateOperationalQueuesBound: true as const,
     privateContextPreservedAfterIo: true as const,
-    historicalPersonalErasureExecuted: false as const,
-    historicalSourceEffectsExecuted: false as const,
+    macFixturePersonalErasureExecuted: false as const,
+    macFixtureSourceEffectsExecuted: false as const,
   };
 }

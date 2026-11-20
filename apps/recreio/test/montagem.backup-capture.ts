@@ -28,6 +28,7 @@ import { conexao, restaurar, temporarios } from "./backup-arquivos-apoio";
 import { semearCapacidadesDaCaptura } from "./backup-capacidades-apoio";
 import { provarClusterFrio } from "./backup-cluster-frio-apoio";
 import { semearConvitesDaCaptura } from "./backup-convites-apoio";
+import { prepararDireitosPosterioresACaptura } from "./backup-direitos-nativos-apoio";
 import { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { mundoDe } from "./jogo-apoio";
 import { familiaSocial } from "./social-apoio";
@@ -58,6 +59,7 @@ it(
         copia: postgres.Sql | undefined,
         falhaPrincipal: { erro: unknown } | undefined;
       const falhasDeLimpeza: unknown[] = [];
+      let direitos: Awaited<ReturnType<typeof prepararDireitosPosterioresACaptura>> | undefined;
       async function tentarLimpeza(fn: () => Promise<unknown>) {
         try {
           await fn();
@@ -69,6 +71,8 @@ it(
         // Native family creation BEFORE capture: the cold historical-admission
         // proof must find this child in the authenticated backup itself.
         await familiaSocial(15);
+        if (process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1")
+          direitos = await prepararDireitosPosterioresACaptura(s3, jogador.perfil.id);
         const capacidades = await semearCapacidadesDaCaptura(fonte, jogador, mundoId);
         await semearConvitesDaCaptura(fonte, jogador, mundoId, capacidades);
         const fotos = criarArmazenamentoPrivadoS3({
@@ -230,6 +234,9 @@ it(
         expect(controle).toEqual({ captura: "verified", publicacao: "published", ativas: 0 });
         await s3.confirmarPublicacaoDuravel(ref.contexto.id);
         await s3.confirmarArquivoPrivado(ref.contexto.id);
+        // The dump is already durable. The original authenticated backup must
+        // not contain this preparation, consent, outbox or admitted operation.
+        const decisaoPosterior = await direitos?.publicar();
         const republicacao = await indices.recuperar(ref.contexto.id);
         await indices.publicar(republicacao.bytes, ref.contexto.id); // Replay pelo 412.
         for (const h of [conferido, abertoPublicacao]) {
@@ -302,7 +309,12 @@ it(
               .slice(inicioDaRecuperacao)
               .every((p) => p.metodo === "GET" && p.url.includes(`/backup/${ref.contexto.id}/`)),
           ).toBe(true);
-          const frio = await provarClusterFrio(ref.contexto.id, mestre, "backup-v2");
+          const frio = await provarClusterFrio(
+            ref.contexto.id,
+            mestre,
+            "backup-v2",
+            decisaoPosterior,
+          );
           await s3.confirmarClusterFrio(frio);
           const retirada = await prepararRetirada(ref.contexto.id, "retencao", indice),
             transporteDaRetirada = criarRetiradaDoBackupS3({
@@ -358,6 +370,7 @@ it(
             }),
           );
         indice.encerrar();
+        direitos?.encerrar();
         chaveFoto.fill(0);
         chaveBackup.fill(0);
         const encerramentos = await Promise.allSettled([fonte.end({ timeout: 5 }), s3.fechar()]);

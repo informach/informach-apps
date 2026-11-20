@@ -1,7 +1,7 @@
 import { type FileHandle, mkdtemp, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
 import postgres from "postgres";
 import { z } from "zod";
 
@@ -18,10 +18,13 @@ import {
 import { criarIndiceDeRecuperacao } from "./indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "./indice-s3";
 import { conferirInventarios, FalhaDeInventario, inventariarBackup } from "./inventario";
+import { normalizarCapacidadesRestauradas } from "./normalizar-capacidades";
 import { FalhaDaNormalizacao, normalizarFotografiasRestauradas } from "./normalizar-fotografias";
 import { provarCapacidadesRecuperadas } from "./provar-capacidades-recuperadas";
 import { provarFontesHistoricasRecuperadas } from "./provar-fontes-historicas";
+import { provarRetiradaNativaPosterior } from "./provar-retirada-nativa";
 import { exigir, FalhaDaProva, limparDiretorioDeProva } from "./provas-arquivos";
+import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
 
 const variavel = (nome: string) => {
   const v = process.env[nome];
@@ -122,7 +125,7 @@ async function main() {
   );
   const estilo = variavel("RECREIO_S3_TEST_PATH_STYLE");
   exigir(estilo === "true" || estilo === "false", "ESTILO_INVALIDO");
-  const cliente = new S3Client({
+  const configS3 = {
     endpoint: endpoint.origin,
     region: variavel("RECREIO_S3_TEST_REGION"),
     forcePathStyle: estilo === "true",
@@ -133,7 +136,13 @@ async function main() {
     maxAttempts: 1,
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
-  });
+  } satisfies S3ClientConfig;
+  const cliente = new S3Client(configS3),
+    clienteDireitos = new S3Client(configS3);
+  const textoDireitos = variavel("RECREIO_BACKUP_PROBE_NATIVE_RIGHTS");
+  delete process.env.RECREIO_BACKUP_PROBE_NATIVE_RIGHTS;
+  exigir(textoDireitos.length <= 4096, "CONFIGURACAO_INVALIDA");
+  const retiradaNativa = RetiradaNativaDeProvaSchema.parse(JSON.parse(textoDireitos));
   let leituras = 0;
   cliente.middlewareStack.add(
     (next, context) => async (args) => {
@@ -384,6 +393,28 @@ async function main() {
       exigir(capacidades, "CAPACIDADES_SINTETICAS_AUSENTES");
       exigir(fontesHistoricas, "CAPACIDADES_SINTETICAS_AUSENTES");
       clusterLimpo = prova.temporariosRemovidos;
+      etapa = "RETIRADA_NATIVA";
+      let retirada: Awaited<ReturnType<typeof provarRetiradaNativaPosterior>> | undefined;
+      // Reopen the authenticated dump in a separate fresh cluster. Never undo
+      // an erasure to make the metadata/idempotence proof above appear intact.
+      const segunda = await comBancoRestaurado({ dump, inventario }, async (copia) => {
+        await normalizarFotografiasRestauradas({
+          copia,
+          acesso,
+          fotografia,
+          inventario: fria.publicacao.inventario,
+        });
+        await normalizarCapacidadesRestauradas(copia);
+        retirada = await provarRetiradaNativaPosterior({
+          copia,
+          cliente: clienteDireitos,
+          bucket,
+          capturaSha256: fria.publicacao.composto.sha256,
+          entrada: retiradaNativa,
+        });
+      });
+      exigir(retirada && segunda.temporariosRemovidos, "RETIRADA_NATIVA_NAO_CONCLUIDA");
+      clusterLimpo = clusterLimpo && segunda.temporariosRemovidos;
       exigir(leituras >= 3, "LEITURAS_DO_BACKUP_INCOMPLETAS");
       resultado = {
         source: process.env.GITHUB_SHA,
@@ -398,7 +429,7 @@ async function main() {
         vinculosConferidos: ligadas,
         clusterCleanupConfirmed: clusterLimpo,
         sourceDatabaseCredentialsPresent: false,
-        onlyBackupPrefixRead: true,
+        backupClientOnlyBackupPrefixRead: true,
         backupReadRequests: leituras,
         objectDestinationsNormalized: true,
         inventoryComparedBeforeNormalization: true,
@@ -414,6 +445,8 @@ async function main() {
         manifestMismatchRefused: true,
         ...capacidades,
         ...fontesHistoricas,
+        ...retirada,
+        nativePostCaptureSecondClusterCleaned: true,
         authoritiesNormalizedForTraffic: false,
         productionDataTouched: false,
       };
@@ -435,6 +468,7 @@ async function main() {
     }
     indice.encerrar();
     cliente.destroy();
+    clienteDireitos.destroy();
   }
   if (falha || !resultado || !removidos || !clusterLimpo)
     console.log(

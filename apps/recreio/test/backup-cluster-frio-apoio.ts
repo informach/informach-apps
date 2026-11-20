@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { FalhaDaRecuperacaoSchema } from "../scripts/backup/diagnostico-recuperacao";
 import { exigir, FalhaDaProva } from "../scripts/backup/provas-arquivos";
+import {
+  type RetiradaNativaDeProva,
+  RetiradaNativaDeProvaSchema,
+} from "../scripts/backup/retirada-nativa-prova-contrato";
 
 const Recibo = z.strictObject({
   source: z.string().regex(/^[a-f0-9]{40}$/),
@@ -18,7 +22,7 @@ const Recibo = z.strictObject({
   clusterCleanupConfirmed: z.literal(true),
   localCleanupConfirmed: z.literal(true),
   sourceDatabaseCredentialsPresent: z.literal(false),
-  onlyBackupPrefixRead: z.literal(true),
+  backupClientOnlyBackupPrefixRead: z.literal(true),
   backupReadRequests: z.number().int().min(3),
   objectDestinationsNormalized: z.literal(true),
   inventoryComparedBeforeNormalization: z.literal(true),
@@ -66,8 +70,17 @@ const Recibo = z.strictObject({
   privateCoordinationCancellationVerified: z.literal(true),
   privateOperationalQueuesBound: z.literal(true),
   privateContextPreservedAfterIo: z.literal(true),
-  historicalPersonalErasureExecuted: z.literal(false),
-  historicalSourceEffectsExecuted: z.literal(false),
+  nativePostCaptureConsentReplayed: z.literal(true),
+  nativePostCapturePersonalErasureExecuted: z.literal(true),
+  nativePostCaptureOtherProfilePreserved: z.literal(true),
+  nativePostCaptureGlobalIdentityPreserved: z.literal(true),
+  nativePostCaptureNoNewConsent: z.literal(true),
+  nativePostCaptureSecondClusterCleaned: z.literal(true),
+  rightsClientOnlyRightsPrefixRead: z.literal(true),
+  rightsReadRequests: z.number().int().positive(),
+  nativePostCaptureSqlPasses: z.number().int().min(1).max(24),
+  macFixturePersonalErasureExecuted: z.literal(false),
+  macFixtureSourceEffectsExecuted: z.literal(false),
   authoritiesNormalizedForTraffic: z.literal(false),
   productionDataTouched: z.literal(false),
 });
@@ -79,10 +92,12 @@ export async function provarClusterFrio(
   capturaId: string,
   mestre: ReadonlyMap<string, Uint8Array>,
   chaveAtiva: string,
+  retirada?: RetiradaNativaDeProva,
 ): Promise<ReciboDoClusterFrio | undefined> {
   const modo = process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE;
   exigir(modo === undefined || modo === "0" || modo === "1", "MODO_FRIO_INVALIDO");
   if (modo !== "1") return undefined;
+  const decisao = RetiradaNativaDeProvaSchema.parse(retirada);
   exigir(
     process.platform === "linux" &&
       process.env.GITHUB_ACTIONS === "true" &&
@@ -133,6 +148,7 @@ export async function provarClusterFrio(
   env.RECREIO_BACKUP_PROBE_CAPTURE_ID = capturaId;
   env.RECREIO_BACKUP_PROBE_ACTIVE_KEY = chaveAtiva;
   env.RECREIO_BACKUP_PROBE_MASTER_KEYS = JSON.stringify(material);
+  env.RECREIO_BACKUP_PROBE_NATIVE_RIGHTS = JSON.stringify(decisao);
   const nome = `recreio-cold-${process.env.GITHUB_RUN_ID}-${randomUUID()}`;
   const encaminhar = [
     "NODE_ENV",
@@ -145,6 +161,7 @@ export async function provarClusterFrio(
     "RECREIO_BACKUP_PROBE_CAPTURE_ID",
     "RECREIO_BACKUP_PROBE_ACTIVE_KEY",
     "RECREIO_BACKUP_PROBE_MASTER_KEYS",
+    "RECREIO_BACKUP_PROBE_NATIVE_RIGHTS",
   ];
   const argumentos = [
     "run",
@@ -217,6 +234,7 @@ export async function provarClusterFrio(
   } finally {
     clearTimeout(prazo);
     delete env.RECREIO_BACKUP_PROBE_MASTER_KEYS;
+    delete env.RECREIO_BACKUP_PROBE_NATIVE_RIGHTS;
     for (const n of nomes) delete env[n];
   }
   // SIGTERM no cliente não prova que o container parou; reconciliar o nome
