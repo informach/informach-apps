@@ -6,27 +6,42 @@ test("jogo 2D sem mundos salva, sai e recupera progresso pelo SDK", async ({ bro
   const { page } = pessoa;
   const pedidos: { caminho: string; tipo: string }[] = [];
   const scripts: Promise<{ ok: boolean; caminho: string; motor: boolean }>[] = [];
-  page.on("request", (request) =>
+  page.on("request", (request) => {
     pedidos.push({
       caminho: new URL(request.url()).pathname,
       tipo: request.resourceType(),
-    }),
-  );
-  page.on("response", (response) => {
-    if (response.request().resourceType() !== "script") return;
-    const caminho = new URL(response.url()).pathname;
+    });
+    if (request.resourceType() !== "script") return;
+    const caminho = new URL(request.url()).pathname;
     // Next's chunks can have only hashes in their URLs. Inspect downloaded
     // JavaScript too: Three 0.186.1's own module registers __THREE__ on window.
     // An unreadable body is inconclusive, never evidence that no motor arrived.
     scripts.push(
-      response.text().then(
-        (body) => ({ ok: response.ok(), caminho, motor: body.includes("__THREE__") }),
-        () => ({ ok: false, caminho, motor: false }),
-      ),
+      request
+        .response()
+        .then(async (response) => {
+          if (!response) return { ok: false, caminho, motor: false };
+          const body = await response.text();
+          return { ok: response.ok(), caminho, motor: body.includes("__THREE__") };
+        })
+        .catch(() => ({ ok: false, caminho, motor: false })),
     );
   });
+  async function conferirScripts() {
+    // A full navigation invalidates CDP's previous response bodies. Observe
+    // requests from their start and finish reading every issued script BEFORE
+    // leaving its document, including scripts issued during an earlier read.
+    let conferidos = 0;
+    while (conferidos < scripts.length) {
+      const final = scripts.length,
+        lidos = await Promise.all(scripts.slice(conferidos, final));
+      expect(lidos.filter((script) => !script.ok || script.motor)).toEqual([]);
+      conferidos = final;
+    }
+  }
   try {
     expect(await page.evaluate(() => "__THREE__" in window)).toBe(false);
+    await conferirScripts();
     await page.goto("/jogar/perfil-teste");
     await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeEnabled();
     await page.getByRole("button", { name: "Ganhar ponto" }).click();
@@ -35,8 +50,10 @@ test("jogo 2D sem mundos salva, sai e recupera progresso pelo SDK", async ({ bro
       "Progresso salvo",
     );
     await expect(page.getByRole("button", { name: "Salvar e sair" })).toBeEnabled();
+    await conferirScripts();
     await page.getByRole("button", { name: "Salvar e sair" }).click();
     await expect(page).toHaveURL(/\/estante$/);
+    await conferirScripts();
     await page.goto("/jogar/perfil-teste");
     await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeEnabled();
     await expect(page.getByLabel("Pontos salvos")).toHaveText("1");
@@ -51,12 +68,12 @@ test("jogo 2D sem mundos salva, sai e recupera progresso pelo SDK", async ({ bro
           (tipo === "script" && /morada|three/i.test(caminho)),
       ),
     ).toEqual([]);
-    const lidos = await Promise.all(scripts);
-    expect(lidos.length).toBeGreaterThan(0);
-    expect(lidos.filter((script) => !script.ok || script.motor)).toEqual([]);
+    await conferirScripts();
+    expect(scripts.length).toBeGreaterThan(0);
     expect(await page.evaluate(() => "__THREE__" in window)).toBe(false);
     await page.getByRole("button", { name: "Salvar e sair" }).click();
     await expect(page).toHaveURL(/\/estante$/);
+    await conferirScripts();
   } finally {
     await pessoa.contexto.close();
   }

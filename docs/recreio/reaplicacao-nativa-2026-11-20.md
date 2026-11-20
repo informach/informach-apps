@@ -544,3 +544,29 @@ suas datas e provar ambas no cluster descartável. Se houver lease/backoff
 herdado, reconciliar só esses campos de worker sob prova integral, com auditoria
 própria e repetição sem novo evento. Operação já concluída deve preservar também
 o instante de conclusão; estado em revisão/publicação não passa automaticamente.
+
+
+## Conferências do diário e da captura de scripts
+
+44800675986 isolou a falha do diário em `DIARIO_NATIVO_METADADOS`: contadores,
+liberação do mundo, identificadores, famílias e acesso final passaram. A fixture
+avançava 1.000 ms sem sessão, mas seu contrato durável só inclui os fatos
+emitidos; relógio transcorrido silenciosamente não é checkpoint confirmado.
+O incremento agora usa `avancar(0)`, contrato público que recolhe o fato real
+da mudança de acesso sem avançar tempo. Conserva todos os fatos emitidos e as
+comparações exatas de tick/metadados e estado final; não aceita inventar avanço
+de relógio na recuperação. Prova de tempo com host/diário real permanece nos
+testes de drenagem existentes, não é alegada por este caso isolado.
+
+A rodada completa a7389a97/44798333650 reprovou somente o E2E de progresso.
+O trace confirmou HTTP 200 nos scripts e erro `Network.getResponseBody`: a
+navegação invalidou o corpo antes de o observador terminá-lo. O teste agora
+observa scripts desde o pedido e aguarda a leitura de todos os já emitidos
+antes de sair de cada documento. Falhas de corpo continuam reprovando; não
+aumenta timeout, desliga cache ou altera o transporte/IP do app. Trace original
+conservado fora do Git. Gates da correção pendentes.
+
+3aecf157 passou direitos/upgrade **44800202826** e qualidade **44800207843**:
+pares ancestrais válidos e recusas por cabeça anterior/ausente/hash/repetição
+foram qualificados. Qualidade/integração 10197642 passaram 44799708245/44799713119;
+aquele cluster frio continua reprovado pelo oráculo de metadados acima.

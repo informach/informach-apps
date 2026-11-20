@@ -92,7 +92,9 @@ export async function prepararDireitosPosterioresACaptura(
     }).ok,
     "FATO_SINTETICO_RECUSADO",
   );
-  const fatos = simulacao.avancar(1000).fatos;
+  // Flush the real command's durable fact at this tick. An elapsed simulation
+  // clock without a corresponding journal fact is not a committed checkpoint.
+  const fatos = simulacao.avancar(0).fatos;
   exigir(fatos.length > 0 && fatos.length <= 1000, "DIARIO_SINTETICO_AUSENTE");
   const entradas = fatos.map((f, i) => {
     const payload = Buffer.from(JSON.stringify(f));
