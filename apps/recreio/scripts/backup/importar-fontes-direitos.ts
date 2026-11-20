@@ -169,13 +169,49 @@ export async function importarFontesHistoricasDeDireitos(config: {
         );
         exigir(
           fonte &&
-            fonte.run_id === id &&
             fonte.ledger_id === doc.livroId &&
             fonte.requester_reference === intencao.contaId &&
             fonte.kind === intencao.tipo &&
             fonte.plan_sha256 === intencao.planoSha256 &&
             isDeepStrictEqual(fonte.plan, plano) &&
-            isDeepStrictEqual(fonte.world_map, mapa),
+            (fonte.run_id !== id || isDeepStrictEqual(fonte.world_map, mapa)),
+        );
+        // The original source is immutable across restores. Only this run's
+        // evaluation contains the current live/absent map and readiness receipt.
+        await tx.unsafe(
+          `insert into recreio.rights_recovery_evaluations
+          (run_id,operation_id,ledger_id,requester_reference,kind,plan_sha256,world_map)
+          values($1,$2,$3,$4,$5,$6,$7::jsonb) on conflict(run_id,operation_id) do nothing`,
+          [
+            id,
+            intencao.operacaoId,
+            doc.livroId,
+            intencao.contaId,
+            intencao.tipo,
+            intencao.planoSha256,
+            tx.json(mapa),
+          ],
+        );
+        const [avaliacao] = await tx.unsafe<
+          {
+            ledger_id: string;
+            requester_reference: string;
+            kind: string;
+            plan_sha256: string;
+            world_map: unknown;
+          }[]
+        >(
+          `select ledger_id,requester_reference,kind,plan_sha256,world_map
+          from recreio.rights_recovery_evaluations where run_id=$1 and operation_id=$2 for share`,
+          [id, intencao.operacaoId],
+        );
+        exigir(
+          avaliacao &&
+            avaliacao.ledger_id === doc.livroId &&
+            avaliacao.requester_reference === intencao.contaId &&
+            avaliacao.kind === intencao.tipo &&
+            avaliacao.plan_sha256 === intencao.planoSha256 &&
+            isDeepStrictEqual(avaliacao.world_map, mapa),
         );
       });
     },

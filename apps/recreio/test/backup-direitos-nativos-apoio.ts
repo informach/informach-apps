@@ -1,19 +1,22 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { gzipSync } from "node:zlib";
-import { db } from "@informach/db";
+import { db, eq, sql } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,
   recreioSpaceJournal as journal,
   recreioProfileDataKeys as keys,
+  recreioRightsOperations as operations,
   recreioProfileWorldTraces as traces,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
 import { canonico, criarMundo } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
 import { confirmarRetiradaDePerfil } from "@/features/direitos/consentimento-service";
+import { retirarProximosDadosPessoais } from "@/features/direitos/dados-retirada-repository";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
+import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { prepararPedidoDeDireitos } from "@/features/direitos/service";
 import { exigir } from "../scripts/backup/provas-arquivos";
@@ -29,6 +32,7 @@ export async function prepararDireitosPosterioresACaptura(
   mundoId: string,
 ) {
   const familia = await familiaSocial(15),
+    familiaAnterior = await familiaSocial(15),
     livroId = randomUUID(),
     antiga = randomBytes(32),
     proxima = randomBytes(32),
@@ -37,7 +41,7 @@ export async function prepararDireitosPosterioresACaptura(
       chaveAtiva: "native-old",
       chaves: new Map([["native-old", antiga]]),
     });
-  for (const profileId of [familia.perfil.id, preservadoId]) {
+  for (const profileId of [familia.perfil.id, familiaAnterior.perfil.id, preservadoId]) {
     const [key] = await db
       .insert(keys)
       .values({
@@ -120,6 +124,79 @@ export async function prepararDireitosPosterioresACaptura(
       .update(canonico(final.estado.familias))
       .digest("hex"),
     acessoFinalSha256 = createHash("sha256").update(canonico(acessoFinal)).digest("hex");
+  // The first genuine native operation is already admitted and partly
+  // processed when the authenticated capture is made. Its ancestor header,
+  // native preparation and dates must survive recovery unchanged.
+  await bucket.admitirPrefixo("direitos", livroId);
+  const storage = criarArmazenamentoDoLivro({
+    cliente: bucket.cliente,
+    bucket: bucket.destino.bucketName,
+    assinatura,
+    tempoLimiteMs: 15000,
+  });
+  await storage.iniciarCabecalho(
+    assinatura.assinarCabecalho({
+      formato: "recreio-livro-direitos-v1",
+      livroId,
+      estado: "aberto",
+      epoca: 0,
+      chavesUtilizadas: ["native-old"],
+      retomada: null,
+      geracao: 0,
+      entradas: 0,
+      raizSha256: RAIZ_VAZIA,
+      anteriorSha256: null,
+      ultimaIntencao: null,
+      atualizadoEm: new Date().toISOString(),
+    }),
+  );
+  async function consentir(alvo: Awaited<ReturnType<typeof familiaSocial>>) {
+    const previa = await prepararPedidoDeDireitos(alvo.autor, {
+      pedidoId: randomUUID(),
+      tipo: "retirar_perfil",
+      perfis: [alvo.perfil.id],
+    });
+    const fonte = process.env.GITHUB_SHA;
+    exigir(fonte && /^[a-f0-9]{40}$/.test(fonte), "FONTE_NATIVA_AUSENTE");
+    const pedido = await confirmarRetiradaDePerfil(
+      alvo.autor,
+      {
+        preparacaoId: previa.preparacaoId,
+        planoSha256: previa.planoSha256,
+        confirmoRetirada: true,
+      },
+      { assinatura, storage, fonte },
+    );
+    const publicada = await publicarProximoConsentimento({ assinatura, storage });
+    exigir(
+      publicada.situacao === "admitida" && publicada.operacaoId === pedido.operacaoId,
+      "CONSENTIMENTO_NATIVO_NAO_PUBLICADO",
+    );
+    return pedido;
+  }
+  const anterior = await consentir(familiaAnterior),
+    provaAnterior = await conferirPrefixoDoLivro({
+      storage,
+      maxEntradas: 10,
+      tempoLimiteMs: 15000,
+    });
+  const parcial = await retirarProximosDadosPessoais({ assinatura, prova: provaAnterior });
+  exigir(
+    parcial.situacao === "dados_removidos" &&
+      parcial.dominio === "versions" &&
+      parcial.quantidade === 1,
+    "EFEITO_ANTERIOR_NAO_CONFIRMADO",
+  );
+  // Synthetic reservation simulates a worker that died after that durable
+  // effect. No consent, admission or retention timestamp is manufactured.
+  await db
+    .update(operations)
+    .set({
+      leaseToken: randomUUID(),
+      leaseUntil: sql`statement_timestamp()+interval '2 minutes'`,
+      nextAttemptAt: sql`statement_timestamp()+interval '90 seconds'`,
+    })
+    .where(eq(operations.id, anterior.operacaoId));
   return {
     fotografia: {
       bytes: gzipSync(JSON.stringify(foto)),
@@ -128,53 +205,15 @@ export async function prepararDireitosPosterioresACaptura(
       diarioFinal: fatos.length,
     },
     async publicar() {
-      await bucket.admitirPrefixo("direitos", livroId);
-      const storage = criarArmazenamentoDoLivro({
-        cliente: bucket.cliente,
-        bucket: bucket.destino.bucketName,
-        assinatura,
-        tempoLimiteMs: 15000,
-      });
-      await storage.iniciarCabecalho(
-        assinatura.assinarCabecalho({
-          formato: "recreio-livro-direitos-v1",
-          livroId,
-          estado: "aberto",
-          epoca: 0,
-          chavesUtilizadas: ["native-old"],
-          retomada: null,
-          geracao: 0,
-          entradas: 0,
-          raizSha256: RAIZ_VAZIA,
-          anteriorSha256: null,
-          ultimaIntencao: null,
-          atualizadoEm: new Date().toISOString(),
-        }),
-      );
-      const previa = await prepararPedidoDeDireitos(familia.autor, {
-        pedidoId: randomUUID(),
-        tipo: "retirar_perfil",
-        perfis: [familia.perfil.id],
-      });
-      const fonte = process.env.GITHUB_SHA;
-      exigir(fonte && /^[a-f0-9]{40}$/.test(fonte), "FONTE_NATIVA_AUSENTE");
-      const pedido = await confirmarRetiradaDePerfil(
-        familia.autor,
-        {
-          preparacaoId: previa.preparacaoId,
-          planoSha256: previa.planoSha256,
-          confirmoRetirada: true,
-        },
-        { assinatura, storage, fonte },
-      );
-      const publicada = await publicarProximoConsentimento({ assinatura, storage });
-      exigir(
-        publicada.situacao === "admitida" && publicada.operacaoId === pedido.operacaoId,
-        "CONSENTIMENTO_NATIVO_NAO_PUBLICADO",
-      );
+      const pedido = await consentir(familia);
       await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
       return {
         livroId,
+        anterior: {
+          operacaoId: anterior.operacaoId,
+          perfilId: familiaAnterior.perfil.id,
+          contaId: familiaAnterior.conta.id,
+        },
         operacaoId: pedido.operacaoId,
         perfilId: familia.perfil.id,
         contaId: familia.conta.id,

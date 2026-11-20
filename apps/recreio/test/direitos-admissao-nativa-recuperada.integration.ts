@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { db, eq } from "@informach/db";
 import {
+  recreioRightsRecoveryEvaluations as evaluations,
   recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
   recreioRightsRecoveryRuns as runs,
   recreioRightsRecoverySources as sources,
 } from "@informach/db/schema";
 import { expect, it } from "vitest";
+import {
+  conferirOperacaoNaAvaliacao,
+  conferirReciboDaAvaliacao,
+} from "@/features/direitos/avaliacao-recuperada-repository";
 import { confirmarRetiradaDePerfil } from "@/features/direitos/consentimento-service";
 import { conferirFonteNativaRecuperada } from "@/features/direitos/fonte-intencao-repository";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
@@ -93,6 +98,59 @@ it("confere a origem nativa com cabeçalho ancestral sem reescrever admissão ou
     expect(lida.execucaoAutorizada).toBe(false);
     expect(lida.admissaoPersistida.cabecalhoSha256).toBe(original.admittedHeadSha256);
     expect(lida.admissaoPersistida.cabecalhoSha256).not.toBe(cabecalho.sha256);
+    await db.insert(evaluations).values({
+      runId: execucaoId,
+      operationId: original.id,
+      ledgerId: original.ledgerId,
+      requesterReference: original.requesterUserId,
+      kind: original.kind,
+      planSha256: original.planSha256,
+      worldMap: [],
+    });
+    const avaliar = () =>
+      db.transaction((tx) => conferirOperacaoNaAvaliacao(tx, original, livro.assinatura, escopo));
+    const staged = await avaliar();
+    expect(staged.execucaoAutorizada).toBe(false);
+    expect(() => conferirReciboDaAvaliacao(staged.avaliacao, original)).toThrow();
+    // PostgreSQL itself rejects an incomplete ready receipt. No private
+    // cluster capability is being manufactured by this metadata fixture.
+    await expect(
+      db
+        .update(evaluations)
+        .set({ state: "ready", origin: "native" })
+        .where(eq(evaluations.operationId, original.id)),
+    ).rejects.toThrow();
+    await db
+      .update(evaluations)
+      .set({
+        state: "ready",
+        origin: "native",
+        preparationReference: original.preparationId,
+        admittedHeadSha256: original.admittedHeadSha256,
+        intentSha256: original.intentSha256,
+        readyAt: new Date(),
+      })
+      .where(eq(evaluations.operationId, original.id));
+    const pronta = await avaliar();
+    expect(() => conferirReciboDaAvaliacao(pronta.avaliacao, original)).not.toThrow();
+    await expect(
+      db.transaction((tx) =>
+        conferirOperacaoNaAvaliacao(tx, original, livro.assinatura, {
+          ...escopo,
+          execucaoId: randomUUID(),
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "DIREITOS_INTEGRIDADE" });
+    await db
+      .update(evaluations)
+      .set({ intentSha256: "0".repeat(64) })
+      .where(eq(evaluations.operationId, original.id));
+    const divergente = await avaliar();
+    expect(() => conferirReciboDaAvaliacao(divergente.avaliacao, original)).toThrow();
+    await db
+      .update(evaluations)
+      .set({ intentSha256: original.intentSha256 })
+      .where(eq(evaluations.operationId, original.id));
     const prova = await conferirPrefixoDoLivro({
       storage,
       maxEntradas: 10,

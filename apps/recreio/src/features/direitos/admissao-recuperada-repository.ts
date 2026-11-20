@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, eq, inArray, sql } from "@informach/db";
 import {
+  recreioRightsRecoveryEvaluations as evaluations,
   recreioGuardianLinks as guardians,
   recreioRightsOperations as operations,
   recreioProfiles as profiles,
@@ -14,11 +15,13 @@ import {
 import { z } from "zod";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, travar } from "@/lib/repository";
-import { type CoordenacaoDeEfeitos, dadosDaCoordenacaoPrivada } from "./coordenacao-repository";
+import { conferirReciboDaAvaliacao } from "./avaliacao-recuperada-repository";
 import {
-  conferirIntencaoHistoricaRecuperada,
-  conferirMapaHistoricoDeMundos,
-} from "./fonte-intencao-repository";
+  type CoordenacaoDeEfeitos,
+  conferirAdmissaoPersistidaDaCoordenacao,
+  dadosDaCoordenacaoPrivada,
+} from "./coordenacao-repository";
+import { conferirMapaHistoricoDeMundos } from "./fonte-intencao-repository";
 import { resumoDoRegistro } from "./livro/assinatura";
 import { conferirEscopoDoPlanoExterno } from "./livro/plano-externo";
 import { lerPlanoDeDireitos } from "./plano-persistido";
@@ -30,8 +33,8 @@ import {
 /** Fixed private admission, not an interactive consent or an operator login.
  * Reuses original MAC bytes/dates and native SQL preparation. Missing subjects
  * have explicit absence receipts; absent worlds remain in the complete source
- * map. Existing native-origin operations require their own reconciliation and
- * are deliberately not rewritten by this first admission profile. */
+ * map. Existing admissions preserve their original origin and timestamps; a
+ * per-run receipt reconciles the inherited worker reservation only once. */
 export async function admitirRetiradaHistoricaRecuperada(
   config: CoordenacaoDeEfeitos,
   entrada: string,
@@ -76,13 +79,7 @@ export async function admitirRetiradaHistoricaRecuperada(
       const [fonte] = await tx
         .select()
         .from(sources)
-        .where(
-          and(
-            eq(sources.operationId, operacaoId),
-            eq(sources.runId, privado.execucaoId),
-            eq(sources.ledgerId, i.livroId),
-          ),
-        )
+        .where(and(eq(sources.operationId, operacaoId), eq(sources.ledgerId, i.livroId)))
         .for("share");
       assertAllowed(
         fonte &&
@@ -92,6 +89,64 @@ export async function admitirRetiradaHistoricaRecuperada(
         "DIREITOS_INTEGRIDADE",
         "Fonte histórica fora do escopo.",
       );
+      const [avaliacao] = await tx
+        .select()
+        .from(evaluations)
+        .where(
+          and(
+            eq(evaluations.runId, privado.execucaoId),
+            eq(evaluations.operationId, operacaoId),
+            eq(evaluations.ledgerId, i.livroId),
+            eq(evaluations.planSha256, i.planoSha256),
+            eq(evaluations.requesterReference, i.contaId),
+            eq(evaluations.kind, i.tipo),
+          ),
+        )
+        .for("update");
+      assertAllowed(avaliacao, "DIREITOS_INTEGRIDADE", "Avaliação atual ausente.");
+      async function prepararRecibo(op: typeof operations.$inferSelect, retomada: boolean) {
+        if (avaliacao.state !== "staged") {
+          conferirReciboDaAvaliacao(avaliacao, op);
+          return;
+        }
+        // Receipt and inherited lease reconciliation are atomic and happen once.
+        // Repeating admission must never clear a new worker's lease/backoff.
+        if (retomada && (op.state === "admitted" || op.state === "running"))
+          await tx
+            .update(operations)
+            .set({ leaseToken: null, leaseUntil: null, nextAttemptAt: AGORA, updatedAt: AGORA })
+            .where(
+              and(eq(operations.id, op.id), inArray(operations.state, ["admitted", "running"])),
+            );
+        const [pronta] = await tx
+          .update(evaluations)
+          .set({
+            state: "ready",
+            origin: op.preparationId !== null ? "native" : "recovered",
+            preparationReference: op.preparationId,
+            recoverySourceReference: op.recoverySourceId,
+            admittedHeadSha256: op.admittedHeadSha256,
+            intentSha256: op.intentSha256,
+            readyAt: AGORA,
+          })
+          .where(
+            and(
+              eq(evaluations.runId, avaliacao.runId),
+              eq(evaluations.operationId, op.id),
+              eq(evaluations.state, "staged"),
+            ),
+          )
+          .returning();
+        assertAllowed(pronta, "DIREITOS_INTEGRIDADE", "Recibo de retomada indisponível.");
+        conferirReciboDaAvaliacao(pronta, op);
+        if (retomada)
+          await logAuditEventStrict(
+            "recreio.rights_historical_resumed",
+            op.requesterUserId,
+            { app: "recreio", operationId: op.id, kind: op.kind },
+            { writer: tx },
+          );
+      }
       const plano = lerPlanoDeDireitos(
         {
           requesterUserId: fonte.requesterReference,
@@ -102,25 +157,28 @@ export async function admitirRetiradaHistoricaRecuperada(
         i.contaId,
       );
       conferirEscopoDoPlanoExterno(i, plano);
-      const mapa = await conferirMapaHistoricoDeMundos(tx, plano, fonte.worldMap);
+      const mapa = await conferirMapaHistoricoDeMundos(tx, plano, avaliacao.worldMap);
       const [anterior] = await tx
         .select()
         .from(operations)
         .where(eq(operations.id, operacaoId))
         .for("update");
       if (anterior) {
-        assertAllowed(
-          anterior.preparationId === null && anterior.recoverySourceId === operacaoId,
-          "DIREITOS_DEPENDENCIA",
-          "A origem nativa existente precisa de conciliação histórica.",
-        );
-        const lida = await conferirIntencaoHistoricaRecuperada(tx, anterior, config.assinatura);
+        const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, anterior);
         assertAllowed(
           lida.execucao.id === privado.execucaoId && anterior.signedIntent.equals(registro.bytes),
           "DIREITOS_INTEGRIDADE",
-          "A admissão anterior diverge do registro original.",
+          "A admissão anterior diverge da decisão externa.",
         );
-        return { situacao: "existente" as const, operacaoId };
+        await prepararRecibo(anterior, true);
+        dadosDaCoordenacaoPrivada(config);
+        return {
+          situacao:
+            anterior.preparationId !== null
+              ? ("existente_nativa" as const)
+              : ("existente" as const),
+          operacaoId,
+        };
       }
       const ids = plano.perfis.map((p) => p.id),
         idsMundos = mapa.filter((m) => m.mundoVivoId !== null).map((m) => m.mundoReferencia);
@@ -228,7 +286,8 @@ export async function admitirRetiradaHistoricaRecuperada(
             retentionPolicyVersion: "perfil-2026-11-19" as const,
           })),
         );
-      await conferirIntencaoHistoricaRecuperada(tx, op, config.assinatura);
+      await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
+      await prepararRecibo(op, false);
       await logAuditEventStrict(
         "recreio.rights_historical_admitted",
         i.contaId,

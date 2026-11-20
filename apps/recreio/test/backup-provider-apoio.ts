@@ -274,7 +274,7 @@ export async function criarBucketDaMontagem() {
     exigir(
       [...chaves].filter((k) => !k.startsWith("recreio/v1/direitos/")).length === 4 &&
         [...chaves].filter((k) => k.startsWith("recreio/v1/direitos/")).length ===
-          (comDireitos ? 6 : 0) &&
+          (comDireitos ? 9 : 0) &&
         prefixos.size === (comDireitos ? 3 : 2),
       "INVENTARIO_DA_PROVA_DIVERGENTE",
     );

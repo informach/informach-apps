@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { LimitesDoJogo } from "@informach/config/jogos";
 import { and, type Database, db, eq, inArray, isNull, sql } from "@informach/db";
 import {
+  recreioRightsRecoveryEvaluations as evaluations,
   recreioGuardianLinks as guardians,
   recreioRightsOperations as operations,
   recreioProfiles as profiles,
@@ -23,7 +24,10 @@ import {
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import {
-  conferirIntencaoHistoricaRecuperada,
+  conferirOperacaoNaAvaliacao,
+  conferirReciboDaAvaliacao,
+} from "./avaliacao-recuperada-repository";
+import {
   conferirMapaHistoricoDeMundos,
   lerPreparacaoInterativaDaOperacao,
 } from "./fonte-intencao-repository";
@@ -51,10 +55,30 @@ type Privada = {
   cerca: string;
   storage: ReturnType<typeof criarArmazenamentoDoLivro>;
   signal: AbortSignal;
+  admissoes: ReadonlyMap<string, AdmissaoPersistidaNoBackup>;
   operacaoId?: string;
   autoridades?: ReadonlyMap<string, AutoridadeNoBackup>;
   pai?: CoordenacaoDeEfeitos;
 };
+type AdmissaoPersistidaNoBackup = {
+  preparacaoId: string | null;
+  fonteRecuperadaId: string | null;
+  cabecalhoSha256: string;
+  intencaoSha256: string;
+  revisao: number;
+};
+function correspondeAdmissaoPersistida(
+  op: typeof operations.$inferSelect,
+  persistida: AdmissaoPersistidaNoBackup,
+) {
+  return (
+    op.recoverySourceId === persistida.fonteRecuperadaId &&
+    op.preparationId === persistida.preparacaoId &&
+    op.admittedHeadSha256 === persistida.cabecalhoSha256 &&
+    op.intentSha256 === persistida.intencaoSha256 &&
+    op.revision === persistida.revisao
+  );
+}
 const privadas = new WeakMap<CoordenacaoDeEfeitos, Privada>(),
   emitidas = new WeakSet<CoordenacaoDeEfeitos>(),
   ocupadas = new WeakSet<Database>();
@@ -184,11 +208,17 @@ export function escopoDaCoordenacao(config: CoordenacaoDeEfeitos) {
   if (privado && !privado.operacaoId) return sql`false`;
   return privado
     ? sql`(${operations.id}=${privado.operacaoId}::uuid and ${operations.kind}='retirar_perfil' and
-    ${operations.admittedHeadSha256}=${privado.cerca} and exists(
-      select 1 from recreio.rights_recovery_sources s join recreio.rights_recovery_runs r
-      on r.id=s.run_id and r.ledger_id=s.ledger_id
-      where s.operation_id=${operations.recoverySourceId} and s.operation_id=${operations.id}
-        and r.id=${privado.execucaoId}::uuid and r.state='replaying' and r.frozen_head_sha256=${privado.cerca}))`
+      exists(select 1 from recreio.rights_recovery_evaluations e join recreio.rights_recovery_runs r
+        on r.id=e.run_id and r.ledger_id=e.ledger_id where e.operation_id=${operations.id}
+        and e.ledger_id=${operations.ledgerId} and r.id=${privado.execucaoId}::uuid
+        and r.state='replaying' and r.frozen_head_sha256=${privado.cerca}
+        and e.state in ('ready','verified') and e.ready_at is not null
+        and e.admitted_head_sha256=${operations.admittedHeadSha256}
+        and e.intent_sha256=${operations.intentSha256}
+        and e.preparation_reference is not distinct from ${operations.preparationId}
+        and e.recovery_source_reference is not distinct from ${operations.recoverySourceId}
+        and ((e.origin='native' and ${operations.preparationId} is not null and ${operations.recoverySourceId} is null)
+          or (e.origin='recovered' and ${operations.preparationId} is null and ${operations.recoverySourceId}=${operations.id}))))`
     : isNull(operations.recoverySourceId);
 }
 export async function conferirIntencaoDaCoordenacao(
@@ -211,11 +241,11 @@ export async function conferirIntencaoDaCoordenacao(
       "DIREITOS_INTEGRIDADE",
       "A operação não possui escopo privado ativo.",
     );
-    const lida = await conferirIntencaoHistoricaRecuperada(tx, op, config.assinatura);
+    const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
+    conferirReciboDaAvaliacao(lida.avaliacao, op);
     assertAllowed(
       lida.execucao.id === privado.execucaoId &&
         lida.execucao.state === "replaying" &&
-        op.admittedHeadSha256 === privado.cerca &&
         op.kind === "retirar_perfil" &&
         isDeepStrictEqual(
           await referenciasDeMundosDaOperacao(tx, op.id),
@@ -291,11 +321,13 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
     capturaSha256: z.string().regex(/^[a-f0-9]{64}$/),
     fonte: z.string().regex(/^[a-f0-9]{40}$/),
     tempoLimiteMs: z.number().int().min(1).max(900000),
+    maxEntradas: z.number().int().min(0).max(100000),
   }).parse({
     execucaoId: config.execucaoId,
     capturaSha256: config.capturaSha256,
     fonte: config.fonte,
     tempoLimiteMs: config.tempoLimiteMs,
+    maxEntradas: config.maxEntradas,
   });
   assertAllowed(
     !ocupadas.has(config.banco),
@@ -309,11 +341,59 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
     const signal = config.signal
       ? AbortSignal.any([config.signal, AbortSignal.timeout(config.tempoLimiteMs)])
       : AbortSignal.timeout(config.tempoLimiteMs);
+    const linhasAdmitidas = await comLeituraLimitada(config.banco, (tx) =>
+      tx
+        .select({
+          id: operations.id,
+          preparacaoId: operations.preparationId,
+          fonteRecuperadaId: operations.recoverySourceId,
+          cabecalhoSha256: operations.admittedHeadSha256,
+          intencaoSha256: operations.intentSha256,
+          revisao: operations.revision,
+        })
+        .from(operations)
+        .where(
+          and(
+            eq(operations.ledgerId, config.assinatura.livroId),
+            inArray(operations.state, ["admitted", "running", "completed"]),
+          ),
+        )
+        .orderBy(operations.id)
+        .limit(config.maxEntradas + 1),
+    );
+    assertAllowed(
+      linhasAdmitidas.length <= config.maxEntradas,
+      "DIREITOS_INTEGRIDADE",
+      "Admissões anteriores excedem o perfil.",
+    );
+    const admissoes = new Map<string, AdmissaoPersistidaNoBackup>();
+    for (const linha of linhasAdmitidas) {
+      assertAllowed(
+        linha.cabecalhoSha256 &&
+          ((linha.preparacaoId !== null && linha.fonteRecuperadaId === null) ||
+            (linha.preparacaoId === null && linha.fonteRecuperadaId === linha.id)),
+        "DIREITOS_INTEGRIDADE",
+        "Admissão anterior incompleta.",
+      );
+      admissoes.set(linha.id, {
+        preparacaoId: linha.preparacaoId,
+        fonteRecuperadaId: linha.fonteRecuperadaId,
+        cabecalhoSha256: linha.cabecalhoSha256,
+        intencaoSha256: linha.intencaoSha256,
+        revisao: linha.revisao,
+      });
+    }
     const prova = await conferirPrefixoDoLivro({
       storage: config.storage,
       maxEntradas: config.maxEntradas,
       tempoLimiteMs: config.tempoLimiteMs,
       signal,
+      admissoes: [...admissoes].map(([operacaoId, n]) => ({
+        operacaoId,
+        revisao: n.revisao,
+        sha256: n.intencaoSha256,
+        cabecalhoSha256: n.cabecalhoSha256,
+      })),
     });
     const [run] = await comLeituraLimitada(config.banco, async (tx) =>
       tx.select().from(runs).where(eq(runs.id, config.execucaoId)),
@@ -353,7 +433,7 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
             const [fonte] = await tx
               .select()
               .from(sources)
-              .where(and(eq(sources.operationId, i.operacaoId), eq(sources.runId, run.id)));
+              .where(eq(sources.operationId, i.operacaoId));
             assertAllowed(
               fonte &&
                 fonte.ledgerId === i.livroId &&
@@ -364,14 +444,43 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
               "DIREITOS_INTEGRIDADE",
               "A fonte não corresponde ao prefixo completo.",
             );
-            await conferirMapaHistoricoDeMundos(tx, plano, fonte.worldMap);
+            const [avaliacao] = await tx
+              .select()
+              .from(evaluations)
+              .where(and(eq(evaluations.runId, run.id), eq(evaluations.operationId, i.operacaoId)));
+            assertAllowed(
+              avaliacao &&
+                avaliacao.ledgerId === i.livroId &&
+                avaliacao.requesterReference === i.contaId &&
+                avaliacao.kind === i.tipo &&
+                avaliacao.planSha256 === i.planoSha256,
+              "DIREITOS_INTEGRIDADE",
+              "Avaliação fora do prefixo completo.",
+            );
+            await conferirMapaHistoricoDeMundos(tx, plano, avaliacao.worldMap);
+            const persistida = admissoes.get(i.operacaoId);
+            if (persistida) {
+              const [op] = await tx
+                .select()
+                .from(operations)
+                .where(eq(operations.id, i.operacaoId));
+              assertAllowed(
+                op && correspondeAdmissaoPersistida(op, persistida),
+                "DIREITOS_INTEGRIDADE",
+                "Admissão anterior mudou durante a conferência.",
+              );
+              await conferirOperacaoNaAvaliacao(tx, op, config.assinatura, {
+                execucaoId: run.id,
+                cercaSha256: head.sha256,
+              });
+            }
           },
           { isolationLevel: "repeatable read", accessMode: "read only" },
         ),
     });
     const [total] = await comLeituraLimitada(config.banco, async (tx) =>
       tx.execute<{ n: number }>(sql`select count(*)::int as n
-      from recreio.rights_recovery_sources where run_id=${run.id}::uuid`),
+      from recreio.rights_recovery_evaluations where run_id=${run.id}::uuid`),
     );
     assertAllowed(
       total?.n === prova.referencias.length,
@@ -390,6 +499,7 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
       cerca: head.sha256,
       storage: config.storage,
       signal,
+      admissoes,
     });
     const resultado = await config.executar(coordenacao);
     conferirCoordenacaoDeDireitos(coordenacao);
@@ -426,6 +536,34 @@ export function dadosDaCoordenacaoPrivada(config: CoordenacaoDeEfeitos) {
   };
 }
 
+/** The original persisted admission was checked against the complete ancestor
+ * chain before this private capability was minted. This never changes origin
+ * or dates and does not admit a different operation through a child scope. */
+export async function conferirAdmissaoPersistidaDaCoordenacao(
+  tx: Transacao,
+  config: CoordenacaoDeEfeitos,
+  op: typeof operations.$inferSelect,
+) {
+  conferirCoordenacaoDeDireitos(config);
+  const privado = contexto(config),
+    anterior = privado?.admissoes.get(op.id);
+  assertAllowed(
+    privado &&
+      (!privado.operacaoId || privado.operacaoId === op.id) &&
+      (anterior
+        ? correspondeAdmissaoPersistida(op, anterior)
+        : op.preparationId === null &&
+          op.recoverySourceId === op.id &&
+          op.admittedHeadSha256 === privado.cerca),
+    "DIREITOS_INTEGRIDADE",
+    "Admissão fora da prova privada.",
+  );
+  return conferirOperacaoNaAvaliacao(tx, op, config.assinatura, {
+    execucaoId: privado.execucaoId,
+    cercaSha256: privado.cerca,
+  });
+}
+
 /** At most one active operation per execution; at most 256 authority records.
  * Original signed responsibility remains in the plan/subject. Backup authority
  * is only a sealed consistency snapshot, never a reassignment to that actor. */
@@ -458,7 +596,6 @@ export async function comOperacaoPrivadaDeDireitos<T>(
         op &&
           op.kind === "retirar_perfil" &&
           (op.state === "admitted" || op.state === "running" || op.state === "completed") &&
-          op.admittedHeadSha256 === privado.cerca &&
           config.prova.referencias.some(
             (r) =>
               r.operacaoId === op.id && r.revisao === op.revision && r.sha256 === op.intentSha256,
@@ -466,7 +603,8 @@ export async function comOperacaoPrivadaDeDireitos<T>(
         "DIREITOS_INTEGRIDADE",
         "Operação histórica não admitida.",
       );
-      const lida = await conferirIntencaoHistoricaRecuperada(tx, op, config.assinatura);
+      const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
+      conferirReciboDaAvaliacao(lida.avaliacao, op);
       assertAllowed(
         lida.execucao.id === privado.execucaoId &&
           lida.execucao.state === "replaying" &&

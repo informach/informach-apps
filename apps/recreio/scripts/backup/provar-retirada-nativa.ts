@@ -9,6 +9,7 @@ import { z } from "zod";
 import { admitirRetiradaHistoricaRecuperada } from "../../src/features/direitos/admissao-recuperada-repository";
 import { concluirProximaRetirada } from "../../src/features/direitos/conclusao-repository";
 import {
+  type CoordenacaoDeEfeitos,
   comCoordenacaoPrivadaDeDireitos,
   comOperacaoPrivadaDeDireitos,
 } from "../../src/features/direitos/coordenacao-repository";
@@ -24,6 +25,7 @@ import { recuperarDiarioNaCoordenacao } from "../direitos/recuperacao";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { inventariarBackup } from "./inventario";
+import { provarOperacaoNativaAnterior } from "./provar-operacao-anterior";
 import { exigir, FalhaDaProva } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
 
@@ -195,47 +197,49 @@ export async function provarRetiradaNativaPosterior(config: {
       tempoLimiteMs: 30000,
     };
     const importacao = await importarFontesHistoricasDeDireitos({ ...comum, copia });
-    exigir(importacao.fontesConferidas === 1, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(importacao.fontesConferidas === 2, "CONSENTIMENTO_NATIVO_DIVERGENTE");
     let passos = 0,
       dadosApagados = 0,
       fotosProcessadas = 0,
       diariosRecuperados = 0,
       fatosCompactados = 0;
-    await comConexaoPrivadaDeDireitos(copia, async (banco) => {
-      await comCoordenacaoPrivadaDeDireitos({
-        ...comum,
-        banco,
-        execucaoId: importacao.execucaoId,
-        executar: async (pai) => {
-          const admissao = await admitirRetiradaHistoricaRecuperada(pai, dado.operacaoId);
-          exigir(admissao.situacao === "admitida", "ADMISSAO_HISTORICA_DIVERGENTE");
-          await comOperacaoPrivadaDeDireitos(pai, dado.operacaoId, async (filha) => {
-            for (let i = 0; i < 24; i++) {
-              const recuperada = await recuperarDiarioNaCoordenacao(filha, {
-                storage,
-                leitor: null,
-              });
-              if (recuperada.situacao === "diario_recuperado") diariosRecuperados++;
-              await concluirProximaDrenagem(filha);
-              const foto = await processarFotografiaNaCoordenacao(filha, {
-                storage,
-                leitor: null,
-                politica: { retirarTextosDaFundacao: true },
-              });
-              if (foto.situacao === "fotografia_processada") fotosProcessadas++;
-              if (foto.situacao === "diario_compactado") fatosCompactados += foto.entradas;
-              const dados = await retirarProximosDadosPessoais(filha);
-              if (dados.situacao === "dados_removidos") dadosApagados += dados.quantidade;
-              await minimizarProximoPerfil(filha);
-              await liberarProximoMundoDeDireitos(filha);
-              await expurgarProximaReferencia(filha);
-              passos++;
-              const fim = await concluirProximaRetirada(filha);
-              if (fim.situacao === "retirada_concluida") return;
-            }
-            throw new FalhaDaProva("RETIRADA_NATIVA_NAO_CONCLUIDA");
+    const coordenar = (executar: (pai: CoordenacaoDeEfeitos) => Promise<void>) =>
+      comConexaoPrivadaDeDireitos(copia, (banco) =>
+        comCoordenacaoPrivadaDeDireitos({
+          ...comum,
+          banco,
+          execucaoId: importacao.execucaoId,
+          executar,
+        }),
+      );
+    await coordenar(async (pai) => {
+      const admissao = await admitirRetiradaHistoricaRecuperada(pai, dado.operacaoId);
+      exigir(admissao.situacao === "admitida", "ADMISSAO_HISTORICA_DIVERGENTE");
+      await comOperacaoPrivadaDeDireitos(pai, dado.operacaoId, async (filha) => {
+        for (let i = 0; i < 24; i++) {
+          const recuperada = await recuperarDiarioNaCoordenacao(filha, {
+            storage,
+            leitor: null,
           });
-        },
+          if (recuperada.situacao === "diario_recuperado") diariosRecuperados++;
+          await concluirProximaDrenagem(filha);
+          const foto = await processarFotografiaNaCoordenacao(filha, {
+            storage,
+            leitor: null,
+            politica: { retirarTextosDaFundacao: true },
+          });
+          if (foto.situacao === "fotografia_processada") fotosProcessadas++;
+          if (foto.situacao === "diario_compactado") fatosCompactados += foto.entradas;
+          const dados = await retirarProximosDadosPessoais(filha);
+          if (dados.situacao === "dados_removidos") dadosApagados += dados.quantidade;
+          await minimizarProximoPerfil(filha);
+          await liberarProximoMundoDeDireitos(filha);
+          await expurgarProximaReferencia(filha);
+          passos++;
+          const fim = await concluirProximaRetirada(filha);
+          if (fim.situacao === "retirada_concluida") return;
+        }
+        throw new FalhaDaProva("RETIRADA_NATIVA_NAO_CONCLUIDA");
       });
     });
     const [fim] = await copia.unsafe<
@@ -360,6 +364,7 @@ export async function provarRetiradaNativaPosterior(config: {
       "profile_achievements",
       "rights_recovery_runs",
       "rights_recovery_sources",
+      "rights_recovery_evaluations",
       "rights_operations",
       "rights_subjects",
     ]);
@@ -375,7 +380,14 @@ export async function provarRetiradaNativaPosterior(config: {
       exigir(isDeepStrictEqual(antes, depois), "TABELA_ALHEIA_ALTERADA");
     }
     exigir(leituras > 0, "LEITURAS_DO_LIVRO_INCOMPLETAS");
+    const anterior = await provarOperacaoNativaAnterior({
+      copia,
+      anterior: dado.anterior,
+      preservadoId: dado.preservadoId,
+      coordenar,
+    });
     return {
+      ...anterior,
       nativePostCaptureConsentReplayed: true as const,
       nativePostCapturePersonalErasureExecuted: true as const,
       nativePostCaptureOtherProfilePreserved: true as const,

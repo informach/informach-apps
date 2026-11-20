@@ -420,6 +420,9 @@ export async function provarFontesHistoricasRecuperadas(
     try {
       await limparAdmissao?.();
       await copia.begin(async (tx) => {
+        await tx.unsafe("delete from recreio.rights_recovery_evaluations where ledger_id=$1", [
+          livroId,
+        ]);
         await tx.unsafe("delete from recreio.rights_recovery_sources where ledger_id=$1", [
           livroId,
         ]);

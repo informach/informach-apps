@@ -683,3 +683,29 @@ o intervalo proposital sem processo. O teste agora deriva fichas de JOGOS,
 mantendo mesma origem, parâmetro RSC, dois erros de transporte específicos e
 janela da troca. Ações e console fora dela continuam estritos. Gate auxiliar
 versoes permite verificar esse reparo sem substituir a rodada all final.
+
+
+## Candidata: recibo corrente e operação anterior à captura
+
+A implementação corrente preserva a primeira rights_recovery_source e importa
+uma avaliação por execução/operação, com mapa atual. O coordenador autentica
+na cadeia os cabeçalhos originalmente admitidos de ambas as origens existentes,
+confere plano/MAC/seleção e exige recibo ready para abrir escopo filho. A admissão
+fixa escreve ready e reconcilia lease herdado uma única vez, atomicamente com
+auditoria estrita; repetição não altera lease/backoff ou datas de consentimento,
+admissão e conclusão. A origem recuperada conserva também a cerca da primeira
+admissão; não é convertida em preparação interativa. Financeiro continua fechado.
+
+A prova fria passa a conter duas decisões reais no mesmo livro: uma nativa
+anterior à captura, com primeira remoção já confirmada, e a posterior. A reserva
+de crash é fixture sintética explícita. A restauração deverá continuar só os
+dois registros restantes da operação antiga, preservar identidade/histórico e
+a outra pessoa, recusar escopo sem ready, preservar uma nova reserva sintética
+após repetição e conservar conclusão após nova chamada. Nenhum consentimento
+ou idade é inventado pelo worker. Há negativas SQL de recibo incompleto e
+validação da execução/origem na integração; tudo ainda exige gates remotos.
+
+Esta candidata não comprova duas restaurações consecutivas, retenção técnica
+após reabertura do livro, custódia produtiva, conciliação financeira histórica
+ou publicação seletiva na base compartilhada. São pendências reais, mantidas
+no fechamento F7/F8. Não houve alteração em produção.
