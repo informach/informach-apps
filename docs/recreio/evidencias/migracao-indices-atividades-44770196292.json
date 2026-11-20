@@ -1,0 +1,34 @@
+{
+  "source": "243d654eebf7e641da1053720b4b647f8e38ba4a",
+  "runId": "44770196292",
+  "runUrl": "https://github.com/informach/informach-apps/actions/runs/44770196292",
+  "artifactId": 14647955381,
+  "zipBytes": 82117,
+  "zipSha256": "c5b0bb8a134dee1ab2c0d949155678112a2e63884e04daa738e4a9630c7619d7",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0241_recreio_copias_atividades.sql",
+      "bytes": 2437,
+      "sha256": "dfebd52d447a674be90ffa0eb2948751bc45a22894b692d9e38b9154b4fd6eb5"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0241_snapshot.json",
+      "bytes": 1154745,
+      "sha256": "bb131cdc1c217e9921cfdc87ee31040c0b7c64ed4b8d4fd86a676aa9d29eeed4"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 36589,
+      "sha256": "873cc781ceefa355c8b37740ccd7a06fecca7309a7d34574b4cf41728c1e8fd3"
+    }
+  ],
+  "predecessor": "0240",
+  "journalEntriesBefore": 241,
+  "journalEntriesAfter": 242,
+  "journalPrefixPreserved": true,
+  "snapshotOtherwiseIdentical": true,
+  "nonUniqueIndexesAdded": 15,
+  "otherDDLOrDML": false,
+  "adoptedUnmodified": true,
+  "appliedInProduction": false
+}

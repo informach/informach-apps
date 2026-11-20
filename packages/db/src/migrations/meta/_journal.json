@@ -1688,6 +1688,13 @@
       "when": 1795137652381,
       "tag": "0240_recreio_copias_indices",
       "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1795190904128,
+      "tag": "0241_recreio_copias_atividades",
+      "breakpoints": true
     }
   ]
 }

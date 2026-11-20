@@ -55,3 +55,13 @@ A prova ampliada inclui 211 vínculos próprios em cada uma das duas fontes,
 ANALYZE/EXPLAIN nativos devem comprovar índice e condição de cursor sem desligar
 sequential scan ou alterar custos do planner. Schema aguarda geração/adopção
 inalterada pelo GitHub e gates; não aplicar DDL em produção nesta etapa.
+
+
+Geração 44770196292/243d654e adotada sem alterações: 0241 com quinze CREATE
+INDEX não únicos, sem outra DDL/DML. Snapshot só acrescenta esses índices;
+241 entradas anteriores do journal são idênticas, com 242 no total. ZIP,
+SQL/snapshot/journal e fonte conferidos no
+[recibo](evidencias/migracao-indices-atividades-44770196292.json).
+Upgrade PostgreSQL, paginação/negativas e qualidade continuam pendentes desta
+nova fonte. Índices comuns podem bloquear escritas durante criação; conferir
+dados, backup, restauração e janela antes de qualquer DDL em produção.
