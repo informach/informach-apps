@@ -117,3 +117,23 @@ Fontes: [CLI 5.62.1, implementação do restore](https://github.com/railwayapp/c
 [API de volumes](https://docs.railway.com/integrations/api/manage-volumes#restore-from-backup),
 [snapshots](https://docs.railway.com/volumes/backups#how-to-restore-a-backup) e
 [PITR](https://docs.railway.com/volumes/point-in-time-recovery#restoring-to-a-point-in-time).
+
+
+## Ensaio fresco de 20/11, antes do fechamento
+
+Fonte 42f8a60c, executor qualificado nos usuários postgres/ci em **44814781248**.
+Serviço temporário 49713eed-e323-4459-8f44-ae3e71bba186, deployment
+6a6c6de2-b3f8-4735-96eb-cb702bd1856d, mesma região do banco, uma CPU/1 GB,
+sem cron/domínio/proxy/volume. Origem somente leitura, sem migration/seed.
+Snapshot em **20/11 às 20:52:30,386180 UTC**: 20.046.014 bytes, 265 tabelas e
+297.166 linhas. Backup 1.833 ms, restauração/comparação 11.101 ms, total
+15.432 ms. Conteúdo, estrutura e globais comparados idênticos, PostgreSQL 18.6,
+um papel e três participações no inventário real; temporários removidos.
+
+O serviço foi removido e a ausência conferida: 38 serviços, quatro volumes,
+um bucket e nenhuma mudança staged. Deployments de portal/Morada/PostgreSQL
+permaneceram iguais. [Recibo sanitizado](evidencias/backup-logico-2026-11-20-pre-fechamento.json).
+O dump real não foi enviado ao GitHub nem guardado no bucket de homologação.
+Este ensaio é lógico e transitório: não comprova custódia durável independente,
+restauração de agenda ou upgrade privado do schema antigo; duração exclui
+provisionamento/build e não define RPO/RTO contratual.

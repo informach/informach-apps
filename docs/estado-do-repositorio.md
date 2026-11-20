@@ -1,5 +1,15 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, retomada e recibo técnico:** a33e94b7 passou direitos
+44814931497 e cluster frio externo 44814941372, com operações nativas antes/
+depois da captura, recibos por execução, preservação de origem/datas/reserva
+nova e rollback estrito da auditoria terminal. All 44815243338 e CI 44815248297
+ainda em execução. Custo acumulado oficial e horas de posse medidos, com pool
+compartilhado discriminado. Ensaio real 20h52 UTC restaurou conteúdo/estrutura/
+globais idênticos; serviço temporário removido e origem intacta. Produção
+continua 0203/204; custódia/agenda e recuperação produtiva integral pendentes.
+[Frente e limites](recreio/reaplicacao-nativa-2026-11-20.md).
+
 **20/11 — Recreio, schema 0243 e liberação por mundo:** candidata f50bc3be
 com 244 recibos/80 tabelas passou direitos 44810698876, qualidade 44810703406
 e versões 44810707510. Liberação limitada a1a5ae28 passou direitos, qualidade

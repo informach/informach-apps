@@ -779,3 +779,18 @@ com validação de tamanho, pois seu tipo ainda permitia undefined. A fixture
 de duas retiradas passa a usar tupla validada de dois UUIDs distintos. Não
 adiciona cast, assert não nulo ou supressão. Gates serão repetidos. A segunda
 avaliação b16e3fab passou também qualidade 44812711386 e integração 44812716125.
+
+
+a33e94b7 passou direitos **44814931497** e cluster frio externo **44814941372**,
+incluindo verificação individual/terminal, rollback real de auditoria, datas
+originais e recusa de novo filho.
+[Recibo técnico](evidencias/verificacao-retiradas-cluster-frio-44814941372.json).
+Qualidade 44814936749, rodada all 44815243338 e CI compartilhado 44815248297
+ainda em execução. O recibo não afirma recuperação produtiva integral.
+
+O ensaio real e fresco de backup 20/11 às 20h52 UTC comparou conteúdo/estrutura/
+globais idênticos e encerrou o serviço temporário, sem alterar origem ou enviar
+dump real ao GitHub. [Resultado e limites](ensaio-backup-producao.md).
+Permanece separada a implementação do executor agendado cifrado, custódia e
+recuperação sem o serviço original, upgrade privado de versões antigas e
+publicação seletiva com identidade/finanças atuais.

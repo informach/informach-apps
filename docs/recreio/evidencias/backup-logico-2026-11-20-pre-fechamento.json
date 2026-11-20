@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-20",
+  "source": "42f8a60ca917e0f5edc9f70dae5bd0e8e6701884",
+  "runtimeQualificationRun": 44814781248,
+  "runtimeQualificationUsers": ["postgres", "ci"],
+  "projectId": "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+  "environmentId": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+  "temporaryServiceId": "49713eed-e323-4459-8f44-ae3e71bba186",
+  "deploymentId": "6a6c6de2-b3f8-4735-96eb-cb702bd1856d",
+  "operationId": "4b1ae2f9-a747-4b64-8855-bec3c5dc4fb0",
+  "snapshotAt": "2026-11-20 20:52:30.38618+00",
+  "result": {
+    "ok": true,
+    "backupMs": 1833,
+    "restoreAndCompareMs": 11101,
+    "totalMs": 15432,
+    "dumpBytes": 20046014,
+    "tables": 265,
+    "rows": 297166,
+    "postgresVersion": 180006,
+    "contentIdentical": true,
+    "structureIdentical": true,
+    "globalsIdentical": true,
+    "roles": 1,
+    "roleMemberships": 3,
+    "temporaryFilesRemoved": true
+  },
+  "sourceReadOnly": true,
+  "sourceDatabaseMutated": false,
+  "productionDumpOrSecretsSentToGitHub": false,
+  "sourceServicesRedeployed": false,
+  "temporaryServiceDeletionRequested": true,
+  "temporaryServiceAbsentVerified": true,
+  "limits": [
+    "Logical snapshot restored into an isolated Unix-socket cluster inside the temporary Railway service; no restore or migration on the source.",
+    "No independent durable/offsite backup custody or scheduled-provider restoration proof.",
+    "Runtime excludes image build/provisioning and is not contractual RTO; no RPO commitment."
+  ],
+  "environmentAfterCleanup": {
+    "serviceCount": 38,
+    "volumeCount": 4,
+    "bucketCount": 1,
+    "stagedChanges": false,
+    "portalDeploymentUnchanged": "affdf087-bef0-4c8c-9641-243b1dc5bbb7",
+    "moradaDeploymentUnchanged": "3cd2cb8f-f160-4508-9f6e-c2d196235bb5",
+    "postgresDeploymentUnchanged": "fb29b55a-3555-4b70-9926-1f00235b053e"
+  }
+}
