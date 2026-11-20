@@ -20,7 +20,10 @@ export async function provarVerificacaoDasRetiradas(config: {
   operacoes: readonly string[];
   coordenar: (executar: (pai: CoordenacaoDeEfeitos) => Promise<void>) => Promise<void>;
 }) {
-  const ids = z.array(z.uuid()).min(1).max(2).parse(config.operacoes);
+  const ids = z
+    .tuple([z.uuid(), z.uuid()])
+    .refine(([a, b]) => a !== b)
+    .parse(config.operacoes);
   const { copia } = config;
   const lerOperacoes = () =>
     copia.unsafe(

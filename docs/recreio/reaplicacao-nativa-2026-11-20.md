@@ -772,3 +772,10 @@ exige rollback do estado/hash/data do recibo. Depois verifica fechamento e
 recusa de novo filho, preservando hashes integrais das operações originais.
 O trigger de falha é somente fixture, removido em finally; não vira configuração
 de produto. Gates remotos ainda pendentes para este incremento.
+
+
+O typecheck de d0663b16 (44814626625/44814634914) recusou indexar uma lista
+com validação de tamanho, pois seu tipo ainda permitia undefined. A fixture
+de duas retiradas passa a usar tupla validada de dois UUIDs distintos. Não
+adiciona cast, assert não nulo ou supressão. Gates serão repetidos. A segunda
+avaliação b16e3fab passou também qualidade 44812711386 e integração 44812716125.
