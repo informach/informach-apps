@@ -9,6 +9,7 @@ const entradas = Object.keys(meta.inputs).map((p) =>
   resolve(process.argv[3], p).replaceAll("\\", "/"),
 );
 for (const arquivo of [
+  "capturar-e-publicar.ts",
   "abandono-repository.ts",
   "publicacao-repository.ts",
   "retirada-repository.ts",

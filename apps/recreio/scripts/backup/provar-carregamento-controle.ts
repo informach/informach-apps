@@ -1,4 +1,5 @@
 import { abandonarCapturaSemArquivo, liberarReservasSemArquivo } from "./abandono-repository";
+import { capturarEPublicarBackup } from "./capturar-e-publicar";
 import { exigir } from "./provas-arquivos";
 import {
   assumirPublicacao,
@@ -24,6 +25,7 @@ export function provarCarregamentoDoControle() {
   );
   exigir(
     [
+      capturarEPublicarBackup,
       abandonarCapturaSemArquivo,
       liberarReservasSemArquivo,
       prepararPublicacao,
