@@ -75,6 +75,8 @@ const Recibo = z.strictObject({
   nativePostCaptureOtherProfilePreserved: z.literal(true),
   nativePostCaptureGlobalIdentityPreserved: z.literal(true),
   nativePostCaptureNoNewConsent: z.literal(true),
+  nativePostCapturePhotographSanitized: z.literal(true),
+  nativePostCaptureOtherWorldStatePreserved: z.literal(true),
   nativePostCaptureSecondClusterCleaned: z.literal(true),
   rightsClientOnlyRightsPrefixRead: z.literal(true),
   rightsReadRequests: z.number().int().positive(),

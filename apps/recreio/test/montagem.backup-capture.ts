@@ -45,7 +45,6 @@ it(
         mundoId = await mundoDe(jogador),
         fotoId = randomUUID(),
         entregaId = randomUUID(),
-        original = Buffer.from("FOTOGRAFIA_SINTETICA_AUTOSSUFICIENTE"),
         chaveFoto = randomBytes(32),
         chaveBackup = randomBytes(32),
         chaves = new Map([["foto-v1", chaveFoto]]),
@@ -55,6 +54,9 @@ it(
         copiaUrl = new URL(url);
       copiaUrl.pathname = `/${nome}`;
       let criada = false,
+        original = Buffer.from("FOTOGRAFIA_SINTETICA_AUTOSSUFICIENTE"),
+        versaoDaFoto = 1,
+        tickDaFoto = 0,
         fotoGravada = false,
         copia: postgres.Sql | undefined,
         falhaPrincipal: { erro: unknown } | undefined;
@@ -71,27 +73,38 @@ it(
         // Native family creation BEFORE capture: the cold historical-admission
         // proof must find this child in the authenticated backup itself.
         await familiaSocial(15);
-        if (process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1")
-          direitos = await prepararDireitosPosterioresACaptura(s3, jogador.perfil.id);
+        if (process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1") {
+          direitos = await prepararDireitosPosterioresACaptura(s3, jogador.perfil.id, mundoId);
+          original.fill(0);
+          original = direitos.fotografia.bytes;
+          versaoDaFoto = direitos.fotografia.versao;
+          tickDaFoto = direitos.fotografia.tick;
+        }
         const capacidades = await semearCapacidadesDaCaptura(fonte, jogador, mundoId);
         await semearConvitesDaCaptura(fonte, jogador, mundoId, capacidades);
         const fotos = criarArmazenamentoPrivadoS3({
             cliente: s3.cliente,
             bucket: destino.bucketName,
-            cifrador: criarCifradorDeObjetos({ chaveAtiva: "foto-v1", chaves, limiteBytes: 4096 }),
+            cifrador: criarCifradorDeObjetos({
+              chaveAtiva: "foto-v1",
+              chaves,
+              limiteBytes: 4 * 1024 * 1024,
+            }),
             tempoLimiteMs: 2000,
           }),
           preparado = criarCifradorDeObjetos({
             chaveAtiva: "foto-v1",
             chaves,
-            limiteBytes: 4096,
+            limiteBytes: 4 * 1024 * 1024,
           }).cifrar({ tipo: "fotografia", id: mundoId }, original),
           r = preparado.referencia;
         await s3.admitirPrefixo("fotografia", mundoId);
         await fotos.enviar(preparado);
         const objectKey = `recreio/v1/fotografia/${mundoId}/${r.sha256Cifrado}`;
         await fonte`insert into recreio.space_snapshots (id,space_id,revision,fence,schema_version,journal_seq,tick,kind,storage,data,object_key,byte_size,sha256)
-      values (${fotoId},${mundoId},1,0,1,0,0,'checkpoint','bucket',null,${objectKey},${r.bytes},${r.sha256})`;
+      values (${fotoId},${mundoId},1,0,${versaoDaFoto},0,${tickDaFoto},'checkpoint','bucket',null,${objectKey},${r.bytes},${r.sha256})`;
+        if (direitos)
+          await fonte`update recreio.spaces set revision=1,schema_version=${versaoDaFoto} where id=${mundoId}`;
         fotoGravada = true;
         await fonte`insert into recreio.snapshot_object_deliveries (id,snapshot_reference,snapshot_id,space_id,plaintext_sha256,plaintext_bytes,storage_scope,bucket_id,bucket_name,object_key,cipher_sha256,cipher_bytes,encryption_key_id,state,verified_at)
       values (${entregaId},${fotoId},${fotoId},${mundoId},${r.sha256},${r.bytes},'qualification',${destino.bucketId},${destino.bucketName},${objectKey},${r.sha256Cifrado},${r.bytesCifrados},${r.chaveId},'verified',clock_timestamp())`;
@@ -107,7 +120,7 @@ it(
           fotoRecuperada = await arquivo("foto-recuperada.bin");
         const limites = {
             limiteBytes: 32 * 1024 * 1024,
-            limiteFotografiaBytes: 4096,
+            limiteFotografiaBytes: 4 * 1024 * 1024,
             tempoLimiteMs: 120_000,
           },
           container = criarArquivoComposto(limites),
@@ -286,7 +299,7 @@ it(
             const abridor = criarCifradorDeObjetos({
               chaveAtiva: "foto-v1",
               chaves: recuperadas,
-              limiteBytes: 4096,
+              limiteBytes: 4 * 1024 * 1024,
             });
             let n = 0;
             for await (const item of acesso.objetos()) {

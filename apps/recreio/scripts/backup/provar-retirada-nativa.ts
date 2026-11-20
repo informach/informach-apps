@@ -1,5 +1,8 @@
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import { gunzipSync } from "node:zlib";
 import type { S3Client } from "@aws-sdk/client-s3";
+import { abrirFotografia } from "@informach/morada-sim/formatos";
 import type postgres from "postgres";
 import { z } from "zod";
 import { admitirRetiradaHistoricaRecuperada } from "../../src/features/direitos/admissao-recuperada-repository";
@@ -9,10 +12,12 @@ import {
   comOperacaoPrivadaDeDireitos,
 } from "../../src/features/direitos/coordenacao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
+import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
 import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
 import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
+import { processarFotografiaNaCoordenacao } from "../direitos/fotografias";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { inventariarBackup } from "./inventario";
@@ -107,6 +112,42 @@ export async function provarRetiradaNativaPosterior(config: {
        from recreio.device_sessions d order by id`,
       );
     const aparelhosAntes = await lerAparelhos();
+    const lerFoto = async () => {
+      const [foto] = await copia.unsafe<{ data: Buffer; sha256: string; meta: unknown }[]>(
+        `select data,sha256,jsonb_build_array(id,revision,fence,schema_version,journal_seq,tick,kind) as meta
+         from recreio.space_snapshots where space_id=$1 and revision=1 and storage='pg'`,
+        [dado.mundoId],
+      );
+      exigir(
+        foto?.data && createHash("sha256").update(foto.data).digest("hex") === foto.sha256,
+        "FOTOGRAFIA_NATIVA_DIVERGENTE",
+      );
+      let aberto: Buffer | undefined;
+      try {
+        aberto = gunzipSync(foto.data, { maxOutputLength: 8 * 1024 * 1024 });
+        const texto = aberto.toString("utf8");
+        const documento = abrirFotografia(JSON.parse(texto));
+        exigir(documento.estado.familias.ordem.length > 0, "AUTORIA_NATIVA_AUSENTE");
+        return { texto, familias: documento.estado.familias, meta: foto.meta };
+      } finally {
+        foto.data.fill(0);
+        aberto?.fill(0);
+      }
+    };
+    const fotoAntes = await lerFoto();
+    exigir(
+      fotoAntes.texto.includes(dado.perfilId) && fotoAntes.texto.includes(dado.preservadoId),
+      "AUTORIA_NATIVA_AUSENTE",
+    );
+    const lerMundoPreservado = () =>
+      copia.unsafe(
+        `select game_id,steward_profile_id,created_by_profile_id,name,status,revision,journal_seq,schema_version,
+        (select jsonb_agg(to_jsonb(m) order by m.id) from recreio.space_members m
+          where m.space_id=s.id and m.profile_id=$2) as outro_membro
+       from recreio.spaces s where s.id=$1`,
+        [dado.mundoId, dado.preservadoId],
+      );
+    const mundoAntes = await lerMundoPreservado();
     const preservado = await copia.unsafe(
       `select to_jsonb(p) as perfil,
         (select jsonb_agg(to_jsonb(v) order by v.id) from recreio.profile_data_versions v where v.profile_id=p.id) as dados,
@@ -127,7 +168,8 @@ export async function provarRetiradaNativaPosterior(config: {
     const importacao = await importarFontesHistoricasDeDireitos({ ...comum, copia });
     exigir(importacao.fontesConferidas === 1, "CONSENTIMENTO_NATIVO_DIVERGENTE");
     let passos = 0,
-      dadosApagados = 0;
+      dadosApagados = 0,
+      fotosProcessadas = 0;
     await comConexaoPrivadaDeDireitos(copia, async (banco) => {
       await comCoordenacaoPrivadaDeDireitos({
         ...comum,
@@ -138,6 +180,13 @@ export async function provarRetiradaNativaPosterior(config: {
           exigir(admissao.situacao === "admitida", "ADMISSAO_HISTORICA_DIVERGENTE");
           await comOperacaoPrivadaDeDireitos(pai, dado.operacaoId, async (filha) => {
             for (let i = 0; i < 24; i++) {
+              await concluirProximaDrenagem(filha);
+              const foto = await processarFotografiaNaCoordenacao(filha, {
+                storage,
+                leitor: null,
+                politica: { retirarTextosDaFundacao: true },
+              });
+              if (foto.situacao === "fotografia_processada") fotosProcessadas++;
               const dados = await retirarProximosDadosPessoais(filha);
               if (dados.situacao === "dados_removidos") dadosApagados += dados.quantidade;
               await minimizarProximoPerfil(filha);
@@ -187,6 +236,19 @@ export async function provarRetiradaNativaPosterior(config: {
       [dado.preservadoId],
     );
     exigir(isDeepStrictEqual([...preservado], [...preservadoDepois]), "TERCEIRO_ALTERADO");
+    const fotoDepois = await lerFoto();
+    exigir(
+      fotosProcessadas === 1 &&
+        !fotoDepois.texto.includes(dado.perfilId) &&
+        fotoDepois.texto.includes(dado.preservadoId) &&
+        isDeepStrictEqual(fotoAntes.meta, fotoDepois.meta) &&
+        isDeepStrictEqual(fotoAntes.familias, fotoDepois.familias),
+      "FOTOGRAFIA_NATIVA_DIVERGENTE",
+    );
+    exigir(
+      isDeepStrictEqual([...mundoAntes], [...(await lerMundoPreservado())]),
+      "MUNDO_ALHEIO_ALTERADO",
+    );
     exigir(
       isDeepStrictEqual([...auditoriaAnterior], [...(await lerAuditoriaAnterior())]),
       "AUDITORIA_ANTERIOR_ALTERADA",
@@ -220,6 +282,10 @@ export async function provarRetiradaNativaPosterior(config: {
       "minor_protection",
       "minor_daily_usage",
       "social_preferences",
+      "profile_world_traces",
+      "spaces",
+      "space_snapshots",
+      "rights_worlds",
       "profile_data_keys",
       "profile_data_versions",
       "profile_achievements",
@@ -246,6 +312,8 @@ export async function provarRetiradaNativaPosterior(config: {
       nativePostCaptureOtherProfilePreserved: true as const,
       nativePostCaptureGlobalIdentityPreserved: true as const,
       nativePostCaptureNoNewConsent: true as const,
+      nativePostCapturePhotographSanitized: true as const,
+      nativePostCaptureOtherWorldStatePreserved: true as const,
       rightsClientOnlyRightsPrefixRead: true as const,
       rightsReadRequests: leituras,
       nativePostCaptureSqlPasses: passos,

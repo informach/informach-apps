@@ -389,3 +389,39 @@ Na conferência de aparelhos, a FK pode limpar somente `active_profile_id` do
 perfil retirado. A prova compara cada outro campo por hash e mantém os demais
 perfis selecionados, revogações e a trava `minor_context_generation`. Não exige
 inventário idêntico dessa coluna nem aceita apagar/recriar aparelhos.
+
+
+## Fotografia tipada na prova posterior — candidata seguinte
+
+A candidata inicial f8480bcd passou a admissão, retirada pessoal, conclusão e
+conferências do terceiro/global/auditoria, mas falhou na comparação das tabelas
+em 44795713916. A FK de seleção do aparelho era uma alteração esperada não
+separada da matriz; 2a955293 passa a conferir somente essa coluna à parte, sem
+permitir mudança da trava infantil ou dos outros campos. Gates de repetição:
+44796463771/44796468303/44796473327. Qualidade/integração da fonte anterior foram
+canceladas pela concorrência do workflow após publicar essa correção. Não há
+recibo aprovado da reaplicação nativa ainda.
+
+O próximo incremento substitui os bytes provisórios por fotografia gzip tipada
+da simulação real, com dois fundadores. O mundo e o responsável são nativos;
+a família é criada pelos serviços reais. O histórico de autoria e o estado do
+jogo são fixtures sintéticas inseridas antes da captura, sem atribuir associação
+de membro, presença ou permissão ao menor. Não comprova sessão infantil no
+Morada, diversão, visualização, FPS ou aceite humano de transferência.
+
+O pedido posterior continua sendo consentimento nativo. A segunda restauração
+normaliza a foto do bucket para PG e chama o mesmo adapter operacional sob a
+coordenação privada. A prova exige remover o ID selecionado, manter o outro ID
+e as famílias da simulação, conferir hash/metadados da foto e preservar o mundo
+e o membro responsável. Não inclui recuperação de diário além da fotografia
+nem operações prévias/finanças/publicação. Gates desta fonte ainda pendentes.
+
+
+2a955293 passou bucket/cluster frio **44796463771**. A segunda restauração
+executou o consentimento nativo posterior à captura e os apagadores pessoais;
+confirmou ausência do alvo, terceiro/global/auditoria anterior e aparelhos
+preservados, sem novo consentimento. Livro externo foi lido somente por GET no
+prefixo próprio, dez objetos sintéticos foram removidos, dois clusters e arquivos
+limpos. [Recibo](evidencias/retirada-nativa-cluster-frio-44796463771.json). Qualidade
+44796468303 e integração 44796473327 ainda em execução. A fotografia tipada acima
+é o incremento seguinte; não está incluída nesse recibo aprovado.

@@ -1,10 +1,14 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { db } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,
   recreioProfileDataKeys as keys,
+  recreioProfileWorldTraces as traces,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
+import { criarMundo } from "@informach/morada-sim";
+import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
 import { confirmarRetiradaDePerfil } from "@/features/direitos/consentimento-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
@@ -21,6 +25,7 @@ import { familiaSocial } from "./social-apoio";
 export async function prepararDireitosPosterioresACaptura(
   bucket: Awaited<ReturnType<typeof criarBucketDaMontagem>>,
   preservadoId: string,
+  mundoId: string,
 ) {
   const familia = await familiaSocial(15),
     livroId = randomUUID(),
@@ -64,7 +69,21 @@ export async function prepararDireitosPosterioresACaptura(
       bytes.fill(0);
     }
   }
+  // A privacy trace is historical authorship, never a world membership or
+  // permission. The other real player remains the world's native steward.
+  await db.insert(traces).values({ profileId: familia.perfil.id, spaceId: mundoId });
+  const foto = criarMundo({
+    mundoId,
+    semente: 42,
+    definicao: BAIRRO_DA_PROVA,
+    fundadores: [familia.perfil.id, preservadoId],
+  }).fotografar();
   return {
+    fotografia: {
+      bytes: gzipSync(JSON.stringify(foto)),
+      versao: foto.estado.versao,
+      tick: foto.tick,
+    },
     async publicar() {
       await bucket.admitirPrefixo("direitos", livroId);
       const storage = criarArmazenamentoDoLivro({
@@ -117,6 +136,7 @@ export async function prepararDireitosPosterioresACaptura(
         perfilId: familia.perfil.id,
         contaId: familia.conta.id,
         preservadoId,
+        mundoId,
         chaves: {
           "native-old": antiga.toString("base64"),
           "native-next": proxima.toString("base64"),
