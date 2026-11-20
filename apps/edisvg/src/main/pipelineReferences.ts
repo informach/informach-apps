@@ -39,6 +39,12 @@ const videoSchema = z.strictObject({
   artboardId: z.string().regex(/^artboard-[\w-]{1,100}$/),
   offset: z.number().min(-3_600).max(36_000),
   duration: z.number().positive().max(36_000),
+  /** The presenter of a theory lesson: the object her video fills (renderer reference.ts). */
+  slotId: z
+    .string()
+    .regex(/^node-[\w-]{1,100}$/)
+    .optional(),
+  mediaType: z.enum(["video/mp4", "video/webm"]).optional(),
 });
 const SCHEMAS = { narration: narrationSchema, video: videoSchema } as const;
 export type ReferenceKind = keyof typeof SCHEMAS;

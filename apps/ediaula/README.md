@@ -1308,10 +1308,10 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
   ("Editar texto"; na faixa de nome, "Nome" e "Linha de baixo"; na cartela, "Linha de cima", "Título" e
   "Linha de baixo") que levam a agulha para onde a anotação já entrou e abrem o texto na prévia, também
   uma linha ainda vazia.
-  Rabinho do balão no estilo de balão de HQ (Camtasia): base larga, que cresce com o comprimento, sai
-  do balão em ângulo reto e curva até a ponta afiada (`balloonPath`/`balloonTail` em
-  `src/shared/annotation.ts`, os mesmos no desenho e na prévia do arrasto). Sem arrastar, a ponta sai
-  em diagonal com `BALLOON_TAIL` (40 px em 1080p); arrastada, vai aonde foi solta, até a borda do quadro.
+  Rabinho do balão reto, como o apontador da caixa do kit: base larga, que cresce com o comprimento, e
+  duas linhas retas até a ponta (`balloonPath`/`balloonTail` em `src/shared/annotation.ts`, os mesmos
+  no desenho e na prévia do arrasto). Sem arrastar, a ponta sai reta do lado, curta (`BALLOON_TAIL`,
+  40 px em 1080p); arrastada, vai aonde foi solta, até a borda do quadro.
   Cada anotação é desenhada como imagem transparente (`lib/annotations.ts`), a mesma na prévia e na exportação.
 - **Meme**: imagem que entra com pop por 2,5 s no canto, sem cobrir o centro da tela.
 - **Entrada e saída** de qualquer clipe: dissolver, pop, aproximar, deslizar (4 direções), com duração.
@@ -1405,10 +1405,11 @@ Os tamanhos vêm do kit desenhado em 1280×720, vezes 1,5 (`KIT` em `shared/anno
 **Sistema Zero** e "Usar as fontes do tema" ligado, sai igual ao kit (Baloo 2 nos títulos e caixas,
 Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
 
-- **Balão no estilo Caixa** (Propriedades do balão › Estilo: Quadrinho ou **Caixa**): o balão de sempre, com o
-  apontador que se arrasta na prévia, desenhado como a caixa do kit: sem contorno, texto grosso e centralizado,
-  cantos de 30 px, apontador reto e curto (base de 36 px, que alarga um pouco quando é puxado para longe) e
-  número opcional no canto. A **Caixa numerada** da galeria é este balão.
+- **Balão = Caixa**: o balão, com o apontador que se arrasta na prévia, é sempre desenhado como a caixa do
+  kit: sem contorno, texto grosso e centralizado (fonte de título do tema), cantos de 30 px, apontador reto e
+  curto (base de 36 px, que alarga um pouco quando é puxado para longe) e número opcional no canto. O estilo
+  Quadrinho (contorno e rabinho curvo) saiu; aulas antigas que guardaram `look: "comic"` abrem normalmente e
+  o balão aparece como caixa (o campo é ignorado). A **Caixa numerada** da galeria é este balão.
 - **Caixa** (`box`): texto grosso e centralizado, cantos de 30 px. Na galeria (Anotações › Caixas e listas):
   **Ação** (branca), **Reação** (verde do sucesso com o texto
   no amarelo do destaque, ou na tinta legível quando o amarelo não lê sobre o verde), **Instrução** (amarela)

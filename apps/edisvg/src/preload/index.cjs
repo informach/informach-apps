@@ -8,6 +8,7 @@ const subscribe = (channel, callback) => {
 contextBridge.exposeInMainWorld("desktop", {
   projectInitialize: (legacy) => ipcRenderer.invoke("project:initialize", legacy),
   projectNew: () => ipcRenderer.invoke("project:new"),
+  projectClose: () => ipcRenderer.invoke("project:close"),
   importSvg: () => ipcRenderer.invoke("svg:import"),
   importGameProject: () => ipcRenderer.invoke("game:import"),
   importDesignKit: () => ipcRenderer.invoke("kit:import"),
@@ -29,6 +30,8 @@ contextBridge.exposeInMainWorld("desktop", {
   pipelineVideoFacts: (token) => ipcRenderer.invoke("pipeline:video-facts", token),
   pipelineVideoPreview: (token, seconds, jobId) =>
     ipcRenderer.invoke("pipeline:video-preview", token, seconds, jobId),
+  pipelinePresenter: (token, from, seconds, jobId) =>
+    ipcRenderer.invoke("pipeline:presenter", token, from, seconds, jobId),
   pipelineVideoFrames: (token, times, jobId) =>
     ipcRenderer.invoke("pipeline:video-frames", token, times, jobId),
   pipelineLessonScript: (token) => ipcRenderer.invoke("pipeline:lesson-script", token),
@@ -45,9 +48,14 @@ contextBridge.exposeInMainWorld("desktop", {
   linkList: () => ipcRenderer.invoke("link:list"),
   linkLessonFile: (animationId) => ipcRenderer.invoke("link:lesson-file", animationId),
   linkRegister: (projectId, input) => ipcRenderer.invoke("link:register", projectId, input),
-  linkError: (projectId, animationId, message) =>
-    ipcRenderer.invoke("link:error", projectId, animationId, message),
-  linkRenderStart: (projectId, spec) => ipcRenderer.invoke("link:render-start", projectId, spec),
+  linkQueue: () => ipcRenderer.invoke("link:queue"),
+  linkQueueAdd: () => ipcRenderer.invoke("link:queue-add"),
+  linkQueueLoad: (id) => ipcRenderer.invoke("link:queue-load", id),
+  linkQueueRemove: (id) => ipcRenderer.invoke("link:queue-remove", id),
+  linkQueueRegister: (id, input) => ipcRenderer.invoke("link:queue-register", id, input),
+  linkError: (id, animationId, message) =>
+    ipcRenderer.invoke("link:error", id, animationId, message),
+  linkRenderStart: (id, spec) => ipcRenderer.invoke("link:render-start", id, spec),
   linkRenderFrame: (id, bytes) => ipcRenderer.invoke("link:render-frame", id, bytes),
   linkRenderFinish: (id) => ipcRenderer.invoke("link:render-finish", id),
   linkRenderCancel: (id) => ipcRenderer.invoke("link:render-cancel", id),
@@ -68,6 +76,9 @@ contextBridge.exposeInMainWorld("desktop", {
   projectSave: (project, as = false) => ipcRenderer.invoke("project:save", project, as),
   projectChanged: (project) => ipcRenderer.invoke("project:changed", project),
   exportFile: (payload) => ipcRenderer.invoke("export:save", payload),
+  exportMediaBegin: (header) => ipcRenderer.invoke("export:media-begin", header),
+  exportMediaAppend: (id, slice) => ipcRenderer.invoke("export:media-append", id, slice),
+  exportMediaDiscard: (id) => ipcRenderer.invoke("export:media-discard", id),
   aiStatus: () => ipcRenderer.invoke("ai:status"),
   aiConnect: (client) => ipcRenderer.invoke("ai:connect", client),
   aiSend: (request) => ipcRenderer.invoke("ai:send", request),

@@ -7,7 +7,7 @@ import { compileLottie } from "../../shared/lottie/compile";
 import { lottieOptionsSchema } from "../../shared/lottie/prepare";
 import { artboardScene, snapshot } from "../../shared/project.js";
 import { serializeProject } from "../../shared/projectPolicy";
-import { RASTER_FORMATS } from "../../shared/raster/profile";
+import { RASTER_FORMATS, RASTER_SLICE_BYTES } from "../../shared/raster/limits";
 import { flattenScene, renderScene, xmlEscape } from "../../shared/scene.js";
 import { buildInteractiveExport } from "./behavior/export";
 import { buildPlayerWebExport } from "./behavior/player-web-export";
@@ -235,6 +235,30 @@ export async function exportWebPlayer(signal) {
   return saveExport(artifact, { signal });
 }
 
+/** Raster and video bytes go to the main process in slices (one IPC message has a size
+ * ceiling a long video can pass), then the native Save writes the finished upload. */
+async function saveMedia({ content, extension, name }, signal) {
+  const upload = await window.desktop.exportMediaBegin({
+    extension,
+    size: content.byteLength,
+    ...(name ? { name } : {}),
+  });
+  try {
+    for (let offset = 0; offset < content.byteLength; offset += RASTER_SLICE_BYTES) {
+      if (signal?.aborted) throw new DOMException("Operação cancelada.", "AbortError");
+      // A copy, not a view: structured clone would carry a view's whole buffer every time.
+      await window.desktop.exportMediaAppend(
+        upload,
+        content.slice(offset, offset + RASTER_SLICE_BYTES),
+      );
+    }
+  } catch (error) {
+    await window.desktop.exportMediaDiscard(upload);
+    throw error;
+  }
+  return window.desktop.exportFile({ upload });
+}
+
 /** The same native Save boundary serves all formats, including the reusable player. */
 export function saveExport(
   { content, extension, type, name },
@@ -243,13 +267,7 @@ export function saveExport(
   if (signal?.aborted) throw new DOMException("Operação cancelada.", "AbortError");
   if (globalThis.window?.desktop) {
     // Images and video cross IPC as bytes; bounded library/component ZIPs use base64.
-    if (binaryMedia)
-      return window.desktop.exportFile({
-        extension,
-        bytes: content,
-        encoding: "binary",
-        ...(name ? { name } : {}),
-      });
+    if (binaryMedia) return saveMedia({ content, extension, name }, signal);
     if (content instanceof Uint8Array) {
       let binary = "";
       for (let offset = 0; offset < content.length; offset += 32768)

@@ -36,7 +36,6 @@ import { type ReactNode, useEffect, useState } from "react";
 import { ICON_COMPONENTS } from "@/lib/annotationIcons";
 import { updateAnnotation } from "@/lib/annotations";
 import { changeDrawing } from "@/lib/drawing";
-import { projectFont } from "@/lib/palettes";
 import { annotationStyle } from "@/lib/sharedLibrary";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
@@ -432,32 +431,6 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
         {hasText && (
           <FontPicker value={a.fontFamily} onChange={(fontFamily) => set({ fontFamily })} />
         )}
-        {a.kind === "balloon" && (
-          <>
-            <span className="field-label">Estilo</span>
-            <Chips
-              value={a.look ?? "comic"}
-              options={[
-                ["comic", "Quadrinho"],
-                ["kit", "Caixa"],
-              ]}
-              onPick={(look) => {
-                if (look === (a.look ?? "comic")) return;
-                const textRole = look === "kit" ? ("heading" as const) : undefined;
-                // With the theme's fonts in use, the text takes the font of its new role.
-                const font = projectFont(useProject.getState().project, { kind: a.kind, textRole });
-                set({
-                  look,
-                  textRole,
-                  // Back to the look's own outline and letter size.
-                  outline: undefined,
-                  fontSize: undefined,
-                  ...(font ? { fontFamily: font } : {}),
-                });
-              }}
-            />
-          </>
-        )}
         {a.kind === "balloon" ? (
           <>
             <span className="field-label">Preenchimento</span>
@@ -477,7 +450,7 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
             <Swatches value={a.color} onPick={(c) => c && setColor(c)} />
           </>
         )}
-        {a.kind === "balloon" && a.look === "kit" && (
+        {a.kind === "balloon" && (
           <>
             <span className="field-label">Cor do texto</span>
             <Swatches

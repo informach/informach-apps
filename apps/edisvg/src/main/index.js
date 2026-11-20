@@ -32,6 +32,7 @@ import {
   libraryFonts,
   withDefaultFonts,
 } from "./fontLibrary.ts";
+import { createLinkQueue } from "./linkQueue.ts";
 import {
   cancelRender,
   finishRender,
@@ -40,9 +41,11 @@ import {
   registerLink,
   renderFrame,
   startRender,
+  stopRenders,
 } from "./linkRender.ts";
 import { createLinkInbox } from "./linkRequests.ts";
 import { startMcpServer } from "./mcpServer.js";
+import { createMediaUploads } from "./mediaUpload";
 import {
   cancelPipelineJob,
   exportAlphaWebm,
@@ -50,6 +53,7 @@ import {
   pipelineLessonScript,
   pipelineLessonVideo,
   pipelineNarration,
+  pipelinePresenter,
   pipelineVideoFacts,
   pipelineVideoFrames,
   pipelineVideoPreview,
@@ -115,7 +119,10 @@ let win,
   runner,
   files,
   linkInbox,
+  linkQueue,
   mcpError = "";
+/** The queue of renders for the lessons, in the profile (linkQueue.ts). */
+const RENDER_QUEUE_FILE = "fila-de-renders.json";
 /** A .edisvg given on the command line (Abrir com, or another tool), opened once the editor is. */
 const projectArgument = (argv) =>
   argv.slice(1).find((a) => !a.startsWith("-") && /\.edisvg$/i.test(a) && existsSync(a)) ?? null;
@@ -126,6 +133,7 @@ let allowClose = false,
   initialized = false,
   initializing = false;
 const bridge = createBridge(() => win);
+const mediaUploads = createMediaUploads();
 const rendererFile = join(here, "../renderer/index.html");
 const rendererUrl =
   (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) || pathToFileURL(rendererFile).href;
@@ -210,6 +218,12 @@ function menu() {
             label: "Salvar projeto como…",
             accelerator: "CmdOrCtrl+Shift+S",
             click: () => win.webContents.send("app:command", "save-as"),
+          },
+          { type: "separator" },
+          {
+            label: "Fechar projeto",
+            accelerator: "CmdOrCtrl+W",
+            click: () => win.webContents.send("app:command", "close-project"),
           },
           { type: "separator" },
           { role: "quit", label: "Sair" },
@@ -483,6 +497,11 @@ else {
         if (runner.busy()) throw new Error("Interrompa a IA antes de criar um projeto.");
         return files.new();
       });
+      handle("project:close", () => {
+        if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
+        if (runner.busy()) throw new Error("Interrompa a IA antes de fechar o projeto.");
+        return files.close();
+      });
       handle("svg:import", async () => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const result = await dialog.showOpenDialog(win, {
@@ -579,6 +598,9 @@ else {
         pipelineNarration(token, kind, Number(start), Number(end), jobId),
       );
       handle("pipeline:video-facts", (token) => pipelineVideoFacts(token));
+      handle("pipeline:presenter", (token, from, seconds, jobId) =>
+        pipelinePresenter(token, Number(from), Number(seconds), jobId),
+      );
       handle("pipeline:video-preview", (token, seconds, jobId) =>
         pipelineVideoPreview(token, Number(seconds), jobId),
       );
@@ -597,6 +619,8 @@ else {
       linkInbox = await createLinkInbox(join(app.getPath("userData"), REQUESTS_FOLDER), () => {
         if (win && !win.isDestroyed()) win.webContents.send("link:waiting");
       });
+      linkQueue = createLinkQueue({ file: join(app.getPath("userData"), RENDER_QUEUE_FILE) });
+      await linkQueue.init();
       const linkedPath = () => {
         const path = files.status().path;
         if (!path) throw new Error("Salve o projeto em arquivo antes de vincular animações.");
@@ -655,12 +679,27 @@ else {
       handle("link:register", (projectId, input) =>
         registerLink(linkedPath(), projectIdOf(projectId), input),
       );
-      handle("link:error", (projectId, animationId, message) =>
-        markLinkError(linkedPath(), projectIdOf(projectId), animationId, message),
-      );
-      handle("link:render-start", (projectId, spec) => {
+      // The renders go through a queue of saved projects (linkQueue.ts): what an item writes goes
+      // to its own project, whatever project is open now.
+      handle("link:queue", () => linkQueue.view());
+      handle("link:queue-add", async () => {
+        const path = files.status().path;
+        return path ? linkQueue.add(path) : null;
+      });
+      handle("link:queue-load", (id) => linkQueue.load(id));
+      handle("link:queue-remove", (id) => linkQueue.remove(id));
+      handle("link:queue-register", (id, input) => {
+        const { path, projectId } = linkQueue.target(id);
+        return registerLink(path, projectId, input);
+      });
+      handle("link:error", (id, animationId, message) => {
+        const { path, projectId } = linkQueue.target(id);
+        return markLinkError(path, projectId, animationId, message);
+      });
+      handle("link:render-start", (id, spec) => {
         desktop.assertAccess();
-        return startRender(ffmpegPath(), linkedPath(), projectIdOf(projectId), spec);
+        const { path, projectId } = linkQueue.target(id);
+        return startRender(ffmpegPath(), path, projectId, spec);
       });
       handle("link:render-frame", (id, bytes) => renderFrame(id, bytes));
       handle("link:render-finish", (id) => finishRender(id));
@@ -703,9 +742,19 @@ else {
         await files.changed(project);
         return files.save(as === true);
       });
+      handle("export:media-begin", (header) => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        return mediaUploads.begin(header);
+      });
+      handle("export:media-append", (id, slice) => mediaUploads.append(id, slice));
+      handle("export:media-discard", (id) => mediaUploads.discard(id));
       handle("export:save", async (payload) => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        const exported = parseExportPayload(payload);
+        // Raster and video arrive beforehand in slices; the save names the finished upload.
+        const exported =
+          typeof payload === "object" && payload !== null && "upload" in payload
+            ? mediaUploads.finish(payload.upload)
+            : parseExportPayload(payload);
         const { canceled, filePath } = await dialog.showSaveDialog(win, {
           defaultPath: join(
             folderFor("documents") ?? "",
@@ -746,6 +795,8 @@ else {
     if (process.platform !== "darwin") app.quit();
   });
   app.on("will-quit", () => {
+    // A render left half made is redone from the queue when EdiSVG opens again.
+    stopRenders();
     runner?.stop();
     bridge.close();
     mcp?.close();

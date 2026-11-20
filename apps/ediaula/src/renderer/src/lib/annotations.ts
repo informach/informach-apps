@@ -5,7 +5,6 @@ import {
   type AnnotationKind,
   BALLOON_TAIL,
   type BalloonGeometry,
-  balloonLook,
   balloonPath,
   balloonTail,
   CARD,
@@ -181,14 +180,7 @@ function boxGeometry(a: Annotation, s: Sizing) {
     textLeft: centered ? x + bw / 2 - tw / 2 : x + px + icon + iconGap,
     textTop: y + (bh - lines.length * lh) / 2,
     absoluteTip: tip ? { x: x + tip.x, y: y + tip.y } : undefined,
-    radius:
-      a.kind === "balloon"
-        ? Math.min(balloonLook(a).radius * k, bh / 2)
-        : a.kind === "label"
-          ? bh / 2
-          : isBox
-            ? Math.min(KIT.radius * k, bh / 2)
-            : 22 * k,
+    radius: a.kind === "label" ? bh / 2 : kit ? Math.min(KIT.radius * k, bh / 2) : 22 * k,
     width: Math.ceil(bw + pad * 2 + left + right),
     height: Math.ceil(bh + pad * 2 + top + bottom),
   };
@@ -893,15 +885,13 @@ export async function renderAnnotation(
         const { tip } =
           tail === "none"
             ? { tip: { x: x + bw / 2, y: y + bh } }
-            : balloonTail(x, y, bw, bh, g.radius, tl, tail, absoluteTip, balloonLook(a).straight);
+            : balloonTail(x, y, bw, bh, g.radius, tl, tail, absoluteTip);
         balloon = { x, y, w: bw, h: bh, tipX: tip.x, tipY: tip.y };
       }
       const fill = box.fill;
       const path =
         a.kind === "balloon"
-          ? new Path2D(
-              balloonPath(x, y, bw, bh, g.radius, tl, tail, absoluteTip, balloonLook(a).straight),
-            )
+          ? new Path2D(balloonPath(x, y, bw, bh, g.radius, tl, tail, absoluteTip))
           : new Path2D();
       if (a.kind !== "balloon") path.roundRect(x, y, bw, bh, g.radius);
       // A box's pointer: a small triangle on one side, part of the same shape.

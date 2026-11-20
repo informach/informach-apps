@@ -3,17 +3,18 @@ import { z } from "zod";
 /**
  * Pipelines ("receitas"): work the person repeats, saved once with a name, style instructions for
  * the assistant and a text palette, and run with only what changes each time (the files and the
- * script). Each recipe is of a kind, which fixes its steps and inputs. Two come ready, and can be
+ * script). Each recipe is of a kind, which fixes its steps and inputs. Three come ready, and can be
  * edited (the edit is kept over the original, which "Restaurar" brings back), duplicated or used
  * as they are. Plan: docs/propostas/edisvg-pipelines-2026-11-08/plano.md.
  */
 
-export const RECIPE_KINDS = ["game-scene", "screen-demo"] as const;
+export const RECIPE_KINDS = ["game-scene", "screen-demo", "presenter-talk"] as const;
 export type RecipeKind = (typeof RECIPE_KINDS)[number];
 
 export const RECIPE_KIND_LABELS: Record<RecipeKind, string> = {
   "game-scene": "Cena animada a partir de um projeto do Estúdio",
   "screen-demo": "Animação por cima de um vídeo de demonstração",
+  "presenter-talk": "Aula teórica com espaço para a apresentadora",
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -82,7 +83,10 @@ export type RecipeStore = z.infer<typeof recipeStoreSchema>;
 
 export const emptyRecipeStore = (): RecipeStore => ({ version: 1, recipes: [], hidden: [] });
 
-/** The recipes that come with EdiSVG (the two the person described when asking for pipelines). */
+/**
+ * The recipes that come with EdiSVG: the two the person described when asking for pipelines, and
+ * the theory lesson presented by the teacher (her video on a green screen, no game nor screen).
+ */
 export const BUILT_IN_RECIPES: readonly Recipe[] = [
   {
     id: "recipe-cena-do-jogo",
@@ -100,6 +104,25 @@ export const BUILT_IN_RECIPES: readonly Recipe[] = [
     style:
       'Por cima do vídeo da demonstração, guie o olhar no tempo da fala: uma seta aponta onde a professora clica ou mexe, um destaque contorna a área que está sendo explicada e balões curtos repetem o passo ("Clique em Programação"). Textos de ênfase só nas palavras importantes, nas cores da paleta de texto. Uma indicação por vez, entrando um pouco antes da ação e saindo quando o passo termina, sem nunca cobrir o que está sendo mostrado.',
     textPalette: ["#ffffff", "#1f2a44", "#ffb547"],
+    fonts: DEFAULT_FONTS,
+  },
+  {
+    id: "recipe-aula-teorica",
+    name: "Aula teórica com a apresentadora",
+    kind: "presenter-talk",
+    style:
+      'Apresentação em movimento para adultos, longe de slide comum, como na primeira aula aprovada (Transformando o vilão em aliado). FUNDO (a aula toda): sobre o retângulo Fundo, três brilhos grandes e suaves (círculos com gradiente radial da cor para transparente): o azul da paleta com raio 760 e 55% no centro, perto do alto à esquerda; o violeta com raio 640 e 45%, embaixo à direita; o verde com raio 360 e 28%, embaixo à esquerda. Eles derivam devagar a aula inteira (uma chave linear a cada 1500 quadros, mudando um pouco a posição e a escala entre 0,9 e 1,2). Por cima da luz, uma textura de pixels: um retângulo um pouco maior que a tela, com um padrão de 48 × 48 px de um quadradinho de 4 px na cor clara, com 7% de opacidade, deslizando devagar. No alto à direita, duas estrelinhas de quatro pontas (destaque e cor clara) que giram 360° na aula inteira e pulsam a opacidade entre 30% e 75%. TEXTO: títulos na fonte de título em negrito, 72 px, na cor clara; a palavra ou a linha mais importante no destaque; ênfases grandes de 96 a 150 px; frases de apoio na fonte do corpo, 36 a 44 px; etiquetas em formas arredondadas (cantos de 14 a 36) na cor do destaque ou da paleta, com texto do corpo em negrito, 34 a 40 px, na tinta. Textos centralizados. FORMAS: ícones simples desenhados com formas chapadas da paleta, cantos arredondados, sem contorno. MOVIMENTO: cada peça entra com a opacidade de 0 a 100 em 7 a 10 quadros e, ao mesmo tempo, sobe 35 px em 12 quadros com a curva cubic-bezier(0.22, 1, 0.36, 1) (textos e cards) ou cresce de 0,5–0,6 a 1 em 14 quadros com cubic-bezier(0.34, 1.56, 0.64, 1) (ícones e ênfases, um pulinho). As peças de um bloco entram uma depois da outra, no tempo das palavras. Barras e trilhas crescem na largura em uns 50 quadros com cubic-bezier(0.65, 0, 0.35, 1), e o que muda de lugar dentro do momento usa a mesma curva. Tudo sai com a opacidade em 8 quadros, no fim do momento. Um chamado final ("Próxima parte") entra com um pulo e pulsa até o fim.',
+    // The palette of the approved lesson (its style guide): light, ink, the others, the accent.
+    textPalette: [
+      "#fff5e4",
+      "#101b35",
+      "#1b5cf3",
+      "#2fbf6b",
+      "#60226b",
+      "#ff8a3d",
+      "#8b5cf6",
+      "#ffc23c",
+    ],
     fonts: DEFAULT_FONTS,
   },
 ];
@@ -203,6 +226,8 @@ export type PickedFile = z.infer<typeof pickedFileSchema>;
 export interface RecipeInput {
   key: "project" | "video" | "audio";
   label: string;
+  /** What the button that picks it says ("Escolher…" when unset). */
+  button?: string;
   accepts: PickedFile["kind"][];
   /**
    * Not asked when the audio is a lesson package: the package brings it (the screen recorded
@@ -237,6 +262,15 @@ export const RECIPE_INPUTS: Record<RecipeKind, readonly RecipeInput[]> = {
       label: "Vídeo da demonstração",
       accepts: ["video"],
       inLesson: "Vem do pacote da aula: a tela gravada no trecho do roteiro.",
+    },
+  ],
+  // The teacher's video is the narration too: its voice is heard for the script.
+  "presenter-talk": [
+    {
+      key: "video",
+      label: "Vídeo da apresentadora (MP4 com a voz dela, fundo verde)",
+      accepts: ["video"],
+      button: "Escolher vídeo…",
     },
   ],
 };

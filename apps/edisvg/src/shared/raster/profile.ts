@@ -3,19 +3,10 @@ import { z } from "zod";
 import { requiresInteractiveExport } from "../interactiveCapabilities";
 import type { Project } from "../project";
 
-export const RASTER_FORMATS = ["png-sequence", "gif", "mp4", "webm"] as const;
-export type RasterFormat = (typeof RASTER_FORMATS)[number];
-export const RASTER_LIMITS = {
-  minSide: 16,
-  maxSide: 3840,
-  gifMaxSide: 1920,
-  maxFps: 60,
-  gifMaxFps: 50,
-  maxFrames: 3600,
-  /** Rendered pixels across all frames: bounds memory and wall time, not file size. */
-  maxPixels: { "png-sequence": 1.5e9, gif: 6e8, mp4: 4e9, webm: 4e9 },
-  maxBytes: 256 * 1024 ** 2,
-} as const;
+import { RASTER_FORMATS, RASTER_LIMITS, type RasterFormat } from "./limits";
+
+export { RASTER_FORMATS, RASTER_LIMITS, type RasterFormat } from "./limits";
+
 const color = z.string().regex(/^#[0-9a-f]{6}$/i, "Use uma cor hexadecimal #rrggbb.");
 export const rasterOptionsSchema = z.strictObject({
   format: z.enum(RASTER_FORMATS),
@@ -68,6 +59,7 @@ export interface RasterReport {
 export function planRasterFrames(
   clip: Pick<Animation, "fps" | "frames" | "mode">,
   fps: number,
+  format: RasterFormat,
 ): RasterFramePlan {
   if (!Number.isInteger(fps) || fps < 1 || fps > RASTER_LIMITS.maxFps)
     throw new Error("FPS de saída inválido.");
@@ -75,9 +67,10 @@ export function planRasterFrames(
     period = clip.mode === "ping-pong" ? 2 * duration : duration,
     span = Math.round(period * fps),
     count = clip.mode === "once" ? span + 1 : Math.max(1, span);
-  if (count > RASTER_LIMITS.maxFrames)
+  const limit = RASTER_LIMITS.maxFrames[format];
+  if (count > limit)
     throw new Error(
-      `A exportação teria ${count} quadros; o limite é ${RASTER_LIMITS.maxFrames}. Reduza o FPS ou a duração.`,
+      `A exportação teria ${count} quadros; o limite é ${limit}. Reduza o FPS ou a duração.`,
     );
   const times: number[] = [],
     timestamps: number[] = [],
@@ -141,7 +134,7 @@ export function inspectRasterExport(project: Project, input: RasterOptionsInput)
   let plan: RasterFramePlan | undefined;
   if (clip)
     try {
-      plan = planRasterFrames(clip, options.fps);
+      plan = planRasterFrames(clip, options.fps, options.format);
     } catch (cause) {
       error("frames", cause instanceof Error ? cause.message : "Plano de quadros inválido.");
     }

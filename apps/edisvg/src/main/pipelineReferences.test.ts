@@ -167,3 +167,20 @@ test("only the projects used most recently, and each one's newest runs, keep the
     await rm(store, { recursive: true, force: true });
   }
 });
+
+test("the presenter of a theory lesson comes back with her spot and as WebM", async () => {
+  const presenter = {
+    ...video("artboard-aula", 0),
+    slotId: "node-espaco",
+    mediaType: "video/webm" as const,
+  };
+  await saveReference(root, "project-teorica", "video", new Uint8Array([4]), presenter);
+  const back = await loadReferences(root, "project-teorica");
+  assert.deepEqual(back.videos.map(plain), [{ ...presenter, bytes: [4] }]);
+  await assert.rejects(
+    saveReference(root, "project-teorica", "video", new Uint8Array([4]), {
+      ...presenter,
+      slotId: "espaco",
+    }),
+  );
+});

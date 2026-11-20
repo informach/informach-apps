@@ -207,6 +207,61 @@ test("new cancels safely or creates a blank detached document", async () => {
   assert.deepEqual(created.project.artboards[0].scene.nodes, []);
   assert.equal(disk.get("a.edisvg"), original);
 });
+test("closing asks about unsaved work, then leaves a blank project with nothing to save or recover", async () => {
+  const checkpoints = [];
+  let asked = 0,
+    choice = "cancel";
+  const files = createProjectFiles({
+    chooseOpen: async () => null,
+    chooseSave: async () => null,
+    confirm: async () => {
+      asked++;
+      return choice;
+    },
+    checkpoint: async (value) => {
+      checkpoints.push(value);
+    },
+  });
+  await files.changed({ ...project, name: "Pendente" });
+  // Cancelled: the project stays open, its work unsaved.
+  assert.equal(await files.close(), null);
+  assert.equal(files.status().dirty, true);
+  choice = "discard";
+  const closed = await files.close();
+  assert.equal(asked, 2);
+  assert.equal(closed.status.path, null);
+  assert.equal(closed.status.dirty, false);
+  assert.deepEqual(closed.project.artboards[0].scene.nodes, []);
+  assert.equal(checkpoints.at(-1), null);
+  // The window sends the blank project back as it shows it: still nothing to save.
+  assert.equal((await files.changed(closed.project)).dirty, false);
+  // Closing again, or closing a blank project never edited, asks nothing.
+  assert.notEqual(await files.close(), null);
+  assert.equal(asked, 2);
+});
+test("a request of another tool takes the place of a closed project without asking", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "edisvg-fechado-"));
+  try {
+    const target = join(directory, "Aula.edisvg");
+    let asked = 0;
+    const files = createProjectFiles({
+      chooseOpen: async () => null,
+      chooseSave: async () => null,
+      confirm: async () => {
+        asked++;
+        return "discard";
+      },
+    });
+    await files.changed({ ...project, name: "Trabalho" });
+    await files.close();
+    assert.equal(asked, 1);
+    const made = await files.openLinked(target, "Aula");
+    assert.equal(asked, 1);
+    assert.equal(made.status.path, target);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
 test("edits arriving while a discard confirmation is pending cancel document replacement", async () => {
   let decide;
   const files = createProjectFiles({

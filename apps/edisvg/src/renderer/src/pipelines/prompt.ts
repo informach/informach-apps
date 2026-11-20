@@ -1,4 +1,5 @@
 import { type GuideStyle, guideStyleSchema, type Recipe } from "../../../shared/pipelines";
+import { LECTURE_GUIDES, PRESENTER_PLACEMENTS } from "../../../shared/presenterFraming";
 
 /**
  * The request a pipeline sends to the assistant (Claude Code or Codex, through EdiSVG's tools):
@@ -71,7 +72,49 @@ export interface DraftFacts {
     /** Frames of the video attached to this request, in order. */
     attached: { frame: number; text: string }[];
   };
+  /** The presenter of a theory lesson (the "Aula teórica com a apresentadora" recipe). */
+  presenter?: {
+    /** Her spot (locked, keyed by the run). */
+    slotId: string;
+    /** The background rectangle and the light behind her, made by the run. */
+    backgroundId: string;
+    lightId: string;
+    /** Her video's file name. */
+    video: string;
+    shots: {
+      from: number;
+      to: number;
+      /** The name of the placement. */
+      placement: string;
+      side: "right" | "left";
+      /** Sentences (0-based) said in the shot. */
+      lines: number[];
+      /** Where the content goes while she is on that side (between the guides). */
+      column: {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+        centerX: number;
+        centerY: number;
+      };
+    }[];
+  };
 }
+
+/** The ranges of sentences, 1-based ("1–3, 5"). */
+const sentenceList = (lines: readonly number[]): string => {
+  const out: string[] = [];
+  for (const i of lines) {
+    const n = i + 1;
+    const last = out.at(-1);
+    const range = last?.match(/^(\d+)(?:–(\d+))?$/);
+    const end = range ? Number(range[2] ?? range[1]) : Number.NaN;
+    if (range && end === n - 1) out[out.length - 1] = `${range[1]}–${n}`;
+    else out.push(String(n));
+  }
+  return out.join(", ");
+};
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
@@ -105,6 +148,7 @@ export function draftRequest(f: DraftFacts): string {
           "(nenhum)",
       ].filter((line) => line !== "")
     : [];
+  const presenter = f.presenter ? presenterSection(f.presenter) : [];
   const kit = f.kit?.boards.length
     ? [
         "## Kit de design do projeto (pranchetas para usar como instâncias de componente)",
@@ -143,13 +187,14 @@ export function draftRequest(f: DraftFacts): string {
     "## A narração, frase por frase",
     lines,
     "",
-    ...(f.demo
+    ...(f.demo || f.presenter
       ? []
       : [
           "## Imagens do projeto (pranchetas que podem entrar na cena como instâncias de componente)",
           images,
         ]),
     ...demo,
+    ...presenter,
     "",
     ...kit,
     "## Cores",
@@ -173,6 +218,74 @@ export function draftRequest(f: DraftFacts): string {
     "- Para mostrar uma imagem que ainda não está na cena, crie uma instância da prancheta dela.",
     "- Não apague nem mova o que veio do projeto além do que a animação pede; o rascunho é revisado pela pessoa.",
     "- Ao terminar, responda com uma linha por frase dizendo o que acontece nela.",
+  ].join("\n");
+}
+
+/**
+ * The theory lesson's part of the draft request: the stage the run made, the column of each shot
+ * and the layout rules the person approved on the first lesson made with the recipe (19/11/2026),
+ * after asking for them one by one (texts behind her, shapes over texts, teal outlines, blocks
+ * off the guides, groups split on the thirds lines).
+ */
+function presenterSection(p: NonNullable<DraftFacts["presenter"]>): string[] {
+  const g = LECTURE_GUIDES;
+  return [
+    "",
+    "## A apresentadora e o palco (já montados pelo pipeline)",
+    `- Aula teórica: a professora (vídeo "${p.video}", gravado em fundo verde) entra no EdiAula por cima desta animação, que é o fundo da aula inteira. Na prévia, ela já aparece no lugar dela.`,
+    `- Já estão na prancheta, do fundo para a frente: [${p.slotId}] "Apresentadora (espaço)" (travado), [${p.backgroundId}] "Fundo" (a cor da tinta) e [${p.lightId}] "Fundo · luz atrás da apresentadora" (o brilho do destaque, que já acompanha cada corte). Não edite, mova, apague nem anime esses três.`,
+    `- A ordem final, do fundo para a frente: espaço, Fundo, os brilhos grandes do fundo, a luz atrás dela, a textura, as estrelinhas e o conteúdo. Crie os brilhos grandes e leve-os para baixo da luz.`,
+    `- Guias da prancheta: x ${g.left} (margem), x ${g.center} (meio) e x ${g.right} (margem); y ${g.top} (alto) e y ${g.bottom} (baixo). Nenhum conteúdo passa das guias.`,
+    "",
+    "## Planos e onde vai o conteúdo",
+    "Ela fica sempre de um lado, e o conteúdo vai na coluna do outro lado, entre a margem e o meio:",
+    ...p.shots.map(
+      (s, i) =>
+        `- Corte ${i + 1}, quadros ${s.from}–${s.to}, frases ${sentenceList(s.lines)}: ${s.placement}. Conteúdo em x ${s.column.left}–${s.column.right}, centralizado em x ${s.column.centerX}; na altura, entre y ${s.column.top} e ${s.column.bottom}, centralizado em y ${s.column.centerY}.`,
+    ),
+    "",
+    "## Layout (como a pessoa aprovou)",
+    "- Cada momento da fala é um bloco (título, ícone, frase de apoio, cards…): o bloco inteiro fica centralizado na coluna do corte, na largura e na altura. Calcule a altura do bloco e ponha o meio dele no centro da coluna. Não espalhe as partes de um bloco por linhas de terços.",
+    "- Dentro do bloco, espaços parecidos entre as partes. Um momento por vez: quando o assunto muda dentro do mesmo corte, o bloco anterior sai antes de o próximo terminar de entrar.",
+    '- Agrupe cada momento num grupo "F<número da frase> · <assunto>" e o conteúdo de cada corte num grupo "Corte <n> · conteúdo". Posicione pelos grupos, para as animações das peças continuarem iguais.',
+    `- Largura: estime um texto em cerca de 0,5 × o tamanho da letra por caractere (Baloo 2 negrito). Uma linha que não cabe na coluna (${g.center - g.left} px menos uns 40 px de folga de cada lado) diminui a letra (título no mínimo 56 px) ou quebra em duas linhas.`,
+    "- Texto dentro de forma (círculo, card, etiqueta): pelo menos 24 px de folga até a borda. Nenhuma forma (ícone, coração, estrela) fica por cima de um texto. Se dois elementos se cruzam, afaste-os ou aumente a forma.",
+    "- Listas de no máximo 3 itens por momento; mais que isso vira dois momentos.",
+    "- Desenhos de várias peças: crie primeiro as de trás e por último as da frente (telhado e coração na frente da casa, por exemplo). Confira a ordem no grupo.",
+    '- Toda forma e todo caminho que você criar levam stroke explícito: "none" quando não há contorno. Sem isso, o EdiSVG põe nos caminhos novos um contorno verde-água (#4fe3c1) que a pessoa não quer. Contorno só quando a linha é o desenho (um X, uma seta, uma trilha).',
+  ];
+}
+
+/**
+ * The question that picks the presenter's shots of a theory lesson: one placement per sentence,
+ * as JSON only (parsePlacements reads it), before the animation is drawn. The rules are the ones
+ * the person approved on the first lesson made with the recipe.
+ */
+export function framingRequest(f: {
+  recipe: Pick<Recipe, "name" | "style">;
+  lines: readonly DraftLine[];
+  fps: number;
+}): string {
+  const seconds = (frames: number) => (frames / f.fps).toFixed(1);
+  return [
+    `Pipeline "${f.recipe.name}". Numa aula teórica, a professora (gravada em fundo verde) aparece sobre uma animação de tela inteira. Escolha onde ela fica em cada frase da narração, como planos de câmera que cortam entre as frases.`,
+    "Responda só com um JSON, sem nenhum outro texto, sem usar ferramentas e sem alterar o projeto:",
+    `{"posicoes": ["medium-right", "..."]} — uma posição por frase, na ordem (${f.lines.length} no total).`,
+    "",
+    "## Posições",
+    ...PRESENTER_PLACEMENTS.map((p) => `- "${p.id}" (${p.label}): ${p.use}.`),
+    "",
+    "## O que a pessoa pediu para esta receita",
+    f.recipe.style.trim() || "(sem instruções)",
+    "",
+    "## A narração, frase por frase (segundos)",
+    ...f.lines.map((l, i) => `${i + 1}. ${seconds(l.from)}–${seconds(l.to)} s: "${l.text}"`),
+    "",
+    "## Regras",
+    "- Só plano médio e médio curto: nada de plano inteiro, americano ou dela no centro. Ela fica sempre de um lado, e o conteúdo, do outro.",
+    '- O médio é o plano padrão. O médio curto entra nas falas diretas com quem assiste: o cumprimento ("Oi!"), a apresentação ("eu sou…"), uma pergunta direta ("E você?"), um pedido ("Fica comigo").',
+    "- Troque de lado quando o assunto muda, para manter o ritmo de cortes (um corte a cada 8 a 20 segundos, mais ou menos). Quando dois cortes seguidos ficam do mesmo lado, mude o plano entre eles (médio ↔ médio curto), para o corte aparecer.",
+    "- Mantenha cada plano por várias frases. Planos de menos de 3 segundos são juntados ao anterior.",
   ].join("\n");
 }
 

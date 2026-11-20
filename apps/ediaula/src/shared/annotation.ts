@@ -129,7 +129,6 @@ export function balloonTail(
   length: number,
   tail: Tail,
   tip?: Point,
-  straight = false,
 ): { base: Point; b: number; tip: Point } {
   const r = bodyRadius(w, h, radius);
   const across = tail.startsWith("top") || tail.startsWith("bottom");
@@ -144,7 +143,7 @@ export function balloonTail(
     : length;
   // Short, the base is the kit pointer's (36 px in 1080p); pulled far, it widens, never a needle.
   const b = tailHalfWidth(along, r, length, dist);
-  // Without a dragged tip, a straight tail points square out of its side, short like the kit's.
+  // Without a dragged tip, the tail points square out of its side, short like the kit's pointer.
   const short = length * 0.55;
   const clampAlong = (v: number, from: number, size: number): number =>
     Math.max(from + r + b, Math.min(from + size - r - b, v));
@@ -153,54 +152,20 @@ export function balloonTail(
     return {
       base: { x: cx, y: side },
       b,
-      // Leaning out past the base, so the tail sweeps toward its side.
-      tip:
-        tip ??
-        (straight
-          ? { x: cx, y: tail.startsWith("top") ? y - short : y + h + short }
-          : {
-              x: cx + (tail.endsWith("left") ? -length : length),
-              y: tail.startsWith("top") ? y - length : y + h + length,
-            }),
+      tip: tip ?? { x: cx, y: tail.startsWith("top") ? y - short : y + h + short },
     };
   }
   const cy = clampAlong(tip ? tip.y : y + h / 2, y, h);
   return {
     base: { x: edge, y: cy },
     b,
-    tip: tip ?? {
-      x: tail === "left" ? x - (straight ? short : length) : x + w + (straight ? short : length),
-      y: cy,
-    },
+    tip: tip ?? { x: tail === "left" ? x - short : x + w + short, y: cy },
   };
 }
 
-/** A straight tail: two lines from the base corners to the tip. */
+/** A straight tail: two lines from the base corners A and B to the tip T. */
 const tailLines = (A: Point, B: Point, T: Point): string =>
   `L ${A.x} ${A.y} L ${T.x} ${T.y} L ${B.x} ${B.y}`;
-
-/**
- * The tail between its base corners A and B (in the outline's order) and its tip T: each edge
- * leaves the body square and sweeps to the tip, narrowing as it goes, so the tail bends toward
- * where it points like a comic or Camtasia callout, and ends sharp.
- */
-function comicTail(A: Point, B: Point, T: Point, out: Point): string {
-  const M = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
-  const depth = Math.max(1, (T.x - M.x) * out.x + (T.y - M.y) * out.y);
-  const control = (P: Point): Point => {
-    // Halfway between the straight edge and a line square out of the body...
-    const straight = { x: (P.x + T.x) / 2, y: (P.y + T.y) / 2 };
-    const square = { x: P.x + out.x * depth * 0.55, y: P.y + out.y * depth * 0.55 };
-    // ...pulled toward the middle of the base, so it narrows.
-    return {
-      x: straight.x * 0.45 + square.x * 0.55 + (M.x - P.x) * 0.35,
-      y: straight.y * 0.45 + square.y * 0.55 + (M.y - P.y) * 0.35,
-    };
-  };
-  const a = control(A);
-  const b = control(B);
-  return `L ${A.x} ${A.y} Q ${a.x} ${a.y} ${T.x} ${T.y} Q ${b.x} ${b.y} ${B.x} ${B.y}`;
-}
 
 /** One closed outline, so the tail never leaves a stroke across the balloon's interior. */
 export function balloonPath(
@@ -212,38 +177,21 @@ export function balloonPath(
   length: number,
   tail: Tail,
   tip?: Point,
-  straight = false,
 ): string {
   const r = bodyRadius(w, h, radius);
-  const t = tail === "none" ? null : balloonTail(x, y, w, h, radius, length, tail, tip, straight);
-  const tailCurve = (A: Point, B: Point, T: Point, out: Point): string =>
-    straight ? tailLines(A, B, T) : comicTail(A, B, T, out);
+  const t = tail === "none" ? null : balloonTail(x, y, w, h, radius, length, tail, tip);
   const parts = [`M ${x + r} ${y}`];
   if (t && tail.startsWith("top"))
-    parts.push(
-      tailCurve({ x: t.base.x - t.b, y }, { x: t.base.x + t.b, y }, t.tip, { x: 0, y: -1 }),
-    );
+    parts.push(tailLines({ x: t.base.x - t.b, y }, { x: t.base.x + t.b, y }, t.tip));
   parts.push(`L ${x + w - r} ${y} Q ${x + w} ${y} ${x + w} ${y + r}`);
   if (t && tail === "right")
-    parts.push(
-      tailCurve({ x: x + w, y: t.base.y - t.b }, { x: x + w, y: t.base.y + t.b }, t.tip, {
-        x: 1,
-        y: 0,
-      }),
-    );
+    parts.push(tailLines({ x: x + w, y: t.base.y - t.b }, { x: x + w, y: t.base.y + t.b }, t.tip));
   parts.push(`L ${x + w} ${y + h - r} Q ${x + w} ${y + h} ${x + w - r} ${y + h}`);
   if (t && tail.startsWith("bottom"))
-    parts.push(
-      tailCurve({ x: t.base.x + t.b, y: y + h }, { x: t.base.x - t.b, y: y + h }, t.tip, {
-        x: 0,
-        y: 1,
-      }),
-    );
+    parts.push(tailLines({ x: t.base.x + t.b, y: y + h }, { x: t.base.x - t.b, y: y + h }, t.tip));
   parts.push(`L ${x + r} ${y + h} Q ${x} ${y + h} ${x} ${y + h - r}`);
   if (t && tail === "left")
-    parts.push(
-      tailCurve({ x, y: t.base.y + t.b }, { x, y: t.base.y - t.b }, t.tip, { x: -1, y: 0 }),
-    );
+    parts.push(tailLines({ x, y: t.base.y + t.b }, { x, y: t.base.y - t.b }, t.tip));
   parts.push(`L ${x} ${y + r} Q ${x} ${y} ${x + r} ${y} Z`);
   return parts.join(" ");
 }
@@ -313,8 +261,8 @@ export interface Annotation {
    *  marker (at most 3 characters). */
   badge?: string;
   /**
-   * Balloon: "comic" (the usual: an outline in its color and a curved tail) or "kit" (the kit's
-   * box: no outline, heavy centered text, corners of 30 px and a short straight tail).
+   * Older projects: a balloon's style ("comic" or "kit"). Ignored: every balloon is now drawn as
+   * the kit's box (no outline, heavy centered text, corners of 30 px and a short straight tail).
    */
   look?: "comic" | "kit";
   /** Box: a small pointer on one side, at `pointerAt` along it (0..1, absent = the middle). */
@@ -402,14 +350,12 @@ const isLightHex = (hex: string): boolean => {
 };
 
 /** The usual outline of each kind (what absent `outline` means). */
-export function defaultOutline(
-  a: Pick<Annotation, "kind" | "color" | "ink"> & Pick<Annotation, "look">,
-): Outline {
+export function defaultOutline(a: Pick<Annotation, "kind" | "color" | "ink">): Outline {
   switch (a.kind) {
     case "arrow":
       return { color: "#FFFFFF", width: 4 };
     case "balloon":
-      return { color: a.color, width: a.look === "kit" ? 0 : 3 };
+      return { color: a.color, width: 0 };
     case "title":
       return { color: isLightHex(a.color) ? (a.ink ?? "#12140A") : "#FFFFFF", width: 5 };
     case "highlight":
@@ -445,19 +391,10 @@ export interface TextBoxLayout {
 export function textBoxLayout(
   a: Pick<
     Annotation,
-    | "kind"
-    | "fontSize"
-    | "width"
-    | "layout"
-    | "fill"
-    | "color"
-    | "ink"
-    | "textColor"
-    | "boxWidth"
-    | "look"
+    "kind" | "fontSize" | "width" | "layout" | "fill" | "color" | "ink" | "textColor" | "boxWidth"
   >,
 ): TextBoxLayout {
-  // The kit's box, and a balloon in the kit's look (the same box with a tail that can be moved).
+  // The kit's box, and a balloon (the same box with a tail that can be moved).
   const box = kitBox(a);
   const fontSize = a.fontSize ?? (box ? KIT.boxText : ANNOTATION_TEXT);
   const label = a.kind === "label";
@@ -480,7 +417,6 @@ export function textBoxLayout(
   };
 }
 
-/** Drawn like the kit's box: a box, or a balloon in the kit's look. */
 /**
  * A panel that is a background filling the frame, not a shape. Panels say so in `backdrop`;
  * projects saved before it existed meant it by a panel of at least 1920x1080 (shapes were kept
@@ -505,15 +441,9 @@ export function editedAnnotation(before: Annotation, changes: Partial<Annotation
   return { ...before, ...pinned, ...changes };
 }
 
-export const kitBox = (a: Pick<Annotation, "kind" | "look">): boolean =>
-  a.kind === "box" || (a.kind === "balloon" && a.look === "kit");
-
-/** A balloon's corners and tail: the comic's, or the kit's (round corners, short straight tail). */
-export function balloonLook(a: Pick<Annotation, "look">): { radius: number; straight: boolean } {
-  return a.look === "kit"
-    ? { radius: KIT.radius, straight: true }
-    : { radius: 16, straight: false };
-}
+/** Drawn like the kit's box: a box, or a balloon (the same box with a tail). */
+export const kitBox = (a: Pick<Annotation, "kind">): boolean =>
+  a.kind === "box" || a.kind === "balloon";
 
 export const PALETTE = [
   "#C8F031",
@@ -551,8 +481,6 @@ export const ANNOTATION_PRESETS: AnnotationPreset[] = [
       kind: "balloon",
       color: "#12140A",
       text: "Olha aqui!",
-      width: 380,
-      fontSize: ANNOTATION_TEXT,
       tail: "bottom-left",
     },
     duration: 3.5,

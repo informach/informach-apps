@@ -1,0 +1,83 @@
+.link-status {
+  border: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mint);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42vw;
+  cursor: pointer;
+}
+.link-status:hover,
+.link-status:focus-visible {
+  background: var(--panel2);
+}
+.link-status[hidden] {
+  display: none;
+}
+.link-queue {
+  position: fixed;
+  inset: 52px 16px auto auto;
+  margin: 0;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(60vh, 520px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+}
+.link-queue h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.link-queue > p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.link-queue ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.link-queue li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel2);
+}
+.link-queue li strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.link-queue li span {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 12px;
+}
+.link-queue li[data-running] span {
+  color: var(--mint);
+}
+.link-queue li button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.link-queue progress {
+  grid-column: 1;
+  width: 100%;
+  height: 4px;
+  accent-color: var(--mint);
+}
