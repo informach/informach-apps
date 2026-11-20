@@ -431,3 +431,32 @@ S3 e consentimento nativo: zero jogador com PIN/103 intenções/convites,
 rollback da auditoria final e do lote, execução concorrente, namespace recusado
 e expurgo com relógio real depois de closed. Nenhum estado foi aplicado em
 produção. Validação remota obrigatória antes de qualificar este escritor.
+
+
+### Composição pública em preparação
+
+19012dc6 passou direitos 44641290311 e finanças 44641299325, incluindo o
+escritor final. A interface seguinte terá prévia V2 própria, três caixas
+inicialmente desmarcadas, resposta incerta repetindo a referência original e
+histórico que distingue conferência financeira de conclusão. O formulário não
+recebe conta, namespace, cliente, fonte, segredo ou época do livro.
+
+`RECREIO_ACCOUNT_CLOSURE_MODE=off` é a capacidade separada e padrão. Native
+exige consentimento/processador de direitos, custódia completa validada,
+portal nativo, jobs de renovação e conciliação, chave Stripe compatível e
+fonte imutável. O runtime reutiliza composição S3/keyring com limpeza no finally;
+a confirmação confere o prefixo completo antes de revalidar autenticação/escopo
+na TX. Modo native não será ativado em produção por este incremento. Prévia
+continua não destrutiva; planos V1 não ganham encerramento por uma nova tela.
+É necessário provar actions/checkboxes/estado real no GitHub e inspecionar
+capturas móveis, além dos testes do serviço e do ambiente.
+
+
+A UI candidata separa financeiro e conclusão no histórico, sem IDs do provedor.
+Ações de cancelar/trocar prévia ficam bloqueadas enquanto o consentimento está
+em envio ou com resposta incerta; repetir conserva as mesmas referências e
+aceites. Essa proteção também foi aplicada à retirada de um perfil. O harness
+comum fixa explicitamente a nova capacidade em off para não herdar configuração
+do operador. Três casos novos do serviço e a matriz de ambiente foram preparados;
+a prova de navegador nativa terá modo próprio, com livro sintético no bucket de
+homologação já autorizado, sem segredos financeiros ou de produção.

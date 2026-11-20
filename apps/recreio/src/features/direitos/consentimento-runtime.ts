@@ -19,14 +19,26 @@ export async function confirmarRetiradaAtual(autor: AutorNativoRecente, entrada:
     "INDISPONIVEL",
     "A confirmação da retirada ainda não está disponível.",
   );
+  return comRuntimeDoConsentimento((config) => confirmarRetiradaDePerfil(autor, entrada, config));
+}
+
+/** Bounded server-owned custody composition shared by explicit consent flows.
+ * Availability/authority remain mandatory in each caller and service. */
+export async function comRuntimeDoConsentimento<T>(
+  executar: (config: {
+    assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
+    storage: ReturnType<typeof criarArmazenamentoDoLivro>;
+    fonte: string;
+  }) => Promise<T>,
+) {
   const fonte = process.env.NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA;
   assertAllowed(
     fonte && /^[a-f0-9]{40}$/.test(fonte),
     "INDISPONIVEL",
-    "A confirmação da retirada está indisponível.",
+    "A confirmação de direitos está indisponível.",
   );
   const config = configuracaoDosDireitosDoProcesso(process.env);
-  assertAllowed(config, "INDISPONIVEL", "A confirmação da retirada está indisponível.");
+  assertAllowed(config, "INDISPONIVEL", "A confirmação de direitos está indisponível.");
   let cliente: S3Client | undefined,
     assinatura: ReturnType<typeof criarAssinaturaDoLivro> | undefined;
   try {
@@ -41,7 +53,7 @@ export async function confirmarRetiradaAtual(autor: AutorNativoRecente, entrada:
     });
     assinatura = criarAssinaturaDoLivro(config);
     for (const key of config.chaves.values()) key.fill(0);
-    return await confirmarRetiradaDePerfil(autor, entrada, {
+    return await executar({
       assinatura,
       storage: criarArmazenamentoDoLivro({
         cliente,

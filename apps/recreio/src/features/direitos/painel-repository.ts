@@ -2,6 +2,7 @@ import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, desc, eq, inArray, or, sql } from "@informach/db";
 import {
+  recreioAccountClosureFinances as finances,
   recreioGuardianLinks as guardians,
   recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
@@ -78,9 +79,15 @@ export function consultarPainelDeDireitosNoBanco(autor: IdentidadeNativa) {
         operacaoEstado: operations.state,
         consentidaEm: operations.consentedAt,
         concluidaEm: operations.completedAt,
+        financeiroEstado: finances.state,
+        financeiroConfirmadoEm: finances.confirmedAt,
       })
       .from(preparations)
       .leftJoin(operations, eq(operations.preparationId, preparations.id))
+      .leftJoin(
+        finances,
+        and(eq(finances.operationId, operations.id), eq(finances.requesterUserId, autor.contaId)),
+      )
       .where(eq(preparations.requesterUserId, autor.contaId))
       .orderBy(desc(preparations.createdAt), desc(preparations.id))
       .limit(21);
@@ -105,6 +112,12 @@ export function consultarPainelDeDireitosNoBanco(autor: IdentidadeNativa) {
               estado: r.operacaoEstado,
               consentidaEm: r.consentidaEm?.toISOString() ?? null,
               concluidaEm: r.concluidaEm?.toISOString() ?? null,
+              financeiro: r.financeiroEstado
+                ? {
+                    estado: r.financeiroEstado,
+                    confirmadoEm: r.financeiroConfirmadoEm?.toISOString() ?? null,
+                  }
+                : null,
             }
           : null,
         situacao: r.canceladaEm

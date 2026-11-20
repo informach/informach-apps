@@ -1,5 +1,19 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, conclusão privada qualificada:** 19012dc6 passou direitos
+44641290311 e finanças 44641299325, com seis novos casos de limpeza/conclusão:
+zero jogador, lotes, auditoria recusada, concorrência, namespace e expurgo após
+closed. Identidade global/períodos/terceiros permanecem preservados. A retirada
+social antes da retenção mínima passou 44640234321/3787c088; qualidade anterior
+44640239916 aprovada. CI compartilhado atual em 44642853891/19012dc6.
+
+A candidata seguinte compõe prévia V2, três aceites, custódia e histórico na
+interface; confirmação tem capacidade própria off por padrão. Testes do serviço,
+ambiente e regressão de navegador ainda precisam passar; prova nativa completa
+do navegador em preparação. Reaplicação antes de tráfego, cobertura integral
+formal, custódia/agenda/alertas/custo e homologação/implantação permanecem abertos.
+Nenhuma nova capacidade ou migration foi ativada em produção.
+
 **19/11 — Recreio, incremento atual de encerramento:** coordenação financeira
 28411278 passou quality/direitos 44634257754/44634262912. Os onze novos casos
 foram acrescentados em 02f2b7aa; a fixture de corrida foi corrigida sem relaxar

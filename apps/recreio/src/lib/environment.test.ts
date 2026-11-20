@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
 import { PRODUCTS } from "@informach/config";
 import { describe, expect, it } from "vitest";
 import { validateEnvironment } from "./environment";
@@ -38,6 +38,56 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("encerramento fica desligado e sua confirmação exige custódia e operação financeira completas", () => {
+    expect(validateEnvironment(base).RECREIO_ACCOUNT_CLOSURE_MODE).toBe("off");
+    expect(() => validateEnvironment({ ...base, RECREIO_ACCOUNT_CLOSURE_MODE: "native" })).toThrow(
+      "Invalid account closure environment",
+    );
+    const prices = Object.fromEntries(
+      PRODUCTS.filter((p) => p.app === "recreio").map((p) => {
+        if (!p.stripePriceEnvironmentVariable) throw new Error("Missing catalog variable");
+        return [p.stripePriceEnvironmentVariable, `price_fixture_${p.id}`];
+      }),
+    );
+    const native = {
+      ...base,
+      ...prices,
+      RECREIO_ACCOUNT_CLOSURE_MODE: "native",
+      RECREIO_RIGHTS_CONSENT_MODE: "native",
+      RECREIO_RIGHTS_MODE: "process",
+      RECREIO_RIGHTS_SCOPE: "qualification",
+      RECREIO_RIGHTS_LEDGER_ID: randomUUID(),
+      RECREIO_RIGHTS_BUCKET: "recreio-homologacao",
+      RECREIO_RIGHTS_ENDPOINT: "https://fixture.storageapi.dev",
+      RECREIO_RIGHTS_REGION: "auto",
+      RECREIO_RIGHTS_PATH_STYLE: "1",
+      RECREIO_RIGHTS_ACCESS_KEY: "private_fixture_access",
+      RECREIO_RIGHTS_SECRET_KEY: "private_fixture_secret",
+      RECREIO_RIGHTS_ACTIVE_KEY: "fixture",
+      RECREIO_RIGHTS_KEYRING: JSON.stringify([["fixture", randomBytes(32).toString("base64")]]),
+      RECREIO_RIGHTS_POLICY: "retirar-textos-fundacao-v1",
+      RECREIO_PORTAL_RENEWAL_MODE: "native",
+      RECREIO_RENEWAL_JOBS_MODE: "on",
+      RECREIO_FINANCIAL_JOBS_MODE: "on",
+      STRIPE_SECRET_KEY: "rk_test_closed_native",
+      STRIPE_WEBHOOK_SECRET: "whsec_closed_native",
+      STRIPE_PORTAL_CONFIGURATION_ID: "bpc_fixture_native2",
+      STRIPE_MODE: "dev",
+    };
+    expect(validateEnvironment(native).RECREIO_ACCOUNT_CLOSURE_MODE).toBe("native");
+    for (const extra of [
+      { RECREIO_RIGHTS_CONSENT_MODE: "off" },
+      { RECREIO_RIGHTS_MODE: "off" },
+      { RECREIO_PORTAL_RENEWAL_MODE: "legacy" },
+      { RECREIO_RENEWAL_JOBS_MODE: "off" },
+      { RECREIO_FINANCIAL_JOBS_MODE: "off" },
+      { STRIPE_PORTAL_CONFIGURATION_ID: "" },
+      { STRIPE_SECRET_KEY: "rk_live_wrong_namespace" },
+      { RECREIO_RIGHTS_KEYRING: "" },
+      { RECREIO_RIGHTS_SCOPE: "production" },
+    ])
+      expect(() => validateEnvironment({ ...native, ...extra })).toThrow();
+  });
   it("prepara live com origem segura, catálogo prod e chave live; recusa cruzamentos sem chamar o provedor", () => {
     const prices = Object.fromEntries(
       PRODUCTS.filter((p) => p.app === "recreio").map((p) => {

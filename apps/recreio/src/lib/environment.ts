@@ -7,6 +7,7 @@ import {
   segredoStripeCompativel,
 } from "./commercial-mode";
 import { configuracaoDosObjetos, objectEnvironmentSchema } from "./object-environment";
+import { configuracaoDosDireitosDoProcesso } from "./rights-environment";
 
 export function isStripeTestSecret(value: unknown): value is string {
   return segredoStripeCompativel("dev", value);
@@ -73,6 +74,8 @@ export const schema = z.object({
   RECREIO_RENEWAL_JOBS_MODE: z.enum(["off", "on"]).default("off"),
   /** Cut to native cancellation only after inventorying old portal capabilities. */
   RECREIO_PORTAL_RENEWAL_MODE: z.enum(["legacy", "native"]).default("legacy"),
+  /** Separate destructive consent capability; never enabled by profile withdrawal alone. */
+  RECREIO_ACCOUNT_CLOSURE_MODE: z.enum(["off", "native"]).default("off"),
   STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -170,6 +173,22 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
     );
   const value = parsed.data;
   configuracaoDosObjetos(value);
+  if (value.RECREIO_ACCOUNT_CLOSURE_MODE === "native") {
+    if (
+      input.RECREIO_RIGHTS_CONSENT_MODE !== "native" ||
+      input.RECREIO_RIGHTS_MODE !== "process" ||
+      value.RECREIO_PORTAL_RENEWAL_MODE !== "native" ||
+      value.RECREIO_RENEWAL_JOBS_MODE !== "on" ||
+      value.RECREIO_FINANCIAL_JOBS_MODE !== "on" ||
+      !/^bpc_[A-Za-z0-9_]+$/.test(value.STRIPE_PORTAL_CONFIGURATION_ID ?? "")
+    )
+      throw new Error(
+        "Invalid account closure environment: rights, native portal and financial jobs are required",
+      );
+    const direitos = configuracaoDosDireitosDoProcesso(input);
+    if (!direitos) throw new Error("Invalid account closure rights custody");
+    for (const key of direitos.chaves.values()) key.fill(0);
+  }
   if (value.RECREIO_PORTAL_RENEWAL_MODE === "native" && value.RECREIO_RENEWAL_JOBS_MODE !== "on")
     throw new Error("Native renewal management requires RECREIO_RENEWAL_JOBS_MODE=on");
   if (

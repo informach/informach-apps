@@ -11,10 +11,12 @@ export function ConfirmacaoDeRetirada({
   previa,
   apelido,
   operacao,
+  aoBloquear,
 }: {
   previa: Awaited<ReturnType<typeof prepararPedidoDeDireitos>>;
   apelido: string;
   operacao: { estado: string } | null;
+  aoBloquear: (bloqueado: boolean) => void;
 }) {
   const router = useRouter();
   const [confirmo, confirmar] = useState(false);
@@ -37,6 +39,7 @@ export function ConfirmacaoDeRetirada({
         if (pendente || (!confirmo && !incerta)) return;
         definirErro("");
         definirRecente(false);
+        aoBloquear(true);
         iniciar(async () => {
           try {
             const resposta = await confirmarRetiradaAction({
@@ -52,6 +55,7 @@ export function ConfirmacaoDeRetirada({
               definirErro(resposta.error);
               definirRecente(resposta.code === "AUTH" || resposta.code === "LOGIN_RECENTE");
               if (resposta.code === "UNEXPECTED") definirIncerta(true);
+              else aoBloquear(false);
               router.refresh();
             }
           } catch {

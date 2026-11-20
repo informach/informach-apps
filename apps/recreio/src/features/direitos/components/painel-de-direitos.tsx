@@ -4,8 +4,13 @@ import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { cancelarPreviaAction, prepararDireitosAction } from "../actions";
+import {
+  cancelarPreviaAction,
+  prepararDireitosAction,
+  prepararEncerramentoAction,
+} from "../actions";
 import type { consultarMeusDireitos, prepararPedidoDeDireitos } from "../service";
+import { ConfirmacaoDeEncerramento } from "./confirmacao-de-encerramento";
 import { ConfirmacaoDeRetirada } from "./confirmacao-de-retirada";
 
 type Estado = Awaited<ReturnType<typeof consultarMeusDireitos>>;
@@ -23,10 +28,12 @@ const situacoes = { preparada: "Preparada", expirada: "Vencida", cancelada: "Can
 export function PainelDeDireitos({
   estado,
   podeRetirar,
+  podeEncerrar,
   participacaoAtiva,
 }: {
   estado: Estado;
   podeRetirar: boolean;
+  podeEncerrar: boolean;
   participacaoAtiva: boolean;
 }) {
   const router = useRouter();
@@ -40,10 +47,11 @@ export function PainelDeDireitos({
   const [erro, definirErro] = useState("");
   const [recente, definirRecente] = useState(false);
   const [incerta, definirIncerta] = useState(false);
+  const [confirmando, bloquearConfirmacao] = useState(false);
   const operacaoDaPrevia = estado.preparacoes.find(
     (p) => p.preparacaoId === previa?.preparacaoId,
   )?.operacao;
-  const bloqueado = !hidratado || pendente;
+  const bloqueado = !hidratado || pendente || confirmando;
 
   function tratar(resposta: { code: string; error: string }) {
     definirErro(resposta.error);
@@ -56,6 +64,7 @@ export function PainelDeDireitos({
     conferir(false);
     definirErro("");
     definirIncerta(false);
+    bloquearConfirmacao(false);
   }
   function preparar() {
     if (!participacaoAtiva || bloqueado || !conferi || (tipo === "retirar_perfil" && !perfilId))
@@ -70,7 +79,10 @@ export function PainelDeDireitos({
     definirRecente(false);
     iniciar(async () => {
       try {
-        const resposta = await prepararDireitosAction(atual);
+        const resposta =
+          atual.tipo === "encerrar_conta"
+            ? await prepararEncerramentoAction(atual)
+            : await prepararDireitosAction(atual);
         if (resposta.ok) {
           definirPrevia(resposta.data);
           definirIncerta(false);
@@ -117,7 +129,7 @@ export function PainelDeDireitos({
           Prepare uma prévia dos perfis e mundos envolvidos. Preparar não exclui dados, não cancela
           assinatura e não encerra sua conta Informach.
         </p>
-        {!podeRetirar && (
+        {!podeRetirar && !podeEncerrar && (
           <p className="mt-3 text-sm text-tinta-suave">
             A confirmação da exclusão ainda não está disponível nesta área.
           </p>
@@ -274,6 +286,20 @@ export function PainelDeDireitos({
               </dd>
             </div>
           </dl>
+          {previa.plano.formato === "recreio-previa-encerramento-v2" && (
+            <div className="mt-5 space-y-2 text-tinta-suave">
+              <p>
+                Antes da retirada, conferiremos as suas assinaturas e interromperemos as próximas
+                renovações. Os períodos já pagos e os contratos de outros adultos serão preservados.
+              </p>
+              <p>
+                Pedidos de compra e trocas ainda não enviados serão encerrados. Nesta prévia:{" "}
+                {previa.plano.financeiro.comprasNaoEnviadas +
+                  previa.plano.financeiro.trocasNaoEnviadas}{" "}
+                solicitações.
+              </p>
+            </div>
+          )}
           {previa.desatualizada && (
             <p className="mt-4 font-semibold text-erro">
               O escopo mudou. Esta prévia não pode confirmar uma exclusão; prepare outra.
@@ -281,8 +307,8 @@ export function PainelDeDireitos({
           )}
           {!operacaoDaPrevia && (
             <p className="mt-4 text-tinta-suave">
-              Nenhum dado foi excluído. Sua conta Informach e seus contratos financeiros continuam
-              separados deste pedido.
+              Nenhum dado foi excluído e nenhuma renovação foi interrompida por esta prévia. Sua
+              conta Informach será preservada.
             </p>
           )}
           <div className="mt-5 flex flex-wrap gap-3">
@@ -307,6 +333,23 @@ export function PainelDeDireitos({
               </button>
             )}
           </div>
+          {podeEncerrar &&
+            previa.plano.formato === "recreio-previa-encerramento-v2" &&
+            previa.situacao === "preparada" &&
+            !previa.desatualizada && (
+              <ConfirmacaoDeEncerramento
+                key={previa.preparacaoId}
+                previa={previa}
+                operacao={operacaoDaPrevia ?? null}
+                aoBloquear={bloquearConfirmacao}
+              />
+            )}
+          {previa.plano.tipo === "encerrar_conta" && !podeEncerrar && (
+            <p className="mt-4 text-sm text-tinta-suave">
+              A confirmação do encerramento ainda não está disponível nesta área. Preparar a prévia
+              não inicia o encerramento.
+            </p>
+          )}
           {podeRetirar &&
             previa.plano.tipo === "retirar_perfil" &&
             previa.situacao === "preparada" &&
@@ -319,6 +362,7 @@ export function PainelDeDireitos({
                   "Perfil selecionado"
                 }
                 operacao={operacaoDaPrevia ?? null}
+                aoBloquear={bloquearConfirmacao}
               />
             )}
         </section>
@@ -338,7 +382,7 @@ export function PainelDeDireitos({
                 <p className="mt-1 text-sm text-tinta-suave">
                   Preparada em <time dateTime={p.criadaEm}>{data(p.criadaEm)}</time>
                 </p>
-                {p.operacao && <SituacaoDaRetirada operacao={p.operacao} />}
+                {p.operacao && <SituacaoDaRetirada operacao={p.operacao} tipo={p.tipo} />}
                 {!p.operacao && p.situacao === "preparada" && (
                   <button
                     type="button"
@@ -377,15 +421,25 @@ export function PainelDeDireitos({
 
 export function SituacaoDaRetirada({
   operacao,
+  tipo,
 }: {
   operacao: NonNullable<Estado["preparacoes"][number]["operacao"]>;
+  tipo: Tipo;
 }) {
   const texto =
-    operacao.estado === "completed"
-      ? "Retirada concluída. Registros sujeitos aos prazos originais e obrigações de guarda podem permanecer com acesso restrito."
-      : operacao.estado === "review"
-        ? "O pedido precisa de uma conferência da equipe. O perfil continua bloqueado para jogar. Fale com a Informach para acompanhar."
-        : "Retirada em processamento. O perfil está bloqueado para jogar e os mundos envolvidos podem ficar temporariamente indisponíveis para preservar o progresso dos participantes.";
+    tipo === "encerrar_conta"
+      ? operacao.estado === "completed"
+        ? "Participação encerrada no Recreio. Sua conta Informach e os registros financeiros permanecem. Referências de segurança seguem os prazos originais com acesso restrito."
+        : operacao.estado === "review"
+          ? "O encerramento precisa de uma conferência da equipe. Sua participação continua bloqueada. Fale com a Informach para acompanhar."
+          : operacao.financeiro?.estado === "confirmed"
+            ? "Renovações conferidas. Estamos tratando os dados da conta e dos perfis selecionados, preservando o progresso dos demais participantes."
+            : "Encerramento em processamento. A conferência das renovações vem antes da retirada dos dados. Sua participação está bloqueada para novas partidas."
+      : operacao.estado === "completed"
+        ? "Retirada concluída. Registros sujeitos aos prazos originais e obrigações de guarda podem permanecer com acesso restrito."
+        : operacao.estado === "review"
+          ? "O pedido precisa de uma conferência da equipe. O perfil continua bloqueado para jogar. Fale com a Informach para acompanhar."
+          : "Retirada em processamento. O perfil está bloqueado para jogar e os mundos envolvidos podem ficar temporariamente indisponíveis para preservar o progresso dos participantes.";
   return (
     <p className="mt-3 text-sm text-tinta-suave" role="status">
       {texto}

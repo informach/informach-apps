@@ -4,6 +4,7 @@ import { consultarMinhaParticipacaoNoRecreio } from "@/features/account/particip
 import { CopiaPessoal } from "@/features/direitos/components/copia-pessoal";
 import { PainelDeDireitos } from "@/features/direitos/components/painel-de-direitos";
 import { retiradaDisponivel } from "@/features/direitos/consentimento-runtime";
+import { encerramentoDisponivel } from "@/features/direitos/encerramento-runtime";
 import { exportacaoDisponivel } from "@/features/direitos/exportacao-runtime";
 import { consultarMeusDireitos } from "@/features/direitos/service";
 import { paginaDaGestao } from "@/features/sessao/ator";
@@ -28,6 +29,7 @@ export default async function MeusDados() {
       <PainelDeDireitos
         estado={estado}
         podeRetirar={retiradaDisponivel()}
+        podeEncerrar={encerramentoDisponivel()}
         participacaoAtiva={participacao.estado === "active"}
       />
       <Link

@@ -183,6 +183,7 @@ const testEnv = {
   RECREIO_EXPORT_KEYRING: JSON.stringify([["isolated", randomBytes(32).toString("base64")]]),
   RECREIO_RIGHTS_MODE: "off",
   RECREIO_RIGHTS_CONSENT_MODE: "off",
+  RECREIO_ACCOUNT_CLOSURE_MODE: "off",
   RECREIO_MODERATION_SECRET: randomBytes(32).toString("hex"),
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
