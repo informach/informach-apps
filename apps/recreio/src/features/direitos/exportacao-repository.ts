@@ -1,6 +1,6 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, db, eq, sql } from "@informach/db";
 import {
   recreioPersonalExports as exports,

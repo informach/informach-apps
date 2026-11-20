@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
@@ -10,7 +10,7 @@ import {
 } from "@informach/db/schema";
 import { ContaIdSchema, MundoIdSchema } from "@informach/recreio";
 import { type ResumoDoMundo, ResumoDoMundoSchema } from "@informach/recreio/contrato";
-import { serializarContaNativa } from "@/features/account/autoridade-repository";
+import { serializarContaNativa } from "@/features/account/serializacao-repository";
 import { travarColetaDeObjetos } from "@/features/backup/captura-repository";
 import { limitesDoJogo } from "@/features/jogos/config";
 import { armazenamentoPg } from "@/features/posse/armazenamento-repository";

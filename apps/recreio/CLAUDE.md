@@ -410,3 +410,11 @@ cerca congelada são conferidos antes da primeira escrita. Repetição compara,
 nunca sobrescreve plano, mapa, captura ou datas. É preparação de proveniência,
 sem criar operação, conta, consentimento ou permissão de efeitos/tráfego.
 Gates deste incremento ainda pendentes; [sequência](../../docs/recreio/reaplicacao-nativa-2026-11-20.md).
+
+
+A trava `account/serializacao-repository` é uma primitiva SQL, sem identidade ou
+login, reexportada pela porta anterior. Jobs de direitos usam o mesmo writer
+estrito por `@informach/auth/audit`, com transação explícita. Isso separa a carga
+do job das credenciais do portal; não concede permissão histórica ou exceção à
+cerca. Cinco workers SQL estão em qualificação sem credenciais de app no cluster
+frio, exigindo a recusa normal do livro congelado.

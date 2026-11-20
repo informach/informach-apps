@@ -8,11 +8,12 @@ import {
 import { type ContaId, PerfilIdSchema, type SessaoDeAparelhoId } from "@informach/recreio";
 import { sessaoDeLoginViva } from "@/features/sessao/login";
 import { assertAllowed } from "@/lib/errors";
-import { AGORA, type Transacao, travar } from "@/lib/repository";
+import { AGORA, type Transacao } from "@/lib/repository";
 import {
   exigirParticipacaoAtivaLocked,
   lerParticipacaoDoRecreioLocked,
 } from "./participacao-repository";
+import { serializarContaNativa } from "./serializacao-repository";
 
 export type IdentidadeNativa = { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId };
 /** Somente o adapter servidor lê essas datas do login autenticado. */
@@ -21,9 +22,7 @@ export type AutorNativoRecente = IdentidadeNativa & { login: ProvaDeLoginNativo 
 export type FinalidadeDaContaNativa = "participacao" | "direitos" | "financeiro";
 const LOGIN_RECENTE_MS = 10 * 60_000;
 
-export async function serializarContaNativa(tx: Transacao, contaId: ContaId) {
-  await travar(tx, `recreio:autoridade-nativa:${contaId}`);
-}
+export { serializarContaNativa } from "./serializacao-repository";
 
 export async function lerContaNativa(tx: Transacao, contaId: ContaId) {
   await serializarContaNativa(tx, contaId);

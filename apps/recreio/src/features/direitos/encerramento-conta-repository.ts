@@ -1,5 +1,5 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
@@ -8,7 +8,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { ContaIdSchema } from "@informach/recreio";
-import { serializarContaNativa } from "@/features/account/autoridade-repository";
+import { serializarContaNativa } from "@/features/account/serializacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import {

@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import {
   assertRecreioClosureInventory,
   type RecreioClosureInventory,

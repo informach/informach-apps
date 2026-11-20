@@ -1,5 +1,5 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, eq, sql } from "@informach/db";
 import {
   recreioAdultDeclarations as declarations,

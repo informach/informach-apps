@@ -1,5 +1,5 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { sql } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,

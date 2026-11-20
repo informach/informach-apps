@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, eq, sql } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,

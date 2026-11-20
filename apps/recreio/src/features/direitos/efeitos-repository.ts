@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,

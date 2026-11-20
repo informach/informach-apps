@@ -3,14 +3,21 @@ import { isDeepStrictEqual } from "node:util";
 import { eq, sql } from "@informach/db";
 import { recreioRightsRecoverySources as sources } from "@informach/db/schema";
 import type postgres from "postgres";
+import { concluirProximaRetirada } from "../../src/features/direitos/conclusao-repository";
+import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
+import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import {
   criarAssinaturaDoLivro,
   resumoDoRegistro,
 } from "../../src/features/direitos/livro/assinatura";
 import { FalhaDoLivroDeDireitos, RAIZ_VAZIA } from "../../src/features/direitos/livro/contrato";
+import { conferirPrefixoDoLivro } from "../../src/features/direitos/livro/leitura";
 import { admitirIntencaoNoLivro } from "../../src/features/direitos/livro/publicacao";
+import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
 import { PlanoDeDireitosSchema } from "../../src/features/direitos/preparacao-contrato";
+import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
+import { AppError } from "../../src/lib/errors";
 import { criarBucketDoLivro } from "../../test/livro-s3-apoio";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
@@ -28,6 +35,12 @@ export async function provarFontesHistoricasRecuperadas(
   capturaSha256: string,
 ) {
   exigir(process.env.GITHUB_ACTIONS === "true" && process.env.CI === "true");
+  exigir(
+    !process.env.DATABASE_URL &&
+      !process.env.BETTER_AUTH_SECRET &&
+      !process.env.SENDGRID_API_KEY &&
+      !process.env.STRIPE_SECRET_KEY,
+  );
   await exigirBancoPrivadoDeRecuperacao(copia);
   const antes = await copia.begin("isolation level repeatable read read only", inventariarBackup),
     livroId = randomUUID(),
@@ -128,6 +141,26 @@ export async function provarFontesHistoricasRecuperadas(
       });
     }
     await storage.congelarCabecalho(await storage.lerCabecalho(), "2026-11-20T10:02:00.000Z");
+    const configComum = {
+      assinatura,
+      prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 10, tempoLimiteMs: 10000 }),
+    };
+    for (const executar of [
+      minimizarProximoPerfil,
+      retirarProximosDadosPessoais,
+      concluirProximaDrenagem,
+      expurgarProximaReferencia,
+      concluirProximaRetirada,
+    ]) {
+      let bloqueou = false;
+      try {
+        await executar(configComum);
+      } catch (e) {
+        if (!(e instanceof AppError) || e.code !== "DIREITOS_LIVRO") throw e;
+        bloqueou = true;
+      }
+      exigir(bloqueou);
+    }
     const ultimo = planos.at(-1);
     exigir(ultimo);
     const path = `/recreio-fixture/${storage.prefixo}planos/${resumoDoRegistro(Buffer.from(JSON.stringify(ultimo)))}.json`,
@@ -293,6 +326,8 @@ export async function provarFontesHistoricasRecuperadas(
     historicalNativeConnectionBound: true as const,
     historicalNativeConnectionRollbackVerified: true as const,
     historicalNativeConnectionClosed: true as const,
+    nativeSqlWorkersLoadedWithoutAppCredentials: true as const,
+    ordinarySqlWorkersRefusedFrozenLedger: true as const,
     historicalSourceEffectsExecuted: false as const,
   };
 }

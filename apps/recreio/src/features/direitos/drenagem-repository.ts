@@ -1,5 +1,5 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, eq, isNull, sql } from "@informach/db";
 import {
   recreioSpaceLeases as leases,
@@ -10,7 +10,7 @@ import {
   recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { ContaIdSchema } from "@informach/recreio";
-import { serializarContaNativa } from "@/features/account/autoridade-repository";
+import { serializarContaNativa } from "@/features/account/serializacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import { type CoordenacaoDeEfeitos, comEfeitoNativoDeDireitos } from "./efeitos-repository";

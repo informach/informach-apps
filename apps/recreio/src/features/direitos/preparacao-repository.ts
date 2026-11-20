@@ -1,5 +1,5 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import type { StripeMode } from "@informach/config";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {

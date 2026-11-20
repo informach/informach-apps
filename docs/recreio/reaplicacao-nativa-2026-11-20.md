@@ -177,3 +177,28 @@ a decisão antiga. A prova preparada compara bytes e chave originais, relê
 depois de zerar o buffer e recusa SHA divergente usando o SDK/HTTP real fechado.
 Isto permite importar a operação sem fabricar uma nova assinatura/autoridade;
 a admissão e os efeitos históricos ainda precisam da composição privada.
+
+
+## Conexão qualificada e carga SQL sem credenciais do portal
+
+Conexão b1d0d84e passou cluster frio 44780703784, qualidade 44780710345 e
+integração 44780721833. Leitura nativa, rollback, fechamento do pool e limpeza
+com inventário idêntico foram conferidos no
+[recibo](evidencias/conexao-cluster-frio-44780703784.json). CI compartilhado
+44780716449 ainda em curso. A extração de preparo 20afa0cd passou direitos
+44781746827; qualidade ainda em curso.
+
+A nova candidata separa `account/serializacao-repository` do login, conservando
+a mesma trava consultiva e a reexportação anterior. Direitos usa a entrada
+`@informach/auth/audit`, a mesma implementação/estado de auditoria sem carregar
+a composição Better Auth. Escritores continuam passando a própria transação,
+sem nova identidade, sessão ou exceção de persistência.
+
+A prova fria preparada carrega cinco workers SQL reais sem DATABASE_URL,
+credenciais de login, e-mail ou Stripe. Ela os chama com o livro autenticamente
+congelado e exige recusa DIREITOS_LIVRO antes de tocar o singleton. É prova de
+carga e da manutenção da barreira normal, não licença para executar os efeitos
+na recuperação. Fotografias/recuperação do diário ainda precisam separar a
+consulta de limites do catálogo das configurações de hosts/login. O coordenador
+privado, a admissão de operações recuperadas e a reconciliação financeira
+continuam obrigatórios e ainda não foram liberados.

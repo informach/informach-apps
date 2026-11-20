@@ -1,6 +1,6 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import type { StripeMode } from "@informach/config";
 import { and, db, eq, inArray, isNull, sql } from "@informach/db";
 import {

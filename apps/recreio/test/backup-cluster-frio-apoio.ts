@@ -49,6 +49,8 @@ const Recibo = z.strictObject({
   historicalNativeConnectionBound: z.literal(true),
   historicalNativeConnectionRollbackVerified: z.literal(true),
   historicalNativeConnectionClosed: z.literal(true),
+  nativeSqlWorkersLoadedWithoutAppCredentials: z.literal(true),
+  ordinarySqlWorkersRefusedFrozenLedger: z.literal(true),
   historicalSourceEffectsExecuted: z.literal(false),
   authoritiesNormalizedForTraffic: z.literal(false),
   productionDataTouched: z.literal(false),

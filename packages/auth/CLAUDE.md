@@ -1,5 +1,10 @@
 # `@informach/auth` — package guide
 
+`@informach/auth/audit` oferece a mesma implementação de auditoria, sem carregar
+a composição Better Auth. Jobs SQL isolados passam seu `writer` transacional
+explicitamente; o subpath não cria sessão, papel ou exceção às políticas de
+payload/persistência. A exportação da raiz continua compatível.
+
 ## Entrada web compartilhada em implementação
 
 O limitador PostgreSQL das Server Actions usa janela fixa atômica: a primeira

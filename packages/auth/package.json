@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
+    "./audit": "./src/audit.ts",
     "./client-ip": "./src/client-ip.ts",
     "./request-body": "./src/request-body.ts",
     "./server": "./src/server.ts",
