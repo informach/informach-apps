@@ -17,7 +17,10 @@ export async function copiarAprovacoesPessoaisNaTransacao(
   while (true) {
     // Fixed source/field list; pagination and authorization are applied inside
     // each source before the bounded merge, not just in the final UI.
-    const linhas = await tx.execute<{ cursor: string; dados: unknown }>(sql`
+    const linhas: { cursor: string; dados: unknown }[] = await tx.execute<{
+      cursor: string;
+      dados: unknown;
+    }>(sql`
       with fontes as (
         (select 'amizade:'||request_id::text||':'||profile_id::text collate "C" as cursor,
           jsonb_build_object('ato','aprovar_amizade','solicitacaoReferencia',request_id,'perfilReferencia',profile_id,'registradaEm',created_at) as dados

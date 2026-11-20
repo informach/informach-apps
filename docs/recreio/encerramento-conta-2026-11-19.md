@@ -547,3 +547,8 @@ ativos. Preparar teste PostgreSQL com as seis origens não vazias, 205 atos de
 amizade, outra conta sem jogador, atos de terceiros e sigilo de gerações. É
 cobertura de projeção de registros sintéticos com FK/CHECK, não homologação das
 jornadas de aprovação/sucessão. Essa prova precisa passar antes de qualificar.
+
+A candidata e5a335ad parou no typecheck 44651903513: a inferência do cursor
+recursivo do laço produziu TS7022. A saída SQL passa a ter anotação explícita
+do contrato {cursor,dados}, preservando validação/paginação e sem casts. Ainda
+não há prova dos seis recortes dessa fonte; repetir os gates na correção.
