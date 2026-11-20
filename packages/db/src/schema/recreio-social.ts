@@ -181,6 +181,7 @@ export const recreioFriendConsents = recreio.table(
       sql`${t.profileId} in (${t.requestOriginProfileId},${t.requestTargetProfileId})`,
     ),
     index("recreio_friend_consent_profile").on(t.profileId),
+    index("recreio_friend_consent_actor_history").on(t.approvedByUserId, t.requestId, t.profileId),
   ],
 );
 

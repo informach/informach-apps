@@ -125,6 +125,7 @@ export const recreioDirectedInviteWorldApprovals = recreio.table(
       columns: [t.spaceId, t.approvedByMemberId],
       foreignColumns: [members.spaceId, members.id],
     }).onDelete("restrict"),
+    index("recreio_directed_world_approval_actor_history").on(t.approvedByUserId, t.inviteId),
     check(
       "recreio_directed_world_approval_actor",
       sql`(${t.actorKind}='jogador' and ${t.guardianLinkId} is null and ${t.accessGeneration} is null and ${t.policyVersion} is null) or (${t.actorKind}='responsavel' and ${t.guardianLinkId} is not null and ${t.accessGeneration} is not null and ${t.policyVersion} is not null and ${t.policyVersion}>0)`,
@@ -173,5 +174,10 @@ export const recreioDirectedInviteGuardianApprovals = recreio.table(
       sql`${t.profileId} in (${t.originProfileId},${t.targetProfileId})`,
     ),
     check("recreio_directed_guardian_approval_policy", sql`${t.policyVersion}>0`),
+    index("recreio_directed_guardian_actor_history").on(
+      t.approvedByUserId,
+      t.inviteId,
+      t.profileId,
+    ),
   ],
 );

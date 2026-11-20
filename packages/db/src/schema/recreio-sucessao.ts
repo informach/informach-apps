@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, integer, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { check, foreignKey, index, integer, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./core";
 import { recreio, recreioSpaceStewardshipRequests as requests } from "./recreio";
 import { recreioGuardianLinks as guardians } from "./recreio-familia";
@@ -18,6 +18,11 @@ export const recreioStewardshipGuardianApprovals = recreio.table(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("recreio_stewardship_guardian_actor_history").on(
+      t.approvedByUserId,
+      t.requestId,
+      t.profileId,
+    ),
     foreignKey({
       name: "recreio_stewardship_guardian_request",
       columns: [t.requestId],

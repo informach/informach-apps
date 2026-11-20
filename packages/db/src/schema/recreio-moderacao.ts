@@ -71,6 +71,9 @@ export const recreioSafetyReports = recreio.table(
     index("recreio_safety_report_queue").on(t.state, t.priority, t.createdAt, t.id),
     index("recreio_safety_report_retention").on(t.expiresAt, t.id),
     index("recreio_safety_report_target").on(t.targetProfileId, t.createdAt),
+    index("recreio_safety_report_reporter_history").on(t.reporterProfileId, t.id),
+    index("recreio_safety_report_actor_history").on(t.actorUserId, t.id),
+    index("recreio_safety_report_reviewer_history").on(t.reviewActorUserId, t.id),
     check("recreio_safety_report_actor", sql`${t.actorKind} in ('jogador','responsavel')`),
     check(
       "recreio_safety_report_category",
@@ -196,6 +199,8 @@ export const recreioRestrictionReviews = recreio.table(
       .where(sql`${t.state}='aberto'`),
     index("recreio_restriction_review_queue").on(t.state, t.createdAt, t.id),
     index("recreio_restriction_review_retention").on(t.expiresAt, t.id),
+    index("recreio_restriction_review_actor_history").on(t.actorUserId, t.id),
+    index("recreio_restriction_review_profile_history").on(t.profileId, t.id),
     check(
       "recreio_restriction_review_revision",
       sql`${t.revision}>0 and ${t.restrictionRevision}>0`,

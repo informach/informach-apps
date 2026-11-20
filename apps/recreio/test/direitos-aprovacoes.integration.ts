@@ -3,12 +3,29 @@ import { db, eq } from "@informach/db";
 import { sessions } from "@informach/db/schema";
 import postgres from "postgres";
 import { expect, it } from "vitest";
+import { z } from "zod";
 import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
 import { novoJogador } from "./apoio";
 import { conexao } from "./backup-arquivos-apoio";
 import { semearCapacidadesDaCaptura } from "./backup-capacidades-apoio";
 import { mundoDe } from "./jogo-apoio";
 import { familiaSocial } from "./social-apoio";
+
+type PlanoSQL = {
+  "Node Type": string;
+  "Index Name"?: string;
+  "Index Cond"?: string;
+  Plans?: PlanoSQL[];
+};
+const PlanoSQLSchema: z.ZodType<PlanoSQL> = z.object({
+  "Node Type": z.string(),
+  "Index Name": z.string().optional(),
+  "Index Cond": z.string().optional(),
+  Plans: z.lazy(() => z.array(PlanoSQLSchema)).optional(),
+});
+function nosDoPlano(plano: PlanoSQL): PlanoSQL[] {
+  return [plano, ...(plano.Plans ?? []).flatMap(nosDoPlano)];
+}
 
 it("exporta seis origens de aprovações próprias, mais de uma página, sem herdar os atos das outras contas", async () => {
   const fonte = postgres(conexao().href, { max: 1, prepare: false });
@@ -33,8 +50,9 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
         where r.origin_profile_id=${familia.perfil.id}`;
       await tx`insert into recreio.friend_requests
         (origin_profile_id,target_profile_id,client_key,request_hash,state,created_at,expires_at,finished_at)
-        values (${outra.perfil.id},${host.perfil.id},${randomUUID()},${"f".repeat(64)},'rejected',
-          statement_timestamp()-interval '1 second',statement_timestamp()+interval '1 hour',statement_timestamp())`;
+        select ${outra.perfil.id},${host.perfil.id},gen_random_uuid(),${"f".repeat(64)},'rejected',
+          statement_timestamp()-interval '1 second',statement_timestamp()+interval '1 hour',statement_timestamp()
+        from generate_series(1,8000)`;
       await tx`insert into recreio.friend_consents
         (request_id,request_origin_profile_id,request_target_profile_id,profile_id,guardian_link_id,approved_by_user_id,access_generation)
         select r.id,r.origin_profile_id,r.target_profile_id,r.origin_profile_id,g.id,g.guardian_user_id,p.access_generation
@@ -79,6 +97,29 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
         from recreio.guardian_links g join recreio.minor_protection p on p.profile_id=g.profile_id
         join recreio.profiles a on a.id=g.profile_id where g.profile_id=${familia.perfil.id}`;
     });
+    // Real optimizer/statistics, without disabling sequential scans or changing
+    // planner costs. Foreign rows must not make each own page scan the table.
+    await fonte`analyze recreio.friend_consents`;
+    const referencias = await fonte<{ request_id: string; profile_id: string }[]>`
+      select request_id,profile_id from recreio.friend_consents
+      where approved_by_user_id=${familia.conta.id} order by request_id,profile_id limit 205`;
+    expect(referencias).toHaveLength(205);
+    const corte = referencias.at(-11);
+    if (!corte) throw new Error("Cursor fixture absent");
+    const [explicacao] = await fonte<
+      { "QUERY PLAN": unknown }[]
+    >`explain (format json,analyze true,buffers true)
+      select request_id,profile_id,created_at from recreio.friend_consents
+      where approved_by_user_id=${familia.conta.id}
+        and (request_id,profile_id)>(${corte.request_id}::uuid,${corte.profile_id}::uuid)
+      order by request_id,profile_id limit 100`;
+    const [plano] = z.array(z.object({ Plan: PlanoSQLSchema })).parse(explicacao?.["QUERY PLAN"]);
+    if (!plano) throw new Error("Query plan absent");
+    const nos = nosDoPlano(plano.Plan);
+    const indice = nos.find((n) => n["Index Name"] === "recreio_friend_consent_actor_history");
+    expect(indice?.["Index Cond"]).toContain("request_id");
+    expect(indice?.["Index Cond"]).toContain("profile_id");
+    expect(nos.some((n) => n["Node Type"] === "Seq Scan")).toBe(false);
     // The host's recent account authority is reconstructed from its real login.
     const [login] = await db
       .select()

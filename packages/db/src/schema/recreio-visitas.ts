@@ -150,6 +150,7 @@ export const recreioVisitInviteWorldApprovals = recreio.table(
     }).onDelete("cascade"),
     index("recreio_visit_world_approval_guardian").on(t.guardianLinkId),
     index("recreio_visit_world_approval_member").on(t.spaceId, t.approvedByMemberId),
+    index("recreio_visit_world_approval_actor_history").on(t.approvedByUserId, t.inviteId),
     check(
       "recreio_visit_world_approval_actor",
       sql`(${t.actorKind}='jogador' and ${t.guardianLinkId} is null and ${t.accessGeneration} is null and ${t.policyVersion} is null) or (${t.actorKind}='responsavel' and ${t.guardianLinkId} is not null and ${t.accessGeneration} is not null and ${t.policyVersion} is not null and ${t.policyVersion}>0)`,
@@ -196,6 +197,7 @@ export const recreioVisitInviteGuardianApprovals = recreio.table(
       foreignColumns: [users.id],
     }).onDelete("set null"),
     index("recreio_visit_guardian_link").on(t.guardianLinkId),
+    index("recreio_visit_guardian_actor_history").on(t.approvedByUserId, t.inviteId, t.profileId),
     check(
       "recreio_visit_guardian_participant",
       sql`${t.profileId} in (${t.originProfileId},${t.targetProfileId})`,

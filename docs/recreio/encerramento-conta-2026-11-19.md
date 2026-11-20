@@ -552,3 +552,25 @@ A candidata e5a335ad parou no typecheck 44651903513: a inferência do cursor
 recursivo do laço produziu TS7022. A saída SQL passa a ter anotação explícita
 do contrato {cursor,dados}, preservando validação/paginação e sem casts. Ainda
 não há prova dos seis recortes dessa fonte; repetir os gates na correção.
+
+### Eficiência dos recortes pessoais — plano do próximo incremento
+
+A primeira paginação de aprovações usa cursor textual composto e ordenação após
+concatenar colunas. Limitar a saída não garante uso de índice no intervalo.
+Trocar por seis fontes fixas lidas em série, cada uma filtrada por autor e
+paginada por UUID nativo (solicitação, perfil quando composto), sem OFFSET ou
+ordenação de todas as fontes a cada página. Conservar projeção/snapshot,
+contrato de cursor crescente e todos os limites e negativas de autorização.
+
+Acrescentar somente índices não únicos de autor/cursor nas seis tabelas de
+aprovação e de ator/solicitante/perfil nos recortes de denúncias/recursos.
+Nenhum dado, CHECK, chave ou política muda. Gerar DDL exclusivamente pelo
+workflow db-generate; revisar ZIP/proveniência/predecessor/prefixo do journal e
+igualdade de todas as outras estruturas antes de adotar. Aplicação em produção
+continua dependente do backup/restore atual e da implantação completa.
+
+No GitHub, repetir os recortes com seis fontes e múltiplas páginas e verificar
+catálogo real dos índices após upgrade. EXPLAIN com massa sintética deve provar
+intervalo/ordem nativos; não inferir eficiência apenas de número de linhas ou
+forçar enable_seqscan=off. Gates de tipos, direitos, finanças/integração aplicáveis
+seguem separados da simples geração. Nenhum teste pesado roda nesta máquina.
