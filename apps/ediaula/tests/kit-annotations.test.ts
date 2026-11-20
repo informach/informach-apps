@@ -3,12 +3,12 @@ import { test } from "node:test";
 import {
   ANNOTATION_PRESETS,
   type Annotation,
-  balloonLook,
   balloonPath,
   balloonTail,
   defaultOutline,
   ICON_IDS,
   KIT,
+  kitBox,
   textBoxLayout,
 } from "../src/shared/annotation.ts";
 import { DEFAULT_FONT, fontStack } from "../src/shared/fonts.ts";
@@ -154,20 +154,22 @@ test("slide colors and readable text", () => {
   assert.equal(readableOn("#C8F031", "#2FBF71", EDIAULA_PALETTE), "#FFFFFF");
 });
 
-test("a balloon in the kit's look: no outline, heavy centered text, round corners, straight tail", () => {
-  const kit: Annotation = { kind: "balloon", look: "kit", color: "#0F1A33", fill: "#FFFFFF" };
+test("a balloon is the kit's box: no outline, heavy centered text, round corners, straight tail", () => {
+  const kit: Annotation = { kind: "balloon", color: "#0F1A33", fill: "#FFFFFF" };
   assert.equal(defaultOutline(kit).width, 0);
-  assert.equal(defaultOutline({ kind: "balloon", color: "#0F1A33" }).width, 3);
+  assert.ok(kitBox(kit));
+  // A balloon saved in the old comic style is drawn as the box too.
+  const comic: Annotation = { ...kit, look: "comic" };
+  assert.equal(defaultOutline(comic).width, 0);
+  assert.deepEqual(textBoxLayout(comic), textBoxLayout(kit));
   const box = textBoxLayout(kit);
   assert.deepEqual([box.fontSize, box.align, box.padX, box.padY], [KIT.boxText, "center", 42, 24]);
-  assert.deepEqual(balloonLook(kit), { radius: KIT.radius, straight: true });
-  // The kit's tail is two straight lines; the comic's bends.
-  const straight = balloonPath(0, 0, 300, 100, 30, 40, "bottom-left", undefined, true);
-  const comic = balloonPath(0, 0, 300, 100, 16, 40, "bottom-left");
-  assert.equal((straight.match(/Q/g) ?? []).length, 4);
-  assert.ok((comic.match(/Q/g) ?? []).length > 4);
+  assert.equal(fontRole(kit), "heading");
+  // The tail is two straight lines: only the four corners are curves.
+  const path = balloonPath(0, 0, 300, 100, 30, 40, "bottom-left");
+  assert.equal((path.match(/Q/g) ?? []).length, 4);
   // Short and square out of its side, with the kit pointer's base (36 of 40 × 0.45 × 2).
-  const tail = balloonTail(0, 0, 300, 100, 30, 40, "bottom-left", undefined, true);
+  const tail = balloonTail(0, 0, 300, 100, 30, 40, "bottom-left");
   assert.equal(tail.tip.x, tail.base.x);
   assert.equal(tail.tip.y, 100 + 22);
   assert.equal(tail.b * 2, 36);

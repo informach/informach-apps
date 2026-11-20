@@ -68,7 +68,8 @@ test("extending a tail preserves body position and size at every keyframe scale"
 test("the text typed on a balloon is laid out like the picture draws it", () => {
   const balloon = textBoxLayout({ kind: "balloon", color: "#12140A", fontSize: 40, width: 380 });
   assert.equal(balloon.fontSize, 40);
-  assert.equal(balloon.lineHeight, 52);
+  // The kit box's tight lines (a balloon is that box with a tail).
+  assert.ok(Math.abs(balloon.lineHeight - 40 * 1.12) < 1e-9);
   assert.equal(balloon.maxWidth, 380);
   assert.equal(balloon.align, "center");
   assert.equal(balloon.wraps, true);
