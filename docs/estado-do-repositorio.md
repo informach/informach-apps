@@ -17,14 +17,15 @@ Famílias/social/visitas/comercial novo/F7 continuam desligados. Não confundir
 candidata ou tabela existente com implantação/ativação. Preview Sandbox
 comercial permanece disponível; não houve compra/estorno real nesta frente.
 
-**Qualificação:** a33e94b7 passou os 16 gates em **44815243338**, direitos
-44814931497, qualidade 44814936749 e cluster frio externo 44814941372. Recibos
+**Qualificação:** ac5ae7d1 passou os 16 gates em **44824373670**. A base
+de direitos a33e94b7 passou 44814931497/44814936749 e cluster externo
+44814941372; a composição ac5ae7d1 também passou cluster 44824434096. Recibos
 por recuperação conservam primeira fonte, origem, consentimento/admissão e
 conclusão antigos; operações nativas antes/depois da captura foram reaplicadas,
 com diário/fotos, retirada, reserva nova preservada e rollback da auditoria
 terminal. A verificação técnica não libera tráfego ou liquida financeiro.
 Schema 0243 adotado intacto, 244 recibos/80 tabelas. CI compartilhado desta
-fonte **44815248297** ainda em execução; a base 91dcdf7a passou 44802000813.
+fonte **44824438593** ainda em execução; a base 91dcdf7a passou 44802000813.
 [Frente e provas](recreio/reaplicacao-nativa-2026-11-20.md).
 
 **Operação em implementação:** captura/cifragem/publicação nativas 131479c1
@@ -34,13 +35,14 @@ Coordenação 05a335fb passou qualidade/captura/cluster
 tarefa e escopo vencido/copiado. Reconciliação e5754c26 passou cluster,
 qualidade e integração 44822503406/44822507351/44822511082. [Plano e próximo passo](recreio/operacao-backup-2026-11-20.md).
 Falta finalizar ambiente/credenciais, fila/reconciliação, custódia e agenda,
-upgrade privado após comparar o inventário (recusa real e perfil histórico em
-[qualificação](recreio/upgrade-privado-2026-11-20.md)), publicação seletiva somente do
+publicação seletiva somente do
 Recreio com identidade/finanças atuais e aceites operacionais/comerciais finais.
 
 **Provas reais recentes:** ensaio de 20/11 às 20h52 UTC restaurou conteúdo,
 estrutura e globais idênticos; serviço/temporários removidos, origem intacta,
 sem dump real no GitHub. [Backup](recreio/ensaio-backup-producao.md).
+Upgrade privado real a2e96c98 passou 204→244, valores/recibos preservados;
+origem intacta e serviço removido. [Prova](recreio/upgrade-privado-2026-11-20.md).
 Custo acumulado oficial e horas de posse medidos, com pool compartilhado
 separado; não custo marginal/capacidade sob carga ou fatura quitada.
 [Medição](recreio/custo-operacao-2026-11-20.md). Protocolo nativo 1/2/4/8 passou

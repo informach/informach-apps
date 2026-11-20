@@ -137,3 +137,15 @@ O dump real não foi enviado ao GitHub nem guardado no bucket de homologação.
 Este ensaio é lógico e transitório: não comprova custódia durável independente,
 restauração de agenda ou upgrade privado do schema antigo; duração exclui
 provisionamento/build e não define RPO/RTO contratual.
+
+
+## Upgrade privado comprovado em 20/11
+
+A captura real de 22:22:51 UTC foi restaurada, comparada e atualizada somente
+na cópia de 204 para 244 recibos, preservando os recibos históricos e os
+valores existentes conferidos. A origem continuou com 204 recibos e dois
+mundos/dez fotografias. Serviço/temporários removidos e ausência confirmada.
+A divergência histórica de dois SQLs foi explicada pelo Git, sem reescrever
+recibos ou reaplicar o DROP antigo. [Caminho e limites da prova](upgrade-privado-2026-11-20.md)
+e [recibo real](evidencias/upgrade-privado-producao-2026-11-20.json).
+Custódia cifrada durável, agenda e recuperação completa F7/F8 ainda pendentes.

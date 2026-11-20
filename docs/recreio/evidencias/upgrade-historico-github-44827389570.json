@@ -1,0 +1,108 @@
+{
+  "source": "a2e96c98ef9bdba3d125722bc279fbeeb1b0a66f",
+  "runId": "44827389570",
+  "runUrl": "https://github.com/informach/informach-apps/actions/runs/44827389570",
+  "status": "passed",
+  "syntheticDataOnly": true,
+  "productionDataTouched": false,
+  "profiles": [
+    {
+      "originUser": "ci",
+      "artifact": {
+        "id": 14675440539,
+        "zipBytes": 1014,
+        "zipSha256": "3f93b602320df7a5acc656895c21b4ffdbb091d836e0cdcbaf17ad6a8c6771c6"
+      },
+      "positive": {
+        "operacao": "7c46e3ab-56b4-46e6-9b5e-c617479e1727",
+        "ok": true,
+        "snapshotEm": "2026-11-20 22:18:14.556749+00",
+        "backupMs": 154,
+        "restauracaoMs": 2202,
+        "bytes": 1402123,
+        "tabelas": 227,
+        "linhas": 236,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 1,
+        "participacoesEmPapeis": 3,
+        "upgradePrivadoExecutado": true,
+        "receiptsBefore": 204,
+        "receiptsAfter": 244,
+        "migrationsApplied": 40,
+        "timestampsAndHashesVerified": true,
+        "historyProfile": "informach-historical-sql-2026-11-20",
+        "historicalReceiptVariantsVerified": 2,
+        "originalMigrationReceiptsPreserved": true,
+        "inventoryComparedBeforeUpgrade": true,
+        "originalRecreioColumnValuesPreserved": true,
+        "unrelatedTableDataPreserved": true,
+        "globalsPreserved": true,
+        "tablesBefore": 227,
+        "tablesAfter": 256,
+        "sourceDatabaseMutated": false,
+        "trafficAuthorized": false,
+        "temporariosRemovidos": true,
+        "totalMs": 2589
+      },
+      "unknownHashRefusal": {
+        "operacao": "d64bbb03-8413-4436-8f77-393a0b7a7323",
+        "ok": false,
+        "fase": "upgrade_copia_privada",
+        "codigo": "UPGRADE_HISTORY_INCONSISTENT",
+        "temporariosRemovidos": true
+      }
+    },
+    {
+      "originUser": "postgres",
+      "artifact": {
+        "id": 14674882195,
+        "zipBytes": 1013,
+        "zipSha256": "6eceb5ca51b874719f8cdb3374d4e99f62bae34f805d8fc529af6ec7f3589432"
+      },
+      "positive": {
+        "operacao": "761aa4ad-7a87-4d47-bb68-93e58ef5240c",
+        "ok": true,
+        "snapshotEm": "2026-11-20 22:18:55.55225+00",
+        "backupMs": 204,
+        "restauracaoMs": 3966,
+        "bytes": 1435272,
+        "tabelas": 229,
+        "linhas": 236,
+        "versao": 180006,
+        "conteudoIdentico": true,
+        "estruturaIdentica": true,
+        "globaisIdenticos": true,
+        "papeis": 1,
+        "participacoesEmPapeis": 3,
+        "upgradePrivadoExecutado": true,
+        "receiptsBefore": 204,
+        "receiptsAfter": 244,
+        "migrationsApplied": 40,
+        "timestampsAndHashesVerified": true,
+        "historyProfile": "informach-historical-sql-2026-11-20",
+        "historicalReceiptVariantsVerified": 0,
+        "originalMigrationReceiptsPreserved": true,
+        "inventoryComparedBeforeUpgrade": true,
+        "originalRecreioColumnValuesPreserved": true,
+        "unrelatedTableDataPreserved": true,
+        "globalsPreserved": true,
+        "tablesBefore": 229,
+        "tablesAfter": 258,
+        "sourceDatabaseMutated": false,
+        "trafficAuthorized": false,
+        "temporariosRemovidos": true,
+        "totalMs": 4477
+      },
+      "unknownHashRefusal": {
+        "operacao": "530c6055-318d-40ac-a62c-a5adc45bacd5",
+        "ok": false,
+        "fase": "upgrade_copia_privada",
+        "codigo": "UPGRADE_HISTORY_INCONSISTENT",
+        "temporariosRemovidos": true
+      }
+    }
+  ]
+}

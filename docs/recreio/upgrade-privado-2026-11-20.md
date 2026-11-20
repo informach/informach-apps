@@ -48,3 +48,26 @@ Depois dos gates, repetir a captura real somente leitura e o upgrade privado
 no Railway. Essa prova não autoriza publicação seletiva, reabertura de tráfego,
 liquidação financeira, migração original ou encerramento real de contas.
 F7/F8 operacionais completos continuam nos critérios de fechamento.
+
+
+## Prova concluída na cópia real
+
+O perfil a2e96c98 passou os contratos e as duas origens no GitHub
+44827389570, com qualidade 44827394219. [Recibo sintético](evidencias/upgrade-historico-github-44827389570.json).
+A repetição Railway 32a42085-b088-4f99-bb93-9a955b07c221 concluiu às
+22:23:10 UTC: captura de 20.057.030 bytes, 265 tabelas/297.431 linhas;
+cópia de 204 para 244 recibos, 40 migrações e 294 tabelas finais.
+Os dois recibos históricos e todas as demais linhas originais da cadeia
+foram preservados. Valores antigos do Recreio, tabelas alheias e globais
+continuaram idênticos nas verificações aplicáveis.
+
+Total de 18.804 ms; backup 2.501 ms e ciclo privado com restauração/upgrade/
+conferências 10.540 ms. Não inclui provisionamento/build nem define RPO/RTO.
+Temporários e serviço removidos; ausência verificada, 38 serviços/quatro
+volumes/um bucket, nenhum staged. Depois, consulta somente leitura confirmou
+204 recibos/dois mundos/dez fotos na origem e ausência da tabela nova.
+Deployments de portal/Morada/PostgreSQL permaneceram iguais.
+[Recibo real sanitizado](evidencias/upgrade-privado-producao-2026-11-20.json).
+Não houve dump real no GitHub ou bucket de homologação, migração da origem
+ou publicação de dados recuperados. As etapas operacionais F7/F8 restantes
+não são substituídas por esta prova de atualização privada.
