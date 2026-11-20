@@ -16,6 +16,7 @@ export const FalhaDaRecuperacaoSchema = z.strictObject({
     "RECUSAR_CORRUPCAO",
     "REPETIR",
     "CAPACIDADES",
+    "FONTES_HISTORICAS",
     "LIMPEZA",
   ]),
   codigo: z.enum([

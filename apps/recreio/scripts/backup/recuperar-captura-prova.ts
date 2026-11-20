@@ -19,6 +19,7 @@ import { criarArmazenamentoDoIndiceS3 } from "./indice-s3";
 import { conferirInventarios, FalhaDeInventario, inventariarBackup } from "./inventario";
 import { FalhaDaNormalizacao, normalizarFotografiasRestauradas } from "./normalizar-fotografias";
 import { provarCapacidadesRecuperadas } from "./provar-capacidades-recuperadas";
+import { provarFontesHistoricasRecuperadas } from "./provar-fontes-historicas";
 import { exigir, FalhaDaProva, limparDiretorioDeProva } from "./provas-arquivos";
 
 const variavel = (nome: string) => {
@@ -172,6 +173,7 @@ async function main() {
     resultado: unknown,
     normalizacao: Awaited<ReturnType<typeof normalizarFotografiasRestauradas>> | undefined,
     capacidades: Awaited<ReturnType<typeof provarCapacidadesRecuperadas>> | undefined,
+    fontesHistoricas: Awaited<ReturnType<typeof provarFontesHistoricasRecuperadas>> | undefined,
     falha = false,
     codigoDaFalha: CodigoDaRecuperacao = "EXECUTOR",
     etapa: EtapaDaRecuperacao = "LEITURA";
@@ -366,12 +368,18 @@ async function main() {
           ligadas = normalizacao.vinculosConferidos;
           etapa = "CAPACIDADES";
           capacidades = await provarCapacidadesRecuperadas(copia);
+          etapa = "FONTES_HISTORICAS";
+          fontesHistoricas = await provarFontesHistoricasRecuperadas(
+            copia,
+            fria.publicacao.composto.sha256,
+          );
         } finally {
           await inspecao?.end({ timeout: 5 });
         }
       });
       exigir(normalizacao, "NORMALIZACAO_AUSENTE");
       exigir(capacidades, "CAPACIDADES_SINTETICAS_AUSENTES");
+      exigir(fontesHistoricas, "CAPACIDADES_SINTETICAS_AUSENTES");
       clusterLimpo = prova.temporariosRemovidos;
       exigir(leituras >= 3, "LEITURAS_DO_BACKUP_INCOMPLETAS");
       resultado = {
@@ -402,6 +410,7 @@ async function main() {
         normalizedCorruptionRefused: true,
         manifestMismatchRefused: true,
         ...capacidades,
+        ...fontesHistoricas,
         authoritiesNormalizedForTraffic: false,
         productionDataTouched: false,
       };

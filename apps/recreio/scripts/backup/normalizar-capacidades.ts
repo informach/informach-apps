@@ -94,7 +94,24 @@ export async function normalizarCapacidadesRestauradas(copia: postgres.Sql) {
       finished_at=greatest(statement_timestamp(),created_at) where state='pending'`);
     await tx.unsafe(`update recreio.space_stewardship_requests set state='revoked',
       completed_at=greatest(statement_timestamp(),created_at) where state='pending'`);
-    const [convites] = await tx.unsafe<{ quantidade: number }[]>(`select (
+    await tx.unsafe(`update recreio.personal_exports set state='revoked',
+      encrypted_bytes=null,reference=null,cleared_at=greatest(statement_timestamp(),created_at)
+      where state='ready'`);
+    const { convites, restantes } = await conferirCapacidadesRestauradas(tx);
+    return {
+      temporaryCapabilitiesRemaining: restantes.quantidade,
+      temporaryCapabilitiesRevoked: true as const,
+      invitationCapabilitiesRemaining: convites.quantidade,
+      pendingInvitationsRevoked: true as const,
+      authoritiesNormalizedForTraffic: false as const,
+    };
+  });
+}
+
+/** Read-only prerequisite shared by normalization and the offline importer.
+ * Zero ephemeral capabilities does not prove current identity or F7 effects. */
+export async function conferirCapacidadesRestauradas(tx: Pick<postgres.Sql, "unsafe">) {
+  const [convites] = await tx.unsafe<{ quantidade: number }[]>(`select (
       (select count(*) from recreio.friend_codes where consumed_at is null and revoked_at is null)+
       (select count(*) from recreio.friend_requests where state='pending')+
       (select count(*) from recreio.group_invites where state='pending')+
@@ -103,11 +120,8 @@ export async function normalizarCapacidadesRestauradas(copia: postgres.Sql) {
       (select count(*) from recreio.space_visit_invites where state='pending')+
       (select count(*) from recreio.space_stewardship_requests where state='pending')
     )::int as quantidade`);
-    if (convites?.quantidade !== 0) throw new FalhaDaNormalizacao("INTEGRIDADE");
-    await tx.unsafe(`update recreio.personal_exports set state='revoked',
-      encrypted_bytes=null,reference=null,cleared_at=greatest(statement_timestamp(),created_at)
-      where state='ready'`);
-    const [restantes] = await tx.unsafe<{ quantidade: number }[]>(`select (
+  if (convites?.quantidade !== 0) throw new FalhaDaNormalizacao("INTEGRIDADE");
+  const [restantes] = await tx.unsafe<{ quantidade: number }[]>(`select (
       (select count(*) from recreio.device_sessions where revoked_at is null)+
       (select count(*) from recreio.paired_credentials where token_hash is not null)+
       (select count(*) from recreio.pairing_requests)+
@@ -122,13 +136,6 @@ export async function normalizarCapacidadesRestauradas(copia: postgres.Sql) {
       (select count(*) from recreio.world_visit_sessions where closed_at is null)+
       (select count(*) from recreio.personal_exports where state='ready' or encrypted_bytes is not null or reference is not null)
     )::int as quantidade`);
-    if (restantes?.quantidade !== 0) throw new FalhaDaNormalizacao("INTEGRIDADE");
-    return {
-      temporaryCapabilitiesRemaining: restantes.quantidade,
-      temporaryCapabilitiesRevoked: true as const,
-      invitationCapabilitiesRemaining: convites.quantidade,
-      pendingInvitationsRevoked: true as const,
-      authoritiesNormalizedForTraffic: false as const,
-    };
-  });
+  if (restantes?.quantidade !== 0) throw new FalhaDaNormalizacao("INTEGRIDADE");
+  return { convites, restantes };
 }

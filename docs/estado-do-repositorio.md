@@ -1,5 +1,11 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, fonte histórica qualificada:** 464368eb passou direitos
+44775278155, qualidade 44775284648 e conciliação 44775290564. Importador privado
+com preflight integral e prova em cluster frio está na próxima candidata; não
+cria operação/conta ou libera efeitos e tráfego.
+[Detalhes](recreio/reaplicacao-nativa-2026-11-20.md).
+
 
 ## Recreio — carga nativa e origem de recuperação, 20/11
 

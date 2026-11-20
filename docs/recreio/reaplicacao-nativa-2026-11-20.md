@@ -92,4 +92,31 @@ anterior. Sem DML/backfill: operações existentes conservam a origem nativa,
 com nova coluna nula. O journal mantém as 242 entradas anteriores, 243 no total.
 SQL/snapshot/journal/ZIP conferidos no
 [recibo](evidencias/migracao-origem-recuperada-44774522635.json).
-Testes PostgreSQL, fonte sem identidade, upgrade e qualidade ainda pendentes.
+Fonte 464368eb passou direitos 44775278155, qualidade 44775284648 e
+conciliação 44775290564. PostgreSQL confirmou as recusas de origem e o upgrade;
+essa prova continua sem executar efeitos offline.
+
+
+## Importação privada em qualificação
+
+O importador de fontes usa exclusivamente o cliente do cluster restaurado.
+Antes de ler o livro, verifica o destino privado e a ausência das vinte fontes
+de capacidades temporárias. Exige livro congelado, próxima chave distinta e
+não utilizada, captura/fonte fixadas e seleção completa. A cerca observada é
+exigida também no preflight de todos os planos, antes da primeira escrita.
+Revisões repetidas da mesma operação são recusadas explicitamente: o schema
+atual conserva uma decisão imutável por operação, sem colapsar revisões.
+
+Importações são limitadas, transacionais por decisão e idempotentes: repetição
+compara captura, fonte, chave, plano e mapa inteiro, conserva a primeira data
+e recusa divergência sem substituir os dados. Interrupção deixa a execução
+em `replaying`. Esta etapa não cria operação nativa, identidade, consentimento,
+efeito financeiro, direito ou liberação de tráfego.
+
+A prova preparada restaura o backup real sintético em PostgreSQL 18.6 privado
+e usa o SDK S3/HTTP fechado com MACs reais para as fontes históricas. Verifica
+plano final ausente antes de qualquer gravação, mundo presente/ausente, conta
+ausente, repetição com datas originais, captura divergente, mapa adulterado
+sem sobrescrita e limpeza exata pelo inventário completo. É prova de armazenamento
+e proveniência; não comprova consentimento do adulto ou reaplicação dos efeitos.
+Os novos gates ainda precisam executar.

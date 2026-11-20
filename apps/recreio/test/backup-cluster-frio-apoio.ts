@@ -41,6 +41,12 @@ const Recibo = z.strictObject({
   invitationHistoryPreserved: z.literal(true),
   originalInvitationDeadlinesPreserved: z.literal(true),
   permanentTablesPreserved: z.literal(true),
+  historicalSourcesImportedInPrivateCluster: z.literal(true),
+  historicalSourcePreflightVerified: z.literal(true),
+  historicalSourceIdempotenceVerified: z.literal(true),
+  historicalSourceDivergenceRefused: z.literal(true),
+  historicalSourceFixturesCleaned: z.literal(true),
+  historicalSourceEffectsExecuted: z.literal(false),
   authoritiesNormalizedForTraffic: z.literal(false),
   productionDataTouched: z.literal(false),
 });

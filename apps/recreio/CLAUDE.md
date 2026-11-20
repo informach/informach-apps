@@ -401,3 +401,12 @@ habilitação após liberar os pedidos; não trocar essa prova por espera fixa.
 O portal continua só declarando `RECREIO_GAME_ORIGINS.morada.assets`; o jogo baixa a arte autenticada diretamente do servidor dele. Quando há origem de arte válida, `connect-src` também aceita `blob:`: o `GLTFLoader/ImageBitmapLoader` faz `fetch` das texturas embutidas. Outras páginas e jogos sem origem de arte continuam com a política anterior.
 
 O runner isolado aceita `RECREIO_E2E_ARTE_DIR=<pasta externa com manifest.json>`. Ele declara a origem HTTP da arte, entrega a pasta ao servidor do Morada e cria a pasta de evidências fora do checkout. Capturas manuais, screenshots automáticos e traces seguem para lá; o CI padrão continua sem arte. A rede fictícia de cada conta de teste (`x-real-ip`) só é aplicada à origem do portal, nunca à origem da arte. A jornada com arte confere os modelos e acabamentos carregados, as portas/janelas e a CSP, além de repetir as quedas.
+
+
+Importação offline de fontes históricas: `scripts/backup/importar-fontes-direitos`
+recebe apenas o cliente do cluster privado já restaurado/conferido/normalizado;
+recusa o banco comum antes de qualquer leitura externa. Prefixo/plano inteiros e
+cerca congelada são conferidos antes da primeira escrita. Repetição compara,
+nunca sobrescreve plano, mapa, captura ou datas. É preparação de proveniência,
+sem criar operação, conta, consentimento ou permissão de efeitos/tráfego.
+Gates deste incremento ainda pendentes; [sequência](../../docs/recreio/reaplicacao-nativa-2026-11-20.md).

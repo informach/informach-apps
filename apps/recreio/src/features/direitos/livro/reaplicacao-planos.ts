@@ -15,6 +15,7 @@ export async function reaplicarPlanosConsentidos(config: {
   maxEntradas: number;
   maxBytesPlanos: number;
   tempoLimiteMs: number;
+  cercaSha256?: string;
   signal?: AbortSignal;
   aplicar: (
     intencao: IntencaoDeDireitos,
@@ -39,6 +40,7 @@ export async function reaplicarPlanosConsentidos(config: {
     maxEntradas: config.maxEntradas,
     tempoLimiteMs: config.tempoLimiteMs,
     signal,
+    cercaSha256: config.cercaSha256,
     aplicar: async (i, c) => {
       const plano = await config.storage.lerPlano(i.planoSha256, c.signal);
       conferirEscopoDoPlanoExterno(i, plano);

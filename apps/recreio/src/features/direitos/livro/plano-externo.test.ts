@@ -231,6 +231,24 @@ describe("plano privado endereçado pelo SHA da intenção", () => {
       ).rejects.toMatchObject({ codigo: "AUSENTE" });
       expect(efeitos).toEqual([]);
     }));
+  it("cerca diferente da admitida recusa todos os efeitos antes da importação", async () =>
+    cenario(async (f) => {
+      await congelarComPlanos(f);
+      const efeitos: string[] = [];
+      await expect(
+        reaplicarPlanosConsentidos({
+          storage: f.storage,
+          maxEntradas: 10,
+          maxBytesPlanos: 4096,
+          tempoLimiteMs: 5000,
+          cercaSha256: "0".repeat(64),
+          aplicar: async (i) => {
+            efeitos.push(i.operacaoId);
+          },
+        }),
+      ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+      expect(efeitos).toEqual([]);
+    }));
   it("orçamento insuficiente recusa antes do consumidor sem truncar a seleção", async () =>
     cenario(async (f) => {
       await congelarComPlanos(f);

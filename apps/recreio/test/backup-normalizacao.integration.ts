@@ -5,6 +5,7 @@ import {
 } from "@informach/db/schema";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
+import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import {
   admitirColeta,
   confirmarColeta,
@@ -12,10 +13,13 @@ import {
 } from "@/features/objetos/coleta-repository";
 import { reservarEntregaDaFotografia } from "@/features/objetos/entregas-repository";
 import { codigoDoPostgres } from "@/lib/repository";
+import { importarFontesHistoricasDeDireitos } from "../scripts/backup/importar-fontes-direitos";
 import { normalizarCapacidadesRestauradas } from "../scripts/backup/normalizar-capacidades";
 import { exigirBancoPrivadoDeRecuperacao } from "../scripts/backup/normalizar-fotografias";
 import { conexao } from "./backup-arquivos-apoio";
 import { fixture } from "./backup-publicacao-apoio";
+import { fixtureDoLivro } from "./livro-apoio";
+import { criarBucketDoLivro } from "./livro-s3-apoio";
 
 const limpezas: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -42,6 +46,32 @@ describe("normalização: recusas/quarentena em PostgreSQL real; sem liberar tr�
     await expect(normalizarCapacidadesRestauradas(origem)).rejects.toMatchObject({
       codigo: "DESTINO_NAO_PRIVADO",
     });
+    const livro = fixtureDoLivro(),
+      http = await criarBucketDoLivro();
+    try {
+      const storage = criarArmazenamentoDoLivro({
+        cliente: http.cliente,
+        bucket: "recreio-fixture",
+        assinatura: livro.assinatura,
+        tempoLimiteMs: 2000,
+      });
+      await expect(
+        importarFontesHistoricasDeDireitos({
+          copia: origem,
+          storage,
+          assinatura: livro.assinatura,
+          capturaSha256: "a".repeat(64),
+          fonte: "b".repeat(40),
+          maxEntradas: 10,
+          maxBytesPlanos: 65536,
+          tempoLimiteMs: 5000,
+        }),
+      ).rejects.toMatchObject({ codigo: "DESTINO_NAO_PRIVADO" });
+      expect(http.pedidos).toEqual([]);
+    } finally {
+      livro.encerrar();
+      await http.fechar();
+    }
   });
   it("quarentena impede tokens antigos, nova entrega e coleta", async () => {
     const f = await recibo();
