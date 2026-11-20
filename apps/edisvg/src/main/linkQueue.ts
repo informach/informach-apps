@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
+import { rename, rm } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import type { LinkedAnimation } from "@informach/edi-link/contract";
@@ -38,8 +39,12 @@ export interface QueueItem {
 }
 
 export interface LinkQueueOptions {
-  /** The queue's file in the profile. */
+  /** The queue's file in the profile (each window has its own, instances.ts). */
   file: string;
+  /** The queue files of windows that closed without rendering all: their items come here. */
+  orphans?: () => string[];
+  rename?: (from: string, to: string) => Promise<void>;
+  remove?: (path: string) => Promise<void>;
   read?: (path: string) => Promise<string>;
   write?: (path: string, text: string) => Promise<void>;
   exists?: (path: string) => boolean;
@@ -56,6 +61,9 @@ export function createLinkQueue({
   exists = existsSync,
   links = linkedAnimations,
   now = Date.now,
+  orphans = () => [],
+  rename: move = rename,
+  remove = (path) => rm(path, { force: true }),
 }: LinkQueueOptions) {
   let items: StoredItem[] = [];
   /** The project id each loaded item had in its file: renders write under it. */
@@ -79,16 +87,35 @@ export function createLinkQueue({
   return {
     /** Reads the queue left by the last session; an unreadable file starts an empty queue. */
     async init(): Promise<void> {
-      if (!exists(file)) return;
-      try {
-        items = storedSchema.parse(parseJsonText(await read(file))).items;
-      } catch (error) {
-        console.warn(
-          "[edisvg] fila de renders ilegível; começa vazia:",
-          error instanceof Error ? error.message : error,
-        );
-        items = [];
+      const readQueue = async (path: string): Promise<StoredItem[]> => {
+        try {
+          return storedSchema.parse(parseJsonText(await read(path))).items;
+        } catch (error) {
+          console.warn(
+            "[edisvg] fila de renders ilegível; começa vazia:",
+            error instanceof Error ? error.message : error,
+          );
+          return [];
+        }
+      };
+      if (exists(file)) items = await readQueue(file);
+      // A closed window's queue: renamed first (one window adopts it), then its items join.
+      let adopted = false;
+      for (const orphan of orphans()) {
+        const taken = `${orphan}.${randomUUID()}.adotada`;
+        try {
+          await move(orphan, taken);
+        } catch {
+          continue;
+        }
+        for (const item of await readQueue(taken))
+          if (items.length < MAX_ITEMS && !items.some((i) => samePath(i.path, item.path))) {
+            items = [...items, item];
+            adopted = true;
+          }
+        await remove(taken).catch(() => undefined);
       }
+      if (adopted) await persist();
     },
     view(): QueueItem[] {
       return items.map(({ id, name }) => ({ id, name }));

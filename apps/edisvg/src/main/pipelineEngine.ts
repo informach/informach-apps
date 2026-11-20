@@ -50,6 +50,15 @@ let engine: ReturnType<typeof build> | null = null;
 
 /** The running jobs of the pipelines: Cancelar aborts the signal every step of the job hears. */
 const jobs = new Map<string, AbortController>();
+
+/**
+ * This EdiSVG window's number (instances.ts): the folders a run fills and empties are its own,
+ * so the runs of several windows never take each other's files. Window 1 keeps the old names.
+ */
+let windowSuffix = "";
+export function setPipelineWindow(slot: number): void {
+  windowSuffix = slot > 1 ? `-janela-${slot}` : "";
+}
 function jobSignal(jobId: string): AbortSignal {
   const control = new AbortController();
   jobs.get(jobId)?.abort();
@@ -173,7 +182,11 @@ async function lessonOf(token: unknown, signal: AbortSignal): Promise<string> {
   }
   let lesson = lessons.get(key);
   if (!lesson) {
-    const made = unpackLesson(zip, join(app.getPath("userData"), "pipeline-lessons"), signal);
+    const made = unpackLesson(
+      zip,
+      join(app.getPath("userData"), `pipeline-lessons${windowSuffix}`),
+      signal,
+    );
     lessons.set(key, made);
     made.catch(() => {
       if (lessons.get(key) === made) lessons.delete(key);
@@ -348,7 +361,7 @@ export async function pipelineLessonVideo(
     const lesson = await lessonOf(token, signal);
     const start = Math.max(0, from);
     const screen = await lessonScreen(lesson, start, to);
-    const dir = join(app.getPath("temp"), "edisvg-lesson-screen");
+    const dir = join(app.getPath("temp"), `edisvg-lesson-screen${windowSuffix}`);
     // What an earlier session left behind (closed in the middle of a run) goes first.
     if (!stretchDirClean) {
       await rm(dir, { recursive: true, force: true });

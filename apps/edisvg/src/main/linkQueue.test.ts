@@ -122,3 +122,39 @@ test("an unreadable queue file starts an empty queue, and a bad stored path is r
     await f.done();
   }
 });
+
+test("each window has its queue; one that closed with renders left gives them to the next window", async () => {
+  const f = await fixture();
+  try {
+    const closed = join(f.folder, "fila-de-renders-janela-2.json");
+    const left = createLinkQueue({ file: closed, links: f.links });
+    await left.init();
+    await left.add(f.aula1.path);
+    await left.add(f.aula2.path);
+    // Window 1 had queued Aula 2 too: it stays once.
+    const queue = createLinkQueue({ file: f.file, links: f.links });
+    await queue.init();
+    await queue.add(f.aula2.path);
+    const adopting = createLinkQueue({ file: f.file, links: f.links, orphans: () => [closed] });
+    await adopting.init();
+    assert.deepEqual(
+      adopting.view().map((i) => i.name),
+      ["Aula 2", "Aula 1"],
+    );
+    // Adopted: the closed window's file is gone, and the queue kept for the next opening.
+    await assert.rejects(readFile(closed, "utf8"));
+    const again = createLinkQueue({ file: f.file, links: f.links });
+    await again.init();
+    assert.equal(again.view().length, 2);
+    // Another window adopting at the same time gets nothing twice.
+    const late = createLinkQueue({
+      file: join(f.folder, "fila-de-renders-janela-3.json"),
+      links: f.links,
+      orphans: () => [closed],
+    });
+    await late.init();
+    assert.deepEqual(late.view(), []);
+  } finally {
+    await f.done();
+  }
+});

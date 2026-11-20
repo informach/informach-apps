@@ -602,6 +602,36 @@ Em 19/11, a pedido do titular, os pipelines do EdiSVG ganharam a terceira receit
 
 Ainda em 19/11, a pedido do titular, a receita passou a seguir a primeira aula feita com ela, que ele ajustou com a assistente até ficar como queria ("Transformando o vilão em aliado", aula 1, parte 1, `Parte1.edisvg`). O padrão foi lido do projeto salvo e das conversas de ajuste. Os planos são só médio (escala 1,8) e médio curto (2,3): sempre de um lado, nunca no centro, com o topo do vídeo no topo da tela; o lado troca com o assunto, e dois cortes seguidos do mesmo lado trocam o plano. O pipeline monta o palco (`addPresenterStage`): o espaço dela; o "Fundo" na tinta da paleta; a luz radial do destaque atrás dela, que acompanha os cortes; e as guias x 84/960/1836 e y 92/1008. O rascunho recebe, por corte, a coluna do conteúdo (x 84–960 ou 960–1836, centrada em x 522 ou 1398 e em y 550) e as regras aprovadas: bloco centralizado sem regra dos terços, um momento por vez, grupos por frase e corte, largura estimada do texto, folga dentro das formas, nada por cima de texto, listas de até 3 itens, peças da frente por último e stroke `none` explícito, contra o contorno verde-água que o EdiSVG põe em caminhos novos. O estilo da receita pronta descreve o visual da aula (fundo, brilhos, textura, estrelinhas, tipografia e curvas de entrada), com a paleta do guia dela como padrão. Verificação: typecheck (o mesmo erro anterior de `project-close.test.ts`), Biome, 403 testes unitários e os 6 e2e de pipelines. **Ainda não testado:** uma aula nova rodada com o Claude Code de verdade para comparar com a aprovada.
 
+Em 20/11, a pedido do titular, o EdiSVG passou a abrir várias janelas ao mesmo tempo, até 8 (Arquivo › Nova janela). O objetivo é editar várias aulas, rodar os pipelines e exportar em paralelo. Cada janela é um processo próprio sobre o mesmo perfil; detalhes na seção "Várias janelas" do [README](../apps/edisvg/README.md).
+- **Projeto:** um projeto fica aberto em uma janela só.
+- **Pedidos do EdiAula:** vão para a janela do projeto; senão, para uma janela vazia; senão, para uma janela nova (decisão do titular). O EdiAula não mudou.
+- **O que é de cada janela:**
+  - a recuperação;
+  - a fila de renders, adotada por outra janela quando a dona cai;
+  - o perfil do navegador, com o `Local State` da janela 1 para a licença abrir;
+  - a porta do MCP: a janela 1 fica com a 47322 de antes, e as outras usam uma porta do sistema;
+  - as pastas temporárias do pipeline.
+- **Arquivos dos renders:** o manifesto `vinculos.json` ganhou uma trava entre processos.
+- **`packages/edi-desktop` (opção nova `instance`):**
+  - a trava de runtime é por janela;
+  - o instalador do Hub espera todas as janelas;
+  - só a janela 1 atualiza.
+- **`edi:work`:** mantém a licença até a última janela fechar.
+
+Verificação:
+- **Testes:** 421 testes do EdiSVG (registro, distribuição dos pedidos, adoção da fila, trava do manifesto entre duas cópias do módulo, recusa de projeto de outra janela) e 168 do `edi-desktop`, com o instalador recusando enquanto uma janela 2 está aberta.
+- **Typecheck e build:** typecheck dos dois e dos scripts, Biome, build e os 158 e2e do EdiSVG.
+- **App real (harness nativo, perfil descartável):**
+  - a Nova janela abre licenciada e com MCP próprio;
+  - três pedidos do EdiAula foram cada um para uma janela, e o terceiro abriu a janela 3;
+  - um novo pedido de uma aula já aberta foi para a janela dela;
+  - com a janela 1 encerrada à força, as outras continuaram.
+
+**Ainda não testado:**
+- dois pipelines rodando de verdade com o Claude Code ao mesmo tempo;
+- o `edi:work` esperando as outras janelas;
+- o app instalado (atualização com várias janelas).
+
 Verificação de 12/11: suíte do EdiAula (1179 testes) e do EdiSVG (380 testes, com `styleGuide.test.ts`), typecheck e Biome dos dois, build do EdiSVG e os e2e do assistente, dos pipelines e do kit de design (7). As peças do kit foram desenhadas num Chromium e comparadas com o guia. **Ainda não testado:** as janelas do EdiAula e do EdiSVG com uma aula real (ouvir no diálogo do cursor, inserir o kit num projeto com as fontes do bundle).
 
 A revisão completa do diff, antes do commit de 09/11, achou 10 problemas, todos corrigidos:

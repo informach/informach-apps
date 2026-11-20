@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -32,6 +33,18 @@ import {
   libraryFonts,
   withDefaultFonts,
 } from "./fontLibrary.ts";
+import {
+  askToFront,
+  claimSlot,
+  createWindowRegister,
+  liveWindows,
+  MAX_WINDOWS,
+  ownerOf,
+  REQUEST_FLAG,
+  requestArgument,
+  windowArguments,
+  windowsFolder,
+} from "./instances.ts";
 import { createLinkQueue } from "./linkQueue.ts";
 import {
   cancelRender,
@@ -43,7 +56,7 @@ import {
   startRender,
   stopRenders,
 } from "./linkRender.ts";
-import { createLinkInbox } from "./linkRequests.ts";
+import { createLinkInbox, onlyNudged } from "./linkRequests.ts";
 import { startMcpServer } from "./mcpServer.js";
 import { createMediaUploads } from "./mediaUpload";
 import {
@@ -58,6 +71,7 @@ import {
   pipelineVideoFrames,
   pipelineVideoPreview,
   pipelineWords,
+  setPipelineWindow,
 } from "./pipelineEngine.ts";
 import { pipelineFont, pipelineFonts } from "./pipelineFonts.ts";
 import {
@@ -100,20 +114,6 @@ if (!app.isPackaged && process.env.EDISVG_USER_DATA)
   app.setPath("userData", process.env.EDISVG_USER_DATA);
 app.setAppUserModelId("br.com.informach.edisvg");
 const here = fileURLToPath(new URL(".", import.meta.url));
-const desktop = createEdiDesktop({
-  appId: "edisvg",
-  projectFileMode: "native-dialog",
-  preloadPath: join(here, "../preload/edi-gate.cjs"),
-  rendererRoot: join(here, "../renderer"),
-  getRecoveryWindow: () => win,
-  recoveryChannels: [
-    "project:initialize",
-    "project:changed",
-    "project:save",
-    "ai:stop",
-    "ai:result",
-  ],
-});
 let win,
   mcp,
   runner,
@@ -138,6 +138,82 @@ const rendererFile = join(here, "../renderer/index.html");
 const rendererUrl =
   (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) || pathToFileURL(rendererFile).href;
 const smokeMode = !app.isPackaged && process.argv.includes("--smoke-test");
+
+/*
+ * Several windows at once, each its own process (instances.ts): one lesson per window, with its
+ * pipeline, its assistant and its exports going beside the others'. Each takes a number from
+ * the register in the profile before the app is ready, since its browser profile (localStorage)
+ * is its own from window 2 on. A project already open in another window brings that window
+ * forward instead of opening here.
+ */
+const windows = windowsFolder(app.getPath("userData"));
+const ownerWindow = pendingProject && !smokeMode ? ownerOf(windows, pendingProject) : null;
+if (ownerWindow) {
+  askToFront(windows, ownerWindow.slot);
+  process.exit(0);
+}
+const slot = claimSlot(windows);
+if (slot === null) {
+  dialog.showErrorBox(
+    "EdiSVG",
+    `Já há ${MAX_WINDOWS} janelas do EdiSVG abertas. Feche uma delas para abrir outra.`,
+  );
+  process.exit(0);
+}
+if (slot > 1) {
+  // Its own localStorage and cache (Chromium locks them for one process). The key the suite's
+  // protected session (the license) is sealed with lives in Chromium's "Local State": window 1's
+  // copy comes along, or the license would not open here.
+  const session = join(windows, `sessao-${slot}`);
+  mkdirSync(session, { recursive: true });
+  const localState = join(app.getPath("sessionData"), "Local State");
+  // Chromium writes it some seconds after the first window ever opens: a window opened right
+  // then waits for it (at most 20 s, before the app is ready).
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (let waited = 0; !existsSync(localState) && waited < 20_000; waited += 250)
+    Atomics.wait(pause, 0, 0, 250);
+  try {
+    copyFileSync(localState, join(session, "Local State"));
+  } catch (error) {
+    console.warn("[edisvg] Local State da janela 1:", error.message);
+  }
+  app.setPath("sessionData", session);
+}
+setPipelineWindow(slot);
+const register = createWindowRegister(windows, slot);
+/** The request of another tool this window was opened for (linkRequests.ts). */
+const openedFor = requestArgument(process.argv);
+/** The other windows open now. */
+const otherWindows = () => liveWindows(windows).filter((w) => w.slot !== slot);
+/** This window's file in the profile: window 1 keeps the name EdiSVG always had. */
+const ownFile = (name, extension) =>
+  slot === 1 ? `${name}.${extension}` : `${name}-janela-${slot}.${extension}`;
+/** Opens another EdiSVG window (Arquivo › Nova janela, or one for a request). */
+function openWindow(extra = []) {
+  const child = spawn(process.execPath, windowArguments(process.argv, extra), {
+    detached: true,
+    stdio: "ignore",
+    env: process.env,
+  });
+  child.on("error", (error) => dialog.showErrorBox("EdiSVG", error.message));
+  child.unref();
+}
+const desktop = createEdiDesktop({
+  appId: "edisvg",
+  projectFileMode: "native-dialog",
+  preloadPath: join(here, "../preload/edi-gate.cjs"),
+  rendererRoot: join(here, "../renderer"),
+  getRecoveryWindow: () => win,
+  recoveryChannels: [
+    "project:initialize",
+    "project:changed",
+    "project:save",
+    "ai:stop",
+    "ai:result",
+  ],
+  instance: slot,
+  otherInstancesOpen: () => otherWindows().length > 0,
+});
 function trusted(event) {
   if (
     !win ||
@@ -160,7 +236,29 @@ function folderFor(name) {
 function handle(name, callback) {
   ipcMain.handle(name, async (event, ...args) => {
     trusted(event);
-    return callback(...args);
+    try {
+      return await callback(...args);
+    } finally {
+      publishWindow();
+    }
+  });
+}
+/** Nothing in this window and nothing running: a request of another tool may take it. */
+const windowIdle = () =>
+  initialized &&
+  !initializing &&
+  !checkingClose &&
+  !!files &&
+  !files.isBusy() &&
+  !runner?.busy() &&
+  files.isEmpty();
+/** What this window has open, for the other windows (written only when it changed). */
+function publishWindow() {
+  const status = files?.status();
+  void register.publish({
+    path: status?.path ?? null,
+    dirty: status?.dirty ?? false,
+    idle: windowIdle(),
   });
 }
 function menu() {
@@ -169,6 +267,11 @@ function menu() {
       {
         label: "Arquivo",
         submenu: [
+          {
+            label: "Nova janela",
+            accelerator: "CmdOrCtrl+Shift+N",
+            click: () => openWindow(),
+          },
           {
             label: "Novo projeto",
             accelerator: "CmdOrCtrl+N",
@@ -331,474 +434,518 @@ async function createWindow() {
   else await win.loadFile(rendererFile);
   menu();
 }
-if (!app.requestSingleInstanceLock()) app.quit();
-else {
-  app.on("second-instance", (_event, argv) => {
-    bringToFront();
-    const project = projectArgument(argv);
-    if (project) {
-      pendingProject = project;
-      win?.webContents.send("link:waiting");
-    }
-  });
-  app
-    .whenReady()
-    .then(async () => {
-      await desktop.start();
-      await mkdir(app.getPath("userData"), { recursive: true });
-      const mcpUrl = localMcpUrl(MCP_PORT);
-      try {
-        mcp = await startMcpServer({
-          version: app.getVersion(),
-          // An edit asked by an AI app that may only read and propose waits for the person.
-          approve: dialogApproval({
-            appName: "EdiSVG",
-            scope: () => (win && !win.isDestroyed() ? "edisvg" : null),
-            show: (options) =>
-              win && !win.isDestroyed()
-                ? dialog.showMessageBox(win, options)
-                : dialog.showMessageBox(options),
-          }),
-          call: (name, input) =>
-            !initialized || files?.isBusy() || checkingClose
-              ? Promise.resolve({ ok: false, text: "Aguarde a operação de arquivo." })
-              : bridge.call(name, input),
-        });
-      } catch (error) {
-        mcpError = `MCP indisponível na porta ${MCP_PORT}: ${error.message}`;
-      }
-      runner = createEngineRunner(
-        join(app.getPath("userData"), "ai-workspace"),
-        mcpUrl,
-        (event) => {
-          if (win && !win.isDestroyed()) win.webContents.send("ai:event", event);
-        },
-        { allowElectronRuntime: !app.isPackaged },
-      );
-      handle("ai:status", async () => ({
-        clients: await Promise.all(
-          ["claude", "codex"].map(async (id) => ({
-            id,
-            installed: !!(await locateClient(providerClient(id))),
-          })),
-        ),
-        mcp: { ready: !!mcp, url: mcpUrl, error: mcpError },
-      }));
-      handle("ai:connect", async (client) => {
-        if (!["claude", "codex"].includes(client)) throw new Error("Cliente inválido.");
-        return connectClient({
-          id: providerClient(client),
-          port: MCP_PORT,
-          serverName: MCP_SERVER.name,
-        });
-      });
-      handle("ai:send", (request) => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        if (!mcp) throw new Error(mcpError);
-        return runner.send(request || {});
-      });
-      handle("ai:stop", () => runner.stop());
-      handle("ai:result", (id, result) => {
-        if (
-          typeof id !== "string" ||
-          typeof result?.ok !== "boolean" ||
-          typeof result?.text !== "string" ||
-          result.text.length > 1000000
-        )
-          throw new Error("Resposta inválida.");
-        bridge.result(id, result);
-      });
-      const recovery = createRecoveryStore(
-        join(app.getPath("userData"), "recovery-v1.json"),
-        parseProject,
-      );
-      const fontPreference = createFontPreference(
-        join(app.getPath("userData"), "fontes-padrao.json"),
-      );
-      /** A new project, born with the person's default fonts (Baloo 2 and Nunito until changed). */
-      const blankProject = async () =>
-        withDefaultFonts(newProject(), fontSource(), await fontPreference.read());
-      files = createProjectFiles({
-        blank: blankProject,
-        checkpoint: (project) => recovery.save(project),
-        onDiscard: () =>
-          win.webContents.executeJavaScript("localStorage.removeItem('edisvg-project')"),
-        chooseOpen: async () => {
-          const r = await dialog.showOpenDialog(win, {
-            defaultPath: files.status().path || app.getPath("documents"),
-            filters: [{ name: "Projeto EdiSVG", extensions: ["edisvg", "json"] }],
-            properties: ["openFile", "dontAddToRecent"],
-          });
-          return r.canceled ? null : r.filePaths[0];
-        },
-        chooseSave: async (current) => {
-          const r = await dialog.showSaveDialog(win, {
-            defaultPath: current || join(app.getPath("documents"), "Personagem.edisvg"),
-            filters: [{ name: "Projeto EdiSVG", extensions: ["edisvg"] }],
-            properties: ["dontAddToRecent"],
-          });
-          return r.canceled ? null : r.filePath;
-        },
-        confirm: async () => {
-          const r = await dialog.showMessageBox(win, {
-            type: "question",
-            message: "Salvar as alterações do projeto?",
-            detail: "Há alterações que ainda não foram gravadas em arquivo.",
-            buttons: ["Salvar", "Descartar", "Cancelar"],
-            defaultId: 0,
-            cancelId: 2,
-          });
-          return ["save", "discard", "cancel"][r.response];
-        },
-      });
-      handle("project:initialize", async (legacy) => {
-        if (initializing || files.isBusy() || runner.busy())
-          throw new Error("Aguarde a operação em andamento.");
-        initializing = true;
-        initialized = false;
-        try {
-          const stored = await recovery.load();
-          let project = stored.project;
-          if (!stored.exists && legacy !== null && legacy !== undefined) {
-            if (typeof legacy !== "string" || Buffer.byteLength(legacy, "utf8") > 8_000_000)
-              throw new Error("Cópia local inválida. Ela foi preservada.");
-            project = parseProject(JSON.parse(legacy));
-          }
-          if (project) {
-            const choice = await dialog.showMessageBox(win, {
-              type: "question",
-              message: "Há um projeto não salvo para recuperar.",
-              detail:
-                "Recuperar abre uma cópia sem substituir o arquivo original. Descartar remove somente esta cópia de recuperação.",
-              buttons: ["Recuperar", "Descartar cópia"],
-              defaultId: 0,
-              cancelId: 0,
-            });
-            if (choice.response === 1) {
-              await recovery.save(null);
-              project = null;
-            }
-          }
-          const result = await files.recover(project ?? (await blankProject()), {
-            persist: false,
-          });
-          initialized = true;
-          return { ...result, recovered: !!project };
-        } finally {
-          initializing = false;
-        }
-      });
-      handle("project:changed", (project) => {
-        if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
-        return files.changed(project);
-      });
-      handle("project:new", () => {
-        if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
-        if (runner.busy()) throw new Error("Interrompa a IA antes de criar um projeto.");
-        return files.new();
-      });
-      handle("project:close", () => {
-        if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
-        if (runner.busy()) throw new Error("Interrompa a IA antes de fechar o projeto.");
-        return files.close();
-      });
-      handle("svg:import", async () => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        const result = await dialog.showOpenDialog(win, {
-          defaultPath: app.getPath("documents"),
-          filters: [{ name: "SVG", extensions: ["svg"] }],
-          properties: ["openFile", "dontAddToRecent"],
-        });
-        if (result.canceled) return null;
-        const source = await readBoundedText(result.filePaths[0], SVG_BYTES);
-        return source;
-      });
-      handle("game:import", async () => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        const result = await dialog.showOpenDialog(win, {
-          defaultPath: folderFor("downloads"),
-          filters: [{ name: "Projeto do Estúdio (.szproject.json)", extensions: ["json"] }],
-          properties: ["openFile", "dontAddToRecent"],
-        });
-        if (result.canceled) return null;
-        const path = result.filePaths[0];
-        return {
-          source: await readBoundedText(path, SZPROJECT_BYTES),
-          name: basename(path),
-        };
-      });
-      // Another EdiSVG project, read (never opened) for its artboards to come into this one.
-      handle("boards:import", async () => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        const result = await dialog.showOpenDialog(win, {
-          defaultPath: files.status().path ? dirname(files.status().path) : folderFor("documents"),
-          filters: [{ name: "Projeto EdiSVG (.edisvg)", extensions: ["edisvg"] }],
-          properties: ["openFile", "dontAddToRecent"],
-        });
-        if (result.canceled) return null;
-        const path = result.filePaths[0];
-        const project = parseProject(parseJsonText(await readBoundedText(path, PROJECT_BYTES)));
-        return { name: basename(path, ".edisvg"), project };
-      });
-      // A kit is a ZIP someone made or sent: Downloads, like the other packages.
-      handle("kit:import", async () => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        const result = await dialog.showOpenDialog(win, {
-          defaultPath: folderFor("downloads"),
-          filters: [{ name: "Kit de design (.zip)", extensions: ["zip"] }],
-          properties: ["openFile", "dontAddToRecent"],
-        });
-        if (result.canceled) return null;
-        return readDesignKit(result.filePaths[0]);
-      });
-      handle("pipelines:read", async () => {
-        const store = await readRecipeStore(app.getPath("userData"));
-        // The guide pictures no recipe names any more go (a day after they were last chosen).
-        const named = new Set(
-          store.recipes.flatMap((r) => (r.guideImage ? [r.guideImage.id] : [])),
-        );
-        await pruneGuides(app.getPath("userData"), named).catch((error) =>
-          console.warn("[edisvg] Guias de estilo antigos:", error),
-        );
-        return store;
-      });
-      handle("pipeline:guide-save", (bytes, name) =>
-        saveGuide(app.getPath("userData"), bytes, name),
-      );
-      handle("pipeline:guide-read", (id) => readGuide(app.getPath("userData"), id));
-      handle("pipeline:guide-style", (id) => readGuideStyle(app.getPath("userData"), id));
-      handle("pipeline:guide-style-save", (id, style) =>
-        saveGuideStyle(app.getPath("userData"), id, style),
-      );
-      handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
-      // The lesson comes as a package someone sent (a ZIP): Downloads, like the other files.
-      handle("pipeline:pick", (kind) => pickPipelineFile(win, kind, folderFor("downloads")));
-      handle("pipeline:read-project", (token) => readPickedProject(token));
-      // The narration and the demonstration video of a run, kept by project for the next opening.
-      const references = () => join(app.getPath("userData"), "pipeline-references");
-      handle("pipeline:reference-save", (projectId, kind, bytes, meta) =>
-        saveReference(references(), projectId, kind, bytes, meta),
-      );
-      handle("pipeline:references", (projectId) => loadReferences(references(), projectId));
-      handle("pipeline:fonts", () => pipelineFonts(fontSource()));
-      // The font library: its faces, one face's file by id, the defaults for new projects.
-      handle("fonts:library", () => libraryFonts(fontSource()));
-      handle("fonts:library-font", (id) => libraryFont(fontSource(), id));
-      handle("fonts:preference", () => fontPreference.read());
-      handle("fonts:set-preference", (value) => fontPreference.write(value));
-      handle("pipeline:font", (family, weight) => pipelineFont(fontSource(), family, weight));
-      handle("pipeline:words", (token, kind, jobId) => {
-        if (typeof jobId !== "string" || !/^[\w-]{1,64}$/.test(jobId))
-          throw new Error("Identificador de tarefa inválido.");
-        return pipelineWords(token, kind, jobId, (ratio) =>
-          win?.webContents.send("pipeline:progress", { jobId, ratio }),
-        );
-      });
-      handle("pipeline:narration", (token, kind, start, end, jobId) =>
-        pipelineNarration(token, kind, Number(start), Number(end), jobId),
-      );
-      handle("pipeline:video-facts", (token) => pipelineVideoFacts(token));
-      handle("pipeline:presenter", (token, from, seconds, jobId) =>
-        pipelinePresenter(token, Number(from), Number(seconds), jobId),
-      );
-      handle("pipeline:video-preview", (token, seconds, jobId) =>
-        pipelineVideoPreview(token, Number(seconds), jobId),
-      );
-      handle("pipeline:video-frames", (token, times, jobId) =>
-        pipelineVideoFrames(token, times, jobId),
-      );
-      handle("pipeline:lesson-script", (token) => pipelineLessonScript(token));
-      // The end of a run on the phone, when this computer set it up (EDISVG_NTFY_TOPIC).
-      handle("pipeline:notify", async (notice) => {
-        await notifyPipelineEnd(notice);
-      });
-      // Other Edi tools' requests and the renders of linked animations (packages/edi-link):
-      // the requests come by file (linkRequests.ts) and the window takes them one at a time;
-      // a linked animation renders into `<project> · renders` at every save that changed it
-      // (linkRender.ts). The project's path is always the main process's, never the window's.
-      linkInbox = await createLinkInbox(join(app.getPath("userData"), REQUESTS_FOLDER), () => {
-        if (win && !win.isDestroyed()) win.webContents.send("link:waiting");
-      });
-      linkQueue = createLinkQueue({ file: join(app.getPath("userData"), RENDER_QUEUE_FILE) });
-      await linkQueue.init();
-      const linkedPath = () => {
-        const path = files.status().path;
-        if (!path) throw new Error("Salve o projeto em arquivo antes de vincular animações.");
-        return path;
-      };
-      // The window's project must be the one open here: a render or link of a project left
-      // meanwhile never writes into the manifest of the file open now.
-      const projectIdOf = (value) => {
-        if (typeof value !== "string" || !/^[\w-]{1,200}$/.test(value))
-          throw new Error("Projeto inválido.");
-        if (value !== files.projectId()) throw new Error("O projeto aberto mudou.");
-        return value;
-      };
-      handle("link:next", async () => {
-        // Busy: the window looks again in a moment (null would mean nothing waits).
-        if (!initialized || files.isBusy() || runner.busy()) return { type: "wait" };
-        // A file given on the command line first: it is what the person just opened.
-        if (pendingProject) {
-          takenProject = pendingProject;
-          pendingProject = null;
-          bringToFront();
-          return { type: "file", name: basename(takenProject) };
-        }
-        const request = await linkInbox.next();
-        if (request) bringToFront();
-        return request;
-      });
-      handle("link:open-project", async (id) => {
-        if (!initialized) throw new Error("A recuperação precisa terminar antes.");
-        if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
-        const request = linkInbox.taken(id);
-        return files.openLinked(request.project, request.type === "create" ? request.name : null);
-      });
-      handle("link:open-file", async () => {
-        if (!initialized) throw new Error("A recuperação precisa terminar antes.");
-        if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
-        const path = takenProject;
-        takenProject = null;
-        if (!path || !existsSync(path)) throw new Error("Projeto não encontrado.");
-        return files.openLinked(path, null);
-      });
-      handle("link:done", (id) => linkInbox.done(id));
-      handle("link:list", async () => {
-        const path = files.status().path;
-        return path ? linkedAnimations(path) : [];
-      });
-      // The lesson a linked animation is for, as a picked file of the pipelines (they read its
-      // voice and screen straight from the lesson, no package).
-      handle("link:lesson-file", async (animationId) => {
-        const path = files.status().path;
-        if (!path) return null;
-        const item = (await linkedAnimations(path)).find((i) => i.animationId === animationId);
-        if (!item?.lesson || !existsSync(item.lesson)) return null;
-        return registerPickedFile(item.lesson, "lesson", basename(item.lesson));
-      });
-      handle("link:register", (projectId, input) =>
-        registerLink(linkedPath(), projectIdOf(projectId), input),
-      );
-      // The renders go through a queue of saved projects (linkQueue.ts): what an item writes goes
-      // to its own project, whatever project is open now.
-      handle("link:queue", () => linkQueue.view());
-      handle("link:queue-add", async () => {
-        const path = files.status().path;
-        return path ? linkQueue.add(path) : null;
-      });
-      handle("link:queue-load", (id) => linkQueue.load(id));
-      handle("link:queue-remove", (id) => linkQueue.remove(id));
-      handle("link:queue-register", (id, input) => {
-        const { path, projectId } = linkQueue.target(id);
-        return registerLink(path, projectId, input);
-      });
-      handle("link:error", (id, animationId, message) => {
-        const { path, projectId } = linkQueue.target(id);
-        return markLinkError(path, projectId, animationId, message);
-      });
-      handle("link:render-start", (id, spec) => {
-        desktop.assertAccess();
-        const { path, projectId } = linkQueue.target(id);
-        return startRender(ffmpegPath(), path, projectId, spec);
-      });
-      handle("link:render-frame", (id, bytes) => renderFrame(id, bytes));
-      handle("link:render-finish", (id) => finishRender(id));
-      handle("link:render-cancel", (id) => cancelRender(id));
-      handle("pipeline:lesson-video", (token, from, to, jobId) =>
-        pipelineLessonVideo(token, from, to, jobId),
-      );
-      handle("export:alpha-webm", async (input) => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        return exportAlphaWebm(win, input, folderFor("documents"), () => desktop.assertAccess());
-      });
-      handle("pipeline:cancel", (jobId) => {
-        if (typeof jobId === "string") cancelPipelineJob(jobId);
-      });
-      handle("asset:import", async () => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        const result = await dialog.showOpenDialog(win, {
-          defaultPath: app.getPath("documents"),
-          filters: [
-            {
-              name: "Recursos PNG/WAV/fontes",
-              extensions: ["png", "wav", "ttf", "otf", "woff", "ttc", "otc"],
-            },
-          ],
-          properties: ["openFile", "dontAddToRecent"],
-        });
-        if (result.canceled) return null;
-        const path = result.filePaths[0];
-        const bytes = await readBoundedBytes(path, ASSET_BYTES);
-        desktop.assertAccess();
-        return { name: basename(path), bytes };
-      });
-      handle("project:open", () => {
-        if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
-        if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
-        return files.open();
-      });
-      handle("project:save", async (project, as = false) => {
-        if (!initialized) throw new Error("A recuperação precisa terminar antes do salvamento.");
-        await files.changed(project);
-        return files.save(as === true);
-      });
-      handle("export:media-begin", (header) => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        return mediaUploads.begin(header);
-      });
-      handle("export:media-append", (id, slice) => mediaUploads.append(id, slice));
-      handle("export:media-discard", (id) => mediaUploads.discard(id));
-      handle("export:save", async (payload) => {
-        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-        // Raster and video arrive beforehand in slices; the save names the finished upload.
-        const exported =
-          typeof payload === "object" && payload !== null && "upload" in payload
-            ? mediaUploads.finish(payload.upload)
-            : parseExportPayload(payload);
-        const { canceled, filePath } = await dialog.showSaveDialog(win, {
-          defaultPath: join(
-            folderFor("documents") ?? "",
-            `${exported.name ?? "projeto"}.${exported.extension}`,
-          ),
-          properties: ["dontAddToRecent"],
-          filters: [
-            { name: "Exportação EdiSVG", extensions: [exported.extension.split(".").pop()] },
-          ],
-        });
-        if (canceled) return { saved: false };
-        desktop.assertAccess();
-        await atomicWrite(filePath, exported.content);
-        return { saved: true };
-      });
-      await createWindow();
-      if (smokeMode) {
-        try {
-          await smoke(win, bridge, app.getPath("userData"));
-          app.exit(0);
-        } catch (error) {
-          await writeFile(
-            join(app.getPath("userData"), "smoke-result.json"),
-            JSON.stringify({ ok: false, error: error.stack }),
-          );
-          app.exit(1);
-        }
-      }
-    })
-    .catch((error) => {
-      dialog.showErrorBox("EdiSVG", error.message);
+app
+  .whenReady()
+  .then(async () => {
+    // Opened by another tool for a request a window already has (EdiAula opens EdiSVG after it
+    // leaves one): that window takes it, and this one would stay empty.
+    if (
+      !pendingProject &&
+      !openedFor &&
+      !smokeMode &&
+      (await onlyNudged(join(app.getPath("userData"), REQUESTS_FOLDER), otherWindows()))
+    ) {
       app.quit();
+      return;
+    }
+    await desktop.start();
+    await mkdir(app.getPath("userData"), { recursive: true });
+    // Window 1 on the port the clients outside the app were connected to; the others on one
+    // the system gives (their own assistant and pipelines are told it). Window 1 too, when that
+    // port is taken (another EdiSVG profile open): the assistant inside the app still works.
+    const startMcp = (port) =>
+      startMcpServer({
+        port,
+        version: app.getVersion(),
+        // An edit asked by an AI app that may only read and propose waits for the person.
+        approve: dialogApproval({
+          appName: "EdiSVG",
+          scope: () => (win && !win.isDestroyed() ? "edisvg" : null),
+          show: (options) =>
+            win && !win.isDestroyed()
+              ? dialog.showMessageBox(win, options)
+              : dialog.showMessageBox(options),
+        }),
+        call: (name, input) =>
+          !initialized || files?.isBusy() || checkingClose
+            ? Promise.resolve({ ok: false, text: "Aguarde a operação de arquivo." })
+            : bridge.call(name, input),
+      });
+    try {
+      mcp = await startMcp(slot === 1 ? MCP_PORT : 0);
+    } catch (error) {
+      if (slot === 1 && error?.code === "EADDRINUSE")
+        try {
+          mcp = await startMcp(0);
+        } catch (again) {
+          mcpError = `MCP indisponível: ${again.message}`;
+        }
+      else mcpError = `MCP indisponível: ${error.message}`;
+    }
+    const mcpUrl = localMcpUrl(mcp ? mcp.address().port : MCP_PORT);
+    runner = createEngineRunner(
+      join(app.getPath("userData"), "ai-workspace"),
+      mcpUrl,
+      (event) => {
+        if (win && !win.isDestroyed()) win.webContents.send("ai:event", event);
+      },
+      { allowElectronRuntime: !app.isPackaged },
+    );
+    handle("ai:status", async () => ({
+      clients: await Promise.all(
+        ["claude", "codex"].map(async (id) => ({
+          id,
+          installed: !!(await locateClient(providerClient(id))),
+        })),
+      ),
+      mcp: { ready: !!mcp, url: mcpUrl, error: mcpError },
+    }));
+    handle("ai:connect", async (client) => {
+      if (!["claude", "codex"].includes(client)) throw new Error("Cliente inválido.");
+      return connectClient({
+        id: providerClient(client),
+        port: MCP_PORT,
+        serverName: MCP_SERVER.name,
+      });
     });
-  app.on("activate", () => {
-    if (!win) void createWindow();
+    handle("ai:send", (request) => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      if (!mcp) throw new Error(mcpError);
+      return runner.send(request || {});
+    });
+    handle("ai:stop", () => runner.stop());
+    handle("ai:result", (id, result) => {
+      if (
+        typeof id !== "string" ||
+        typeof result?.ok !== "boolean" ||
+        typeof result?.text !== "string" ||
+        result.text.length > 1000000
+      )
+        throw new Error("Resposta inválida.");
+      bridge.result(id, result);
+    });
+    const recovery = createRecoveryStore(
+      join(app.getPath("userData"), ownFile("recovery-v1", "json")),
+      parseProject,
+    );
+    const fontPreference = createFontPreference(
+      join(app.getPath("userData"), "fontes-padrao.json"),
+    );
+    /** A new project, born with the person's default fonts (Baloo 2 and Nunito until changed). */
+    const blankProject = async () =>
+      withDefaultFonts(newProject(), fontSource(), await fontPreference.read());
+    files = createProjectFiles({
+      blank: blankProject,
+      // A project is open in one window at most: the window that has it comes forward.
+      elsewhere: (path) => {
+        const other = ownerOf(windows, path, slot);
+        if (!other) return null;
+        askToFront(windows, other.slot);
+        return `Este projeto já está aberto em outra janela do EdiSVG (janela ${other.slot}); ela veio para a frente.`;
+      },
+      checkpoint: (project) => recovery.save(project),
+      onDiscard: () =>
+        win.webContents.executeJavaScript("localStorage.removeItem('edisvg-project')"),
+      chooseOpen: async () => {
+        const r = await dialog.showOpenDialog(win, {
+          defaultPath: files.status().path || app.getPath("documents"),
+          filters: [{ name: "Projeto EdiSVG", extensions: ["edisvg", "json"] }],
+          properties: ["openFile", "dontAddToRecent"],
+        });
+        return r.canceled ? null : r.filePaths[0];
+      },
+      chooseSave: async (current) => {
+        const r = await dialog.showSaveDialog(win, {
+          defaultPath: current || join(app.getPath("documents"), "Personagem.edisvg"),
+          filters: [{ name: "Projeto EdiSVG", extensions: ["edisvg"] }],
+          properties: ["dontAddToRecent"],
+        });
+        return r.canceled ? null : r.filePath;
+      },
+      confirm: async () => {
+        const r = await dialog.showMessageBox(win, {
+          type: "question",
+          message: "Salvar as alterações do projeto?",
+          detail: "Há alterações que ainda não foram gravadas em arquivo.",
+          buttons: ["Salvar", "Descartar", "Cancelar"],
+          defaultId: 0,
+          cancelId: 2,
+        });
+        return ["save", "discard", "cancel"][r.response];
+      },
+    });
+    handle("project:initialize", async (legacy) => {
+      if (initializing || files.isBusy() || runner.busy())
+        throw new Error("Aguarde a operação em andamento.");
+      initializing = true;
+      initialized = false;
+      try {
+        const stored = await recovery.load();
+        let project = stored.project;
+        if (!stored.exists && legacy !== null && legacy !== undefined) {
+          if (typeof legacy !== "string" || Buffer.byteLength(legacy, "utf8") > 8_000_000)
+            throw new Error("Cópia local inválida. Ela foi preservada.");
+          project = parseProject(JSON.parse(legacy));
+        }
+        if (project) {
+          const choice = await dialog.showMessageBox(win, {
+            type: "question",
+            message: "Há um projeto não salvo para recuperar.",
+            detail:
+              "Recuperar abre uma cópia sem substituir o arquivo original. Descartar remove somente esta cópia de recuperação.",
+            buttons: ["Recuperar", "Descartar cópia"],
+            defaultId: 0,
+            cancelId: 0,
+          });
+          if (choice.response === 1) {
+            await recovery.save(null);
+            project = null;
+          }
+        }
+        const result = await files.recover(project ?? (await blankProject()), {
+          persist: false,
+        });
+        initialized = true;
+        return { ...result, recovered: !!project };
+      } finally {
+        initializing = false;
+      }
+    });
+    handle("project:changed", (project) => {
+      if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
+      return files.changed(project);
+    });
+    handle("project:new", () => {
+      if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
+      if (runner.busy()) throw new Error("Interrompa a IA antes de criar um projeto.");
+      return files.new();
+    });
+    handle("project:close", () => {
+      if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
+      if (runner.busy()) throw new Error("Interrompa a IA antes de fechar o projeto.");
+      return files.close();
+    });
+    handle("svg:import", async () => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      const result = await dialog.showOpenDialog(win, {
+        defaultPath: app.getPath("documents"),
+        filters: [{ name: "SVG", extensions: ["svg"] }],
+        properties: ["openFile", "dontAddToRecent"],
+      });
+      if (result.canceled) return null;
+      const source = await readBoundedText(result.filePaths[0], SVG_BYTES);
+      return source;
+    });
+    handle("game:import", async () => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      const result = await dialog.showOpenDialog(win, {
+        defaultPath: folderFor("downloads"),
+        filters: [{ name: "Projeto do Estúdio (.szproject.json)", extensions: ["json"] }],
+        properties: ["openFile", "dontAddToRecent"],
+      });
+      if (result.canceled) return null;
+      const path = result.filePaths[0];
+      return {
+        source: await readBoundedText(path, SZPROJECT_BYTES),
+        name: basename(path),
+      };
+    });
+    // Another EdiSVG project, read (never opened) for its artboards to come into this one.
+    handle("boards:import", async () => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      const result = await dialog.showOpenDialog(win, {
+        defaultPath: files.status().path ? dirname(files.status().path) : folderFor("documents"),
+        filters: [{ name: "Projeto EdiSVG (.edisvg)", extensions: ["edisvg"] }],
+        properties: ["openFile", "dontAddToRecent"],
+      });
+      if (result.canceled) return null;
+      const path = result.filePaths[0];
+      const project = parseProject(parseJsonText(await readBoundedText(path, PROJECT_BYTES)));
+      return { name: basename(path, ".edisvg"), project };
+    });
+    // A kit is a ZIP someone made or sent: Downloads, like the other packages.
+    handle("kit:import", async () => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      const result = await dialog.showOpenDialog(win, {
+        defaultPath: folderFor("downloads"),
+        filters: [{ name: "Kit de design (.zip)", extensions: ["zip"] }],
+        properties: ["openFile", "dontAddToRecent"],
+      });
+      if (result.canceled) return null;
+      return readDesignKit(result.filePaths[0]);
+    });
+    handle("pipelines:read", async () => {
+      const store = await readRecipeStore(app.getPath("userData"));
+      // The guide pictures no recipe names any more go (a day after they were last chosen).
+      const named = new Set(store.recipes.flatMap((r) => (r.guideImage ? [r.guideImage.id] : [])));
+      await pruneGuides(app.getPath("userData"), named).catch((error) =>
+        console.warn("[edisvg] Guias de estilo antigos:", error),
+      );
+      return store;
+    });
+    handle("pipeline:guide-save", (bytes, name) => saveGuide(app.getPath("userData"), bytes, name));
+    handle("pipeline:guide-read", (id) => readGuide(app.getPath("userData"), id));
+    handle("pipeline:guide-style", (id) => readGuideStyle(app.getPath("userData"), id));
+    handle("pipeline:guide-style-save", (id, style) =>
+      saveGuideStyle(app.getPath("userData"), id, style),
+    );
+    handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
+    // The lesson comes as a package someone sent (a ZIP): Downloads, like the other files.
+    handle("pipeline:pick", (kind) => pickPipelineFile(win, kind, folderFor("downloads")));
+    handle("pipeline:read-project", (token) => readPickedProject(token));
+    // The narration and the demonstration video of a run, kept by project for the next opening.
+    const references = () => join(app.getPath("userData"), "pipeline-references");
+    handle("pipeline:reference-save", (projectId, kind, bytes, meta) =>
+      saveReference(references(), projectId, kind, bytes, meta),
+    );
+    handle("pipeline:references", (projectId) => loadReferences(references(), projectId));
+    handle("pipeline:fonts", () => pipelineFonts(fontSource()));
+    // The font library: its faces, one face's file by id, the defaults for new projects.
+    handle("fonts:library", () => libraryFonts(fontSource()));
+    handle("fonts:library-font", (id) => libraryFont(fontSource(), id));
+    handle("fonts:preference", () => fontPreference.read());
+    handle("fonts:set-preference", (value) => fontPreference.write(value));
+    handle("pipeline:font", (family, weight) => pipelineFont(fontSource(), family, weight));
+    handle("pipeline:words", (token, kind, jobId) => {
+      if (typeof jobId !== "string" || !/^[\w-]{1,64}$/.test(jobId))
+        throw new Error("Identificador de tarefa inválido.");
+      return pipelineWords(token, kind, jobId, (ratio) =>
+        win?.webContents.send("pipeline:progress", { jobId, ratio }),
+      );
+    });
+    handle("pipeline:narration", (token, kind, start, end, jobId) =>
+      pipelineNarration(token, kind, Number(start), Number(end), jobId),
+    );
+    handle("pipeline:video-facts", (token) => pipelineVideoFacts(token));
+    handle("pipeline:presenter", (token, from, seconds, jobId) =>
+      pipelinePresenter(token, Number(from), Number(seconds), jobId),
+    );
+    handle("pipeline:video-preview", (token, seconds, jobId) =>
+      pipelineVideoPreview(token, Number(seconds), jobId),
+    );
+    handle("pipeline:video-frames", (token, times, jobId) =>
+      pipelineVideoFrames(token, times, jobId),
+    );
+    handle("pipeline:lesson-script", (token) => pipelineLessonScript(token));
+    // The end of a run on the phone, when this computer set it up (EDISVG_NTFY_TOPIC).
+    handle("pipeline:notify", async (notice) => {
+      await notifyPipelineEnd(notice);
+    });
+    // Other Edi tools' requests and the renders of linked animations (packages/edi-link):
+    // the requests come by file (linkRequests.ts) and the window takes them one at a time;
+    // a linked animation renders into `<project> · renders` at every save that changed it
+    // (linkRender.ts). The project's path is always the main process's, never the window's.
+    linkInbox = await createLinkInbox(
+      join(app.getPath("userData"), REQUESTS_FOLDER),
+      () => {
+        if (win && !win.isDestroyed()) win.webContents.send("link:waiting");
+      },
+      {
+        slot,
+        openPath: () => files.status().path,
+        idle: windowIdle,
+        others: otherWindows,
+        openedFor,
+        // Only the lowest-numbered window opens one (linkRequests.ts).
+        openWindowFor: (id) => openWindow([REQUEST_FLAG, id]),
+      },
+    );
+    // Each window renders its own queue; a closed window's is taken by the next to open.
+    const queueFile = (n) =>
+      join(
+        app.getPath("userData"),
+        n === 1 ? RENDER_QUEUE_FILE : RENDER_QUEUE_FILE.replace(/\.json$/, `-janela-${n}.json`),
+      );
+    linkQueue = createLinkQueue({
+      file: queueFile(slot),
+      orphans: () => {
+        const live = new Set([slot, ...otherWindows().map((w) => w.slot)]);
+        return Array.from({ length: MAX_WINDOWS }, (_, i) => i + 1)
+          .filter((n) => !live.has(n))
+          .map(queueFile)
+          .filter((path) => existsSync(path));
+      },
+    });
+    await linkQueue.init();
+    const linkedPath = () => {
+      const path = files.status().path;
+      if (!path) throw new Error("Salve o projeto em arquivo antes de vincular animações.");
+      return path;
+    };
+    // The window's project must be the one open here: a render or link of a project left
+    // meanwhile never writes into the manifest of the file open now.
+    const projectIdOf = (value) => {
+      if (typeof value !== "string" || !/^[\w-]{1,200}$/.test(value))
+        throw new Error("Projeto inválido.");
+      if (value !== files.projectId()) throw new Error("O projeto aberto mudou.");
+      return value;
+    };
+    handle("link:next", async () => {
+      // Busy: the window looks again in a moment (null would mean nothing waits).
+      if (!initialized || files.isBusy() || runner.busy()) return { type: "wait" };
+      // A file given on the command line first: it is what the person just opened.
+      if (pendingProject) {
+        takenProject = pendingProject;
+        pendingProject = null;
+        bringToFront();
+        return { type: "file", name: basename(takenProject) };
+      }
+      const request = await linkInbox.next();
+      if (request) bringToFront();
+      return request;
+    });
+    handle("link:open-project", async (id) => {
+      if (!initialized) throw new Error("A recuperação precisa terminar antes.");
+      if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
+      const request = linkInbox.taken(id);
+      return files.openLinked(request.project, request.type === "create" ? request.name : null);
+    });
+    handle("link:open-file", async () => {
+      if (!initialized) throw new Error("A recuperação precisa terminar antes.");
+      if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
+      const path = takenProject;
+      takenProject = null;
+      if (!path || !existsSync(path)) throw new Error("Projeto não encontrado.");
+      return files.openLinked(path, null);
+    });
+    handle("link:done", (id) => linkInbox.done(id));
+    handle("link:list", async () => {
+      const path = files.status().path;
+      return path ? linkedAnimations(path) : [];
+    });
+    // The lesson a linked animation is for, as a picked file of the pipelines (they read its
+    // voice and screen straight from the lesson, no package).
+    handle("link:lesson-file", async (animationId) => {
+      const path = files.status().path;
+      if (!path) return null;
+      const item = (await linkedAnimations(path)).find((i) => i.animationId === animationId);
+      if (!item?.lesson || !existsSync(item.lesson)) return null;
+      return registerPickedFile(item.lesson, "lesson", basename(item.lesson));
+    });
+    handle("link:register", (projectId, input) =>
+      registerLink(linkedPath(), projectIdOf(projectId), input),
+    );
+    // The renders go through a queue of saved projects (linkQueue.ts): what an item writes goes
+    // to its own project, whatever project is open now.
+    handle("link:queue", () => linkQueue.view());
+    handle("link:queue-add", async () => {
+      const path = files.status().path;
+      return path ? linkQueue.add(path) : null;
+    });
+    handle("link:queue-load", (id) => linkQueue.load(id));
+    handle("link:queue-remove", (id) => linkQueue.remove(id));
+    handle("link:queue-register", (id, input) => {
+      const { path, projectId } = linkQueue.target(id);
+      return registerLink(path, projectId, input);
+    });
+    handle("link:error", (id, animationId, message) => {
+      const { path, projectId } = linkQueue.target(id);
+      return markLinkError(path, projectId, animationId, message);
+    });
+    handle("link:render-start", (id, spec) => {
+      desktop.assertAccess();
+      const { path, projectId } = linkQueue.target(id);
+      return startRender(ffmpegPath(), path, projectId, spec);
+    });
+    handle("link:render-frame", (id, bytes) => renderFrame(id, bytes));
+    handle("link:render-finish", (id) => finishRender(id));
+    handle("link:render-cancel", (id) => cancelRender(id));
+    handle("pipeline:lesson-video", (token, from, to, jobId) =>
+      pipelineLessonVideo(token, from, to, jobId),
+    );
+    handle("export:alpha-webm", async (input) => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      return exportAlphaWebm(win, input, folderFor("documents"), () => desktop.assertAccess());
+    });
+    handle("pipeline:cancel", (jobId) => {
+      if (typeof jobId === "string") cancelPipelineJob(jobId);
+    });
+    handle("asset:import", async () => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      const result = await dialog.showOpenDialog(win, {
+        defaultPath: app.getPath("documents"),
+        filters: [
+          {
+            name: "Recursos PNG/WAV/fontes",
+            extensions: ["png", "wav", "ttf", "otf", "woff", "ttc", "otc"],
+          },
+        ],
+        properties: ["openFile", "dontAddToRecent"],
+      });
+      if (result.canceled) return null;
+      const path = result.filePaths[0];
+      const bytes = await readBoundedBytes(path, ASSET_BYTES);
+      desktop.assertAccess();
+      return { name: basename(path), bytes };
+    });
+    handle("project:open", () => {
+      if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
+      if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
+      return files.open();
+    });
+    handle("project:save", async (project, as = false) => {
+      if (!initialized) throw new Error("A recuperação precisa terminar antes do salvamento.");
+      await files.changed(project);
+      return files.save(as === true);
+    });
+    handle("export:media-begin", (header) => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      return mediaUploads.begin(header);
+    });
+    handle("export:media-append", (id, slice) => mediaUploads.append(id, slice));
+    handle("export:media-discard", (id) => mediaUploads.discard(id));
+    handle("export:save", async (payload) => {
+      if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+      // Raster and video arrive beforehand in slices; the save names the finished upload.
+      const exported =
+        typeof payload === "object" && payload !== null && "upload" in payload
+          ? mediaUploads.finish(payload.upload)
+          : parseExportPayload(payload);
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
+        defaultPath: join(
+          folderFor("documents") ?? "",
+          `${exported.name ?? "projeto"}.${exported.extension}`,
+        ),
+        properties: ["dontAddToRecent"],
+        filters: [{ name: "Exportação EdiSVG", extensions: [exported.extension.split(".").pop()] }],
+      });
+      if (canceled) return { saved: false };
+      desktop.assertAccess();
+      await atomicWrite(filePath, exported.content);
+      return { saved: true };
+    });
+    await createWindow();
+    register.watchFront(bringToFront);
+    publishWindow();
+    setInterval(publishWindow, 1000).unref();
+    if (smokeMode) {
+      try {
+        await smoke(win, bridge, app.getPath("userData"));
+        app.exit(0);
+      } catch (error) {
+        await writeFile(
+          join(app.getPath("userData"), "smoke-result.json"),
+          JSON.stringify({ ok: false, error: error.stack }),
+        );
+        app.exit(1);
+      }
+    }
+  })
+  .catch((error) => {
+    dialog.showErrorBox("EdiSVG", error.message);
+    app.quit();
   });
-  app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") app.quit();
-  });
-  app.on("will-quit", () => {
-    // A render left half made is redone from the queue when EdiSVG opens again.
-    stopRenders();
-    runner?.stop();
-    bridge.close();
-    mcp?.close();
-  });
-}
+app.on("activate", () => {
+  if (!win) void createWindow();
+});
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+app.on("will-quit", () => {
+  // A render left half made is redone from the queue when EdiSVG opens again.
+  stopRenders();
+  runner?.stop();
+  bridge.close();
+  mcp?.close();
+  register.release();
+});
