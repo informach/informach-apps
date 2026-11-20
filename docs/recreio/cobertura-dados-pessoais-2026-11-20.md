@@ -39,3 +39,19 @@ Esta matriz confere a presença das fontes e registra lacunas. Revisão campo a 
 5. Repetir gates completos, backup/restore atuais e implantação controlada. Testes humanos permanecem no final.
 
 Referências: [contratos e provas](encerramento-conta-2026-11-19.md), [normalização offline](normalizacao-recuperacao-2026-11-19.md), [fechamento](fechamento-plataforma-2026-11-16.md).
+
+
+### Índices complementares em geração
+
+O complemento de 20/11 prepara quinze índices aditivos para cadastro, pareamento,
+avisos, contratos/financiamento, convites/visitas, sucessão e auditoria própria.
+Texto dos cursores de captura/auditoria usa collation C explícita; UUID continua
+UUID. Convites e sucessão montam a página pela união limitada de referências
+próprias de cada relação, com deduplicação antes da leitura dos DTOs. Não há
+OFFSET no leitor nem varredura correlacionada das relações alheias como base.
+
+A prova ampliada inclui 211 vínculos próprios em cada uma das duas fontes,
+8.000 convites alheios e sobreposição alvo/aceite, além do histórico anterior.
+ANALYZE/EXPLAIN nativos devem comprovar índice e condição de cursor sem desligar
+sequential scan ou alterar custos do planner. Schema aguarda geração/adopção
+inalterada pelo GitHub e gates; não aplicar DDL em produção nesta etapa.

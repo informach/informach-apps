@@ -1,6 +1,6 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, eq, gt, or, sql } from "@informach/db";
+import { and, eq, gt, inArray, or, sql } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,
   recreioSocialBlocks as blocks,
@@ -161,13 +161,19 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
             })
             .from(legacyInvites)
             .where(
-              and(
-                or(
-                  emitiuConvite,
-                  eq(legacyInvites.targetProfileId, perfil.id),
-                  eq(legacyInvites.acceptedByProfileId, perfil.id),
-                ),
-                apos ? gt(legacyInvites.id, apos) : undefined,
+              inArray(
+                legacyInvites.id,
+                sql`(
+                (select c.id from recreio.space_invites c join recreio.space_members m on m.id=c.invited_by_member_id
+                  where m.profile_id=${perfil.id}::uuid ${apos ? sql`and c.id>${apos}::uuid` : sql``}
+                  order by c.id limit ${limites.pagina})
+                union
+                (select c.id from recreio.space_invites c where c.target_profile_id=${perfil.id}::uuid
+                  ${apos ? sql`and c.id>${apos}::uuid` : sql``} order by c.id limit ${limites.pagina})
+                union
+                (select c.id from recreio.space_invites c where c.accepted_by_profile_id=${perfil.id}::uuid
+                  ${apos ? sql`and c.id>${apos}::uuid` : sql``} order by c.id limit ${limites.pagina})
+              )`,
               ),
             )
             .orderBy(legacyInvites.id)
@@ -191,9 +197,17 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
             })
             .from(stewardship)
             .where(
-              and(
-                or(proposResponsabilidade, recebeuResponsabilidade),
-                apos ? gt(stewardship.id, apos) : undefined,
+              inArray(
+                stewardship.id,
+                sql`(
+                (select r.id from recreio.space_stewardship_requests r join recreio.space_members m on m.id=r.from_member_id
+                  where m.profile_id=${perfil.id}::uuid ${apos ? sql`and r.id>${apos}::uuid` : sql``}
+                  order by r.id limit ${limites.pagina})
+                union
+                (select r.id from recreio.space_stewardship_requests r join recreio.space_members m on m.id=r.to_member_id
+                  where m.profile_id=${perfil.id}::uuid ${apos ? sql`and r.id>${apos}::uuid` : sql``}
+                  order by r.id limit ${limites.pagina})
+              )`,
               ),
             )
             .orderBy(stewardship.id)

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, jsonb, pgSchema, text, timestamp } from "drizzle-orm/pg-core";
 
 export const audit = pgSchema("audit");
@@ -14,6 +15,9 @@ export const events = audit.table(
   (t) => [
     index("events_event_type_idx").on(t.eventType),
     index("events_actor_created_idx").on(t.actorId, t.createdAt),
+    index("events_recreio_personal_cursor")
+      .on(t.actorId, t.createdAt, sql`${t.id} collate "C"`)
+      .where(sql`${t.eventType} like 'recreio.%' and ${t.payload}->>'app'='recreio'`),
   ],
 );
 

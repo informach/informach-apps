@@ -463,6 +463,9 @@ export const recreioSpaceInvites = recreio.table(
       foreignColumns: [recreioSpaceMembers.spaceId, recreioSpaceMembers.id],
     }).onDelete("restrict"),
     index("recreio_space_invites_space").on(t.spaceId, t.state),
+    index("recreio_space_invite_emitter_history").on(t.invitedByMemberId, t.id),
+    index("recreio_space_invite_target_history").on(t.targetProfileId, t.id),
+    index("recreio_space_invite_acceptor_history").on(t.acceptedByProfileId, t.id),
     index("recreio_space_invites_unused_expires")
       .on(t.expiresAt, t.id)
       .where(sql`${t.state} <> 'accepted'`),
@@ -513,6 +516,8 @@ export const recreioSpaceStewardshipRequests = recreio.table(
     index("recreio_stewardship_recipient_pending")
       .on(t.toMemberId, t.id)
       .where(sql`${t.state} = 'pending'`),
+    index("recreio_stewardship_emitter_history").on(t.fromMemberId, t.id),
+    index("recreio_stewardship_recipient_history").on(t.toMemberId, t.id),
     check("recreio_stewardship_distinct_members", sql`${t.fromMemberId} <> ${t.toMemberId}`),
     check(
       "recreio_stewardship_state",

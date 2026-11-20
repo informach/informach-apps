@@ -33,6 +33,7 @@ export const recreioProfileCreationRequests = recreio.table(
   },
   (t) => [
     index("recreio_profile_creation_user").on(t.userId, t.createdAt),
+    index("recreio_profile_creation_personal_history").on(t.userId, t.id),
     index("recreio_profile_creation_pending_expiry")
       .on(t.expiresAt)
       .where(sql`${t.consumedAt} is null`),

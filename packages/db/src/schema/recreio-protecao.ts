@@ -102,6 +102,7 @@ export const recreioPairedCredentials = recreio.table(
   },
   (t) => [
     index("recreio_paired_profile").on(t.profileId, t.createdAt),
+    index("recreio_paired_guardian_history").on(t.guardianUserId, t.deviceSessionId),
     unique("recreio_paired_token_hash").on(t.tokenHash),
     check(
       "recreio_paired_token_format",

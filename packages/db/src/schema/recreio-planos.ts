@@ -217,6 +217,7 @@ export const recreioBillingContracts = recreio.table(
       ],
     }).onDelete("restrict"),
     index("recreio_billing_contract_payer").on(t.payerUserId, t.providerMode),
+    index("recreio_billing_contract_personal_history").on(t.payerUserId, t.subscriptionId),
     unique("recreio_billing_contract_funding_scope").on(
       t.subscriptionId,
       t.purchaseId,

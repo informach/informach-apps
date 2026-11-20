@@ -82,6 +82,8 @@ export const recreioSpaceVisitInvites = recreio.table(
       .where(sql`${t.state}='pending'`),
     index("recreio_visit_invite_incoming").on(t.targetProfileId, t.createdAt, t.id),
     index("recreio_visit_invite_outgoing").on(t.originProfileId, t.createdAt, t.id),
+    index("recreio_visit_invite_origin_history").on(t.originProfileId, t.id),
+    index("recreio_visit_invite_target_history").on(t.targetProfileId, t.id),
     index("recreio_visit_invite_world_pending")
       .on(t.spaceId, t.id)
       .where(sql`${t.state}='pending'`),

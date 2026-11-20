@@ -69,6 +69,7 @@ export const recreioFundingObservations = recreio.table(
       t.evidenceHash,
     ),
     index("recreio_funding_observation_payer").on(t.payerUserId, t.providerMode, t.firstObservedAt),
+    index("recreio_funding_observation_personal_history").on(t.payerUserId, t.id),
     check(
       "recreio_funding_observation_scope",
       sql`${t.provider}='stripe' and ${t.providerMode} in ('dev','prod') and length(${t.originProductId}) between 2 and 80`,
@@ -121,6 +122,10 @@ export const recreioFundingCaptures = recreio.table(
       name: "recreio_funding_capture_pk",
       columns: [t.observationId, t.providerChargeId],
     }),
+    index("recreio_funding_capture_personal_history").on(
+      t.observationId,
+      sql`${t.providerChargeId} collate "C"`,
+    ),
     check(
       "recreio_funding_capture_identity",
       sql`left(${t.providerChargeId},3)='ch_' and length(${t.providerChargeId}) between 8 and 256`,
@@ -154,6 +159,11 @@ export const recreioFundingSourcePeriods = recreio.table(
       name: "recreio_funding_source_period_pk",
       columns: [t.observationId, t.providerChargeId, t.sourcePaymentPeriodId],
     }),
+    index("recreio_funding_source_personal_history").on(
+      t.observationId,
+      sql`${t.providerChargeId} collate "C"`,
+      t.sourcePaymentPeriodId,
+    ),
     foreignKey({
       name: "recreio_funding_source_capture",
       columns: [t.observationId, t.providerChargeId],

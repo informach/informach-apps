@@ -309,6 +309,7 @@ export const recreioSocialNotices = recreio.table(
       sql`${t.profileId} in (${t.requestOriginProfileId},${t.requestTargetProfileId})`,
     ),
     index("recreio_social_notice_guardian").on(t.guardianUserId, t.createdAt, t.id),
+    index("recreio_social_notice_personal_history").on(t.guardianUserId, t.id),
     index("recreio_social_notice_retention").on(t.createdAt, t.id),
     check("recreio_social_notice_read", sql`${t.readAt} is null or ${t.readAt}>=${t.createdAt}`),
   ],

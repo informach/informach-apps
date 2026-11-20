@@ -104,6 +104,28 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
       for (const emissor of [membro, alheio])
         await tx`insert into recreio.space_invites (space_id,invited_by_member_id,form,code_hash,state,expires_at)
           values (${mundo},${emissor.id},'member',${randomUUID().replaceAll("-", "")},'revoked',statement_timestamp()+interval '1 hour')`;
+      await tx`insert into recreio.space_invites (space_id,invited_by_member_id,form,code_hash,state,expires_at)
+        select ${mundo},${membro.id},'member',gen_random_uuid()::text,'revoked',statement_timestamp()+interval '1 hour'
+        from generate_series(1,105)`;
+      // Target and accepted branches must emit the same receipt once.
+      await tx`insert into recreio.space_invites
+        (space_id,invited_by_member_id,form,code_hash,state,target_profile_id,accepted_by_profile_id,accepted_at,expires_at)
+        select ${mundo},${alheio.id},'member',gen_random_uuid()::text,'accepted',${familia.perfil.id},${familia.perfil.id},
+          statement_timestamp(),statement_timestamp()+interval '1 hour' from generate_series(1,105)`;
+      await tx`insert into recreio.space_invites
+        (space_id,invited_by_member_id,form,code_hash,state,target_profile_id,expires_at)
+        select ${mundo},${alheio.id},'member',gen_random_uuid()::text,'revoked',${host.perfil.id},
+          statement_timestamp()+interval '1 hour' from generate_series(1,8000)`;
+      await tx`insert into recreio.space_stewardship_requests
+        (space_id,from_member_id,to_member_id,state,expires_at,completed_at)
+        select ${mundo},${membro.id},m.id,'revoked',statement_timestamp()+interval '1 hour',statement_timestamp()
+        from recreio.space_members m cross join generate_series(1,105)
+        where m.space_id=${mundo} and m.profile_id=${host.perfil.id}`;
+      await tx`insert into recreio.space_stewardship_requests
+        (space_id,from_member_id,to_member_id,state,expires_at,completed_at)
+        select ${mundo},m.id,${membro.id},'revoked',statement_timestamp()+interval '1 hour',statement_timestamp()
+        from recreio.space_members m cross join generate_series(1,105)
+        where m.space_id=${mundo} and m.profile_id=${host.perfil.id}`;
       await tx`insert into recreio.space_stewardship_requests
         (id,space_id,from_member_id,to_member_id,state,expires_at,completed_at)
         select ${sucessao},space_id,${membro.id},id,'accepted',statement_timestamp()+interval '1 hour',statement_timestamp()
@@ -117,6 +139,26 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
     // Real optimizer/statistics, without disabling sequential scans or changing
     // planner costs. Foreign rows must not make each own page scan the table.
     await fonte`analyze recreio.friend_consents`;
+    await fonte`analyze recreio.space_invites`;
+    const referenciasConvites = await fonte<{ id: string }[]>`select id from recreio.space_invites
+      where target_profile_id=${familia.perfil.id} order by id limit 105`;
+    const meio = referenciasConvites.at(90);
+    if (!meio) throw new Error("Personal invitation cursor absent");
+    const [explicacaoConvites] =
+      await fonte`explain(analyze,format json) select id from recreio.space_invites
+      where target_profile_id=${familia.perfil.id} and id>${meio.id}::uuid order by id limit 10`;
+    const planosConvites = z
+      .array(z.object({ Plan: PlanoSQLSchema }))
+      .parse(explicacaoConvites?.["QUERY PLAN"]);
+    const nosConvites = planosConvites.flatMap((p) => nosDoPlano(p.Plan));
+    expect(
+      nosConvites.some(
+        (n) =>
+          n["Index Name"] === "recreio_space_invite_target_history" &&
+          n["Index Cond"]?.includes("id >"),
+      ),
+    ).toBe(true);
+    expect(nosConvites.some((n) => n["Node Type"] === "Seq Scan")).toBe(false);
     const referencias = await fonte<{ request_id: string; profile_id: string }[]>`
       select request_id,profile_id from recreio.friend_consents
       where approved_by_user_id=${familia.conta.id} order by request_id,profile_id limit 205`;
@@ -209,10 +251,10 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
       expect(texto).toContain(mundo);
       expect(
         texto.split("\n").filter((l) => l.startsWith('{"tipo":"convite_mundo_anterior"')),
-      ).toHaveLength(1);
+      ).toHaveLength(211);
       expect(
         texto.split("\n").filter((l) => l.startsWith('{"tipo":"proposta_responsabilidade_mundo"')),
-      ).toHaveLength(1);
+      ).toHaveLength(211);
       expect(texto).toContain('"coberturaHabilitada":true');
       for (const privado of [
         host.conta.id,
