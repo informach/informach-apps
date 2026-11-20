@@ -1,0 +1,82 @@
+{
+  "observedOn": "2026-11-20",
+  "provider": "railway",
+  "hoursBack": 24,
+  "sampleRateSeconds": 300,
+  "environment": "production",
+  "services": [
+    {
+      "environment": {
+        "id": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+        "name": "production"
+      },
+      "metrics": [
+        {
+          "average": 0.0014413536793540956,
+          "current": 0.00024412,
+          "max": 0.0032267399999999996,
+          "measurement": "CPU_USAGE",
+          "min": 0.00024412,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.24232059535782943,
+          "current": 0.26867712,
+          "max": 0.271354368,
+          "measurement": "MEMORY_USAGE_GB",
+          "min": 0.21917952,
+          "sampleCount": 289
+        },
+        {
+          "average": 3.458884429065742e-5,
+          "current": 7.137e-6,
+          "max": 0.000373447,
+          "measurement": "NETWORK_TX_GB",
+          "min": 7.137e-6,
+          "sampleCount": 289
+        }
+      ],
+      "service": {
+        "id": "fd21f44e-43d9-4ac0-a125-7a379df8d486",
+        "name": "@informach/recreio-app"
+      }
+    },
+    {
+      "environment": {
+        "id": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+        "name": "production"
+      },
+      "metrics": [
+        {
+          "average": 0.0015810449711649362,
+          "current": 0.00036253,
+          "max": 0.0019351466666666668,
+          "measurement": "CPU_USAGE",
+          "min": 0.00036253,
+          "sampleCount": 289
+        },
+        {
+          "average": 0.20530605526577692,
+          "current": 0.20079616,
+          "max": 0.218931712,
+          "measurement": "MEMORY_USAGE_GB",
+          "min": 0.17962752,
+          "sampleCount": 289
+        },
+        {
+          "average": 1.7593252595155609e-6,
+          "current": 5.37e-7,
+          "max": 4.509e-6,
+          "measurement": "NETWORK_TX_GB",
+          "min": 0,
+          "sampleCount": 289
+        }
+      ],
+      "service": {
+        "id": "b294fe7c-b96b-4ca5-bfa5-191a7d574f08",
+        "name": "@informach/morada-server"
+      }
+    }
+  ],
+  "interpretation": "Observed production resources in the closed alpha; not load, game FPS, capacity, invoice cost or allocated cost per world-hour."
+}

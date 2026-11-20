@@ -41,6 +41,7 @@ export async function exigirBancoPrivadoDeRecuperacao(copia: postgres.Sql) {
       r.versao === "180006",
     "DESTINO_NAO_PRIVADO",
   );
+  return Object.freeze({ ...r });
 }
 /** Reidrata somente no cluster novo já comparado ao inventário autenticado.
  * Fonte é o arquivo composto; não há cliente S3 nem credencial da origem aqui.

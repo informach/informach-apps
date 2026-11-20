@@ -132,3 +132,29 @@ todos os sujeitos (incluindo referências ausentes) e limita a época à cerca.
 Nenhum dos dois validadores emite permissão de efeitos offline. A prova nativa
 preparada inclui sujeito faltante/adicional, fonte divergente e adulteração
 do MAC persistida em PG com SHA recalculado. Os gates ainda precisam executar.
+
+
+## Importação comprovada, conexão nativa em qualificação
+
+37099d58 passou qualidade 44777706933; a prova fria 44777711780 recusou o plano
+na restrição JSONB. Diagnóstico c74cea66/44778543649 isolou
+`SQL_RECOVERY_PLAN`: string JSON recebia serialização JSON novamente pelo driver.
+5c57ce23 corrige a causa com `tx.json` nos dois parâmetros. Qualidade
+44778997078 e cluster frio/bucket real 44778991297 passaram; quatro objetos e
+registros históricos sintéticos limpos, com inventário preservado.
+[Recibo e hashes](evidencias/fontes-cluster-frio-44778991297.json).
+O livro histórico da prova usa HTTP fechado, com MACs reais de fixtures; não
+é prova de consentimento do adulto ou de efeitos nativos após recuperação.
+
+O verificador compartilhado d9396b81 passou direitos 44778056259 e qualidade
+44778061634. Negativas de MAC persistido/SHA recalculado, origem e seleção
+completa passaram no PostgreSQL.
+
+A candidata seguinte abre uma conexão nativa própria derivada exclusivamente
+do socket/banco privado já verificado e confirma o destino pela própria
+conexão. Não altera DATABASE_URL ou parsers do cliente de inventário, não usa
+o singleton e encerra seu pool inclusive em falhas. A factory compartilhada
+continua compatível com as URLs usadas nos provisionamentos Conta/Edi; esses
+consumidores exigem CI compartilhado. Prova fria preparada confere leitura
+nativa das fontes, rollback, fechamento efetivo e inventário integral após
+a limpeza. Nenhuma porta de worker foi liberada para execução offline.

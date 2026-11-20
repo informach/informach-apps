@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, importação no cluster frio comprovada:** 5c57ce23 passou
+bucket/cluster 44778991297 e qualidade 44778997078, com plano inteiro, conta
+ausente, mapa presente/ausente, repetição/divergências e limpeza. Corrigida
+dupla serialização JSON; sem efeitos F7 ou tráfego. Verificador d9396b81 passou
+direitos/qualidade 44778056259/44778061634. Conexão nativa própria ao socket
+privado está em qualificação; [frente](recreio/reaplicacao-nativa-2026-11-20.md).
+
 **20/11 — Recreio, fonte histórica qualificada:** 464368eb passou direitos
 44775278155, qualidade 44775284648 e conciliação 44775290564. Importador privado
 com preflight integral e prova em cluster frio está na próxima candidata; não

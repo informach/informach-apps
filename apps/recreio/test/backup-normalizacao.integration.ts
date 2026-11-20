@@ -13,6 +13,7 @@ import {
 } from "@/features/objetos/coleta-repository";
 import { reservarEntregaDaFotografia } from "@/features/objetos/entregas-repository";
 import { codigoDoPostgres } from "@/lib/repository";
+import { comConexaoPrivadaDeDireitos } from "../scripts/backup/conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "../scripts/backup/importar-fontes-direitos";
 import { normalizarCapacidadesRestauradas } from "../scripts/backup/normalizar-capacidades";
 import { exigirBancoPrivadoDeRecuperacao } from "../scripts/backup/normalizar-fotografias";
@@ -46,6 +47,13 @@ describe("normalização: recusas/quarentena em PostgreSQL real; sem liberar tr�
     await expect(normalizarCapacidadesRestauradas(origem)).rejects.toMatchObject({
       codigo: "DESTINO_NAO_PRIVADO",
     });
+    let executou = false;
+    await expect(
+      comConexaoPrivadaDeDireitos(origem, async () => {
+        executou = true;
+      }),
+    ).rejects.toMatchObject({ codigo: "DESTINO_NAO_PRIVADO" });
+    expect(executou).toBe(false);
     const livro = fixtureDoLivro(),
       http = await criarBucketDoLivro();
     try {

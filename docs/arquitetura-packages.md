@@ -117,6 +117,7 @@ Cinco grupos consolidados. Cada novo package se encaixa em uma dessas categorias
 - ORM: **Drizzle**. Driver: **postgres-js** (`drizzle-orm/postgres-js`). Mais leve que `pg` em Node.
 - Schemas SQL nativos por domínio via `pgSchema("nome").table(...)`. Exemplos atuais: `core`, `billing`, `audit`, `ai`, `agenda`, `cozya`.
 - Client singleton em `src/client.ts` com guard no `globalThis` para sobreviver a hot reload.
+- `createDatabaseConnection` cria/encerra somente seu próprio pool de uma conexão; aceita URL (provisionamentos Conta/Edi) ou opções explícitas de socket Unix (recuperação privada). Opções não leem a URL do app nem compartilham os parsers/pool do cliente original. A factory não concede autorização de recuperação: o coordenador do domínio deve provar destino, inventário, cerca e efeitos.
 - `drizzle.config.ts` com `dialect: "postgresql"`, `schema: "./src/schema/index.ts"`, `out: "./src/migrations"`, `schemaFilter: ["core","<dominio_app_1>",...]` para que o `drizzle-kit` só toque nas schemas geridas.
 - Migrations geradas pelo script `pnpm db:generate`, aplicadas por `pnpm db:migrate` (`migrate.ts`, manualmente ou pelo job dedicado, **nunca** no start de um app). Em produção, não executar `drizzle-kit migrate`/`push` diretamente: contornariam a conferência de histórico, a trava do corte e os limites operacionais.
 - Repository pattern: funções nomeadas por feature, exportadas via re-export no `index.ts`. Sem `Repo<T>` genérico — overengineering.

@@ -1,5 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import { type Database, eq, sql } from "@informach/db";
+import { recreioRightsRecoverySources as sources } from "@informach/db/schema";
 import type postgres from "postgres";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import {
@@ -10,6 +12,7 @@ import { FalhaDoLivroDeDireitos, RAIZ_VAZIA } from "../../src/features/direitos/
 import { admitirIntencaoNoLivro } from "../../src/features/direitos/livro/publicacao";
 import { PlanoDeDireitosSchema } from "../../src/features/direitos/preparacao-contrato";
 import { criarBucketDoLivro } from "../../test/livro-s3-apoio";
+import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
@@ -175,6 +178,53 @@ export async function provarFontesHistoricasRecuperadas(
     );
     const repetida = await importarFontesHistoricasDeDireitos(config);
     exigir(isDeepStrictEqual(primeira, repetida) && isDeepStrictEqual(fontes, await ler()));
+    let emprestada: Database | undefined;
+    const causa = new Error("Private native transaction rollback qualification");
+    await comConexaoPrivadaDeDireitos(copia, async (banco) => {
+      emprestada = banco;
+      const nativas = await banco
+        .select()
+        .from(sources)
+        .where(eq(sources.runId, primeira.execucaoId));
+      exigir(
+        nativas.length === 2 &&
+          nativas.every((f) => planos.some((p) => isDeepStrictEqual(f.plan, p))),
+      );
+      let reverteu = false;
+      try {
+        await banco.transaction(async (tx) => {
+          await tx
+            .update(sources)
+            .set({ worldMap: [] })
+            .where(eq(sources.runId, primeira.execucaoId));
+          throw causa;
+        });
+      } catch (e) {
+        if (e !== causa) throw e;
+        reverteu = true;
+      }
+      exigir(reverteu && isDeepStrictEqual(fontes, await ler()));
+    });
+    exigir(emprestada);
+    let encerrou = false;
+    try {
+      await emprestada.execute(sql`select 1`);
+    } catch (e) {
+      const fila: unknown[] = [e];
+      for (let i = 0; i < 4 && fila.length; i++) {
+        const atual = fila.shift();
+        if (
+          atual &&
+          typeof atual === "object" &&
+          "code" in atual &&
+          atual.code === "CONNECTION_ENDED"
+        )
+          encerrou = true;
+        if (atual instanceof Error && atual.cause) fila.push(atual.cause);
+      }
+      if (!encerrou) throw e;
+    }
+    exigir(encerrou);
     rejeitou = false;
     try {
       await importarFontesHistoricasDeDireitos({ ...config, capturaSha256: "0".repeat(64) });
@@ -242,6 +292,9 @@ export async function provarFontesHistoricasRecuperadas(
     historicalSourceIdempotenceVerified: true as const,
     historicalSourceDivergenceRefused: true as const,
     historicalSourceFixturesCleaned: true as const,
+    historicalNativeConnectionBound: true as const,
+    historicalNativeConnectionRollbackVerified: true as const,
+    historicalNativeConnectionClosed: true as const,
     historicalSourceEffectsExecuted: false as const,
   };
 }
