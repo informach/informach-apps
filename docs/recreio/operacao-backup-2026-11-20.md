@@ -256,3 +256,33 @@ entra/saída Docker off/inválida, sem relaxar o JSONL. A composição completa 
 CLI com provedor real ainda precisa de prova separada, além dos ports nativos.
 Custódia separada, recuperação sem credenciais da origem e primeira execução
 produtiva cifrada continuam pendentes; nenhuma credencial real vai ao GitHub.
+
+
+c1dec016 foi recusada nos tipos porque o callback de comparação capturava
+uma variável mutável ainda tipada como opcional. f5b4116f usa uma coleção
+constante dos materiais já validados, mantendo a proibição de reutilização.
+Passou qualidade 44832374709, captura/política 44832378633 e cluster externo
+44832382761; a entrada Docker off/inválida passou em 44832004778.
+Isso ainda não é prova da CLI completa com arquivo real no provedor.
+
+## Recuperador operacional em candidata
+
+Modo restore tem composição distinta: recebe somente credencial/chave do
+arquivo e ID da captura, sem DATABASE_URL, credencial de fotografias, login,
+e-mail ou cobrança. O bundle deve recusar import de pool/índice/job-runs do
+banco original e Better Auth. Cliente S3 só admite GET dos três nomes previstos
+na captura selecionada; proíbe listagem, escrita e leitura de outros objetos.
+Essa é uma fronteira de código, não declaração de IAM read-only do provedor.
+
+O recuperador autentica índice/arquivo/composto e restaura no socket privado
+existente. Compara o inventário original antes do upgrade e depois reidrata
+fotografias contidas no arquivo. Pode executar uma ou duas rodadas físicas
+sequenciais, com encerramento/remoção de cada cluster. Relê o índice depois de
+cada rodada para respeitar uma retirada concorrente. Nunca publica dados,
+liquida finanças ou libera tráfego; duas rodadas deste ensaio não substituem
+duas recuperações completas F7 com estado atual e publicação seletiva.
+
+Parser de armazenamento e limites é compartilhado com o capturador, mantendo
+o contrato já existente de S3/chaveiro. A nova composição e seu limite de
+leitura ainda precisam de gates e da prova CLI inteira no bucket sintético
+autorizado. Nenhuma das duas entradas foi ativada em produção.

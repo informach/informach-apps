@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/recreio-backup.yml"
       - "apps/recreio/scripts/backup/**"
+      - "apps/recreio/src/lib/backup-*"
       - "apps/recreio/test/backup-runtime-fixture.sql"
       - "infrastructure/railway/recreio-backup.Dockerfile*"
       - "pnpm-lock.yaml"
@@ -53,6 +54,12 @@ jobs:
             test "$status" -eq 1
             grep '"codigo":"CONFIGURACAO"' "$RUNNER_TEMP/backup-invalid-$modo.json"
           done
+          set +e
+          docker run --rm --network none --env RECREIO_BACKUP_MODE=restore recreio-backup:ci > "$RUNNER_TEMP/backup-restore-invalid.json" 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 1
+          grep '"codigo":"RECUPERACAO_NAO_CONFIRMADA"' "$RUNNER_TEMP/backup-restore-invalid.json"
       - name: Iniciar somente a origem descartável
         shell: bash
         run: |

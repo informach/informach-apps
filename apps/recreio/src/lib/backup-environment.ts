@@ -1,8 +1,11 @@
 import { z } from "zod";
-import { configuracaoDosObjetosDoProcesso, objectEnvironmentSchema } from "./object-environment";
+import {
+  camposDeLimiteDoBackup,
+  conferirContextoDoBackup,
+  configuracaoDoArquivoDeBackup,
+} from "./backup-storage-environment";
+import { configuracaoDosObjetosDoProcesso } from "./object-environment";
 
-const PROJETO = "f4da4285-5b98-48b5-b03e-5be02f4e7c56";
-const AMBIENTE = "174b2cb0-e1cd-410c-8764-d913e3af18d3";
 export class FalhaDoAmbienteDeBackup extends Error {
   readonly codigo = "CONFIGURACAO";
   constructor() {
@@ -10,17 +13,7 @@ export class FalhaDoAmbienteDeBackup extends Error {
   }
 }
 const Limites = z.strictObject({
-  tempoLimiteMs: z.coerce.number().int().min(1000).max(900000),
-  limiteBytes: z.coerce
-    .number()
-    .int()
-    .min(1024)
-    .max(4 * 1024 ** 3 - 65536),
-  limiteFotografiaBytes: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(4 * 1024 ** 2),
+  ...camposDeLimiteDoBackup,
   intervaloSegundos: z.coerce.number().int().min(60).max(86400),
   retencaoDias: z.coerce.number().int().min(1).max(88),
   source: z.string().regex(/^[a-f0-9]{40}$/),
@@ -49,18 +42,10 @@ export function configuracaoDoBackupDoProcesso(
   try {
     fotos = configuracaoDosObjetosDoProcesso(input) ?? undefined;
     if (!fotos) return falhar();
-    // The registered object schema is the single list of fields. Prefix
-    // translation cannot accept an arbitrary endpoint/credential namespace.
-    const vars = Object.fromEntries(
-      Object.keys(objectEnvironmentSchema.shape).map((name) => [
-        name,
-        input[name.replace(/^RECREIO_OBJECTS_/, "RECREIO_BACKUP_")],
-      ]),
-    );
-    vars.RECREIO_OBJECTS_MODE = "read";
-    arquivo = configuracaoDosObjetosDoProcesso(vars) ?? undefined;
+    arquivo = configuracaoDoArquivoDeBackup(input);
     if (!arquivo || fotos.escopo !== arquivo.escopo) return falhar();
     const materiaisDoArquivo = [...arquivo.chaves.values()];
+    conferirContextoDoBackup(input, arquivo.escopo);
     const qualification = arquivo.escopo === "qualification";
     const url = new URL(input.DATABASE_URL ?? "");
     if (
@@ -75,17 +60,12 @@ export function configuracaoDoBackupDoProcesso(
       return falhar();
     if (qualification) {
       if (
-        input.CI !== "true" ||
-        input.GITHUB_ACTIONS !== "true" ||
         !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
         !/^\/recreio_review_[a-f0-9]{32}$/.test(url.pathname)
       )
         return falhar();
     } else {
       if (
-        input.RAILWAY_PROJECT_ID !== PROJETO ||
-        input.RAILWAY_ENVIRONMENT_ID !== AMBIENTE ||
-        !z.uuid().safeParse(input.RAILWAY_SERVICE_ID).success ||
         !/^[a-z0-9-]+\.railway\.internal$/.test(url.hostname) ||
         url.pathname !== "/railway" ||
         fotos.bucketId === arquivo.bucketId ||

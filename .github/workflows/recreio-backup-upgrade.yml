@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/recreio-backup-upgrade.yml"
       - "apps/recreio/scripts/backup/**"
+      - "apps/recreio/src/lib/backup-*"
       - "packages/db/src/migration-chain*"
       - "packages/db/src/migration-provenance*"
       - "packages/db/src/testing/recreio-restored-upgrade-fixture.ts"
