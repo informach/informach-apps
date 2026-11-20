@@ -1,7 +1,7 @@
 import "server-only";
-import { isDeepStrictEqual } from "node:util";
 import type { recreioRightsOperations, recreioRightsPreparations } from "@informach/db/schema";
-import { type criarAssinaturaDoLivro, resumoDoRegistro } from "./livro/assinatura";
+import { conferirIntencaoDoPlano } from "./intencao-persistida";
+import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
 import { lerPlanoDeDireitos } from "./plano-persistido";
 
@@ -18,40 +18,10 @@ export function conferirIntencaoNativa(
     !preparacao ||
     atual.preparationId === null ||
     atual.recoverySourceId !== null ||
-    resumoDoRegistro(atual.signedIntent) !== atual.intentSha256
+    preparacao.id !== atual.preparationId ||
+    preparacao.planSha256 !== atual.planSha256
   )
     throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
   const plano = lerPlanoDeDireitos(preparacao, atual.requesterUserId);
-  const { documento: doc, chaveId } = assinatura.lerIntencaoAssinada(atual.signedIntent);
-  if (
-    chaveId !== atual.signingKeyId ||
-    !isDeepStrictEqual(doc, {
-      formato: "recreio-intencao-direitos-v1",
-      livroId: atual.ledgerId,
-      operacaoId: atual.id,
-      revisao: atual.revision,
-      epoca: atual.ledgerEpoch,
-      tipo: atual.kind,
-      contaId: atual.requesterUserId,
-      perfilIds: plano.perfis.map((p) => p.id),
-      planoSha256: atual.planSha256,
-      consentidaEm: atual.consentedAt.toISOString(),
-      autenticadaEm: atual.authenticatedAt.toISOString(),
-      fonte: atual.source,
-    }) ||
-    plano.tipo !== atual.kind ||
-    plano.contaId !== atual.requesterUserId ||
-    preparacao.id !== atual.preparationId ||
-    preparacao.planSha256 !== atual.planSha256 ||
-    !isDeepStrictEqual(
-      selecionados.map((p) => p.id),
-      doc.perfilIds,
-    ) ||
-    !isDeepStrictEqual(
-      plano.mundos.map((m) => ({ id: m.id, jogo: m.jogo })),
-      mundos,
-    )
-  )
-    throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
-  return { plano, intencao: doc };
+  return conferirIntencaoDoPlano(atual, plano, selecionados, assinatura, mundos);
 }

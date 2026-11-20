@@ -7,10 +7,13 @@ import {
   recreioRightsRecoveryRuns as runs,
   recreioRightsRecoverySources as sources,
   recreioSpaces as spaces,
+  recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
 import { z } from "zod";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import { conferirIntencaoDoPlano } from "./intencao-persistida";
+import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { lerPlanoDeDireitos } from "./plano-persistido";
 
 /** Normal workers cannot execute an imported decision through the interactive
@@ -117,4 +120,33 @@ export async function lerPlanoHistoricoRecuperado(
     importadaEm: fonte.origem.importedAt,
     execucaoAutorizada: false as const,
   };
+}
+
+/** Historical provenance plus original MAC and complete subject/world scope.
+ * A frozen-prefix/private-cluster coordinator is still required for effects. */
+export async function conferirIntencaoHistoricaRecuperada(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+  assinatura: ReturnType<typeof criarAssinaturaDoLivro>,
+) {
+  const historica = await lerPlanoHistoricoRecuperado(tx, op);
+  const selecionados = await tx
+    .select({ id: subjects.profileReference })
+    .from(subjects)
+    .where(eq(subjects.operationId, op.id))
+    .orderBy(subjects.profileReference)
+    .limit(257);
+  const conferida = conferirIntencaoDoPlano(
+    op,
+    historica.plano,
+    selecionados,
+    assinatura,
+    historica.mapa.map((m) => ({ id: m.mundoReferencia, jogo: m.jogo })),
+  );
+  assertAllowed(
+    op.ledgerEpoch <= historica.execucao.frozenEpoch,
+    "DIREITOS_INTEGRIDADE",
+    "A época da intenção excede a cerca histórica.",
+  );
+  return { ...historica, intencao: conferida.intencao };
 }

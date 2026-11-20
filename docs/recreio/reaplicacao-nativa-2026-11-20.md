@@ -120,3 +120,15 @@ ausente, repetição com datas originais, captura divergente, mapa adulterado
 sem sobrescrita e limpeza exata pelo inventário completo. É prova de armazenamento
 e proveniência; não comprova consentimento do adulto ou reaplicação dos efeitos.
 Os novos gates ainda precisam executar.
+
+
+## Verificador canônico em candidata
+
+`intencao-persistida` reúne a conferência de MAC/SHA, todos os campos da
+intenção assinada, seleção ordenada de perfis e seleção inteira de mundos.
+O caminho interativo conserva as exigências de preparação e FK. A conferência
+histórica acrescenta o mesmo verificador ao plano/mapa recuperado, consulta
+todos os sujeitos (incluindo referências ausentes) e limita a época à cerca.
+Nenhum dos dois validadores emite permissão de efeitos offline. A prova nativa
+preparada inclui sujeito faltante/adicional, fonte divergente e adulteração
+do MAC persistida em PG com SHA recalculado. Os gates ainda precisam executar.

@@ -1,15 +1,17 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { db, eq } from "@informach/db";
+import { and, db, eq } from "@informach/db";
 import {
   recreioGuardianLinks as guardians,
   recreioRightsOperations as operations,
   recreioProfiles as profiles,
   recreioRightsRecoveryRuns as runs,
   recreioRightsRecoverySources as sources,
+  recreioRightsSubjects as subjects,
   users,
 } from "@informach/db/schema";
 import { expect, it } from "vitest";
 import {
+  conferirIntencaoHistoricaRecuperada,
   lerPlanoHistoricoRecuperado,
   lerPreparacaoInterativaDaOperacao,
 } from "@/features/direitos/fonte-intencao-repository";
@@ -146,6 +148,64 @@ it("conserva origem histórica sem criar solicitante ou mundo e recusa usar a fo
     expect(lida.plano).toEqual(plano);
     expect(lida.mapa).toEqual(mapa);
     expect(lida.execucaoAutorizada).toBe(false);
+    const autenticar = (atual = op) =>
+      db.transaction((tx) => conferirIntencaoHistoricaRecuperada(tx, atual, assinatura));
+    await expect(autenticar()).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+    await db.insert(subjects).values({
+      operationId: id,
+      profileReference: familia.perfil.id,
+      liveProfileId: familia.perfil.id,
+      policyVersion: perfilAntes.policyVersion,
+      guardianReference: guarda.id,
+    });
+    const autenticada = await autenticar();
+    expect(autenticada.intencao.contaId).toBe(ausente);
+    expect(autenticada.execucaoAutorizada).toBe(false);
+    await expect(autenticar({ ...op, source: "e".repeat(40) })).rejects.toMatchObject({
+      codigo: "INTEGRIDADE",
+    });
+    const adicional = randomUUID();
+    await db.insert(subjects).values({
+      operationId: id,
+      profileReference: adicional,
+      liveProfileId: null,
+      policyVersion: 1,
+    });
+    await expect(autenticar()).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+    await db
+      .delete(subjects)
+      .where(and(eq(subjects.operationId, id), eq(subjects.profileReference, adicional)));
+    const corrompida = Buffer.from(bytes);
+    try {
+      // Preserve syntactically valid/canonical JSON while invalidating the MAC.
+      const envelope: unknown = JSON.parse(corrompida.toString("utf8"));
+      if (
+        !envelope ||
+        typeof envelope !== "object" ||
+        !("mac" in envelope) ||
+        typeof envelope.mac !== "string"
+      )
+        throw new Error("Signed fixture envelope absent");
+      envelope.mac = `${envelope.mac.startsWith("0") ? "1" : "0"}${envelope.mac.slice(1)}`;
+      const adulterada = Buffer.from(JSON.stringify(envelope));
+      try {
+        const [persistida] = await db
+          .update(operations)
+          .set({ signedIntent: adulterada, intentSha256: resumoDoRegistro(adulterada) })
+          .where(eq(operations.id, id))
+          .returning();
+        if (!persistida) throw new Error("Stored source absent");
+        await expect(autenticar(persistida)).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+      } finally {
+        adulterada.fill(0);
+      }
+    } finally {
+      corrompida.fill(0);
+      await db
+        .update(operations)
+        .set({ signedIntent: bytes, intentSha256: resumoDoRegistro(bytes) })
+        .where(eq(operations.id, id));
+    }
     await expect(
       db.transaction((tx) => lerPreparacaoInterativaDaOperacao(tx, op)),
     ).rejects.toMatchObject({ code: "DIREITOS_INTEGRIDADE" });
