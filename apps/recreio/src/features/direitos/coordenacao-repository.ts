@@ -56,6 +56,7 @@ type Privada = {
   storage: ReturnType<typeof criarArmazenamentoDoLivro>;
   signal: AbortSignal;
   admissoes: ReadonlyMap<string, AdmissaoPersistidaNoBackup>;
+  finalizando?: boolean;
   operacaoId?: string;
   autoridades?: ReadonlyMap<string, AutoridadeNoBackup>;
   pai?: CoordenacaoDeEfeitos;
@@ -102,6 +103,7 @@ function contexto(config: CoordenacaoDeEfeitos) {
         pai &&
           !pai.signal.aborted &&
           !pai.operacaoId &&
+          !pai.finalizando &&
           pai.banco === privado.banco &&
           pai.execucaoId === privado.execucaoId &&
           pai.cerca === privado.cerca,
@@ -523,7 +525,7 @@ export function dadosDaCoordenacaoPrivada(config: CoordenacaoDeEfeitos) {
   conferirCoordenacaoDeDireitos(config);
   const privado = contexto(config);
   assertAllowed(
-    privado && !privado.operacaoId,
+    privado && !privado.operacaoId && !privado.finalizando,
     "DIREITOS_LIVRO",
     "Coordenação privada de execução ausente.",
   );
@@ -564,6 +566,29 @@ export async function conferirAdmissaoPersistidaDaCoordenacao(
   });
 }
 
+/** Terminal private phase. No child or admission may start after this point;
+ * in-flight children are refused and roll back before commit. The factory
+ * still performs its final external fence check and owns connection cleanup. */
+export async function comVerificacaoFinalPrivada<T>(
+  config: CoordenacaoDeEfeitos,
+  executar: (dados: ReturnType<typeof dadosDaCoordenacaoPrivada>) => Promise<T>,
+) {
+  const dados = dadosDaCoordenacaoPrivada(config),
+    privado = contexto(config);
+  assertAllowed(
+    privado && !filhasAtivas.has(config),
+    "DIREITOS_LIVRO",
+    "A coordenação ainda tem uma operação ativa.",
+  );
+  privado.finalizando = true;
+  try {
+    return await executar(dados);
+  } catch (erro) {
+    privado.finalizando = false;
+    throw erro;
+  }
+}
+
 /** At most one active operation per execution; at most 256 authority records.
  * Original signed responsibility remains in the plan/subject. Backup authority
  * is only a sealed consistency snapshot, never a reassignment to that actor. */
@@ -576,7 +601,7 @@ export async function comOperacaoPrivadaDeDireitos<T>(
   const privado = contexto(config);
   conferirCoordenacaoDeDireitos(config);
   assertAllowed(
-    privado && !privado.operacaoId && !filhasAtivas.has(config),
+    privado && !privado.operacaoId && !privado.finalizando && !filhasAtivas.has(config),
     "DIREITOS_LIVRO",
     "A execução já tem operação privada ativa.",
   );

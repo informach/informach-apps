@@ -748,3 +748,27 @@ A consulta somente leitura de custo acumulado e posses foi executada em Railway
 às 20h38 UTC; [medição e limites](custo-operacao-2026-11-20.md). Não é fatura
 quitada, rateio causal, capacidade sob carga ou custo marginal. Nenhum deploy,
 DDL produtivo ou ativação foi executado.
+
+
+## Candidata: verificação técnica terminal das retiradas
+
+Próximo incremento aproveita os campos de recibo já gerados em 0242/0243.
+Cada operação exige conclusão nativa real, MAC/mapa/capacidade atual, ausência
+de dados opacos, mundos concluídos e retenções mínimas nos prazos originais.
+Marca somente sua avaliação como verified; repetição conserva datas e não
+escreve novo evento. Não atualiza consentimento/admissão/conclusão antigos.
+
+A fase terminal impede novos escopos filhos/admissões e trava as operações
+atuais em ordem antes da conferência completa. Só um prefixo inteiro de
+retiradas verificadas pode fechar o recibo de reaplicação. Financeiro não vira
+liquidado implicitamente. SHA do recibo técnico fica na execução; auditoria
+estrita, com ator nulo e somente IDs/contagem/estado, participa da transação.
+É verificação de reaplicação de retiradas, não normalização de identidade,
+rotação de credenciais, custódia produtiva ou permissão de tráfego.
+
+A prova preparada recusa finalização com pendência, repete a verificação de
+cada operação, provoca rejeição real da auditoria no cluster descartável e
+exige rollback do estado/hash/data do recibo. Depois verifica fechamento e
+recusa de novo filho, preservando hashes integrais das operações originais.
+O trigger de falha é somente fixture, removido em finally; não vira configuração
+de produto. Gates remotos ainda pendentes para este incremento.

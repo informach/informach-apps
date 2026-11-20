@@ -16,6 +16,14 @@
 
 Preferir sempre identificadores e estado transacional:
 
+`recreio.rights_recovery_operation_verified` registra somente `app`, `runId`,
+`operationId` e `kind`; `recreio.rights_recovery_verified` registra `app`, `runId`,
+`operationCount` e `state`. Ator nulo identifica o coordenador técnico, nunca
+representa um consentimento do solicitante histórico. Escrita estrita na mesma
+transação da avaliação/recibo. Não incluir plano, mapa, hashes, dados de pessoas
+ou erros. O recibo fecha somente a reaplicação de retiradas: não comprova
+conciliação financeira, normalização de identidade ou admissão de tráfego.
+
 `recreio.renewal_cancellation_accepted` registra somente `app`, `groupId`,
 `cancellationId`, `subscriptionId` interno, `revision` e `state`, com ator no
 campo próprio e escrita estrita na mesma transação. Não registrar referências

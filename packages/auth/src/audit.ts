@@ -169,6 +169,8 @@ export type AuditEventType =
   | "recreio.rights_admitted"
   | "recreio.rights_historical_admitted"
   | "recreio.rights_historical_resumed"
+  | "recreio.rights_recovery_operation_verified"
+  | "recreio.rights_recovery_verified"
   | "recreio.rights_photo_processed"
   | "recreio.rights_journal_compacted"
   | "recreio.rights_processing_blocked"

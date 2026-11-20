@@ -20,12 +20,15 @@ import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/arm
 import { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
 import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
 import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
+import { verificarReaplicacaoDeRetiradas } from "../../src/features/direitos/verificacao-recuperada-repository";
+import { AppError } from "../../src/lib/errors";
 import { processarFotografiaNaCoordenacao } from "../direitos/fotografias";
 import { recuperarDiarioNaCoordenacao } from "../direitos/recuperacao";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { inventariarBackup } from "./inventario";
 import { provarOperacaoNativaAnterior } from "./provar-operacao-anterior";
+import { provarVerificacaoDasRetiradas } from "./provar-verificacao-retiradas";
 import { exigir, FalhaDaProva } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
 
@@ -213,6 +216,14 @@ export async function provarRetiradaNativaPosterior(config: {
         }),
       );
     await coordenar(async (pai) => {
+      let pendenciaRecusada = false;
+      try {
+        await verificarReaplicacaoDeRetiradas(pai);
+      } catch (e) {
+        if (!(e instanceof AppError) || e.code !== "DIREITOS_DEPENDENCIA") throw e;
+        pendenciaRecusada = true;
+      }
+      exigir(pendenciaRecusada, "VERIFICACAO_RETIRADAS_DIVERGENTE");
       const admissao = await admitirRetiradaHistoricaRecuperada(pai, dado.operacaoId);
       exigir(admissao.situacao === "admitida", "ADMISSAO_HISTORICA_DIVERGENTE");
       await comOperacaoPrivadaDeDireitos(pai, dado.operacaoId, async (filha) => {
@@ -386,8 +397,14 @@ export async function provarRetiradaNativaPosterior(config: {
       preservadoId: dado.preservadoId,
       coordenar,
     });
+    const verificacao = await provarVerificacaoDasRetiradas({
+      copia,
+      operacoes: [dado.operacaoId, dado.anterior.operacaoId],
+      coordenar,
+    });
     return {
       ...anterior,
+      ...verificacao,
       nativePostCaptureConsentReplayed: true as const,
       nativePostCapturePersonalErasureExecuted: true as const,
       nativePostCaptureOtherProfilePreserved: true as const,
