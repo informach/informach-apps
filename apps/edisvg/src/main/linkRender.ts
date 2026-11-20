@@ -1,5 +1,6 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { rmSync } from "node:fs";
 import { mkdir, readdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -177,6 +178,11 @@ export async function startRender(
   if (!linked.some((i) => i.animationId === spec.animationId))
     throw new Error("Esta animação não está vinculada a uma aula.");
   await mkdir(folder, { recursive: true });
+  // A render left half made (EdiSVG closed while FFmpeg still held the file) goes now.
+  const going = new Set([...jobs.values()].map((job) => job.part));
+  for (const name of await readdir(folder).catch(() => [] as string[]))
+    if (name.endsWith(".part.webm") && !going.has(join(folder, name)))
+      await rm(join(folder, name), { force: true }).catch(() => undefined);
   const file = renderFileName(spec.animationId, spec.hash);
   // Its own name: a render of the same picture stopped meanwhile never removes this one.
   const part = join(folder, `${file}.${randomUUID()}.part.webm`);
@@ -304,4 +310,17 @@ export async function cancelRender(id: unknown): Promise<void> {
   job.process.kill();
   await job.done;
   await rm(job.part, { force: true });
+}
+
+/** EdiSVG closing: every render going stops and its half-made file goes (the queue keeps it). */
+export function stopRenders(): void {
+  for (const [id, job] of jobs) {
+    jobs.delete(id);
+    job.process.kill();
+    try {
+      rmSync(job.part, { force: true });
+    } catch {
+      // Still held by FFmpeg as it exits: the next render of the animation has its own name.
+    }
+  }
 }

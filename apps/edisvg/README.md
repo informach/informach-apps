@@ -25,7 +25,7 @@ pode mudar só daquela vez).
 Abra por **Arquivo → Pipelines…** (Ctrl+Shift+P), pelo botão **▶ Pipelines** da barra lateral ou
 pela paleta de comandos.
 
-Duas receitas vêm prontas. Elas podem ser editadas ("Voltar ao original" desfaz a edição),
+Três receitas vêm prontas. Elas podem ser editadas ("Voltar ao original" desfaz a edição),
 duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero (até 100 receitas).
 Uma receita da pessoa não volta depois de excluída, então o botão pede um segundo clique
 ("Excluir de vez?").
@@ -48,6 +48,12 @@ Uma receita da pessoa não volta depois de excluída, então o botão pede um se
     - **Pacote da aula, ou gravação do EdiAula:** os dados do cursor da tomada dão os cliques
       reais, já na escala do vídeo e no quadro da animação.
     - **Outro vídeo:** o assistente decide pelos quadros.
+- **Aula teórica com a apresentadora**
+  - Para a aula sem jogo e sem tela gravada: uma apresentação em movimento, de tela inteira, com
+    espaço para a professora. Recebe só o MP4 dela, gravado em fundo verde (a voz dela é a
+    narração), e o roteiro.
+  - O espaço dela muda ao longo da explicação, como planos de câmera. Ela entra depois no EdiAula,
+    por cima da animação. Veja "Aula teórica com a apresentadora", abaixo.
 
 **O pacote da aula.** "Escolher aula…" pede o ZIP que o EdiAula gera em **Arquivo › Empacotar a
 aula**: o arquivo que chega de quem gravou. O `.ediaula` solto não é aceito. Do pacote saem só os
@@ -242,6 +248,85 @@ Plano e decisões: [pipelines no EdiSVG](../../docs/propostas/edisvg-pipelines-2
 - Jornada nativa (`scripts/native-pipeline-journey.mts`): a receita da Cena com uma aula do
   EdiAula no Electron. Com `EDISVG_PIPELINE_WHISPER=1`, também um áudio transcrito.
 
+### Aula teórica com a apresentadora
+
+A receita `presenter-talk` (19/11/2026). Não usa projeto do Estúdio nem vídeo de tela, nem o
+pacote da aula: só o MP4 da professora, gravado em fundo verde, e o roteiro. A ordem das etapas:
+
+1. **Ouvir o vídeo.** A voz dela é a narração. O vídeo é transcrito como um áudio e o roteiro é
+   achado nele, frase por frase.
+2. **Preparar o vídeo** (`pipelinePresenter` em `src/main/pipelineEngine.ts`):
+   - seis quadros pequenos do trecho dão a cor do fundo (a mediana das laterais e do alto, que
+     precisa ser verde ou azul) e onde ela está no quadro, com uma margem (`src/main/presenterKey.ts`);
+   - o trecho sem o fundo vira um WebM com alfa (`chromakey` do FFmpeg, 540p) para a prévia;
+   - abre uma prancheta 1920×1080, o quadro da aula no EdiAula.
+
+   Um fundo que não é de cor lisa para a execução com uma mensagem.
+3. **Escolher os planos.** O assistente responde só um JSON com uma posição por frase. São os
+   planos aprovados na primeira aula feita com a receita (veja "O padrão aprovado", abaixo), em
+   `PRESENTER_PLACEMENTS` (`src/shared/presenterFraming.ts`):
+   - **Médio à direita / à esquerda** (escala 1,8, da cintura para cima): o plano padrão.
+   - **Médio curto à direita / à esquerda** (escala 2,3, do peito para cima): fala direta com quem
+     assiste (cumprimento, apresentação, pergunta, pedido).
+
+   Ela nunca fica no centro, e o topo do vídeo fica no topo da tela. Plano inteiro e americano
+   não existem. O lado troca com o assunto, e dois cortes seguidos do mesmo lado trocam o plano.
+   Cada troca é um corte no meio da pausa entre as frases, e um plano de menos de 3 s continua
+   no anterior (`planShots`).
+4. **O palco.** O pipeline monta, do fundo para a frente (`addPresenterStage` em `app.js`):
+   - **"Apresentadora (espaço)":** um retângulo sem pintura, do tamanho do vídeo dela na escala 1,
+     travado, com uma chave `hold` de posição e escala por plano. Não aparece em nenhuma
+     exportação. Na prévia, o vídeo dela sem o fundo fica por cima da arte e acompanha essa camada
+     quadro a quadro (`src/renderer/src/pipelines/reference.ts`). Destravar e mover a camada, ou
+     as chaves dela, muda a prévia junto. O vídeo fica guardado com o projeto.
+   - **"Fundo":** um retângulo da tela inteira na tinta da paleta (a segunda cor).
+   - **"Fundo · luz atrás da apresentadora":** um círculo de raio 520 com gradiente radial do
+     destaque (a última cor: 42% no meio, 16% a 55%, transparente na borda). Ele acompanha cada
+     corte, atrás dela (`light` de cada plano).
+   - **As guias:** x 84, 960 e 1836; y 92 e 1008 (`LECTURE_GUIDES`).
+5. **O rascunho.** O assistente desenha o resto do fundo e o conteúdo. Para cada corte, ele recebe
+   a coluna do conteúdo: com ela à direita, x 84–960, centro em x 522; com ela à esquerda,
+   x 960–1836, centro em x 1398; na altura, y 92–1008, centro em y 550 (`contentColumn`). Recebe
+   também as regras de layout aprovadas (`presenterSection` em `prompt.ts`):
+   - cada momento da fala é um bloco centralizado na coluna, na largura e na altura, e não
+     espalhado por linhas de terços;
+   - um momento por vez;
+   - grupos "F<frase> · <assunto>" e "Corte <n> · conteúdo";
+   - largura estimada do texto, e a letra diminui se não couber;
+   - folga de 24 px dentro das formas, e nenhuma forma por cima de texto;
+   - listas de até 3 itens;
+   - peças da frente criadas por último;
+   - stroke "none" explícito em toda forma nova, porque o EdiSVG põe um contorno verde-água
+     (#4fe3c1) em caminhos novos.
+
+   Se ela fica longe do meio do próprio vídeo e entra na coluna, o relatório avisa.
+
+**O padrão aprovado.** Os planos, o palco, as colunas e o estilo da receita pronta saíram da
+primeira aula feita com ela ("Transformando o vilão em aliado", aula 1, parte 1, 19/11/2026). A
+pessoa ajustou a aula com a assistente até ficar como queria:
+- tirar os contornos verdes;
+- pôr na frente as peças que estavam atrás;
+- trocar plano inteiro e americano por médio e médio curto, montados no EdiSVG;
+- tirar textos de trás dela e de baixo de ícones;
+- centralizar o conteúdo entre a borda e ela, depois entre as guias, na largura e na altura,
+  depois de descartar a regra dos terços.
+
+Os números foram lidos do projeto salvo. O estilo da receita pronta descreve o visual dessa aula,
+e a paleta padrão é a do guia dela: o fundo marinho, os três brilhos radiais que derivam devagar
+(azul, violeta e verde), a textura de pixels a 7%, as estrelinhas, a tipografia e as curvas de
+entrada. Esse estilo pode ser editado na receita; as regras de layout e o palco são do código.
+
+**No EdiAula.** O relatório da execução lista os planos em segundos do vídeo dela, com a posição e
+os números (por exemplo, `0:16.2–0:22.5 do vídeo: Médio à esquerda (x 0.229, y 0.9, escala 1.8)`).
+É a posição que se dá ao clipe da apresentadora em cada trecho, cortando o clipe nas trocas. A
+animação entra como fundo e o vídeo dela por cima, com o fundo removido pelo EdiAula. Levar os
+planos ao EdiAula sozinhos ainda não existe.
+
+**Testes.** Unitários dos planos (os números conferidos com os da aula aprovada), das colunas, da
+leitura do fundo e da execução inteira com a ponte falsa; e2e no editor compilado (o palco, as
+guias, as chaves e o vídeo no lugar nos dois planos). A remoção do fundo foi conferida com o
+FFmpeg num vídeo sintético: o fundo sai com alfa 0 e ela fica opaca.
+
 ## Animações vinculadas a uma aula do EdiAula
 
 Uma animação pode ser um clipe de uma aula do EdiAula, como uma composição do After Effects no
@@ -269,7 +354,8 @@ renderiza ao salvar. O contrato fica em `packages/edi-link`.
 - **Linha de comando:** `EdiSVG.exe <arquivo.edisvg>` (ou "Abrir com") abre o arquivo, também
   com o EdiSVG já aberto.
 
-**O render ao salvar** (`src/renderer/src/links/renderLinks.ts`, `src/main/linkRender.ts`):
+**O render ao salvar** (`src/renderer/src/links/renderLinks.ts`, `src/main/linkQueue.ts`,
+`src/main/linkRender.ts`):
 - **Onde ficam:**
   - os renders vão para a pasta `<projeto> · renders`, ao lado do projeto;
   - `vinculos.json` lista cada animação vinculada: a prancheta, o nome, a aula dela e o render
@@ -281,8 +367,17 @@ renderiza ao salvar. O contrato fica em `packages/edi-link`.
 - **Como desenha:** quadro a quadro pelo mesmo desenhista das exportações, com fundo
   transparente, e direto para o FFmpeg da suíte (VP9 com alfa, WebM), sem precisar caber na
   memória.
-- **Sem travar o trabalho:** roda em segundo plano, com o andamento ao lado do nome do arquivo
-  ("Renderizando para a aula · quadro x de y"). Um salvar novo para o render e recomeça.
+- **Em fila, sem travar o trabalho:** cada salvar de um projeto vinculado entra numa fila de
+  renders, que desenha um projeto por vez a partir do arquivo salvo, em segundo plano. Dá para
+  abrir o projeto da próxima aula (ou fechar o atual) enquanto os renders das anteriores
+  continuam. O andamento fica ao lado do nome do arquivo ("Renderizando para a aula · quadro x de
+  y · +2 na fila"); clicar nele abre a lista da fila, onde um projeto pode ser parado ou tirado
+  da fila. Salvar de novo um projeto que já está na fila mantém o lugar dele; se ele estiver
+  renderizando, o render recomeça com o arquivo novo.
+- **Ao fechar o EdiSVG:** a fila fica no perfil (`fila-de-renders.json`) e continua quando o
+  EdiSVG abrir de novo; o render pela metade é refeito, e o arquivo parcial dele é apagado.
+- **O que conta é o arquivo salvo:** uma animação criada e ainda não salva fica com o aviso "não
+  está no projeto salvo" até o próximo salvar.
 - **Os arquivos:** o arquivo leva o hash no nome. Ficam o render atual e o anterior de cada
   animação; uma animação apagada fica com o aviso no manifesto, e o último render continua.
 
@@ -787,6 +882,8 @@ As entregas seguem dependências técnicas. Cada incremento deve ter testes rele
 ### Incremento 2.1 — implementado; validação nativa pendente
 
 **Novo projeto (Ctrl+N)** cria um documento vazio de 1080 × 1080, sem vínculo com o arquivo anterior. Alterações pendentes passam pelo diálogo Salvar/Descartar/Cancelar. O painel permite adicionar um retângulo ou usar **Importar SVG (Ctrl+I)**.
+
+**Fechar projeto (Ctrl+W)**, no menu Arquivo e na janela Arquivo, fecha o projeto sem fechar o app. Alterações pendentes passam pelo mesmo diálogo, e um projeto em branco nunca editado fecha sem pergunta. Fica a tela "Nenhum projeto aberto" (`closedScreen.js`), com Novo, Abrir e Importar SVG. Ela não é um diálogo, então um pedido do EdiAula ou um `.edisvg` aberto por outro programa abre no lugar dela sem perguntar nada. Por baixo há um projeto em branco, sem arquivo e marcado como salvo (`projectFiles.close()`): nada a recuperar nem a salvar ao sair. A primeira edição dele (importação, pipeline) tira a tela. Enquanto ela está aberta, os atalhos do editor esperam, e Salvar, Desfazer, Refazer, Fontes e Assistente avisam que não há projeto aberto.
 
 A importação substitui a arte atual e pode ser desfeita. Aceita grupos, paths, retângulos, círculos, elipses, linhas, polígonos e texto simples. Camadas importadas possuem seleção, nome, visibilidade, bloqueio e transformações individuais. Grupos bloqueados impedem editar as transformações dos descendentes. O SVG original é preservado como dado no projeto; somente o modelo validado é renderizado.
 

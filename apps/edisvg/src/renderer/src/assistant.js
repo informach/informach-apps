@@ -7,14 +7,18 @@ import {
   referenceImages,
   revokeAttachments,
 } from "@informach/edi-desktop/ai-attachments";
+import packageInfo from "../../../package.json";
 import { toolPermission } from "../../shared/aiTools.js";
 import { STYLE_GUIDES, styleGuideById, styleGuideText } from "../../shared/styleGuide";
+import { createClosedScreen } from "./closedScreen.js";
 import "./fileDialog.css";
 import { clock } from "./pipelines/runner";
 
 /** Lucide's "image-plus", as EdiAula's assistant shows it. */
 const ATTACH_ICON =
   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 5h6"/><path d="M19 2v6"/><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg>';
+/** Menu commands with no meaning while no project is open (Fechar projeto). */
+const CLOSED_REFUSES = new Set(["save", "save-as", "undo", "redo", "fonts", "assistant"]);
 export function setupAssistant(editor) {
   const bridge = window.desktop,
     history = [];
@@ -23,6 +27,14 @@ export function setupAssistant(editor) {
   panel.hidden = true;
   panel.innerHTML = `<header><strong>✧ Assistente</strong><button type="button" aria-label="Fechar assistente" data-close>×</button></header><div class="assistant-settings"><label>Provedor<select aria-label="Provedor de IA"><option value="claude">Claude Code</option><option value="codex">Codex</option></select></label><label>Modelo<input aria-label="Modelo de IA" placeholder="Padrão da sua conta" maxlength="120"></label><label>Guia de estilo<select aria-label="Guia de estilo" data-guide><option value="">Nenhum</option>${STYLE_GUIDES.map((guide) => `<option value="${guide.id}">${guide.name}</option>`).join("")}</select></label><p data-status role="status">Verificando conexão…</p><details><summary>Conectar um agente externo</summary><p>Configure a conexão autenticada apenas para esta ferramenta:</p><button type="button" data-connect="claude">Conectar Claude Code</button><button type="button" data-connect="codex">Conectar Codex</button><p>Os clientes usam seus próprios logins. A credencial local não é um token da sua assinatura.</p></details></div><div class="assistant-messages" aria-live="polite"></div><form><div class="assistant-attachments" data-attachments hidden></div><textarea aria-label="Mensagem ao assistente" placeholder="Ex.: deixe o mascote menor e selecione Pular. Cole ou arraste imagens de referência." rows="3" maxlength="8000"></textarea><input type="file" accept="${IMAGE_TYPES.join(",")}" multiple hidden data-file><div><button type="button" data-reset>Nova conversa</button><button type="button" class="assistant-attach" data-attach title="Anexar imagem de referência (também dá para colar ou arrastar)" aria-label="Anexar imagem de referência">${ATTACH_ICON}</button><button type="button" data-stop disabled>Parar</button><button class="primary" type="submit">Enviar</button></div></form>`;
   document.body.append(panel);
+  const closed = createClosedScreen({
+    version: packageInfo.version,
+    actions: {
+      new: () => void createNew(),
+      open: () => void openProject(),
+      import: () => void editor.importSvg(),
+    },
+  });
   const find = (s) => panel.querySelector(s),
     messages = find(".assistant-messages"),
     provider = find('select[aria-label="Provedor de IA"]'),
@@ -422,7 +434,14 @@ export function setupAssistant(editor) {
       return { ok: true, text: JSON.stringify(result ?? editor.overview()) };
     });
     bridge.onCommand((command) => {
+      // No project open: only what starts one (an import or a pipeline fills the blank project
+      // under the screen, which then gives way to it).
+      if (closed.isOpen() && CLOSED_REFUSES.has(command)) {
+        editor.notify("Nenhum projeto aberto: crie ou abra um projeto.");
+        return;
+      }
       if (command === "new") void createNew();
+      else if (command === "close-project") void closeProject();
       else if (command === "import-svg") void editor.importSvg();
       else if (command === "import-game") void editor.importGameProject();
       else if (command === "import-kit") void editor.importDesignKit();
@@ -448,6 +467,30 @@ export function setupAssistant(editor) {
     try {
       const value = await bridge.projectNew();
       if (value) adoptProject(value, "Novo projeto criado.");
+    } catch (error) {
+      editor.notify(error.message);
+    }
+  }
+  /**
+   * Fechar projeto: after the unsaved-work question, EdiSVG stays open with no project, ready
+   * for another (closedScreen.js).
+   */
+  async function closeProject() {
+    if (closed.isOpen()) return;
+    if (busy) {
+      editor.notify("Interrompa a resposta da IA antes de fechar o projeto.");
+      return;
+    }
+    if (editor.pipelineRunning?.()) {
+      editor.notify("Espere o pipeline terminar, ou cancele, antes de fechar o projeto.");
+      return;
+    }
+    try {
+      const value = await bridge.projectClose();
+      if (!value) return;
+      adoptProject(value, null);
+      if (!panel.hidden) toggle();
+      closed.show();
     } catch (error) {
       editor.notify(error.message);
     }
@@ -503,6 +546,13 @@ export function setupAssistant(editor) {
       ["new", "＋", "Novo projeto", "Comece com uma tela em branco.", "Ctrl+N"],
       ["open", "↗", "Abrir projeto…", "Continue editando um arquivo .edisvg.", "Ctrl+O"],
       ["import", "↓", "Importar SVG…", "Substitua a arte atual por um SVG.", "Ctrl+I"],
+      [
+        "close-project",
+        "×",
+        "Fechar projeto",
+        "O EdiSVG continua aberto, pronto para outro projeto.",
+        "Ctrl+W",
+      ],
     ];
     d.innerHTML = `<header class="file-dialog-header"><div><h2 id="file-dialog-title">Arquivo</h2><p id="file-dialog-description">Crie, abra ou salve seu projeto.</p></div><button data-close-file aria-label="Fechar janela" title="Fechar (Esc)">×</button></header><div class="file-dialog-actions">${actions.map(([id, icon, title, description, shortcut]) => `<button class="file-dialog-action" data-${id}><span class="file-action-icon" aria-hidden="true">${icon}</span><span class="file-action-copy"><strong>${title}</strong><span>${description}</span></span><kbd>${shortcut}</kbd></button>`).join("")}</div><section class="file-dialog-save" aria-labelledby="file-save-title"><div class="file-save-heading"><h3 id="file-save-title">Salvar projeto atual</h3><span>.edisvg</span></div><div class="file-save-buttons"><button class="primary" data-save autofocus>Salvar <kbd>Ctrl+S</kbd></button><button data-save-as>Salvar como… <kbd>Ctrl+Shift+S</kbd></button></div></section><footer class="file-dialog-footer"><span>Esc para fechar</span><button data-cancel>Voltar ao editor</button></footer>`;
     document.body.append(d);
@@ -516,6 +566,7 @@ export function setupAssistant(editor) {
       open: openProject,
       save: () => saveProject(),
       "save-as": () => saveProject(true),
+      "close-project": closeProject,
     };
     for (const [action, handler] of Object.entries(handlers))
       d.querySelector(`[data-${action}]`).onclick = () => {
@@ -531,6 +582,7 @@ export function setupAssistant(editor) {
    * EdiAula): a new conversation over it.
    */
   function adoptProject(value, message) {
+    closed.hide();
     clearHistory();
     messages.replaceChildren();
     editor.restore(value.project);
@@ -546,6 +598,10 @@ export function setupAssistant(editor) {
     adoptProject,
     save: (as = false) => saveProject(as),
     isBusy: () => busy,
+    /** No project open (Fechar projeto): the editor's own shortcuts wait. */
+    projectClosed: () => closed.isOpen(),
+    /** The blank project under the screen got its first edit (an import, a pipeline): it is the one. */
+    projectTouched: () => closed.hide(),
     styleGuideText: guideText,
   };
 }

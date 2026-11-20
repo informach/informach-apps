@@ -979,3 +979,206 @@ declare global {
     };
   }
 }
+
+test("pipelines: a theory lesson sets the presenter's stage at each shot and shows her in it", {
+  timeout: 90000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    // The assistant picks the shots (JSON only) and then makes no edit: the run stops at the draft,
+    // after the spot is made. A string, so tsx adds nothing to it.
+    await page.addInitScript(`
+      (() => {
+        const project = ${JSON.stringify(newProject())};
+        const status = { name: "Sem arquivo", path: null, dirty: false };
+        window.__sent = [];
+        window.desktop = {
+          projectInitialize: async () => ({ project, status, recovered: false }),
+          projectChanged: async () => status,
+          aiStatus: async () => ({ mcp: { ready: true }, clients: [{ id: "claude", installed: true }] }),
+          aiConnect: async () => ({ message: "" }),
+          aiStop: async () => {},
+          aiSend: async (request) => {
+            window.__sent.push(request.prompt);
+            const answer = request.prompt.includes('"posicoes"')
+              ? '{"posicoes": ["close-right", "medium-left"]}'
+              : "";
+            setTimeout(() => {
+              if (answer) window.__assistantEvent({ type: "text", text: answer });
+              window.__assistantEvent({ type: "done" });
+            }, 0);
+            return { started: true };
+          },
+          onAssistantEvent: (callback) => { window.__assistantEvent = callback; return () => {}; },
+          handleAiTools: () => () => undefined,
+          onCommand: () => () => undefined,
+        };
+      })();`);
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    await page.evaluate(fakeDesktop(JSON.stringify(game)));
+    // Her video is the narration: heard and cut as the voice, and the stretch is 2:15–2:25 of it.
+    await page.evaluate(`(() => {
+      const desktop = window.desktop;
+      const words = desktop.pipelineWords;
+      desktop.pipelineWords = async (token, kind) => {
+        window.__heard = [token, kind];
+        return words("file-audio-00001", "audio");
+      };
+      desktop.pipelineVideoFacts = async () => ({ width: 1280, height: 720, duration: 600, clicks: null });
+      desktop.pipelinePresenter = async (token, from, seconds) => {
+        window.__presenter = [token, from, seconds];
+        return {
+          screen: "#14b43c",
+          person: { left: 0.35, top: 0.1, right: 0.65, bottom: 1 },
+          preview: new Uint8Array([26, 69, 223, 163]),
+        };
+      };
+    })()`);
+    await page.locator('[data-action="pipelines"]').first().click();
+    const dialog = page.getByRole("dialog", { name: "Pipelines" });
+    await dialog
+      .locator("li", { hasText: "Aula teórica com a apresentadora" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    // Only her video is asked for.
+    assert.equal(await dialog.getByRole("button", { name: "Escolher áudio…" }).count(), 0);
+    await dialog.getByRole("button", { name: "Escolher vídeo…" }).click();
+    await dialog
+      .getByLabel("Roteiro do trecho (só a parte desta cena)")
+      .fill(
+        "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
+      );
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
+    const said = (await dialog.textContent()) ?? "";
+    assert.match(said, /Preparar o vídeo da apresentadora \(tirar o fundo verde\)Pronto/, said);
+    assert.match(said, /Escolher os planos da apresentadora .*Pronto/, said);
+    assert.match(said, /2 planos da apresentadora\./, said);
+    assert.ok(said.includes("do vídeo: Médio curto à direita (x 0.781, y 1.15, escala 2.3)"), said);
+    assert.ok(said.includes("do vídeo: Médio à esquerda (x 0.229, y 0.9, escala 1.8)"), said);
+    assert.match(
+      said,
+      /Pedir o rascunho da animação ao assistenteFalhou: O assistente não alterou/,
+    );
+    assert.deepEqual(await page.evaluate("window.__heard"), ["file-video-00001", "video"]);
+    const [, from, seconds] = (await page.evaluate("window.__presenter")) as number[];
+    assert.ok(
+      Math.abs((from ?? 0) - 135.58) < 0.4 && Math.abs((seconds ?? 0) - 10.12) < 0.6,
+      `${from} ${seconds}`,
+    );
+
+    const project = parseProject(
+      JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+    );
+    const board = project.artboards.at(-1);
+    assert.equal(board?.name, "Aula teórica · demo.mp4");
+    assert.deepEqual(board?.scene.viewBox, [0, 0, 1920, 1080]);
+    const slot = board?.scene.nodes.find((node) => node.name === "Apresentadora (espaço)");
+    assert.ok(slot, JSON.stringify(board?.scene.nodes.map((n) => n.name)));
+    assert.equal(slot.locked, true);
+    assert.equal(slot.attrs.fill, "none");
+    assert.deepEqual([slot.attrs.width, slot.attrs.height], ["1920", "1080"]);
+    // From the back: her spot, the background in the ink and the light behind her in the accent.
+    assert.deepEqual(
+      board?.scene.nodes.slice(0, 3).map((node) => [node.name, node.attrs.fill]),
+      [
+        ["Apresentadora (espaço)", "none"],
+        ["Fundo", "#101b35"],
+        ["Fundo · luz atrás da apresentadora", "#ffc23c"],
+      ],
+    );
+    const light = board?.scene.nodes[2];
+    assert.match(JSON.stringify(light), /"kind":"radial"/);
+    // The guides the content keeps between.
+    assert.deepEqual(
+      board?.guides?.map((guide) => `${guide.axis} ${guide.position}`),
+      ["x 84", "x 960", "x 1836", "y 92", "y 1008"],
+    );
+    const clip = project.motion.animations.at(-1);
+    const keysOf = (id: string | undefined) =>
+      Object.fromEntries(
+        (clip?.tracks ?? [])
+          .filter((track) => track.targetId === id)
+          .map((track) => [
+            track.property,
+            track.keys.map((key) => [key.frame, key.value, key.easing]),
+          ]),
+      );
+    const keys = keysOf(slot.id);
+    const cut = keys.x?.[1]?.[0];
+    assert.ok(typeof cut === "number" && cut > 30, JSON.stringify(keys));
+    // A landscape video: at 2.3 and 1.8 it runs past the left edge, the top on the top.
+    const shots = (first: number, second: number) => [
+      [0, first, "hold"],
+      [cut, second, "hold"],
+    ];
+    assert.deepEqual(keys, {
+      x: shots(-708, -1288),
+      y: shots(0, 0),
+      sx: shots(2.3, 1.8),
+      sy: shots(2.3, 1.8),
+    });
+    assert.deepEqual(keysOf(light?.id), {
+      x: shots(1506, 446),
+      y: shots(520, 560),
+      sx: shots(1.5, 1.2),
+      sy: shots(1.5, 1.2),
+    });
+    // The draft is told her spot and where she stands in each shot.
+    const sent = (await page.evaluate("window.__sent")) as string[];
+    assert.ok((sent.at(-1) ?? "").includes(`[${slot.id}] "Apresentadora (espaço)"`));
+    assert.match(
+      sent.at(-1) ?? "",
+      /Corte 1, quadros 0–\d+, frases 1: Médio curto à direita\. Conteúdo em x 84–960, centralizado em x 522/,
+    );
+    // Her preview is kept with the spot it fills, as WebM.
+    const kept = (await page.evaluate("window.__kept")) as {
+      kind: string;
+      meta: Record<string, unknown>;
+    }[];
+    assert.deepEqual(kept.find((k) => k.kind === "video")?.meta, {
+      artboardId: board?.id,
+      offset: 0,
+      duration: seconds,
+      slotId: slot.id,
+      mediaType: "video/webm",
+    });
+
+    await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
+    // She shows over the artwork in her spot: close on the right in the first shot…
+    await page
+      .locator(".scene-artboard .presenter-frame video.presenter-video")
+      .waitFor({ state: "attached" });
+    const placed = () =>
+      page.evaluate(() => {
+        const board = document.querySelector<HTMLElement>(".scene-artboard");
+        const video = document.querySelector<HTMLVideoElement>("video.presenter-video");
+        if (!board || !video) return null;
+        const w = board.offsetWidth;
+        const style = video.style;
+        return [style.left, style.top, style.width, style.height].map(
+          (v) => Math.round((Number.parseFloat(v) / w) * 1000) / 1000,
+        );
+      });
+    assert.deepEqual(await placed(), [-0.369, 0, 2.3, 1.294]);
+    // …and the medium shot on the left after the cut (the end of the animation).
+    await page.locator('[data-action="end"]').first().click();
+    await page.waitForFunction(() => {
+      const video = document.querySelector<HTMLVideoElement>("video.presenter-video");
+      const board = document.querySelector<HTMLElement>(".scene-artboard");
+      return !!video && !!board && Number.parseFloat(video.style.width) < 2 * board.offsetWidth;
+    });
+    assert.deepEqual(await placed(), [-0.671, 0, 1.8, 1.013]);
+    await page.screenshot({ path: "test-results/pipelines-presenter.png" });
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});

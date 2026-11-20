@@ -122,6 +122,75 @@ export function frameArgs(video: string, at: number, out: string): string[] {
   ];
 }
 
+/* ---------- The presenter of a theory lesson (green screen) ---------- */
+
+/** The small frames the screen and the person are read from, in pixels. */
+export const KEY_FRAME_WIDTH = 192;
+
+/** One frame at `at` seconds, `width` wide (even height), as raw rgb24 (screenColor, personBounds). */
+export function rawFrameArgs(video: string, at: number, width: number, out: string): string[] {
+  return [
+    "-y",
+    "-v",
+    "error",
+    "-ss",
+    Math.max(0, at).toFixed(3),
+    ...fileInput(video),
+    "-frames:v",
+    "1",
+    "-vf",
+    `scale=${width}:-2,format=rgb24`,
+    "-f",
+    "rawvideo",
+    out,
+  ];
+}
+
+/**
+ * The presenter's stretch [from, from + seconds) for the preview: 540p, no sound, the green screen
+ * (`screen`, #rrggbb) taken out, as VP9 with alpha, so she shows over the animation.
+ */
+export function presenterPreviewArgs(
+  video: string,
+  from: number,
+  seconds: number,
+  screen: string,
+  out: string,
+): string[] {
+  if (!(seconds > 0) || seconds > DEMO_MAX_SECONDS) throw new Error("Trecho de vídeo inválido.");
+  if (!/^#[0-9a-f]{6}$/i.test(screen)) throw new Error("Cor do fundo inválida.");
+  return [
+    "-y",
+    "-v",
+    "error",
+    "-ss",
+    Math.max(0, from).toFixed(3),
+    "-t",
+    seconds.toFixed(3),
+    ...fileInput(video),
+    "-an",
+    "-vf",
+    `scale=-2:540,format=yuv444p,chromakey=0x${screen.slice(1)}:0.16:0.06,format=yuva420p`,
+    "-c:v",
+    "libvpx-vp9",
+    "-pix_fmt",
+    "yuva420p",
+    "-b:v",
+    "0",
+    "-crf",
+    "36",
+    "-deadline",
+    "realtime",
+    "-cpu-used",
+    "8",
+    "-row-mt",
+    "1",
+    "-auto-alt-ref",
+    "0",
+    out,
+  ];
+}
+
 /**
  * The PNG frames of `dir` (quadro-00000.png…, as the sequence export names them) as a WebM with
  * alpha (VP9, yuva420p), for a track over the video in EdiAula.

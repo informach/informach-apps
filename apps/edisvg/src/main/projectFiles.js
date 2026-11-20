@@ -184,6 +184,25 @@ export function createProjectFiles({
         sourceVersion = null;
         return { project: structuredClone(draft), status: status() };
       }),
+    /**
+     * Fechar projeto: after the unsaved-work question, a blank project without a file, never
+     * edited, stands in for none while the window waits for another (Novo, Abrir, or a request
+     * of another tool, which takes its place without asking). Nothing in it to save or recover.
+     */
+    close: () =>
+      exclusive(async () => {
+        // A blank project never edited has nothing to save: no question.
+        if (!blankDraft() && !(await guard())) return null;
+        const project = await blank();
+        await checkpoint(null);
+        adopting = null;
+        draft = project;
+        saved = JSON.stringify(contentSnapshot(project));
+        path = null;
+        diskText = null;
+        sourceVersion = null;
+        return { project: structuredClone(draft), status: status() };
+      }),
     save: (as = false) => exclusive(() => saveInternal(as)),
     canClose: () => exclusive(guard),
     open: () =>

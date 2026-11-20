@@ -9,6 +9,7 @@ import type { HeardWord } from "@informach/edi-speech/piece";
 import { app, type BrowserWindow, dialog } from "electron";
 import { type UnzipOptions, type Unzipped, unzip } from "fflate";
 import type { PickedFile } from "../shared/pipelines";
+import type { PersonBounds } from "../shared/presenterFraming";
 import { suggestedNameSchema } from "./exportPayload.ts";
 import { type PackageLesson, packageLesson, unpackLesson } from "./lessonPackage.ts";
 import {
@@ -25,14 +26,18 @@ import {
   alphaWebmArgs,
   findCursorFile,
   frameArgs,
+  KEY_FRAME_WIDTH,
   lessonScreen,
+  presenterPreviewArgs,
   previewArgs,
   type RecordedClick,
+  rawFrameArgs,
   readClicks,
   stretchClicks,
   stretchCursorFile,
   stretchVideoArgs,
 } from "./pipelineVideo.ts";
+import { personBounds, type RgbFrame, screenColor } from "./presenterKey.ts";
 
 /**
  * What the pipelines need from the machine: the suite's FFmpeg, and the transcription engine of
@@ -217,6 +222,9 @@ async function transcribeFile(
   return read(out);
 }
 
+/** A run's voice is an audio file, or the presenter's video (its sound is her voice). */
+const voiceKind = (kind: unknown): "audio" | "video" => (kind === "video" ? "video" : "audio");
+
 /**
  * The words of the audio a run picked: a lesson package's voice on the lesson's clock (its
  * transcripts, and the voice files without one transcribed now), or an audio file transcribed now
@@ -253,7 +261,7 @@ export async function pipelineWords(
       };
       return (await lessonWords(lesson, hear)).words;
     }
-    return transcribeFile(pickedPath(token, "audio"), jobId, signal, onProgress);
+    return transcribeFile(pickedPath(token, voiceKind(kind)), jobId, signal, onProgress);
   });
 }
 
@@ -290,7 +298,7 @@ export async function pipelineNarration(
         await ffmpeg(args, jobId, signal, "montar a narração da aula");
       } else
         await ffmpeg(
-          cutNarrationArgs(pickedPath(token, "audio"), start, end, out),
+          cutNarrationArgs(pickedPath(token, voiceKind(kind)), start, end, out),
           jobId,
           signal,
           "cortar a narração do áudio",
@@ -417,6 +425,60 @@ export async function pipelineVideoPreview(
       const out = join(dir, "previa.mp4");
       await ffmpeg(previewArgs(path, seconds, out), jobId, signal, "preparar a prévia do vídeo");
       return new Uint8Array(await readFile(out));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+}
+
+/**
+ * The presenter of a theory lesson in [from, from + seconds) of her video: the colour of her green
+ * screen and where she stands in the picture (read from a few small frames of the stretch), and
+ * the stretch without the screen, as WebM with alpha for the preview.
+ */
+export async function pipelinePresenter(
+  token: unknown,
+  from: number,
+  seconds: number,
+  jobId: unknown,
+): Promise<{ screen: string; person: PersonBounds; preview: Uint8Array }> {
+  if (!Number.isFinite(from) || !(seconds > 0)) throw new Error("Trecho inválido.");
+  if (!validJobId(jobId)) throw new Error("Identificador de tarefa inválido.");
+  return withJob(jobId, async (signal) => {
+    const path = pickedPath(token, "video");
+    const facts = await machine().media.probe(path, signal);
+    if (!facts.hasVideo || !facts.width || !facts.height)
+      throw new Error("O arquivo não tem imagem de vídeo.");
+    const width = KEY_FRAME_WIDTH;
+    const height = Math.max(2, Math.round((facts.height * width) / facts.width / 2) * 2);
+    const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-presenter-"));
+    try {
+      const frames: RgbFrame[] = [];
+      for (let i = 0; i < 6; i++) {
+        signal.throwIfAborted();
+        const file = join(dir, `quadro-${i}.rgb`);
+        const at = from + (seconds * (i + 0.5)) / 6;
+        await ffmpeg(rawFrameArgs(path, at, width, file), jobId, signal, "ler o vídeo");
+        if (!existsSync(file)) continue;
+        const data = new Uint8Array(await readFile(file));
+        if (data.length === width * height * 3) frames.push({ width, height, data });
+      }
+      if (!frames.length) throw new Error("Não consegui tirar quadros do vídeo nesse trecho.");
+      const screen = screenColor(frames);
+      if (!screen)
+        throw new Error(
+          "O fundo do vídeo não parece um fundo verde (ou azul) liso: grave a apresentadora num fundo de cor para o pipeline achar o lugar dela.",
+        );
+      const person = personBounds(frames, screen);
+      if (!person) throw new Error("Não achei a apresentadora no vídeo, só o fundo.");
+      const out = join(dir, "apresentadora.webm");
+      await ffmpeg(
+        presenterPreviewArgs(path, from, seconds, screen, out),
+        jobId,
+        signal,
+        "tirar o fundo verde do vídeo para a prévia",
+      );
+      return { screen, person, preview: new Uint8Array(await readFile(out)) };
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

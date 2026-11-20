@@ -5,22 +5,36 @@ import { timelineProject } from "../../../shared/raster/profile";
 import { createRasterFrameSource } from "../raster/frameSource";
 
 /**
- * The renders of the project's linked animations (packages/edi-link): after a save, each linked
- * animation whose picture changed is drawn frame by frame, transparent, at its artboard's size
- * and its own rate, and handed to the main process, which encodes it beside the project
+ * The renders of the linked animations (packages/edi-link): after a save, each linked animation
+ * whose picture changed is drawn frame by frame, transparent, at its artboard's size and its own
+ * rate, and handed to the main process, which encodes it beside the project
  * (src/main/linkRender.ts). What changed is told by a hash of the compiled animation: a save
- * that did not touch it renders nothing. A new save stops the renders going and starts over.
+ * that did not touch it renders nothing.
+ *
+ * Saves go into a queue (src/main/linkQueue.ts) rendered one project at a time from the saved
+ * file, in the background: the person opens the next lesson's project while the renders of the
+ * one before go on. A new save of the project rendering now starts its render over.
  */
 
+/** A project in the render queue, as the main process shows it (the path stays there). */
+export interface QueueItem {
+  id: string;
+  name: string;
+}
+
 export interface LinkBridge {
-  linkList(): Promise<LinkedAnimation[]>;
-  linkRegister(
-    projectId: string,
-    input: { animationId: string; artboardId: string; name: string; requestId?: string },
+  linkQueue(): Promise<QueueItem[]>;
+  /** Queues the open project, when it has linked animations; its queue id, or null. */
+  linkQueueAdd(): Promise<string | null>;
+  linkQueueLoad(id: string): Promise<{ project: Project; links: LinkedAnimation[] }>;
+  linkQueueRemove(id: string): Promise<void>;
+  linkQueueRegister(
+    id: string,
+    input: { animationId: string; artboardId: string; name: string },
   ): Promise<LinkedAnimation>;
-  linkError(projectId: string, animationId: string, message: string): Promise<void>;
+  linkError(id: string, animationId: string, message: string): Promise<void>;
   linkRenderStart(
-    projectId: string,
+    id: string,
     spec: {
       animationId: string;
       hash: string;
@@ -36,6 +50,8 @@ export interface LinkBridge {
 }
 
 export interface LinkProgress {
+  /** The queued project rendering, and the animation of it. */
+  project: string;
   name: string;
   /** Which of the animations to render, and how many there are. */
   index: number;
@@ -111,7 +127,7 @@ export async function planLinks(
   for (const item of items) {
     const animation = project.motion.animations.find((a) => a.id === item.animationId);
     if (!animation) {
-      broken.push({ item, reason: "A animação foi apagada do projeto." });
+      broken.push({ item, reason: "A animação não está no projeto salvo." });
       continue;
     }
     const board =
@@ -159,7 +175,7 @@ export async function planLinks(
 
 /** Draws one linked animation and hands its frames to the main process. */
 async function renderOne(
-  projectId: string,
+  queueId: string,
   plan: LinkPlan,
   bridge: LinkBridge,
   signal: AbortSignal,
@@ -172,7 +188,7 @@ async function renderOne(
   );
   let job: string | null = null;
   try {
-    job = await bridge.linkRenderStart(projectId, {
+    job = await bridge.linkRenderStart(queueId, {
       animationId: plan.item.animationId,
       hash: plan.hash,
       width: plan.width,
@@ -196,61 +212,132 @@ async function renderOne(
   }
 }
 
+export interface QueueView {
+  items: QueueItem[];
+  /** The id of the item rendering now, and how far. */
+  running: string | null;
+  progress: LinkProgress | null;
+}
+
 /**
- * The project's link renderer. `run` (after a save, or when a project opens) renders what
- * changed; a `run` while another goes stops it and starts over with the newer project.
+ * The window's side of the render queue. `add` (after a save, or when a linked project opens)
+ * queues the open project; `start` renders what the last session left. One project renders at a
+ * time; an item leaves the queue when its renders end, whether they all went well or not (the
+ * failures go to the manifest and to `onError`).
  */
-export function createLinkRenderer(
+export function createRenderQueue(
   bridge: LinkBridge,
-  onProgress: (progress: LinkProgress | null) => void,
+  onChange: (view: QueueView) => void,
   onError: (message: string) => void,
 ) {
-  let current: AbortController | null = null;
-  async function run(project: Project): Promise<void> {
-    current?.abort();
-    const control = new AbortController();
-    current = control;
-    const { signal } = control;
-    try {
-      const items = await bridge.linkList();
-      if (!items.length || signal.aborted) return;
-      const { stale, renamed, broken } = await planLinks(project, items);
-      for (const plan of renamed) {
-        signal.throwIfAborted();
-        await bridge.linkRegister(project.id, {
-          animationId: plan.item.animationId,
-          artboardId: plan.artboardId,
+  let items: QueueItem[] = [];
+  let running: { id: string; control: AbortController } | null = null;
+  let progress: LinkProgress | null = null;
+  let working = false;
+  const emit = () => onChange({ items, running: running?.id ?? null, progress });
+  const refresh = async () => {
+    items = await bridge.linkQueue();
+    emit();
+  };
+
+  async function renderItem(item: QueueItem, signal: AbortSignal): Promise<void> {
+    const { project, links } = await bridge.linkQueueLoad(item.id);
+    signal.throwIfAborted();
+    const { stale, renamed, broken } = await planLinks(project, links);
+    for (const plan of renamed) {
+      signal.throwIfAborted();
+      await bridge.linkQueueRegister(item.id, {
+        animationId: plan.item.animationId,
+        artboardId: plan.artboardId,
+        name: plan.name,
+      });
+    }
+    for (const { item: link, reason } of broken)
+      if (link.error !== reason) await bridge.linkError(item.id, link.animationId, reason);
+    for (const [index, plan] of stale.entries()) {
+      signal.throwIfAborted();
+      const report = (frame: number) => {
+        progress = {
+          project: item.name,
           name: plan.name,
-        });
-      }
-      for (const { item, reason } of broken)
-        if (item.error !== reason) await bridge.linkError(project.id, item.animationId, reason);
-      for (const [index, plan] of stale.entries()) {
-        signal.throwIfAborted();
-        onProgress({ name: plan.name, index, count: stale.length, frame: 0, frames: plan.frames });
-        try {
-          await renderOne(project.id, plan, bridge, signal, (frame) =>
-            onProgress({ name: plan.name, index, count: stale.length, frame, frames: plan.frames }),
-          );
-        } catch (error) {
-          if (signal.aborted) throw error;
-          const message = error instanceof Error ? error.message : String(error);
-          await bridge.linkError(project.id, plan.item.animationId, message).catch(() => undefined);
-          onError(`"${plan.name}" não foi renderizada para a aula: ${message}`);
-        }
-      }
-    } catch (error) {
-      if (!signal.aborted) onError(error instanceof Error ? error.message : String(error));
-    } finally {
-      if (current === control) {
-        current = null;
-        onProgress(null);
+          index,
+          count: stale.length,
+          frame,
+          frames: plan.frames,
+        };
+        emit();
+      };
+      report(0);
+      try {
+        await renderOne(item.id, plan, bridge, signal, report);
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const message = error instanceof Error ? error.message : String(error);
+        await bridge.linkError(item.id, plan.item.animationId, message).catch(() => undefined);
+        onError(`"${plan.name}" (${item.name}) não foi renderizada para a aula: ${message}`);
       }
     }
   }
+
+  async function work(): Promise<void> {
+    if (working) return;
+    working = true;
+    try {
+      for (;;) {
+        await refresh();
+        const item = items[0];
+        if (!item) break;
+        const control = new AbortController();
+        running = { id: item.id, control };
+        emit();
+        try {
+          await renderItem(item, control.signal);
+        } catch (error) {
+          if (!control.signal.aborted)
+            onError(
+              `O render de ${item.name} para a aula falhou: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        } finally {
+          running = null;
+          progress = null;
+        }
+        // Stopped, it was taken out of the queue (gone) or saved again (renders over, first).
+        if (!control.signal.aborted) await bridge.linkQueueRemove(item.id);
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error.message : String(error));
+    } finally {
+      working = false;
+      emit();
+    }
+  }
+
   return {
-    run,
-    busy: () => current !== null,
-    stop: () => current?.abort(),
+    /** Renders the queue the last session left. */
+    start: () => work(),
+    /** Queues the open project (after a save): a render of it going starts over. */
+    async add(): Promise<void> {
+      try {
+        const id = await bridge.linkQueueAdd();
+        if (!id) return;
+        if (running?.id === id) running.control.abort();
+        await refresh();
+      } catch (error) {
+        onError(error instanceof Error ? error.message : String(error));
+        return;
+      }
+      await work();
+    },
+    /** Takes a project out of the queue, stopping its render if it is the one going. */
+    async cancel(id: string): Promise<void> {
+      try {
+        await bridge.linkQueueRemove(id);
+        if (running?.id === id) running.control.abort();
+        await refresh();
+      } catch (error) {
+        onError(error instanceof Error ? error.message : String(error));
+      }
+    },
+    busy: () => running !== null,
   };
 }
