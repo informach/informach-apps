@@ -162,7 +162,7 @@ export async function prepararProvaDeAdmissaoHistorica(copia: postgres.Sql, soli
         exigir(restauradas.length === 1, "PERFIL_HISTORICO_NAO_RESTAURADO");
         await tx.unsafe("delete from recreio.rights_subjects where operation_id=$1", [alvo.id]);
         await tx.unsafe(
-          `delete from audit.events where event_type='recreio.rights_historical_admitted'
+          `delete from audit.events where event_type in ('recreio.rights_historical_admitted','recreio.rights_historical_resumed')
           and actor_id=$1 and payload->>'app'='recreio' and payload->>'operationId'=$2`,
           [solicitante, alvo.id],
         );

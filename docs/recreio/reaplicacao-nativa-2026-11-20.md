@@ -717,3 +717,19 @@ A definição passa a expressão const criada após a validação, sem cast, ass
 não nulo ou supressão. Os três gates serão refeitos na nova fonte. A candidata
 de schema f50bc3be passou direitos 44810698876, qualidade 44810703406 e versões
 44810707510; isso não qualifica a implementação posterior de retomada.
+
+
+47f15b83 passou direitos **44812035838** e captura comum **44812048038**.
+A chamada inicial usou Recreio/backup-capture, que não invoca cluster frio
+externo. A prova correta, Recreio - objetos privados com capture_probe e
+fresh_cluster_probe, está em **44812548724**, pendente. Não confundir os
+gates. Qualidade 44812041195 ainda pendente nesta anotação. O recibo anterior
+a1a5ae28 está preservado em [liberação por mundo](evidencias/liberacao-mundos-cluster-frio-44805269975.json).
+
+A próxima prova de reavaliação usa o livro MAC de HTTP fechado já existente,
+com rotação real, nova cerca e outra avaliação na mesma cópia SQL privada.
+Exige fonte original/importação e primeiro recibo intactos, mesmo MAC/cabeçalho
+admitido, recusa de escopo staged e admissão idempotente na segunda execução.
+O recibo de reabertura é explicitamente de fixture; não declara execução F7
+verificada nem autoriza livro produtivo. Não é segunda restauração física ou
+consentimento nativo. Limpeza remove somente essa fixture.

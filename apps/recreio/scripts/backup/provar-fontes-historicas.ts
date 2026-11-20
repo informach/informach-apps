@@ -38,6 +38,7 @@ import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
 import { prepararProvaDeAdmissaoHistorica } from "./provar-admissao-historica";
 import { provarPrazoDaCoordenacao } from "./provar-prazo-coordenacao";
+import { provarReavaliacaoHistorica } from "./provar-reavaliacao-historica";
 
 function exigir(v: unknown): asserts v {
   if (!v) throw new Error("Historical recovery source qualification failed");
@@ -416,6 +417,23 @@ export async function provarFontesHistoricasRecuperadas(
         !primeira.execucaoAutorizada &&
         !primeira.trafegoAutorizado,
     );
+    // Undo only the deliberately corrupted source fixture before checking a
+    // later execution. Never overwrite the genuine first-source provenance.
+    await copia.begin((tx) =>
+      tx.unsafe(
+        "update recreio.rights_recovery_sources set world_map=$2::jsonb where operation_id=$1",
+        [fonte.operation_id, tx.json(fonte.world_map)],
+      ),
+    );
+    await provarReavaliacaoHistorica({
+      copia,
+      cliente: http.cliente,
+      livroId,
+      chaves,
+      execucaoAnterior: primeira.execucaoId,
+      capturaSha256,
+      fonte: config.fonte,
+    });
   } finally {
     try {
       await limparAdmissao?.();
@@ -441,6 +459,7 @@ export async function provarFontesHistoricasRecuperadas(
     }
   }
   return {
+    historicalSecondAssessmentVerified: true as const,
     historicalSourcesImportedInPrivateCluster: true as const,
     historicalSourcePreflightVerified: true as const,
     historicalSourceIdempotenceVerified: true as const,

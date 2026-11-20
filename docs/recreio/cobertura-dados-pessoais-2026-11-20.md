@@ -1,6 +1,6 @@
 # Inventário da cobertura pessoal do Recreio
 
-Base: snapshot candidato 0242, 243 recibos, 79 tabelas `recreio`. Revisão em 20/11/2026; produção ainda na base 0203/204 recibos. Não é declaração de exportação integral, parecer jurídico ou implantação.
+Base: snapshot candidato 0243, 244 recibos, 80 tabelas `recreio`. Revisão em 20/11/2026; produção ainda na base 0203/204 recibos. Não é declaração de exportação integral, parecer jurídico ou implantação.
 
 Esta matriz confere a presença das fontes e registra lacunas. Revisão campo a campo, retenções e prova dos últimos incrementos continuam necessárias. UUIDs históricos permanecem dados pessoais; não são anônimos. Encerrar o Recreio não apaga a identidade global ou os fatos financeiros.
 
@@ -22,6 +22,7 @@ Esta matriz confere a presença das fontes e registra lacunas. Revisão campo a 
 | Convite de adulto | `group_invites` | Recorte e expurgo | Próprios envios/recebimentos sem contatos alheios. Encerramento revoga/limpa pendências sob a mesma cerca da emissão. Aceite não dá propriedade do cadastro do outro adulto. |
 | Direitos pessoais | `rights_preparations`, `rights_operations`, `rights_subjects`, `rights_worlds`, `account_closure_finances`, `personal_exports` | Recorte e retenção | Estado próprio e recibos de tratamento conservam datas originais, inclusive após remover o perfil vivo. Não entregar livro/segredo/ciphertext. Cópias duram dez minutos e revalidam participação; faltam revisão integral das retenções e replay nativo. |
 | Proveniência histórica | `rights_recovery_runs`, `rights_recovery_sources` | Operacional privado e recorte próprio | Plano original, referências presentes/ausentes e datas efetivas de importação não são identidade nem consentimento novo. Cópia da conta expõe só tipo/data da própria operação; não plano/mapa/cerca. Importação/admissão e recusa de escopos copiados/vencidos passaram em cluster frio; reaplicação integral, retenção do livro e publicação continuam abertas. |
+| Avaliação por restauração | `rights_recovery_evaluations` | Operacional privado e por execução | Referências de ator/operação/plano, mapa atual e recibo técnico de retomada; não identidade nem novo consentimento. Schema aditivo passou direitos/qualidade em f50bc3be. Retomada, retenção técnica e cópia própria ainda exigem qualificação; não expor mapa, cerca ou hashes na conta. |
 | Custódia/recuperação | `snapshot_object_deliveries`, `backup_captures`, `backup_object_holds`, `backup_publications`, `backup_retirements` | Operacional privado | Inventários/envelopes não são cópias de conta. Comparar restauração antes de normalizar, usar chaves/destinos novos e reaplicar F7 antes do tráfego. Não apagar backup compartilhado para retirar um perfil; DPAPI local não comprova custódia externa. |
 
 ## Fontes externas ao schema Recreio
@@ -71,10 +72,15 @@ dados, backup, restauração e janela antes de qualquer DDL em produção.
 
 ### Limite atual da recuperação histórica
 
-0242 foi gerada e adotada intacta; fonte 464368eb passou direitos 44775278155,
-qualidade 44775284648 e conciliação 44775290564. As provas posteriores qualificam
-importação, conexão privada, admissão histórica e coordenação/adaptadores sem
-credenciais de app, até o cluster frio 44793400837 e integração 44793412931.
-Nesses recibos não rodou apagador pessoal. Consentimento nativo posterior à
-captura e apagamento em uma segunda restauração estão na candidata f8480bcd,
-com gates pendentes. [Sequência e limites](reaplicacao-nativa-2026-11-20.md).
+0243 foi gerada em 44808850554 e adotada intacta em f50bc3be; direitos
+44810698876, qualidade 44810703406 e versões 44810707510 passaram. A base
+candidata tem 244 recibos/80 tabelas, sem DDL produtivo.
+
+Consentimento nativo posterior à captura, apagamento real, diário e fotos
+foram comprovados em 44801988161; liberação por mundo passou direitos
+44805260098 e cluster frio 44805269975. [Recibo](evidencias/liberacao-mundos-cluster-frio-44805269975.json).
+A retomada anterior ao backup e o recibo por execução estão em 47f15b83:
+direitos 44812035838 e captura 44812048038 passaram, mas a prova externa em
+cluster novo 44812548724 ainda está em execução. Captura comum não comprova
+cluster frio. Histórico financeiro, retenção do livro, publicação seletiva,
+custódia e tráfego continuam abertos. [Sequência](reaplicacao-nativa-2026-11-20.md).

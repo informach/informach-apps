@@ -1,5 +1,14 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, schema 0243 e liberação por mundo:** candidata f50bc3be
+com 244 recibos/80 tabelas passou direitos 44810698876, qualidade 44810703406
+e versões 44810707510. Liberação limitada a1a5ae28 passou direitos, qualidade
+e cluster frio 44805260098/44805265107/44805269975. Retomada 47f15b83 passou
+direitos 44812035838 e captura comum 44812048038; cluster externo 44812548724
+ainda em execução. Reavaliação posterior está em implementação. Produção
+permanece 0203/204, sem ativação nem testes humanos intermediários.
+[Frente e limites](recreio/reaplicacao-nativa-2026-11-20.md).
+
 **20/11 — Recreio, adaptadores privados qualificados:** f466c178 passou cluster
 frio 44793400837, qualidade 44793407072 e integração 44793412931. Coordenação
 conservada após I/O, sem credenciais de app, com filas vazias; não é apagamento
