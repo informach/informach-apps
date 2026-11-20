@@ -54,10 +54,14 @@ de outro adulto ou credenciais. O artefato AES-GCM de dez minutos fica em
 aplicável, perfil/política/responsabilidade atuais. Revalidar antes de abrir e
 antes de entregar os bytes; nova captura substitui a anterior. Download é POST
 da mesma origem e manutenção expurga o corpo/recibo no prazo original.
-`RECREIO_EXPORT_MODE=off` e keyring próprio por padrão. Migração 0239 acrescenta
-a revisão de participação; 240 recibos candidatos, nenhum aplicado em produção.
-Cobertura de segurança pessoal está em ampliação; inventário integral formal
-continua separado da existência do download.
+`RECREIO_EXPORT_MODE=off` e keyring próprio por padrão. 0239 acrescenta a revisão de participação; 0240 adiciona onze índices de
+ator/cursor. São 241 recibos candidatos, nenhum aplicado em produção.
+As projeções de denúncias/recursos próprios e seis fontes de aprovação foram
+qualificadas, com índice UUID/autor sem forçar o otimizador entre 8.000 atos
+alheios. Concessões próprias e recibos/prazos técnicos passaram direitos e
+navegador nativo em 04dd3987/44760442710. Pareamentos/avisos/convites pessoais
+estão no incremento seguinte. A [matriz das 77 fontes](../../docs/recreio/cobertura-dados-pessoais-2026-11-20.md)
+conserva lacunas e revisão de retenções; download não declara integralidade.
 
 A barreira `account_participations` distingue atividade, direitos e gestão
 financeira. Novas operações exigem active atual. Encerramento público exige

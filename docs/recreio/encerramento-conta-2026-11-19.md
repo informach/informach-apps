@@ -649,3 +649,35 @@ limite de cem e projeção explícita. O capturador usa essa porta na mesma TX;
 o teste de fronteira/allowlist permaneceu intacto. Direitos havia passado;
 quality/direitos precisam repetir após corrigir essa composição. Nenhuma
 ativação foi feita a partir da fonte recusada.
+
+### Atividades próprias e convites de visita — plano em 20/11
+
+A matriz `cobertura-dados-pessoais-2026-11-20.md` foi conferida contra as 77
+tabelas do snapshot 0240, sem tratar lacunas como concluídas. Próximo recorte:
+conta recebe metadados de seus próprios aparelhos pareados e pedidos aprovados,
+filtrados pelo guardianUserId persistido, e avisos sociais por destinatário
+original. Projeção inclui somente datas/tipo/referências históricas próprias,
+nunca token, código/polling, geração, e-mail/nome ou outra ponta do pedido.
+Perder responsabilidade não concede dados atuais da criança por esse recibo.
+
+Perfil próprio/parental recebe também convite de visita de que é participante,
+com mundo/relação/estado/datas, sem SID, presença, segredo ou prova de admissão.
+Usar a mesma fotografia e autorização nativa, páginas de cem e limites globais.
+Provar as três fontes não vazias, distinção entre adultos, nenhuma credencial
+no download e contexto infantil ainda recusado. Não mudar atores/autoridades
+ou liberar novos endpoints por completar uma cópia pessoal.
+
+04dd3987 passou direitos/qualidade 44759920970/44759925814 sem mudar a fronteira
+do acesso. Regressão de navegador 44760447990 e prova nativa v2 44760442710
+concluíram. O recibo confirmou prazo técnico no painel/download, prefixo completo
+e limpeza dos nove objetos próprios. Cinco capturas de 390 px foram inspecionadas,
+com texto legível e sem overflow. ZIP/hash e limites estão em
+`evidencias/retencao-navegador-44760442710.json`. Produção/preview continuam sem
+nova implantação desta frente.
+
+O próximo recorte de pareamentos/avisos/convites acrescenta também recusa de
+vínculo inconsistente: pedido pareado que referencia outro perfil não pode
+emprestar metadados à credencial selecionada. A prova usa FK/CHECK reais, altera
+somente fixture sintética, exige falha de integridade e restaura o campo no
+finally. Hashes de token/código/polling persistidos são confrontados com os
+bytes da cópia para comprovar sua ausência. Novos gates ainda pendentes.

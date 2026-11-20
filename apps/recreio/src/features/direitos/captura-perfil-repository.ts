@@ -13,6 +13,7 @@ import {
   recreioFriendRequests as requests,
   recreioProfileRestrictions as restrictions,
   recreioMinorDailyUsage as usage,
+  recreioSpaceVisitInvites as visitInvites,
   recreioWorldVisits as visits,
 } from "@informach/db/schema";
 import { type PerfilId, PerfilIdSchema } from "@informach/recreio";
@@ -68,6 +69,7 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
             "restricao",
             "denuncia_propria",
             "recurso_restricao",
+            "convite_visita",
           ],
           conteudoCompartilhadoIncluido: false,
           financeiroIncluido: false,
@@ -132,6 +134,31 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
             .from(members)
             .where(and(eq(members.profileId, perfil.id), apos ? gt(members.id, apos) : undefined))
             .orderBy(members.id)
+            .limit(limites.pagina),
+        );
+        await paginas("convite_visita", (apos) =>
+          tx
+            .select({
+              cursor: visitInvites.id,
+              mundoId: visitInvites.spaceId,
+              origemPerfilId: visitInvites.originProfileId,
+              destinoPerfilId: visitInvites.targetProfileId,
+              estado: visitInvites.state,
+              criadoEm: visitInvites.createdAt,
+              expiraEm: visitInvites.expiresAt,
+              encerradoEm: visitInvites.finishedAt,
+            })
+            .from(visitInvites)
+            .where(
+              and(
+                or(
+                  eq(visitInvites.originProfileId, perfil.id),
+                  eq(visitInvites.targetProfileId, perfil.id),
+                ),
+                apos ? gt(visitInvites.id, apos) : undefined,
+              ),
+            )
+            .orderBy(visitInvites.id)
             .limit(limites.pagina),
         );
         await paginas("visita", (apos) =>

@@ -5,6 +5,7 @@ import postgres from "postgres";
 import { expect, it } from "vitest";
 import { z } from "zod";
 import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
+import { capturarDadosPessoaisDoPerfil } from "@/features/direitos/captura-perfil-repository";
 import { novoJogador } from "./apoio";
 import { conexao } from "./backup-arquivos-apoio";
 import { semearCapacidadesDaCaptura } from "./backup-capacidades-apoio";
@@ -58,6 +59,11 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
         select r.id,r.origin_profile_id,r.target_profile_id,r.origin_profile_id,g.id,g.guardian_user_id,p.access_generation
         from recreio.friend_requests r join recreio.guardian_links g on g.profile_id=r.origin_profile_id
         join recreio.minor_protection p on p.profile_id=g.profile_id where r.origin_profile_id=${outra.perfil.id}`;
+      for (const f of [familia, outra])
+        await tx`insert into recreio.social_notices
+        (guardian_user_id,profile_id,request_id,request_origin_profile_id,request_target_profile_id)
+        select ${f.conta.id},r.origin_profile_id,r.id,r.origin_profile_id,r.target_profile_id
+        from recreio.friend_requests r where r.origin_profile_id=${f.perfil.id} order by r.id limit 1`;
       const dirigido = randomUUID(),
         sucessao = randomUUID();
       await tx`insert into recreio.directed_space_invites
@@ -149,6 +155,12 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
           linhas = texto.split("\n").filter((l) => l.startsWith('{"tipo":"aprovacao_propria"'));
         expect(linhas).toHaveLength(quantidade);
         for (const ato of atos) expect(linhas.some((l) => l.includes(ato))).toBe(true);
+        expect(
+          texto.split("\n").filter((l) => l.startsWith('{"tipo":"aparelho_pareado"')),
+        ).toHaveLength(autor.contaId === familia.conta.id ? 1 : 0);
+        expect(
+          texto.split("\n").filter((l) => l.startsWith('{"tipo":"aviso_social"')),
+        ).toHaveLength(autor.contaId === familia.conta.id ? 1 : 0);
         for (const privado of [
           ...ocultos,
           outra.conta.id,
@@ -160,11 +172,62 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
           "requestHash",
           "a".repeat(64),
           "f".repeat(64),
+          "tokenHash",
+          "pollHash",
+          "codeHash",
+          "vinculoConfere",
         ])
           expect(texto).not.toContain(privado);
       } finally {
         captura.bytes.fill(0);
       }
+    }
+    const perfil = await capturarDadosPessoaisDoPerfil(familia.autor, familia.perfil.id);
+    try {
+      const texto = perfil.bytes.toString("utf8");
+      expect(
+        texto.split("\n").filter((l) => l.startsWith('{"tipo":"convite_visita"')),
+      ).toHaveLength(1);
+      expect(texto).toContain(mundo);
+      for (const privado of [
+        host.conta.id,
+        host.conta.email,
+        "hostPresenceId",
+        "hostSessionId",
+        "accessGeneration",
+        "requestHash",
+      ])
+        expect(texto).not.toContain(privado);
+    } finally {
+      perfil.bytes.fill(0);
+    }
+    const [pareado] = await fonte<
+      {
+        device_session_id: string;
+        token_hash: string | null;
+        code_hash: string;
+        poll_hash: string;
+      }[]
+    >`
+      select c.device_session_id,c.token_hash,p.code_hash,p.poll_hash from recreio.paired_credentials c
+      join recreio.pairing_requests p on p.device_session_id=c.device_session_id
+      where c.guardian_user_id=${familia.conta.id}`;
+    if (!pareado) throw new Error("Paired receipt absent");
+    const propria = await capturarDadosPessoaisDaConta(familia.autor);
+    try {
+      const texto = propria.bytes.toString("utf8");
+      for (const segredo of [pareado.token_hash, pareado.code_hash, pareado.poll_hash])
+        if (segredo !== null) expect(texto).not.toContain(segredo);
+    } finally {
+      propria.bytes.fill(0);
+    }
+    await fonte`update recreio.pairing_requests set profile_id=${outra.perfil.id} where device_session_id=${pareado.device_session_id}`;
+    try {
+      await expect(capturarDadosPessoaisDaConta(familia.autor)).rejects.toMatchObject({
+        code: "INTEGRIDADE",
+      });
+    } finally {
+      await fonte`update recreio.pairing_requests set profile_id=${familia.perfil.id} where device_session_id=${pareado.device_session_id}`;
     }
   } finally {
     await fonte.end({ timeout: 5 });

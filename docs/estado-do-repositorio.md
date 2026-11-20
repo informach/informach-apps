@@ -1,5 +1,16 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, retenção técnica comprovada na interface:** 04dd3987 passou
+direitos/quality 44759920970/44759925814, regressão UI 44760447990 e prova nativa
+v2 44760442710. Action/CLI reais concluíram conta com e sem jogador, conservaram
+terceiro e mostraram o prazo original no painel/download. Nove objetos próprios
+limpos e cinco capturas móveis inspecionadas. Próxima candidata cobre metadados
+de pareamentos/avisos/convites, com recusa de vínculo inconsistente; gates ainda
+pendentes. A matriz das 77 tabelas registra lacunas explícitas em
+[cobertura pessoal](recreio/cobertura-dados-pessoais-2026-11-20.md). Replay F7 na
+recuperação, cobertura integral, operação e homologação continuam em execução;
+nenhuma destas migrations/capacidades foi ativada em produção.
+
 **20/11 — Recreio, composição de concessões corrigida em candidata:**
 b72b0225 passou direitos 44758537611; quality 44758541888 identificou leitura
 fora de `features/acesso`. A consulta agora pertence a essa porta e a cópia
