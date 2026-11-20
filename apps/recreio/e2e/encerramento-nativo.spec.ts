@@ -59,6 +59,7 @@ async function copiarDepoisDeEncerrar(page: Page, email: string) {
   const texto = await readFile(path, "utf8");
   expect(texto).toContain(email);
   expect(texto).toContain('"estado":"closed"');
+  return texto;
 }
 
 test("consentimento real encerra conta com e sem jogador, mantendo outra conta e os direitos", async ({
@@ -78,6 +79,16 @@ test("consentimento real encerra conta com e sem jogador, mantendo outra conta e
     const [preservado] =
       await client`select p.* from recreio.profiles p join core.users u on u.id=p.user_id where u.email=${b.email}`;
     expect(preservado).toBeDefined();
+    // An explicitly synthetic original SID, not proof of native game access.
+    // Real consent/worker minimization must preserve its original deadline.
+    const [capacidade] = await client<{ expires_at: Date }[]>`
+      insert into recreio.game_sessions (profile_id,device_session_id,game_id,expires_at)
+      select p.id,d.id,'morada',statement_timestamp()+interval '5 minutes'
+      from core.users u join recreio.profiles p on p.user_id=u.id
+      join recreio.device_sessions d on d.user_id=u.id and d.active_profile_id=p.id
+      where u.email=${a.email} and d.kind='account' and d.revoked_at is null
+      returning expires_at`;
+    if (!capacidade) throw new Error("Synthetic original retention capability absent");
     const regiao = await previa(a.page),
       caixas = regiao.getByRole("checkbox");
     await expect(caixas).toHaveCount(3);
@@ -134,7 +145,17 @@ test("consentimento real encerra conta com e sem jogador, mantendo outra conta e
       a.page.getByRole("heading", { name: "Participação encerrada", exact: true }),
     ).toBeVisible();
     await tela(a.page, "encerramento-concluido-390", { paginaInteira: true });
-    await copiarDepoisDeEncerrar(a.page, a.email);
+    const copia = await copiarDepoisDeEncerrar(a.page, a.email);
+    expect(copia).toContain('"fase":"minimized"');
+    expect(copia).toContain(capacidade.expires_at.toISOString());
+    await expect(a.page.getByText(/Referências técnicas de perfis ainda retidas: 1/)).toBeVisible();
+    await expect(
+      a.page.locator(`time[datetime="${capacidade.expires_at.toISOString()}"]`),
+    ).toBeVisible();
+    expect(
+      await a.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await tela(a.page, "encerramento-retencao-390", { paginaInteira: true });
     const semPerfil = await previa(c.page);
     await expect(semPerfil.getByText("Perfis selecionados", { exact: true })).toBeVisible();
     await tela(c.page, "encerramento-sem-jogador-390", { paginaInteira: true });
@@ -184,7 +205,7 @@ test("consentimento real encerra conta com e sem jogador, mantendo outra conta e
         `recreio-encerramento-ui-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}.json`,
       ),
       `${JSON.stringify({
-        formato: "recreio-encerramento-ui-v1",
+        formato: "recreio-encerramento-ui-v2",
         source: process.env.GITHUB_SHA,
         runId: process.env.GITHUB_RUN_ID,
         livroId,
@@ -195,6 +216,7 @@ test("consentimento real encerra conta com e sem jogador, mantendo outra conta e
         aceitesExplicitos: true,
         envioBloqueiaOutraPrevia: true,
         executorNativo: true,
+        retencaoTecnicaOriginal: true,
       })}\n`,
       { flag: "wx", mode: 0o600 },
     );

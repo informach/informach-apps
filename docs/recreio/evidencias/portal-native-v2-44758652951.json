@@ -1,0 +1,51 @@
+{
+  "source": "9de8dc15da2a47fb97a34865dc3f865bb245c6e9",
+  "verifiedAt": "2026-11-20T14:59:44.983Z",
+  "accountId": "acct_1LnO7zCvOctqao30",
+  "mode": "dev",
+  "apply": true,
+  "portalPolicy": "native-v2",
+  "origin": "https://recreio-homologacao-checkout-production.up.railway.app",
+  "verified": true,
+  "proposed": [],
+  "variables": {
+    "RECREIO_INDIVIDUAL_MONTHLY_PRICE": "price_1UdA0eCvOctqao30rk2KvcOX",
+    "RECREIO_INDIVIDUAL_ANNUAL_PRICE": "price_1UdA0eCvOctqao30QZSMhgNh",
+    "RECREIO_FAMILY_MONTHLY_PRICE": "price_1UdA0eCvOctqao30lY8vgaZT",
+    "RECREIO_FAMILY_ANNUAL_PRICE": "price_1UdA0eCvOctqao30mKmktUqX",
+    "STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UdtHvCvOctqao30gkW2Wr7W"
+  },
+  "offers": [
+    {
+      "id": "recreio_individual_monthly",
+      "amountCents": 5990,
+      "currency": "BRL",
+      "interval": "month"
+    },
+    {
+      "id": "recreio_individual_annual",
+      "amountCents": 59900,
+      "currency": "BRL",
+      "interval": "year"
+    },
+    {
+      "id": "recreio_family_monthly",
+      "amountCents": 12790,
+      "currency": "BRL",
+      "interval": "month"
+    },
+    {
+      "id": "recreio_family_annual",
+      "amountCents": 127900,
+      "currency": "BRL",
+      "interval": "year"
+    }
+  ],
+  "runId": 44758652951,
+  "artifactId": 14640786832,
+  "artifactZipBytes": 686,
+  "artifactZipSha256": "c634482c3b2703e7885da51758a8cd44c366c0bd25129c55c5ad89011ddfc60c",
+  "originalReceiptSha256": "fbeb1ace4d17b580192a5114f3914e03634f86519345f4d4bb5c8294f957e2e0",
+  "productionApplied": false,
+  "previewServiceUpdated": false
+}

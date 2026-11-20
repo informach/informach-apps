@@ -618,3 +618,34 @@ o painel não recebe IDs dos sujeitos. O caso nativo de token de dez segundos
 confere cópia/painel antes e depois do expurgo, sem reabrir a participação.
 105 concessões próprias e uma alheia são preparadas para comprovar paginação,
 conta sem jogador e exclusão de dados da equipe. Novos gates ainda obrigatórios.
+
+### Navegador de retenção e portal Sandbox — 20/11
+
+b72b0225 passou direitos 44758537611 com concessões/recibos/prazo técnico;
+quality 44758541888 ainda precisa de conclusão. A jornada dedicada é ampliada
+com um SID explicitamente sintético de cinco minutos. Consentimento/action/CLI
+reais devem minimizar o perfil, concluir participação e conservar o prazo
+original no painel e no download. Não é prova de entrada nativa em jogo. O
+expurgo depois de vencer já é coberto pelo relógio real no caso PostgreSQL;
+esta jornada não espera cinco minutos nem prolonga essa capacidade.
+
+Recibo UI/composto da prova passa a v2 e exige a nova evidência, com quinta
+captura móvel explicitada no upload. Um recibo anterior sem retenção não passa
+por essa prova nova. Limpeza S3 continua obrigatória mesmo em falha; nenhum dado
+real/segredo financeiro foi acrescentado ao executor.
+
+O portal Stripe Sandbox native-v2 separado foi preparado/conferido em
+44758652951, origem exclusiva do preview, quatro preços aprovados preservados,
+sem clientes/compra nesse workflow. Cancelar/atualizar assinatura no portal ficam
+fora dessa política; o Recreio conserva o pedido e o período pago. Recibo em
+`evidencias/portal-native-v2-44758652951.json`. O serviço preview não foi
+atualizado e o portal v1 não foi modificado. Inventário das capacidades antigas,
+integração da fonte nova e jornada humana permanecem obrigatórios.
+
+O quality de b72b0225 (44758541888) recusou a leitura direta da concessão em
+`features/direitos`: a porta única continua sendo `features/acesso`. A consulta
+pessoal foi movida para o repository desse domínio, com ator proprietário,
+limite de cem e projeção explícita. O capturador usa essa porta na mesma TX;
+o teste de fronteira/allowlist permaneceu intacto. Direitos havia passado;
+quality/direitos precisam repetir após corrigir essa composição. Nenhuma
+ativação foi feita a partir da fonte recusada.

@@ -1,6 +1,6 @@
 import "server-only";
 import { getProSubscription } from "@informach/billing";
-import { and, type Database, db, desc, eq, inArray, isNotNull, sql } from "@informach/db";
+import { and, type Database, db, desc, eq, gt, inArray, isNotNull, sql } from "@informach/db";
 import {
   recreioBillingContracts as contracts,
   customers,
@@ -34,6 +34,40 @@ import type { Transacao } from "@/lib/repository";
  */
 
 const APP = "recreio";
+
+/** Personal history projection for the already admitted account snapshot.
+ * Only the original commercial owner; membership, payment or guardianship
+ * never broadens this query. No grant decision, operator IDs or reason codes. */
+export function lerConcessoesPessoaisDaConta(
+  tx: Transacao,
+  contaId: string,
+  apos: string | null,
+  limite: number,
+) {
+  if (
+    !contaId ||
+    contaId.length > 256 ||
+    !Number.isSafeInteger(limite) ||
+    limite < 1 ||
+    limite > 100
+  )
+    throw new Error("Invalid personal concession page");
+  return tx
+    .select({
+      cursor: entitlements.id,
+      tipo: entitlements.kind,
+      plano: entitlements.tier,
+      inicioEm: entitlements.startsAt,
+      fimEm: entitlements.endsAt,
+      criadaEm: entitlements.createdAt,
+      revogadaEm: entitlements.revokedAt,
+    })
+    .from(entitlements)
+    .innerJoin(groups, eq(groups.id, entitlements.groupId))
+    .where(and(eq(groups.ownerUserId, contaId), apos ? gt(entitlements.id, apos) : undefined))
+    .orderBy(entitlements.id)
+    .limit(limite);
+}
 
 /** Scoped financial identity for an admitted native plan attempt. This does
  * not decide access or expose a generic subscription query to callers. */

@@ -77,7 +77,7 @@ jobs:
         if: always()
         run: pnpm --filter @informach/recreio-app exec node --conditions=react-server --import tsx scripts/encerramento-prova.ts cleanup
       - name: Conferir recibo completo
-        run: jq -e '.status == "passed" and .browserJourneyVerified == true and .fullPrefixVerified == true and .cleanupConfirmed == true and .productionDataTouched == false and .realFinancialCredentialsPresent == false' "$RUNNER_TEMP/recreio-encerramento-prova.json"
+        run: jq -e '.status == "passed" and .browserJourneyVerified == true and .technicalRetentionUiVerified == true and .fullPrefixVerified == true and .cleanupConfirmed == true and .productionDataTouched == false and .realFinancialCredentialsPresent == false' "$RUNNER_TEMP/recreio-encerramento-prova.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -88,5 +88,6 @@ jobs:
             apps/recreio/tmp/telas/encerramento-processando-390.png
             apps/recreio/tmp/telas/encerramento-concluido-390.png
             apps/recreio/tmp/telas/encerramento-sem-jogador-390.png
+            apps/recreio/tmp/telas/encerramento-retencao-390.png
           if-no-files-found: warn
           retention-days: 7

@@ -162,3 +162,14 @@ autorizam atualização automática de dependências.
   perdidas, eventos tardios, agendas, preservação do período pago, interface,
   APIs Sandbox reais e o corte de capacidades antes da ativação. Conectar o
   recibo à coordenação de encerramento; não tratar o pedido como já liquidado.
+
+## Portal isolado preparado em 20/11
+
+44758652951, fonte 9de8dc15, preparou/conferiu native-v2 somente no Stripe de
+teste, para a origem do preview. As quatro ofertas mantiveram IDs/valores;
+a política proíbe atualizar/cancelar assinatura pelo portal e permite gestão
+de pagamento/faturas. O verificador do SDK conferiu a configuração real.
+`evidencias/portal-native-v2-44758652951.json` preserva ZIP/hash/ID/configuração.
+Não criou cliente/compra nem alterou a política v1/serviço preview/produção.
+Isso não revoga sessões antigas: o inventário e a resolução dessas capacidades
+precisam preceder o corte, além das jornadas humanas reunidas no final.

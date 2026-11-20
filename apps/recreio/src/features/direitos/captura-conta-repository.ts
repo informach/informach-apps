@@ -12,8 +12,6 @@ import {
   recreioAccountClosureFinances as closureFinances,
   recreioAdultDeclarations as declarations,
   recreioDeviceSessions as devices,
-  recreioEntitlements as grants,
-  recreioGroups as groups,
   recreioGroupInvites as invites,
   recreioRightsOperations as operations,
   recreioNativePins as pins,
@@ -23,6 +21,7 @@ import {
 } from "@informach/db/schema";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-repository";
+import { lerConcessoesPessoaisDaConta } from "@/features/acesso/repository";
 import { assertAllowed } from "@/lib/errors";
 import { comContaPessoal } from "./autoridade-repository";
 import { copiarAprovacoesPessoaisNaTransacao } from "./captura-aprovacoes-repository";
@@ -108,23 +107,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
           }
         }
         await paginas("concessao_propria", (apos) =>
-          tx
-            .select({
-              cursor: grants.id,
-              tipo: grants.kind,
-              plano: grants.tier,
-              inicioEm: grants.startsAt,
-              fimEm: grants.endsAt,
-              criadaEm: grants.createdAt,
-              revogadaEm: grants.revokedAt,
-            })
-            .from(grants)
-            .innerJoin(groups, eq(groups.id, grants.groupId))
-            .where(
-              and(eq(groups.ownerUserId, autor.contaId), apos ? gt(grants.id, apos) : undefined),
-            )
-            .orderBy(grants.id)
-            .limit(limites.pagina),
+          lerConcessoesPessoaisDaConta(tx, autor.contaId, apos, limites.pagina),
         );
         await paginas("declaracao", (apos) =>
           tx

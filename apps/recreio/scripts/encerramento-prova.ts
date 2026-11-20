@@ -187,7 +187,7 @@ async function jornadaConfirmada(path: string, estado: Estado) {
     exigir(b.length <= 4096, "RECIBO_UI_FORA_DO_LIMITE");
     const r: unknown = JSON.parse(b.toString("utf8"));
     const schema = z.strictObject({
-      formato: z.literal("recreio-encerramento-ui-v1"),
+      formato: z.literal("recreio-encerramento-ui-v2"),
       source: z.literal(estado.source),
       runId: z.literal(estado.runId),
       livroId: z.literal(estado.livroId),
@@ -198,6 +198,7 @@ async function jornadaConfirmada(path: string, estado: Estado) {
       aceitesExplicitos: z.literal(true),
       envioBloqueiaOutraPrevia: z.literal(true),
       executorNativo: z.literal(true),
+      retencaoTecnicaOriginal: z.literal(true),
     });
     return schema.safeParse(r).success;
   } catch {
@@ -389,13 +390,14 @@ async function limpar(paths: ReturnType<typeof fronteira>) {
       paths.publico,
       `${JSON.stringify(
         {
-          formato: "recreio-encerramento-prova-v1",
+          formato: "recreio-encerramento-prova-v2",
           source: estado.source,
           runId: estado.runId,
           livroId: estado.livroId,
           boundary: "github_disposable_database_and_homologation_ledger",
           status: limpeza && ui ? "passed" : limpeza ? "cleaned_without_browser_proof" : "failed",
           browserJourneyVerified: ui,
+          technicalRetentionUiVerified: ui,
           fullPrefixVerified: estado.prefixoVerificado,
           cleanupConfirmed: limpeza,
           objectCount: objetos,

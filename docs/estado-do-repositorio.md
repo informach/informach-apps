@@ -1,5 +1,16 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, composição de concessões corrigida em candidata:**
+b72b0225 passou direitos 44758537611; quality 44758541888 identificou leitura
+fora de `features/acesso`. A consulta agora pertence a essa porta e a cópia
+consome sua projeção na mesma TX, sem alterar o teste de fronteira. Navegador
+v2 preparado para comprovar retenção técnica/prazo original com action/CLI reais,
+SID sintética e captura móvel; precisa de novos gates e limpeza externa.
+Portal Sandbox native-v2 separado preparado/conferido em 44758652951 para o
+preview, sem alterar v1, clientes, serviço preview ou produção. O corte ainda
+exige inventário das capacidades antigas e homologação final. Reaplicação F7,
+cobertura formal e operação permanecem em implementação.
+
 **20/11 — Recreio, índices/paginação qualificados; transparência em candidata:**
 9de8dc15 passou direitos 44653254000 (149 casos/16 arquivos, upgrade até 241
 recibos) e quality 44653258078. Plano SQL nativo escolheu o índice sem forçar o
