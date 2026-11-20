@@ -100,6 +100,13 @@ export async function provarRetiradaNativaPosterior(config: {
         [dado.operacaoId],
       );
     const auditoriaAnterior = await lerAuditoriaAnterior();
+    const lerAparelhos = () =>
+      copia.unsafe<{ id: string; perfil: string | null; controle: string }[]>(
+        `select id,active_profile_id as perfil,
+        encode(sha256(convert_to((to_jsonb(d)-'active_profile_id')::text,'UTF8')),'hex') as controle
+       from recreio.device_sessions d order by id`,
+      );
+    const aparelhosAntes = await lerAparelhos();
     const preservado = await copia.unsafe(
       `select to_jsonb(p) as perfil,
         (select jsonb_agg(to_jsonb(v) order by v.id) from recreio.profile_data_versions v where v.profile_id=p.id) as dados,
@@ -184,12 +191,26 @@ export async function provarRetiradaNativaPosterior(config: {
       isDeepStrictEqual([...auditoriaAnterior], [...(await lerAuditoriaAnterior())]),
       "AUDITORIA_ANTERIOR_ALTERADA",
     );
+    const aparelhosDepois = await lerAparelhos();
+    exigir(
+      aparelhosAntes.length === aparelhosDepois.length &&
+        aparelhosAntes.every((a, i) => {
+          const depois = aparelhosDepois[i];
+          return (
+            depois?.id === a.id &&
+            depois.controle === a.controle &&
+            depois.perfil === (a.perfil === dado.perfilId ? null : a.perfil)
+          );
+        }),
+      "APARELHO_ALHEIO_ALTERADO",
+    );
     const inventarioDepois = await copia.begin(
       "isolation level repeatable read read only",
       inventariarBackup,
     );
     const alteradas = new Set([
       "profiles",
+      "device_sessions",
       "minor_profiles",
       "guardian_links",
       "profile_creation_requests",

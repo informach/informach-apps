@@ -384,3 +384,8 @@ nativa tem campos separados `nativePostCapture*`. As restrições GET dos dois
 clientes também são declaradas separadamente. Os recibos históricos conservam
 o formato original. Gates da nova prova pendentes; não é recuperação integral,
 não inclui foto/diário tipados, finanças, operações prévias ou publicação.
+
+Na conferência de aparelhos, a FK pode limpar somente `active_profile_id` do
+perfil retirado. A prova compara cada outro campo por hash e mantém os demais
+perfis selecionados, revogações e a trava `minor_context_generation`. Não exige
+inventário idêntico dessa coluna nem aceita apagar/recriar aparelhos.

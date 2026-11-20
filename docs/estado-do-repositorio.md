@@ -1,5 +1,13 @@
 # Estado do trabalho no repositório
 
+**20/11 — Recreio, adaptadores privados qualificados:** f466c178 passou cluster
+frio 44793400837, qualidade 44793407072 e integração 44793412931. Coordenação
+conservada após I/O, sem credenciais de app, com filas vazias; não é apagamento
+pessoal. Candidata f8480bcd acrescenta consentimento nativo posterior ao backup
+e retirada em segunda restauração descartável; gates pendentes. Matriz atual:
+79 tabelas/0242/243 recibos; produção não alterada.
+[Frente e provas](recreio/reaplicacao-nativa-2026-11-20.md).
+
 **20/11 — Recreio, admissão histórica qualificada:** e1e39c73 passou cluster
 frio 44788555964; qualidade/integração da implementação 6d7edda3 passaram
 44787689932/44787694501. Menor veio da própria captura nativa, solicitante
