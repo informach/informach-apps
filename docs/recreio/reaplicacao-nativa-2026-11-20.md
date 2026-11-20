@@ -83,3 +83,13 @@ A prova preparada usa perfil real em PG, solicitante ausente, mundo presente e
 mundo ausente, origem inválida/dupla/nula, mapa truncado/divergente e tentativa
 de uso pela porta interativa. Não comprova consentimento nativo, prefixo externo,
 efeitos offline, finanças ou tráfego restaurado. Migration e gates ainda pendentes.
+
+
+Geração 44774522635/02ee5a8a adotada intacta como 0242: duas tabelas de
+proveniência, coluna de recuperação e origem exclusiva/FK composta na operação.
+A FK da preparação para a conta e as demais estruturas são idênticas ao snapshot
+anterior. Sem DML/backfill: operações existentes conservam a origem nativa,
+com nova coluna nula. O journal mantém as 242 entradas anteriores, 243 no total.
+SQL/snapshot/journal/ZIP conferidos no
+[recibo](evidencias/migracao-origem-recuperada-44774522635.json).
+Testes PostgreSQL, fonte sem identidade, upgrade e qualidade ainda pendentes.

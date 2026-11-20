@@ -1,0 +1,39 @@
+{
+  "source": "02ee5a8a14671d1088aa225ad9b1418a79b5d469",
+  "runId": "44774522635",
+  "runUrl": "https://github.com/informach/informach-apps/actions/runs/44774522635",
+  "artifactId": 14648453723,
+  "zipBytes": 83702,
+  "zipSha256": "e731b5be9bee9392543abdbe98d9ee2a733c710dff5d43142561246ac4baa661",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0242_recreio_origem_recuperada.sql",
+      "bytes": 5902,
+      "sha256": "a845c5932bdef5bf1f66f9205693f0d09bd6d21957ac87048d8eaf14792a1fb0"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0242_snapshot.json",
+      "bytes": 1166693,
+      "sha256": "f9bd5b30258147694532afd035831bb01a87b399aec1e3d6aa31b9ec5b40d8fd"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 36744,
+      "sha256": "0f5b25a5319f3f5e70233572b2c5ecba5d084593d4b8135fd67b412d6f6746a9"
+    }
+  ],
+  "predecessor": "0241",
+  "journalEntriesBefore": 242,
+  "journalEntriesAfter": 243,
+  "journalPrefixPreserved": true,
+  "tablesAdded": ["recreio.rights_recovery_runs", "recreio.rights_recovery_sources"],
+  "operationChanges": [
+    "preparation_id nullable with exactly-one-origin check",
+    "recovery_source_id nullable with compound scope FK"
+  ],
+  "nativePreparationUserFKPreserved": true,
+  "otherSnapshotFieldsUnchanged": true,
+  "DMLPresent": false,
+  "adoptedUnmodified": true,
+  "appliedInProduction": false
+}
