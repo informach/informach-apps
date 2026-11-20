@@ -290,23 +290,26 @@ export async function provarRetiradaNativaPosterior(config: {
         [dado.mundoId, dado.diarioFinal, barreirasAntes.cerca + 1, barreirasAntes.gestao + 1],
       );
     exigir(
-      diariosRecuperados === 1 &&
-        fatosCompactados === dado.diarioFinal &&
-        diario?.restantes === 0 &&
-        diario.mundo &&
-        !fotoFinal.texto.includes(dado.perfilId) &&
-        fotoFinal.texto.includes(dado.preservadoId) &&
-        fotoFinal.familiasSha256 === dado.familiasFinaisSha256 &&
-        fotoFinal.acessoSha256 === dado.acessoFinalSha256 &&
-        isDeepStrictEqual(fotoFinal.meta.slice(1), [
-          2,
-          fotoAntes.meta[2],
-          fotoAntes.meta[3],
-          dado.diarioFinal,
-          dado.tickFinal,
-          "hibernate",
-        ]),
-      "DIARIO_NATIVO_DIVERGENTE",
+      diariosRecuperados === 1 && fatosCompactados === dado.diarioFinal && diario?.restantes === 0,
+      "DIARIO_NATIVO_CONTADORES",
+    );
+    exigir(diario.mundo, "DIARIO_NATIVO_MUNDO");
+    exigir(
+      !fotoFinal.texto.includes(dado.perfilId) && fotoFinal.texto.includes(dado.preservadoId),
+      "DIARIO_NATIVO_IDENTIFICADORES",
+    );
+    exigir(fotoFinal.familiasSha256 === dado.familiasFinaisSha256, "DIARIO_NATIVO_FAMILIAS");
+    exigir(fotoFinal.acessoSha256 === dado.acessoFinalSha256, "DIARIO_NATIVO_ACESSO");
+    exigir(
+      isDeepStrictEqual(fotoFinal.meta.slice(1), [
+        2,
+        fotoAntes.meta[2],
+        fotoAntes.meta[3],
+        dado.diarioFinal,
+        dado.tickFinal,
+        "hibernate",
+      ]),
+      "DIARIO_NATIVO_METADADOS",
     );
     exigir(
       isDeepStrictEqual([...mundoAntes], [...(await lerMundoPreservado())]),
