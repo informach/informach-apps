@@ -733,3 +733,18 @@ admitido, recusa de escopo staged e admissão idempotente na segunda execução.
 O recibo de reabertura é explicitamente de fixture; não declara execução F7
 verificada nem autoriza livro produtivo. Não é segunda restauração física ou
 consentimento nativo. Limpeza remove somente essa fixture.
+
+
+Retomada 47f15b83 passou qualidade **44812041195** e prova externa de cluster
+frio **44812548724**, com 13 objetos limpos, 111 GETs do livro e recibo ready,
+reserva nova, origem/datas e efeitos anteriores conservados.
+[Recibo](evidencias/retomada-anterior-cluster-frio-44812548724.json).
+A segunda avaliação b16e3fab passou cluster frio **44812706894**; a parte
+adicional é fixture MAC/HTTP na mesma cópia privada, não segunda restauração
+física consecutiva. [Recibo](evidencias/segunda-avaliacao-cluster-frio-44812706894.json).
+Qualidade 44812711386 e integração 44812716125 continuam em execução.
+
+A consulta somente leitura de custo acumulado e posses foi executada em Railway
+às 20h38 UTC; [medição e limites](custo-operacao-2026-11-20.md). Não é fatura
+quitada, rateio causal, capacidade sob carga ou custo marginal. Nenhum deploy,
+DDL produtivo ou ativação foi executado.

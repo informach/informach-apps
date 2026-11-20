@@ -1,0 +1,125 @@
+{
+  "readAt": "2026-11-20T20:38:14.04083+00:00",
+  "source": "Railway CLI 5.62.1 usage projects, current period; live read-only SQL aggregate",
+  "currency": "USD",
+  "billingPeriod": {
+    "end": "2026-12-09T10:40:03+00:00",
+    "start": "2026-11-09T10:40:03+00:00"
+  },
+  "periodClosed": false,
+  "costType": "metered_accumulated_usage_not_paid_invoice",
+  "services": [
+    {
+      "backupDollars": -0.0,
+      "cpuDollars": 0.006859544583333333,
+      "egressDollars": 0.00308498285,
+      "id": "fd21f44e-43d9-4ac0-a125-7a379df8d486",
+      "memoryDollars": 0.38412378282666665,
+      "name": "@informach/recreio-app",
+      "totalDollars": 0.39406831025999994,
+      "volumeDollars": -0.0
+    },
+    {
+      "backupDollars": -0.0,
+      "cpuDollars": 1.460108024691358e-6,
+      "egressDollars": 0.0,
+      "id": "3f5f0383-dc4f-4bb8-b127-cfcd1de8de78",
+      "memoryDollars": 0.0,
+      "name": "cron-recreio-manutencao",
+      "totalDollars": 1.460108024691358e-6,
+      "volumeDollars": -0.0
+    },
+    {
+      "backupDollars": 0.0,
+      "cpuDollars": 0.00630862776234568,
+      "egressDollars": 0.00093682345,
+      "id": "b294fe7c-b96b-4ca5-bfa5-191a7d574f08",
+      "memoryDollars": 0.42206889772246914,
+      "name": "@informach/morada-server",
+      "totalDollars": 0.43127918364960977,
+      "volumeDollars": 0.0019648347147948973
+    },
+    {
+      "backupDollars": 0.10924866023334229,
+      "cpuDollars": 0.004993046365740742,
+      "egressDollars": 0.022762178950000003,
+      "id": "75774639-769f-40e0-9601-75ae8d8dc766",
+      "memoryDollars": 0.9496162641224691,
+      "name": "Postgres",
+      "totalDollars": 1.170574440806077,
+      "volumeDollars": 0.08395429113452482
+    },
+    {
+      "backupDollars": -0.0,
+      "cpuDollars": 0.014793146520061728,
+      "egressDollars": 7.000000000000001e-9,
+      "id": "60d75de4-d0ff-49ab-b72b-73376e4520a9",
+      "memoryDollars": 0.02165000136691358,
+      "name": "Redis",
+      "totalDollars": 0.03644315488697531,
+      "volumeDollars": -0.0
+    },
+    {
+      "backupDollars": -0.0,
+      "cpuDollars": 0.0049534642129629635,
+      "egressDollars": 0.01072359525,
+      "id": "67f2d87b-02cb-422a-b019-aa57cd584d14",
+      "memoryDollars": 0.8226643922804939,
+      "name": "@informach/admin",
+      "totalDollars": 0.8383414517434569,
+      "volumeDollars": -0.0
+    },
+    {
+      "backupDollars": -0.0,
+      "cpuDollars": 1.704554012345679e-5,
+      "egressDollars": 0.0,
+      "id": "82e23ee0-49ab-4046-90c3-6a0b6dd677e1",
+      "memoryDollars": 0.0,
+      "name": "migrator",
+      "totalDollars": 1.704554012345679e-5,
+      "volumeDollars": -0.0
+    }
+  ],
+  "leaseMetrics": {
+    "readAt": "2026-11-20T20:38:14.04083+00:00",
+    "periodStart": "2026-11-09T10:40:03+00:00",
+    "readOnly": "on",
+    "version": "180006",
+    "leaseCount": 7,
+    "leasedSeconds": 2899.865151,
+    "playerSecondsCompletedWithinPeriod": 2700,
+    "unreleasedCount": 0,
+    "nonMoradaCount": 0
+  },
+  "totals": {
+    "recreioDedicatedUsd": 0.39406977036802465,
+    "moradaReferenceUsd": 0.43127918364960977,
+    "combinedDedicatedUsd": 0.8253489540176344,
+    "sharedPoolUsd": 2.0453760929766327,
+    "conservativeSubtotalAssigning100PercentOfListedPoolUsd": 2.8707250469942673
+  },
+  "ratios": {
+    "leasedWorldHours": 0.8055180975,
+    "completedPlayerHours": 0.75,
+    "dedicatedUsdPerLeasedWorldHour": 1.0246187597512475,
+    "conservativeSubtotalUsdPerLeasedWorldHour": 3.5638243956328584
+  },
+  "allocation": {
+    "actualSharedUsageFraction": null,
+    "conservativeListedPoolFraction": 1,
+    "policy": "Direct service costs are fully assigned; shared costs are shown separately. A 100% attribution of the listed pool is a conservative scenario, not observed causal usage or approved commercial allocation."
+  },
+  "provenance": {
+    "usageResponseSha256": "574aac9ff6035b33179d7f3b8a26beaa0c873d30238c258c2f5bbfaee8d477ff",
+    "usageResponseBytes": 13330,
+    "leaseAggregateSha256": "42b924a4ae28733b534ac39811e7cb4909a4b8bc032b181e781a03aaa28accd2",
+    "leaseAggregateBytes": 283
+  },
+  "limits": [
+    "Accumulated usage at query time; billing period is still open and provider metering can lag. Not a paid invoice or monthly projection.",
+    "Lease duration is clipped to the billing window and earliest of release, expiry and query time. It measures allocated world time, not active simulation, FPS or human enjoyment.",
+    "Ratios include idle alpha infrastructure; they are not marginal costs or a capacity/SLA claim.",
+    "Shared PostgreSQL, Redis, administration and migrator are measured but not causally attributed. No guessed usage percentage.",
+    "This subtotal excludes unitemized object storage, external provider fees, subscriptions, taxes, FX and discounts. No production data or service configuration was changed."
+  ]
+}
