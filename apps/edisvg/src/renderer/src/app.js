@@ -33,7 +33,8 @@ import {
   setKitFonts,
 } from "./designKitImport";
 import { mountKitImport } from "./kit-import-panel";
-import { createLinkRenderer } from "./links/renderLinks";
+import { createRenderQueue } from "./links/renderLinks";
+import { EMPTY_QUEUE, mountRenderQueuePanel, queueStatusText } from "./links/renderQueuePanel";
 import {
   clearNarration,
   markNarrationNow,
@@ -508,7 +509,7 @@ function render() {
   synchronizePathEditing(state);
   const authoredMachine = Boolean(state.scene && state.view === "machine");
   $("#app").innerHTML =
-    `<header class="topbar"><div class="brand"><span class="mark">⌁</span>EdiSVG <small class="app-version">${packageInfo.version}</small></div><nav class="menus">${button("file", "Arquivo")}${button("undo", "↶ Desfazer")}${button("redo", "↷ Refazer")}${button("object", "Objeto")}${button("animation", "Animação")}${button("view", "Exibir")}${button("help", "Ajuda")}</nav><div class="modes">${button("design", "◇ Design", state.view === "design" ? "active" : "")}${button("animate", "◷ Animar", state.view === "animate" ? "active" : "")}${state.scene ? button("machine", "◈ Estados", authoredMachine ? "active" : "") : ""}</div><span class="project">${state.scene ? "Projeto" : "Mascote"} ${escapeHtml(state.name)} <span title="${escapeHtml(fileStatus.path || "Projeto ainda sem arquivo")}">/ ${escapeHtml(fileStatus.name)}${fileStatus.dirty ? " •" : ""}</span><i class="saved" title="${escapeHtml(localSaveStatus)}"></i></span><span class="link-status" data-link-status aria-live="polite">${escapeHtml(linkStatusText())}</span><div class="top-actions">${button("test", "▷ <span>Testar</span>")}${button("assistant", "✧ <span>Assistente</span>")}${button("export", "↗ Exportar", "primary")}</div></header><main class="workspace ${state.view === "machine" ? "machine-workspace" : ""}">${toolbar(state)}${authoredMachine ? '<aside class="sidebar" data-behavior-sidebar></aside>' : state.scene ? sceneSidebar(state) : state.view === "machine" ? machineSidebar() : hierarchy()}<section class="center">${authoredMachine ? '<div data-behavior-canvas style="height:100%"></div>' : state.scene ? sceneCanvas(state) : state.view === "machine" ? machineCanvas() : canvas()}</section><aside class="inspector">${authoredMachine ? "<div data-behavior-inspector></div>" : state.scene ? sceneInspector(state) : state.view === "machine" ? machineInspector() : inspector()}</aside></main>${authoredMachine ? '<footer class="statusbar"><span class="live-dot"></span> Lógica editável da prancheta <span class="push">Estados · Dados · Eventos</span></footer>' : state.view === "machine" ? '<footer class="statusbar"><span class="live-dot"></span> Máquina de estados · Interação <span class="push">3 estados · 4 listeners</span></footer>' : timeline()}<dialog id="export-dialog"></dialog><dialog id="help-dialog"></dialog><dialog id="clip-dialog"></dialog>`;
+    `<header class="topbar"><div class="brand"><span class="mark">⌁</span>EdiSVG <small class="app-version">${packageInfo.version}</small></div><nav class="menus">${button("file", "Arquivo")}${button("undo", "↶ Desfazer")}${button("redo", "↷ Refazer")}${button("object", "Objeto")}${button("animation", "Animação")}${button("view", "Exibir")}${button("help", "Ajuda")}</nav><div class="modes">${button("design", "◇ Design", state.view === "design" ? "active" : "")}${button("animate", "◷ Animar", state.view === "animate" ? "active" : "")}${state.scene ? button("machine", "◈ Estados", authoredMachine ? "active" : "") : ""}</div><span class="project">${state.scene ? "Projeto" : "Mascote"} ${escapeHtml(state.name)} <span title="${escapeHtml(fileStatus.path || "Projeto ainda sem arquivo")}">/ ${escapeHtml(fileStatus.name)}${fileStatus.dirty ? " •" : ""}</span><i class="saved" title="${escapeHtml(localSaveStatus)}"></i></span><button type="button" class="link-status" data-link-status aria-live="polite" title="Fila de renders para a aula"${linkStatusText() ? "" : " hidden"}>${escapeHtml(linkStatusText())}</button><div class="top-actions">${button("test", "▷ <span>Testar</span>")}${button("assistant", "✧ <span>Assistente</span>")}${button("export", "↗ Exportar", "primary")}</div></header><main class="workspace ${state.view === "machine" ? "machine-workspace" : ""}">${toolbar(state)}${authoredMachine ? '<aside class="sidebar" data-behavior-sidebar></aside>' : state.scene ? sceneSidebar(state) : state.view === "machine" ? machineSidebar() : hierarchy()}<section class="center">${authoredMachine ? '<div data-behavior-canvas style="height:100%"></div>' : state.scene ? sceneCanvas(state) : state.view === "machine" ? machineCanvas() : canvas()}</section><aside class="inspector">${authoredMachine ? "<div data-behavior-inspector></div>" : state.scene ? sceneInspector(state) : state.view === "machine" ? machineInspector() : inspector()}</aside></main>${authoredMachine ? '<footer class="statusbar"><span class="live-dot"></span> Lógica editável da prancheta <span class="push">Estados · Dados · Eventos</span></footer>' : state.view === "machine" ? '<footer class="statusbar"><span class="live-dot"></span> Máquina de estados · Interação <span class="push">3 estados · 4 listeners</span></footer>' : timeline()}<dialog id="export-dialog"></dialog><dialog id="help-dialog"></dialog><dialog id="clip-dialog"></dialog>`;
   bind();
   for (const action of ["test", "export"]) {
     const control = document.querySelector(`[data-action="${action}"]`);
@@ -1404,8 +1405,11 @@ function save(record = true) {
   const project = snapshot(state);
   // A pipeline run is one undo step, kept so as it goes: commit joins it to the mark before the
   // history limits apply, and never evicts the mark (history.js).
-  if (record && projectHistory.commit(contentSnapshot(project), pipelineRun?.mark))
+  if (record && projectHistory.commit(contentSnapshot(project), pipelineRun?.mark)) {
     state.revision++;
+    // With no project open, the blank one under the screen just got work: it is the open one.
+    assistant.projectTouched();
+  }
   try {
     localStorage.setItem("edisvg-project", JSON.stringify(project));
     localSaveStatus = "Cópia local atualizada";
@@ -1427,6 +1431,7 @@ function updateFileStatus(status) {
     el.textContent = "/ " + status.name + (status.dirty ? " •" : "");
     el.title = status.path || "Projeto ainda sem arquivo";
   }
+  if (assistant.projectClosed()) return;
   document.title = (status.dirty ? "• " : "") + status.name + " — EdiSVG " + packageInfo.version;
 }
 function refreshHistoryControls() {
@@ -2780,8 +2785,96 @@ function openPipelines(handed = undefined) {
           artboardId: state.activeArtboardId,
           offset: value.offset,
           duration: value.duration,
+          ...(value.slotId ? { slotId: value.slotId } : {}),
+          ...(value.mediaType ? { mediaType: value.mediaType } : {}),
         });
         render();
+      },
+      addPresenterStage: (value) => {
+        sameRunSession();
+        const round = (n) => Math.round(n * 100) / 100;
+        /** Adds a shape to the open artboard, sends it to the back and names it; returns its id. */
+        const place = (tag, attrs, name) => {
+          transact([{ type: "scene", targetId: null, operation: "add", value: { tag, attrs } }]);
+          const id = state.selected;
+          if (!id) throw new Error(`${name} não foi criado.`);
+          transact([
+            { type: "scene", targetId: id, operation: "rename", value: name },
+            { type: "scene", targetId: id, operation: "back" },
+          ]);
+          return id;
+        };
+        /** Cuts between shots: each key holds until the next. */
+        const keyed = (id, keys) => {
+          const commands = keys.flatMap((key) =>
+            Object.entries({ x: round(key.x), y: round(key.y), sx: key.scale, sy: key.scale }).map(
+              ([property, number]) => ({
+                type: "motion",
+                command: {
+                  type: "set-key",
+                  animationId: value.clipId,
+                  targetId: id,
+                  property,
+                  frame: key.frame,
+                  value: number,
+                  easing: "hold",
+                },
+              }),
+            ),
+          );
+          for (let i = 0; i < commands.length; i += 40) transact(commands.slice(i, i + 40));
+        };
+        // From the front to the back: the light behind her, the background, her spot.
+        const lightId = place(
+          "circle",
+          {
+            cx: "0",
+            cy: "0",
+            r: String(value.light.radius),
+            fill: value.light.color,
+            stroke: "none",
+          },
+          "Fundo · luz atrás da apresentadora",
+        );
+        transact([
+          { type: "scene", targetId: lightId, operation: "gradients", value: value.light.gradient },
+        ]);
+        keyed(lightId, value.light.keys);
+        const backgroundId = place(
+          "rect",
+          {
+            x: "0",
+            y: "0",
+            width: String(value.width),
+            height: String(value.height),
+            fill: value.background,
+            stroke: "none",
+          },
+          "Fundo",
+        );
+        const slotId = place(
+          "rect",
+          {
+            x: "0",
+            y: "0",
+            width: String(Math.round(value.slot.width)),
+            height: String(Math.round(value.slot.height)),
+            fill: "none",
+            stroke: "none",
+          },
+          "Apresentadora (espaço)",
+        );
+        keyed(slotId, value.slot.keys);
+        transact([{ type: "scene", targetId: slotId, operation: "lock", value: true }]);
+        transact([
+          {
+            type: "guides",
+            guides: value.guides.map((guide) => ({ id: `guide-${crypto.randomUUID()}`, ...guide })),
+          },
+        ]);
+        chooseObject(state, null);
+        render();
+        return { slotId, backgroundId, lightId };
       },
       addArtboards: (items, fontAssetId) => {
         sameRunSession();
@@ -2873,29 +2966,30 @@ function openPipelines(handed = undefined) {
   });
 }
 /**
- * The linked animations of the project (packages/edi-link): after every save, and when a
- * project opens, each one whose picture changed renders for the tool that placed it
- * (links/renderLinks.ts), in the background, the progress beside the file's name.
+ * The linked animations (packages/edi-link): every save, and a project opening, puts the
+ * project in the render queue (links/renderLinks.ts), which renders in the background, one
+ * project at a time, from the saved file. Opening the next lesson's project leaves the renders
+ * of the one before going; the queue goes on when EdiSVG opens again. Its line is beside the
+ * file's name, and opens the list of the queue.
  */
-let linkProgress = null;
-const linkRenderer = window.desktop?.linkList
-  ? createLinkRenderer(
+let renderQueueView = EMPTY_QUEUE;
+let renderQueuePanel = null;
+const renderQueue = window.desktop?.linkQueue
+  ? createRenderQueue(
       window.desktop,
-      (progress) => {
-        linkProgress = progress;
-        const el = document.querySelector("[data-link-status]");
-        if (el) el.textContent = linkStatusText();
+      (view) => {
+        renderQueueView = view;
+        renderQueuePanel?.update(view);
       },
       notify,
     )
   : null;
+if (renderQueue) renderQueuePanel = mountRenderQueuePanel((id) => void renderQueue.cancel(id));
 function linkStatusText() {
-  if (!linkProgress) return "";
-  const { name, index, count, frame, frames } = linkProgress;
-  return `Renderizando para a aula${count > 1 ? ` (${index + 1} de ${count})` : ""} · ${name} · quadro ${frame} de ${frames}`;
+  return queueStatusText(renderQueueView);
 }
 function renderLinkedAnimations() {
-  if (linkRenderer && state.artboards?.length) void linkRenderer.run(snapshot(state));
+  if (renderQueue && state.artboards?.length) void renderQueue.add();
 }
 /** The artboard an animation draws on: where the objects of its tracks are. */
 function artboardOfAnimation(animation) {
@@ -3492,6 +3586,8 @@ function openExport() {
   d.showModal();
 }
 document.addEventListener("keydown", (e) => {
+  // No project open (Fechar projeto): the screen's buttons and the menu, not the editor's keys.
+  if (assistant.projectClosed()) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
     e.preventDefault();
     openCommands();
@@ -4016,6 +4112,8 @@ async function initialize() {
     save(false);
     scheduleTick();
     void takeLinkRequests(true);
+    // Renders the last session left in the queue go on.
+    void renderQueue?.start();
   } catch (error) {
     render();
     document.querySelector("#app").inert = true;

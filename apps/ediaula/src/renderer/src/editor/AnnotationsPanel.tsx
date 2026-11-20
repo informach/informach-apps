@@ -130,8 +130,6 @@ export function kitTiles(p: Palette): ShapeTile[] {
       icon: MessageSquareText,
       kind: "balloon",
       spec: {
-        look: "kit",
-        textRole: "heading",
         color: r.ink,
         fill: r.light,
         text: "Esse é o personagem",

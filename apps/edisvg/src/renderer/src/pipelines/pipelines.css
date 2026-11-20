@@ -212,6 +212,18 @@ dialog.pipelines-dialog > .help-content {
 .scene-artboard.has-reference > .scene-artwork {
   position: relative;
 }
+/* The presenter of a theory lesson, over the artwork in her spot (reference.ts). */
+.presenter-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.presenter-video {
+  position: absolute;
+  object-fit: fill;
+}
 /* The style guide picture of a recipe or a run (GuideField). */
 .pipeline-guide-row {
   display: flex;

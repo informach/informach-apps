@@ -286,7 +286,14 @@ const TEXT_KINDS = new Set<Annotation["kind"]>([
   "box",
   "item",
 ]);
-const HEADING_KINDS = new Set<Annotation["kind"]>(["title", "card", "step", "box", "item"]);
+const HEADING_KINDS = new Set<Annotation["kind"]>([
+  "title",
+  "card",
+  "step",
+  "box",
+  "balloon",
+  "item",
+]);
 
 type FontSubject = Annotation["kind"] | Pick<Annotation, "kind" | "textRole">;
 

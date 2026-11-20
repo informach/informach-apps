@@ -19,7 +19,9 @@ for f in sorted(glob.glob(os.path.join(perfil, "cache", "*", "transcript*.json")
         words = json.load(open(f, encoding="utf8")).get("words") or []
     except (OSError, ValueError):
         continue
-    if words and abs(words[-1]["end"] - dur) < 2.0:
+    # A voz pode acabar com alguns segundos de silêncio (o ElevenLabs deixa até uns 3 s); a
+    # transcrição nunca passa do fim do áudio.
+    if words and -4.0 < words[-1]["end"] - dur < 2.0:
         melhor = f
         break
 if not melhor:

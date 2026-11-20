@@ -1143,6 +1143,9 @@ importers:
       polygon-clipping:
         specifier: 0.15.7
         version: 0.15.7
+      proper-lockfile:
+        specifier: 4.1.2
+        version: 4.1.2
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -1162,6 +1165,9 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
+      '@types/proper-lockfile':
+        specifier: ^4.1.4
+        version: 4.1.4
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0

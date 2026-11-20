@@ -37,7 +37,18 @@ export function createProjectFiles({
   backup = (path, text, version) => atomicWrite(`${path}.v${version}.${randomUUID()}.bak`, text),
   /** A new project, with the person's default fonts (index.js). */
   blank = async () => newProject(),
+  /**
+   * Whether the file at a path is open in another EdiSVG window (instances.ts): the words to
+   * say why it is not opened or written here, or null. A project is open in one window at most.
+   * @type {(path: string) => string | null}
+   */
+  elsewhere = () => null,
 }) {
+  /** Throws when `target` is another window's project. */
+  const ownedElsewhere = (target) => {
+    const reason = elsewhere(target);
+    if (reason) throw new Error(reason);
+  };
   let path = null,
     draft = null,
     saved = null,
@@ -47,7 +58,11 @@ export function createProjectFiles({
     // The id of the project the main process switched to on its own (openLinked, for a request
     // of another tool), until the window sends an edit of it: edits of the project before are
     // left out meanwhile.
-    adopting = null;
+    adopting = null,
+    // An empty project (EdiSVG just opened, Novo, Fechar) as the window holds it: the window
+    // sends it back a little different from how it was made (its own defaults), so its first
+    // copy is what "nothing in it" means until the person edits it. "pending": not back yet.
+    pristine = null;
   const encoded = () => JSON.stringify(draft ? contentSnapshot(draft) : null);
   function status() {
     return {
@@ -69,6 +84,7 @@ export function createProjectFiles({
       adopting = null;
     }
     draft = next;
+    if (pristine === "pending") pristine = blankKey(next);
     await checkpoint(status().dirty ? draft : null);
     return status();
   }
@@ -76,6 +92,7 @@ export function createProjectFiles({
     if (!draft) throw new Error("O editor ainda não está pronto.");
     const destination = as || !path ? await chooseSave(path) : path;
     if (!destination) return { saved: false, ...status() };
+    if (destination !== path) ownedElsewhere(destination);
     const project = structuredClone(draft);
     const content = serializeProject(project);
     if (destination === path && diskText !== null) {
@@ -130,6 +147,7 @@ export function createProjectFiles({
    * (skipped, with `skipBlank`, for an untouched blank project without a file).
    */
   async function load(selected, skipBlank = false) {
+    ownedElsewhere(selected);
     const text = await read(selected);
     if (Buffer.byteLength(text, "utf8") > PROJECT_BYTES) throw new Error("Projeto muito grande.");
     const raw = parseJsonText(text);
@@ -137,6 +155,7 @@ export function createProjectFiles({
     if (!(skipBlank && blankDraft()) && !(await guard())) return null;
     await checkpoint(null);
     adopting = null;
+    pristine = null;
     draft = project;
     saved = JSON.stringify(contentSnapshot(project));
     path = selected;
@@ -163,6 +182,7 @@ export function createProjectFiles({
         const restored = parseProject(project);
         if (persist) await checkpoint(restored);
         draft = restored;
+        pristine = isBlank(restored) ? "pending" : null;
         path = null;
         diskText = null;
         sourceVersion = null;
@@ -170,6 +190,13 @@ export function createProjectFiles({
         return { project: structuredClone(draft), status: status() };
       }),
     isBusy: () => busy,
+    /** Nothing in it: no file, and a blank project never edited (EdiSVG just opened, or Fechar). */
+    isEmpty: () =>
+      !path &&
+      (!draft ||
+        isBlank(draft) ||
+        pristine === "pending" ||
+        (pristine !== null && blankKey(draft) === pristine)),
     /** The open project's id (stable while it is open). */
     projectId: () => draft?.id ?? null,
     new: () =>
@@ -178,7 +205,28 @@ export function createProjectFiles({
         const project = await blank();
         await checkpoint(project);
         draft = project;
+        pristine = "pending";
         saved = null;
+        path = null;
+        diskText = null;
+        sourceVersion = null;
+        return { project: structuredClone(draft), status: status() };
+      }),
+    /**
+     * Fechar projeto: after the unsaved-work question, a blank project without a file, never
+     * edited, stands in for none while the window waits for another (Novo, Abrir, or a request
+     * of another tool, which takes its place without asking). Nothing in it to save or recover.
+     */
+    close: () =>
+      exclusive(async () => {
+        // A blank project never edited has nothing to save: no question.
+        if (!blankDraft() && !(await guard())) return null;
+        const project = await blank();
+        await checkpoint(null);
+        adopting = null;
+        draft = project;
+        pristine = "pending";
+        saved = JSON.stringify(contentSnapshot(project));
         path = null;
         diskText = null;
         sourceVersion = null;
@@ -211,6 +259,7 @@ export function createProjectFiles({
           return opened;
         }
         if (create === null) throw new Error(`O projeto ${basename(target)} não foi encontrado.`);
+        ownedElsewhere(target);
         const name = create;
         if (!blankDraft() && !(await guard())) return null;
         const project = parseProject({
@@ -221,6 +270,7 @@ export function createProjectFiles({
         await write(target, content);
         await checkpoint(null);
         draft = project;
+        pristine = null;
         saved = JSON.stringify(contentSnapshot(project));
         path = target;
         diskText = content;

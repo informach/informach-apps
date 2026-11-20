@@ -1,6 +1,8 @@
 // Prepara, confere e grava uma parte no gravador guiado do projeto aberto.
 // Estado: parte (N), aula (endereço da aula no palco), voz (caminho do áudio da parte), tamanho
-// ("1920x1080@1"), soVerificar (só ensaio seco), pularVerificacao, refazerVoz, enderecos/extras (por parte).
+// ("1920x1080@1"), movimento ("crianca" ou "professora"), tempos ({move, dwell, after} em segundos),
+// soVerificar (só ensaio seco), pularVerificacao,
+// semVerificar (grava sem rodar o Verificar plano), refazerVoz, enderecos/extras (por parte).
 // Devolve o plano gerado, as etapas, o resultado do ensaio e, se gravou, a duração.
 export default async function fazerParte(ctx) {
   const n = ctx.state.parte;
@@ -54,6 +56,19 @@ export default async function fazerParte(ctx) {
   }
   await r.getByLabel("Tamanho da captura").selectOption(ctx.state.tamanho ?? "1920x1080@1");
   await ctx.delay(400);
+  // Quem demonstra: "crianca" nos cursos das crianças, "professora" quando a demonstração é da
+  // própria professora (curso dos pais). Antes de gerar o plano, porque o tempo da mão entra nele.
+  await r.getByLabel("Movimento do mouse").selectOption(ctx.state.movimento ?? "crianca");
+  await ctx.delay(400);
+  // Tempos do plano que o curso muda (config.json "tempos"); sem eles, os do plano novo.
+  const ROTULOS = { move: "Movimento (s)", dwell: "Antes do clique (s)", after: "Após a ação (s)" };
+  for (const [chave, valor] of Object.entries(ctx.state.tempos ?? {})) {
+    if (!ROTULOS[chave]) throw new Error(`tempo desconhecido no config: ${chave}`);
+    const campo = r.getByLabel(ROTULOS[chave], { exact: true });
+    await campo.fill(String(valor));
+    await campo.press("Tab");
+    await ctx.delay(300);
+  }
   const endereco = ctx.state.enderecos?.[n];
   await r
     .getByLabel("Endereço da aula")
@@ -104,7 +119,10 @@ export default async function fazerParte(ctx) {
     .locator("input[aria-label*='ala']")
     .evaluateAll((xs) => xs.map((x) => x.value))
     .catch(() => []);
-  // 6. Ensaio seco (Verificar plano).
+  // 6. Ensaio seco (Verificar plano). semVerificar grava direto: os gestos que mudam a plataforma
+  // (ativar um presente, criar um perfil) só acontecem uma vez por conta, e o ensaio já verificou
+  // o plano com outra conta.
+  if (ctx.state.semVerificar && !ctx.state.soVerificar) return await gravar(ctx, e, res);
   await r.getByRole("button", { name: "Verificar plano" }).click();
   await ctx.delay(3000);
   for (let i = 0; i < 600; i++) {
@@ -122,7 +140,12 @@ export default async function fazerParte(ctx) {
   )
     return res;
   if (ctx.state.soVerificar) return res;
-  // 7. Gravar.
+  return await gravar(ctx, e, res);
+}
+
+// 7. Gravar.
+async function gravar(ctx, e, res) {
+  const r = ctx.recorder();
   const t0 = Date.now();
   await r
     .getByRole("button", { name: /^Gravar/ })

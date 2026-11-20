@@ -12,6 +12,23 @@ import {
   type RunInputs,
   spokenScript,
 } from "../../../shared/pipelines";
+import {
+  contentColumn,
+  fittedVideo,
+  LECTURE_GUIDES,
+  LIGHT_RADIUS,
+  lightGradient,
+  type PersonBounds,
+  type PlacementId,
+  type PresenterStage,
+  parsePlacements,
+  personBox,
+  placementBox,
+  placementOf,
+  planShots,
+  type Shot,
+  shotsReport,
+} from "../../../shared/presenterFraming";
 import { elementSvgs } from "./elements";
 import { guideParts } from "./guideImage";
 import {
@@ -19,6 +36,7 @@ import {
   type DraftFonts,
   type DraftKit,
   draftRequest,
+  framingRequest,
   guideStyleRequest,
   parseGuideStyle,
 } from "./prompt";
@@ -89,8 +107,43 @@ export interface PipelineEditor {
   ): Promise<{ text: string; stopped: boolean; edits: number; error?: string }>;
   /** A new artboard of this size, opened (the transparent layer of a demonstration). */
   openDemoArtboard(value: { name: string; width: number; height: number }): DraftBoard;
-  /** The demonstration video under the open artboard, from `offset` seconds of the animation. */
-  setReferenceVideo(value: { bytes: Uint8Array; offset: number; duration: number }): void;
+  /**
+   * The demonstration video under the open artboard, from `offset` seconds of the animation; with
+   * `slotId`, the presenter's video (WebM with alpha) over it, in her spot.
+   */
+  setReferenceVideo(value: {
+    bytes: Uint8Array;
+    offset: number;
+    duration: number;
+    slotId?: string;
+    mediaType?: "video/mp4" | "video/webm";
+  }): void;
+  /**
+   * The stage of a theory lesson in the open artboard (width × height), from the back to the
+   * front: the presenter's spot (a rectangle without paint the size of her video at scale 1,
+   * locked), the background (a rectangle of `background`) and the light behind her (a circle of
+   * `light.radius` painted with `light.gradient`). The spot and the light have their position
+   * and scale keyed (cuts, "hold") at each shot of the animation `clipId`. The artboard takes
+   * `guides`. Returns the ids.
+   */
+  addPresenterStage(value: {
+    clipId: string;
+    width: number;
+    height: number;
+    background: string;
+    slot: {
+      width: number;
+      height: number;
+      keys: { frame: number; x: number; y: number; scale: number }[];
+    };
+    light: {
+      color: string;
+      radius: number;
+      gradient: unknown;
+      keys: { frame: number; x: number; y: number; scale: number }[];
+    };
+    guides: { axis: "x" | "y"; position: number }[];
+  }): PresenterStage;
   /**
    * Artboards from SVG (the ready elements), keeping the open one open; their texts take the font
    * `fontAssetId` when given.
@@ -134,6 +187,16 @@ export interface PipelineBridge {
   pipelineFonts(): Promise<BundledFamily[]>;
   pipelineFont(family: string, weight: number): Promise<BundledFont>;
   pipelineVideoFacts(token: string): Promise<VideoFacts>;
+  /**
+   * The presenter in [from, from + seconds) of her video: the colour of the green screen, where she
+   * stands in the picture, and the stretch without the screen (WebM with alpha) for the preview.
+   */
+  pipelinePresenter(
+    token: string,
+    from: number,
+    seconds: number,
+    jobId: string,
+  ): Promise<{ screen: string; person: PersonBounds; preview: Uint8Array }>;
   pipelineVideoPreview(token: string, seconds: number, jobId: string): Promise<Uint8Array>;
   pipelineVideoFrames(
     token: string,
@@ -247,8 +310,13 @@ const findPiece: PipelineStep = {
   id: "find-piece",
   label: "Ouvir a aula e achar o trecho do roteiro",
   async run(ctx) {
-    const audio = ctx.inputs.files.audio;
-    if (!audio) throw new Error("Escolha o áudio da aula.");
+    const audio = voiceOf(ctx);
+    if (!audio)
+      throw new Error(
+        ctx.recipe.kind === "presenter-talk"
+          ? "Escolha o vídeo da apresentadora."
+          : "Escolha o áudio da aula.",
+      );
     const lesson = audio.kind === "lesson";
     ctx.progress(0, lesson ? "Abrindo o pacote da aula" : "Transcrevendo o áudio");
     const words: HeardWord[] = await job(ctx, async (jobId) => {
@@ -277,6 +345,13 @@ const findPiece: PipelineStep = {
   },
 };
 
+/**
+ * The file the narration is heard from: the lesson's audio (a file or EdiAula's package), or the
+ * presenter's video in a theory lesson (her voice is its sound).
+ */
+const voiceOf = (ctx: Pick<StepContext, "recipe" | "inputs">): PickedFile | undefined =>
+  ctx.recipe.kind === "presenter-talk" ? ctx.inputs.files.video : ctx.inputs.files.audio;
+
 /** Breath kept before the first sentence and after the last one. */
 const LEAD = 0.4;
 const TAIL = 0.8;
@@ -286,11 +361,13 @@ const prepareNarration: PipelineStep = {
   id: "narration",
   label: "Preparar a narração na prévia",
   async run(ctx) {
-    const audio = ctx.inputs.files.audio;
+    const audio = voiceOf(ctx);
     const piece = ctx.results.piece as ScriptPiece | undefined;
     if (!audio || !piece) throw new Error("O trecho do roteiro não foi achado.");
-    const start = Math.max(0, piece.start - LEAD);
-    const end = piece.end + TAIL;
+    // A theory lesson's stretch was set with her video (it ends where the video does).
+    const presenter = ctx.results.presenter as Presenter | undefined;
+    const start = presenter?.start ?? Math.max(0, piece.start - LEAD);
+    const end = presenter?.end ?? piece.end + TAIL;
     ctx.progress(0.2, "Cortando o áudio do trecho");
     const bytes = await job(ctx, (jobId) =>
       ctx.bridge.pipelineNarration(audio.token, audio.kind, start, end, jobId),
@@ -308,10 +385,11 @@ const prepareNarration: PipelineStep = {
     // The stretch of the lesson this animation is, on the artboard it is made in: the next run
     // sees these phrases done, and the animation goes back to the lesson at these seconds.
     const lesson = ctx.inputs.lesson;
-    if (lesson && audio.kind === "lesson")
+    const kind = ctx.recipe.kind;
+    if (lesson && audio.kind === "lesson" && kind !== "presenter-talk")
       ctx.editor.markLessonClip({
         clipId: clip.clipId,
-        kind: ctx.recipe.kind,
+        kind,
         lessonId: lesson.id,
         section: lesson.section,
         start,
@@ -383,6 +461,165 @@ const prepareVideo: PipelineStep = {
     );
     if (wanted > (facts.duration || wanted) + 0.5)
       ctx.report.push("O vídeo acaba antes da narração do trecho.");
+  },
+};
+
+/** The theory lesson's state for the next steps. */
+interface Presenter {
+  name: string;
+  /** Her video's size, and where she stands in it (fractions). */
+  video: { width: number; height: number };
+  person: PersonBounds;
+  /** Seconds of her video the animation covers (frame 0 is `start`). */
+  start: number;
+  end: number;
+  preview: Uint8Array;
+  board: DraftBoard;
+}
+
+/** The artboard of a theory lesson: EdiAula's lesson frame (the presenter goes over it there). */
+export const LECTURE_BOARD = { width: 1920, height: 1080 } as const;
+
+/**
+ * The presenter's video: her green screen and where she stands (read from frames of the stretch),
+ * the stretch without the screen for the preview, and the artboard of the lesson, opened.
+ */
+const preparePresenter: PipelineStep = {
+  id: "presenter",
+  label: "Preparar o vídeo da apresentadora (tirar o fundo verde)",
+  async run(ctx) {
+    const file = ctx.inputs.files.video;
+    const piece = ctx.results.piece as ScriptPiece | undefined;
+    if (!file) throw new Error("Escolha o vídeo da apresentadora.");
+    if (!piece) throw new Error("O trecho do roteiro não foi achado.");
+    ctx.progress(0.05, "Lendo o vídeo");
+    const facts = await ctx.bridge.pipelineVideoFacts(file.token);
+    const start = Math.max(0, piece.start - LEAD);
+    const end = Math.min(piece.end + TAIL, facts.duration || piece.end + TAIL);
+    if (end - start < 0.5) throw new Error("O vídeo é curto demais para o trecho.");
+    ctx.progress(0.15, "Achando o fundo verde e a apresentadora");
+    const found = await job(ctx, (jobId) =>
+      ctx.bridge.pipelinePresenter(file.token, start, end - start, jobId),
+    );
+    const board = ctx.editor.openDemoArtboard({
+      name: `Aula teórica · ${file.name}`.slice(0, 120),
+      ...LECTURE_BOARD,
+    });
+    ctx.results.presenter = {
+      name: file.name,
+      video: { width: facts.width, height: facts.height },
+      person: found.person,
+      start,
+      end,
+      preview: found.preview,
+      board,
+    } satisfies Presenter;
+    const pct = (v: number) => Math.round(v * 100);
+    ctx.report.push(
+      `Apresentadora ${facts.width}×${facts.height}, fundo ${found.screen}: ela ocupa de ${pct(found.person.left)}% a ${pct(found.person.right)}% da largura e de ${pct(found.person.top)}% a ${pct(found.person.bottom)}% da altura do vídeo.`,
+    );
+  },
+};
+
+/**
+ * The shots: the assistant picks, sentence by sentence, where the presenter stands (EdiAula's
+ * placements); the run joins short shots, keys her spot at each cut and puts her video in it.
+ */
+const planFraming: PipelineStep = {
+  id: "framing",
+  label: "Escolher os planos da apresentadora (onde ela fica em cada frase)",
+  async run(ctx) {
+    const presenter = ctx.results.presenter as Presenter | undefined;
+    const clip = ctx.results.clip as { clipId: string; fps: number; frames: number } | undefined;
+    const piece = ctx.results.piece as ScriptPiece | undefined;
+    if (!presenter || !clip || !piece) throw new Error("A narração não foi preparada.");
+    const frame = (seconds: number) =>
+      Math.max(0, Math.min(clip.frames, Math.round((seconds - presenter.start) * clip.fps)));
+    const lines = piece.lines.map((l) => ({
+      text: l.text,
+      from: frame(l.start),
+      to: frame(l.end),
+    }));
+    ctx.signal.throwIfAborted();
+    const stop = () => ctx.editor.stopAssistant();
+    ctx.signal.addEventListener("abort", stop, { once: true });
+    let placements: PlacementId[];
+    try {
+      ctx.status("O assistente está escolhendo os planos");
+      const turn = await ctx.editor.askAssistant(
+        framingRequest({ recipe: ctx.recipe, lines, fps: clip.fps }),
+        `Pipeline "${ctx.recipe.name}": escolher onde a apresentadora fica em cada uma das ${lines.length} ${lines.length === 1 ? "frase" : "frases"}.`,
+        [],
+        (activity) => ctx.status(assistantLine(activity)),
+      );
+      ctx.signal.throwIfAborted();
+      if (turn.stopped)
+        throw new Error("O assistente foi interrompido antes de escolher os planos.");
+      if (turn.error) throw new Error(turn.error);
+      placements = parsePlacements(turn.text, lines.length);
+    } finally {
+      ctx.signal.removeEventListener("abort", stop);
+    }
+    const shots = planShots(lines, placements, clip.fps, clip.frames);
+    const { board, video } = presenter;
+    const base = fittedVideo(video, board);
+    // The ink of the palette is the background, the accent (the last colour) lights her.
+    const palette = runStyle(ctx).textPalette;
+    const ink = palette[1] ?? palette[0] ?? "#101b35";
+    const accent = palette.at(-1) ?? "#ffc23c";
+    const g = LECTURE_GUIDES;
+    const stage = ctx.editor.addPresenterStage({
+      clipId: clip.clipId,
+      width: board.width,
+      height: board.height,
+      background: ink,
+      slot: {
+        width: base.width,
+        height: base.height,
+        keys: shots.map((shot) => {
+          const placement = placementOf(shot.placement);
+          const box = placementBox(placement, video, board);
+          return { frame: shot.from, x: box.x, y: box.y, scale: placement.scale };
+        }),
+      },
+      light: {
+        color: accent,
+        radius: LIGHT_RADIUS,
+        gradient: lightGradient(accent),
+        keys: shots.map((shot) => ({ frame: shot.from, ...placementOf(shot.placement).light })),
+      },
+      guides: [
+        ...[g.left, g.center, g.right].map((position) => ({ axis: "x" as const, position })),
+        ...[g.top, g.bottom].map((position) => ({ axis: "y" as const, position })),
+      ],
+    });
+    ctx.editor.setReferenceVideo({
+      bytes: presenter.preview,
+      offset: 0,
+      duration: presenter.end - presenter.start,
+      slotId: stage.slotId,
+      mediaType: "video/webm",
+    });
+    ctx.results.shots = shots;
+    ctx.results.stage = stage;
+    ctx.report.push(
+      `${shots.length} ${shots.length === 1 ? "plano" : "planos"} da apresentadora. No EdiAula, a posição do vídeo dela em cada trecho:`,
+      ...shotsReport(shots, clip.fps, presenter.start),
+    );
+    // A video where she stands far from the middle: the column of the content may reach her.
+    for (const placement of new Set(shots.map((s) => placementOf(s.placement)))) {
+      const person = personBox(placement, video, board, presenter.person);
+      const column = contentColumn(placement.side);
+      const reaches =
+        person &&
+        (placement.side === "right"
+          ? person.x < column.right
+          : person.x + person.width > column.left);
+      if (reaches)
+        ctx.report.push(
+          `Atenção: no plano ${placement.label}, ela chega a x ${placement.side === "right" ? person.x : person.x + person.width}, dentro da coluna do conteúdo (${column.left}–${column.right}). Confira na prévia.`,
+        );
+    }
   },
 };
 
@@ -508,6 +745,10 @@ const draftWithAssistant: PipelineStep = {
         })),
       };
     }
+    // A theory lesson: the presenter's spot and where she stands in each shot.
+    const presenter = ctx.results.presenter as Presenter | undefined;
+    const shots = ctx.results.shots as Shot[] | undefined;
+    const stage = ctx.results.stage as PresenterStage | undefined;
     const request = draftRequest({
       recipe: ctx.recipe,
       artboard: ctx.editor.activeArtboard(),
@@ -523,6 +764,25 @@ const draftWithAssistant: PipelineStep = {
       guideParts: guide.length,
       lessonStart,
       ...(demo ? { demo } : {}),
+      ...(presenter && shots && stage
+        ? {
+            presenter: {
+              ...stage,
+              video: presenter.name,
+              shots: shots.map((shot) => {
+                const placement = placementOf(shot.placement);
+                return {
+                  from: shot.from,
+                  to: shot.to,
+                  placement: placement.label,
+                  side: placement.side,
+                  lines: shot.lines,
+                  column: contentColumn(placement.side),
+                };
+              }),
+            },
+          }
+        : {}),
     });
     // Cancelar while the frames were taken: the assistant is never asked.
     ctx.signal.throwIfAborted();
@@ -614,6 +874,17 @@ const readGuideStyle: PipelineStep = {
 /** The steps of each kind of recipe, in order (with a style guide, reading it comes first). */
 export function stepsFor(kind: RecipeKind, guided = false): PipelineStep[] {
   const guide = guided ? [readGuideStyle] : [];
+  if (kind === "presenter-talk")
+    return [
+      ...guide,
+      findPiece,
+      preparePresenter,
+      prepareNarration,
+      planFraming,
+      applyPalettes,
+      embedFonts,
+      draftWithAssistant,
+    ];
   if (kind === "game-scene")
     return [
       ...guide,

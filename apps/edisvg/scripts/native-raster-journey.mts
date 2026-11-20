@@ -29,7 +29,7 @@ export async function verifyNativeRasterExport(
     if (!draft) throw new Error("Missing authored raster animation");
     const clip = parseProject(JSON.parse(draft)).motion.animations.at(-1);
     assert.ok(clip);
-    const frames = planRasterFrames(clip, 10).times.length,
+    const frames = planRasterFrames(clip, 10, "mp4").times.length,
       dialog = page.locator("#export-dialog");
     const exportAs = async (format: "mp4" | "gif", action: "Save" | "Cancel", path: string) => {
       await page.locator('[data-action="export"]').click();

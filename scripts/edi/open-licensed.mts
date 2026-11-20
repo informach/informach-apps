@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { desktopAppIdSchema, MAX_LEASE_SECONDS } from "../../packages/edi-contracts/src/index.ts";
@@ -27,6 +27,10 @@ import { watchBuildSources } from "./work-freshness.mts";
  * sources marks it stale for the development Hub, which then offers to restart it
  * (`work-freshness.mts`). A test session is never offered: the Hub reopens in work mode, on the
  * real profile.
+ *
+ * A tool open in several windows (EdiSVG: "Nova janela", each window a process of its own, listed
+ * in `<profile>\janelas`) keeps its license while any window is open: when the window this run
+ * opened closes, the run waits for the others before it removes the suite folder.
  */
 const argv = process.argv.slice(2);
 const mode: OpenMode = argv[0] === "--work" ? "work" : "test";
@@ -42,6 +46,32 @@ const { packageManager } = nativeTooling();
 const LEASE_SECONDS = mode === "work" ? MAX_LEASE_SECONDS : 1800;
 const RENEW_MS = 20 * 60_000;
 const log = (message: string) => console.log(`[${command}] ${message}`);
+
+/** The processes of the tool's other windows still open (`<profile>\janelas\<n>.json`). */
+function otherWindows(userData: string): number[] {
+  const folder = join(userData, "janelas");
+  const pids: number[] = [];
+  for (const name of existsSync(folder) ? readdirSync(folder) : []) {
+    if (!/^\d+\.json$/.test(name)) continue;
+    try {
+      const pid = Number(JSON.parse(readFileSync(join(folder, name), "utf8")).pid);
+      if (!Number.isInteger(pid) || pid <= 0) continue;
+      process.kill(pid, 0);
+      pids.push(pid);
+    } catch (error) {
+      // EPERM: running, someone else's. Anything else: gone, or a file being written.
+      if ((error as NodeJS.ErrnoException).code === "EPERM") pids.push(-1);
+    }
+  }
+  return pids;
+}
+
+/** Resolves once no other window of the tool is open (checked every 2 s). */
+async function othersClosed(userData: string): Promise<void> {
+  if (!otherWindows(userData).length) return;
+  log("other windows of the tool are still open; the license stays until they close");
+  while (otherWindows(userData).length) await new Promise((r) => setTimeout(r, 2000));
+}
 
 // The lock is taken before the build. A dead owner (crash, closed terminal) does not hold it.
 const locks = resolve(".cache", "edi-open");
@@ -160,12 +190,17 @@ try {
   launched.process().stdout?.on("data", (chunk: Buffer) => process.stdout.write(chunk));
   launched.process().stderr?.on("data", (chunk: Buffer) => process.stderr.write(chunk));
   launched.once("close", () => {
-    log(
-      profile.kept
-        ? `${id} closed; ${profile.userData} is kept, removing only the license in ${harness.root}`
-        : `${id} closed; removing ${harness.root}`,
-    );
-    void finish(0);
+    // Renewed through the window that closed: the other windows live on the lease written.
+    if (renewal) clearInterval(renewal);
+    const userData = profile.userData;
+    void (mode === "work" ? othersClosed(userData) : Promise.resolve()).then(() => {
+      log(
+        profile.kept
+          ? `${id} closed; ${userData} is kept, removing only the license in ${harness.root}`
+          : `${id} closed; removing ${harness.root}`,
+      );
+      return finish(0);
+    });
   });
   const first = await launched.firstWindow({ timeout: 60_000 });
   await first.waitForFunction(() => typeof window.ediSuite !== "undefined");

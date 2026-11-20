@@ -51,6 +51,52 @@
           "roteiro": "docs/aulas-interativas/faisca/cade-todo-mundo/cade-todo-mundo-certificado.roteiro.md"
         }
       }
+    },
+    "vilao": {
+      "nome": "Transformando o vilão em aliado",
+      "cursoEdiAula": "TransformandoOVilaoEmAliado",
+      "prefixo": "Vilão",
+      "subtituloCapa": "Transformando o vilão em aliado",
+      "slug": "transformando-o-vilao-em-aliado",
+      "material": "~/Downloads/Transformando o vilão em aliado",
+      "movimento": "professora",
+      "tempos": {
+        "dwell": 0.4,
+        "after": 0.5
+      },
+      "aulas": {
+        "6": {
+          "_leia": "A demonstração da Parte 2 é gravada no Estúdio da Aula 1 do Cadê (Parte 4, primeiro-achado): o jardim, Achados em zero e o Quando clicar ou tocar vazio.",
+          "roteiro": "docs/aulas-interativas/pais/transformando-o-vilao-em-aliado/transformando-o-vilao-em-aliado-aula-6.roteiro.md",
+          "palco": {
+            "slug": "cade-todo-mundo",
+            "id": "f59382bb-9791-42ac-8912-7f011c2959d1",
+            "partes": {
+              "2": "?parte=4"
+            }
+          }
+        },
+        "7": {
+          "_leia": "A Aula 7 grava a própria área dos pais no staging, numa aula de QA com o presente e o certificado reais. Cada parte entra com uma conta de ensaio do arquivo de contas, fora do git.",
+          "roteiro": "docs/aulas-interativas/pais/transformando-o-vilao-em-aliado/transformando-o-vilao-em-aliado-aula-7.roteiro.md",
+          "palco": {
+            "url": "https://community-kids-staging.up.railway.app",
+            "partes": {
+              "1": "/pais",
+              "2": "/pais",
+              "3": "/pais/cursos/qa-gravacao-vilao-aula7-20261120/aulas/35da1792-de67-40ea-aa68-c72e54991ae3"
+            }
+          },
+          "plataforma": {
+            "contas": "~/projects/sistema-zero/.cache/gravacao-vilao-aula7-20261120/contas.json",
+            "porParte": {
+              "1": "p1",
+              "2": "p1",
+              "3": "p3a"
+            }
+          }
+        }
+      }
     }
   }
 }

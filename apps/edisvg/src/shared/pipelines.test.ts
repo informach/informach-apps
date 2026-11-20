@@ -37,11 +37,11 @@ import {
   withGuide,
 } from "./pipelines";
 
-test("the two ready recipes come first; an edit is kept over the original and Voltar brings it back", () => {
+test("the three ready recipes come first; an edit is kept over the original and Voltar brings it back", () => {
   let store = emptyRecipeStore();
   assert.deepEqual(
     listRecipes(store).map((r) => r.name),
-    ["Cena animada do jogo", "Demonstração passo a passo"],
+    ["Cena animada do jogo", "Demonstração passo a passo", "Aula teórica com a apresentadora"],
   );
   const scene = BUILT_IN_RECIPES[0];
   if (!scene) throw new Error("missing ready recipe");
@@ -54,10 +54,10 @@ test("the two ready recipes come first; an edit is kept over the original and Vo
   store = removeRecipe(store, scene.id);
   assert.deepEqual(
     listRecipes(store).map((r) => r.id),
-    ["recipe-demonstracao"],
+    ["recipe-demonstracao", "recipe-aula-teorica"],
   );
   store = restoreRecipe(store, scene.id);
-  assert.equal(listRecipes(store).length, 2);
+  assert.equal(listRecipes(store).length, 3);
 });
 
 test("a duplicate is the person's own recipe, with a free name, after the ready ones", () => {
@@ -68,6 +68,7 @@ test("a duplicate is the person's own recipe, with a free name, after the ready 
     [
       ["recipe-cena-do-jogo", "Cena animada do jogo", "game-scene"],
       ["recipe-demonstracao", "Demonstração passo a passo", "screen-demo"],
+      ["recipe-aula-teorica", "Aula teórica com a apresentadora", "presenter-talk"],
       ["recipe-minha-1", "Demonstração passo a passo (cópia)", "screen-demo"],
       ["recipe-minha-2", "Demonstração passo a passo (cópia 2)", "screen-demo"],
     ],
@@ -179,6 +180,11 @@ const stubDeps = (
       height: 1080,
     }),
     setReferenceVideo: () => undefined,
+    addPresenterStage: () => ({
+      slotId: "node-espaco",
+      backgroundId: "node-fundo",
+      lightId: "node-luz",
+    }),
     addArtboards: () => [],
     embedFonts: async () => [],
     ...editor,
@@ -199,6 +205,9 @@ const stubDeps = (
     pipelineGuideStyleSave: async () => undefined,
     onPipelineProgress: () => () => undefined,
     pipelineVideoFacts: async () => ({ width: 1920, height: 1080, duration: 10, clicks: null }),
+    pipelinePresenter: async () => {
+      throw new Error("sem apresentadora");
+    },
     pipelineVideoPreview: async () => new Uint8Array(),
     pipelineVideoFrames: async () => [],
     pipelineLessonVideo: async () => {
@@ -898,6 +907,11 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
         endRun: () => undefined,
         openDemoArtboard: () => ({ id: "artboard-d", name: "D", width: 1280, height: 720 }),
         setReferenceVideo: () => undefined,
+        addPresenterStage: () => ({
+          slotId: "node-espaco",
+          backgroundId: "node-fundo",
+          lightId: "node-luz",
+        }),
         addArtboards: (_items, fontAssetId) => {
           balloonFont = fontAssetId;
           return [];
@@ -927,6 +941,9 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
         pipelineGuideStyleSave: async () => undefined,
         onPipelineProgress: () => () => undefined,
         pipelineVideoFacts: async () => ({ width: 1, height: 1, duration: 1, clicks: null }),
+        pipelinePresenter: async () => {
+          throw new Error("sem apresentadora");
+        },
         pipelineVideoPreview: async () => new Uint8Array(),
         pipelineVideoFrames: async () => [],
         pipelineLessonVideo: async () => {
@@ -969,4 +986,222 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
   );
   assert.equal(missing.ok, false);
   assert.equal(asked.at(-1), "A fonte Comic Sans não vem com o EdiSVG.");
+});
+
+test("a theory lesson hears her video, sets her stage at each shot and keeps it free in the draft", async () => {
+  const recipe = BUILT_IN_RECIPES.find((r) => r.kind === "presenter-talk");
+  if (!recipe) throw new Error("missing ready recipe");
+  assert.deepEqual(
+    stepsFor("presenter-talk").map((s) => s.id),
+    ["find-piece", "presenter", "narration", "framing", "palettes", "fonts", "draft"],
+  );
+  const video = { token: "file-prof-000001", name: "prof.mp4", kind: "video" as const, size: 9 };
+  // Only the video is asked: it is the narration too.
+  assert.deepEqual(missingInputs(recipe, { files: {}, script: "Oi.", textPalette: ["#000000"] }), [
+    "Vídeo da apresentadora (MP4 com a voz dela, fundo verde)",
+  ]);
+  assert.deepEqual(
+    missingInputs(recipe, { files: { video }, script: "Oi.", textPalette: ["#000000"] }),
+    [],
+  );
+  const word = (text: string, start: number) => ({ text, start, end: start + 0.4 });
+  const words = [
+    word("Hoje", 10),
+    word("vamos", 10.5),
+    word("falar", 11),
+    word("de", 11.5),
+    word("energia.", 12),
+    word("Ela", 20),
+    word("muda", 20.5),
+    word("de", 21),
+    word("forma.", 21.5),
+  ];
+  const asked: unknown[] = [];
+  const requests: string[] = [];
+  let stage: Parameters<PipelineEditor["addPresenterStage"]>[0] | undefined;
+  let reference: Parameters<PipelineEditor["setReferenceVideo"]>[0] | undefined;
+  const outcome = await runPipeline(
+    recipe,
+    {
+      recipeId: recipe.id,
+      files: { video },
+      script: "Hoje vamos falar de energia. [ela sorri] Ela muda de forma.",
+      textPalette: recipe.textPalette,
+      fonts: DEFAULT_FONTS,
+    },
+    stepsFor("presenter-talk").filter((s) => s.id !== "fonts"),
+    stubDeps(
+      new AbortController().signal,
+      {
+        openNarration: async (value) => {
+          asked.push(["narration", Number(value.duration.toFixed(2)), value.lessonStart]);
+          return { clipId: "animation-aula", fps: 30, frames: Math.ceil(value.duration * 30) };
+        },
+        activeArtboard: () => ({ id: "artboard-d", name: "Aula", width: 1920, height: 1080 }),
+        askAssistant: async (text) => {
+          requests.push(text);
+          return requests.length === 1
+            ? { text: '{"posicoes": ["close-right", "medium-left"]}', stopped: false, edits: 0 }
+            : { text: "1. título; 2. diagrama", stopped: false, edits: 5 };
+        },
+        addPresenterStage: (value) => {
+          stage = value;
+          return { slotId: "node-espaco", backgroundId: "node-fundo", lightId: "node-luz" };
+        },
+        setReferenceVideo: (value) => {
+          reference = value;
+        },
+      },
+      {
+        pipelineWords: async (token, kind) => {
+          asked.push(["words", token, kind]);
+          return words;
+        },
+        pipelineNarration: async (token, kind, start, end) => {
+          asked.push(["cut", token, kind, start, Number(end.toFixed(2))]);
+          return new Uint8Array([1]);
+        },
+        // Standing, recorded in portrait, as in the approved lesson.
+        pipelineVideoFacts: async () => ({
+          width: 1080,
+          height: 1920,
+          duration: 22.5,
+          clicks: null,
+        }),
+        pipelinePresenter: async (token, from, seconds) => {
+          asked.push(["presenter", token, from, Number(seconds.toFixed(2))]);
+          return {
+            screen: "#14b43c",
+            person: { left: 0.2, top: 0.05, right: 0.8, bottom: 1 },
+            preview: new Uint8Array([7]),
+          };
+        },
+      },
+    ),
+    () => undefined,
+  );
+  assert.equal(outcome.ok, true, outcome.report.join("\n"));
+  // Her video is heard and cut; the stretch ends where the video does (22.5 s).
+  assert.deepEqual(asked, [
+    ["words", "file-prof-000001", "video"],
+    ["presenter", "file-prof-000001", 9.6, 12.9],
+    ["cut", "file-prof-000001", "video", 9.6, 22.5],
+    ["narration", 12.9, 9.6],
+  ]);
+  // Two shots, cut at frame 0 and halfway through the pause (12.4–20 s: frames 84–312): her spot
+  // and the light behind her where the approved lesson had them; the background in the ink.
+  assert.ok(stage);
+  const keys = (list: { frame: number; x: number; y: number; scale: number }[]) =>
+    list.map((k) => [k.frame, Math.round(k.x * 10) / 10, Math.round(k.y * 10) / 10, k.scale]);
+  assert.deepEqual(
+    [stage.clipId, stage.width, stage.height, stage.background],
+    ["animation-aula", 1920, 1080, "#101b35"],
+  );
+  assert.deepEqual([stage.slot.width, stage.slot.height], [607.5, 1080]);
+  assert.deepEqual(keys(stage.slot.keys), [
+    [0, 801.4, 0, 2.3],
+    [198, -106.7, 0, 1.8],
+  ]);
+  assert.deepEqual(
+    [stage.light.color, stage.light.radius, keys(stage.light.keys)],
+    [
+      "#ffc23c",
+      520,
+      [
+        [0, 1506, 520, 1.5],
+        [198, 446, 560, 1.2],
+      ],
+    ],
+  );
+  assert.deepEqual(
+    stage.guides.map((g) => `${g.axis} ${g.position}`),
+    ["x 84", "x 960", "x 1836", "y 92", "y 1008"],
+  );
+  assert.deepEqual(reference, {
+    bytes: new Uint8Array([7]),
+    offset: 0,
+    duration: 12.9,
+    slotId: "node-espaco",
+    mediaType: "video/webm",
+  });
+  const framing = requests[0] ?? "";
+  assert.ok(framing.includes('"close-right" (Médio curto à direita)'), framing);
+  assert.ok(framing.includes("nada de plano inteiro, americano ou dela no centro"));
+  assert.ok(framing.includes('1. 0.4–2.8 s: "Hoje vamos falar de energia."'));
+  const draft = requests[1] ?? "";
+  for (const said of [
+    '[node-espaco] "Apresentadora (espaço)" (travado), [node-fundo] "Fundo"',
+    '[node-luz] "Fundo · luz atrás da apresentadora"',
+    "Corte 1, quadros 0–198, frases 1: Médio curto à direita. Conteúdo em x 84–960, centralizado em x 522; na altura, entre y 92 e 1008, centralizado em y 550.",
+    "Corte 2, quadros 198–387, frases 2: Médio à esquerda. Conteúdo em x 960–1836, centralizado em x 1398",
+    'stroke explícito: "none"',
+    "Listas de no máximo 3 itens",
+  ])
+    assert.ok(draft.includes(said), said);
+  assert.doesNotMatch(draft, /## Imagens do projeto/);
+  const report = outcome.report.join("\n");
+  assert.match(report, /fundo #14b43c: ela ocupa de 20% a 80% da largura/);
+  assert.ok(
+    report.includes("0:09.6–0:16.2 do vídeo: Médio curto à direita (x 0.781, y 1.15, escala 2.3)"),
+    report,
+  );
+  assert.ok(
+    report.includes("0:16.2–0:22.5 do vídeo: Médio à esquerda (x 0.229, y 0.9, escala 1.8)"),
+  );
+  assert.doesNotMatch(report, /Atenção/);
+});
+
+test("a presenter far from the middle of her video is said to reach the content's column", async () => {
+  const recipe = BUILT_IN_RECIPES.find((r) => r.kind === "presenter-talk");
+  const framing = stepsFor("presenter-talk").find((s) => s.id === "framing");
+  if (!recipe || !framing) throw new Error("missing");
+  const outcome = await runPipeline(
+    recipe,
+    {
+      recipeId: recipe.id,
+      files: {},
+      script: "Oi.",
+      textPalette: recipe.textPalette,
+      fonts: DEFAULT_FONTS,
+    },
+    [
+      {
+        id: "setup",
+        label: "",
+        run: async (ctx) => {
+          ctx.results.piece = {
+            start: 1,
+            end: 9,
+            coverage: 1,
+            lines: [{ text: "Oi.", start: 1, end: 9 }],
+          };
+          ctx.results.clip = { clipId: "animation-a", fps: 30, frames: 270 };
+          // She stands at the left edge of a landscape video.
+          ctx.results.presenter = {
+            name: "v.mp4",
+            video: { width: 1920, height: 1080 },
+            person: { left: 0, top: 0, right: 0.3, bottom: 1 },
+            start: 0.6,
+            end: 9.6,
+            preview: new Uint8Array(),
+            board: { id: "artboard-a", name: "A", width: 1920, height: 1080 },
+          };
+        },
+      },
+      framing,
+    ],
+    stubDeps(new AbortController().signal, {
+      askAssistant: async () => ({
+        text: '{"posicoes": ["medium-right"]}',
+        stopped: false,
+        edits: 0,
+      }),
+    }),
+    () => undefined,
+  );
+  assert.equal(outcome.ok, true);
+  assert.match(
+    outcome.report.join("\n"),
+    /Atenção: no plano Médio à direita, ela chega a x \d+, dentro da coluna do conteúdo \(84–960\)\./,
+  );
 });

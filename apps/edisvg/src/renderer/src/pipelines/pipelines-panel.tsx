@@ -69,6 +69,7 @@ interface LessonRef {
 const DONE_LABELS: Record<RecipeKind, string> = {
   "game-scene": "cena em tela inteira",
   "screen-demo": "demonstração sobre a tela",
+  "presenter-talk": "aula teórica com a apresentadora",
 };
 
 /** The kinds of animation each phrase of the lesson's section already has in the project. */
@@ -597,7 +598,7 @@ function RunForm({
                       ? "Escolher aula…"
                       : kind === "audio"
                         ? "Escolher áudio…"
-                        : "Escolher…"}
+                        : (input.button ?? "Escolher…")}
                   </button>
                 ))}
               </div>

@@ -65,17 +65,17 @@ const consented = {
 };
 
 test("frame plans follow the clip clock: loops omit the end, once keeps it, ping-pong covers both ways", () => {
-  const loop = planRasterFrames({ fps: 30, frames: 30, mode: "loop" }, 30);
+  const loop = planRasterFrames({ fps: 30, frames: 30, mode: "loop" }, 30, "mp4");
   assert.equal(loop.times.length, 30);
   assert.equal(loop.times[29], 29 / 30);
   assert.equal(loop.loop, true);
-  const once = planRasterFrames({ fps: 30, frames: 30, mode: "once" }, 30);
+  const once = planRasterFrames({ fps: 30, frames: 30, mode: "once" }, 30, "mp4");
   assert.equal(once.times.length, 31);
   assert.equal(once.times.at(-1), 1);
   assert.equal(once.loop, false);
-  const pingPong = planRasterFrames({ fps: 30, frames: 30, mode: "ping-pong" }, 30);
+  const pingPong = planRasterFrames({ fps: 30, frames: 30, mode: "ping-pong" }, 30, "mp4");
   assert.equal(pingPong.times.length, 60);
-  const resampled = planRasterFrames({ fps: 24, frames: 48, mode: "loop" }, 60);
+  const resampled = planRasterFrames({ fps: 24, frames: 48, mode: "loop" }, 60, "mp4");
   assert.equal(resampled.times.length, 120);
   for (const plan of [loop, once, pingPong, resampled]) {
     for (let index = 1; index < plan.timestamps.length; index++)
@@ -91,11 +91,24 @@ test("frame plans follow the clip clock: loops omit the end, once keeps it, ping
   }
   // 30 FPS cannot be exact in centiseconds; the cumulative rounding alternates 3/3/4.
   assert.deepEqual(loop.delays.slice(0, 3), [3, 4, 3]);
+  // Images hold every frame; video streams them and reaches ten minutes at 60 FPS.
   assert.throws(
-    () => planRasterFrames({ fps: 60, frames: 360000, mode: "loop" }, 60),
+    () => planRasterFrames({ fps: 60, frames: 3601, mode: "loop" }, 60, "gif"),
     /limite é 3600/,
   );
-  assert.throws(() => planRasterFrames({ fps: 30, frames: 30, mode: "loop" }, 0), /FPS/);
+  assert.equal(
+    planRasterFrames({ fps: 60, frames: 36000, mode: "loop" }, 60, "mp4").durationSeconds,
+    600,
+  );
+  assert.equal(
+    planRasterFrames({ fps: 30, frames: 18000, mode: "once" }, 60, "webm").times.length,
+    36001,
+  );
+  assert.throws(
+    () => planRasterFrames({ fps: 60, frames: 36002, mode: "loop" }, 60, "mp4"),
+    /limite é 36001/,
+  );
+  assert.throws(() => planRasterFrames({ fps: 30, frames: 30, mode: "loop" }, 0, "mp4"), /FPS/);
 });
 
 test("proportional sizes and the report gate every format with explicit consents", () => {
@@ -152,6 +165,39 @@ test("proportional sizes and the report gate every format with explicit consents
       fps: 30,
     }).issues.map((issue) => issue.code),
     ["budget"],
+  );
+  // Ten minutes of 1080p at 60 FPS fit video; the same clip is far beyond what GIF holds.
+  const tenMinutes = clipProject("once", 10 * 60 * 30),
+    fullHd = {
+      ...base,
+      ...consented,
+      artboardId: tenMinutes.boardId,
+      width: 1920,
+      height: 1080,
+      fps: 60,
+    };
+  const video = inspectRasterExport(tenMinutes.project, { ...fullHd, format: "mp4" });
+  assert.equal(video.supported, true);
+  assert.equal(video.frames, 36001);
+  assert.deepEqual(
+    video.issues.map((issue) => issue.code),
+    ["resample"],
+  );
+  assert.deepEqual(
+    inspectRasterExport(tenMinutes.project, { ...fullHd, format: "webm", width: 1922 }).issues.map(
+      (issue) => issue.code,
+    ),
+    ["budget", "resample"],
+  );
+  assert.deepEqual(
+    inspectRasterExport(tenMinutes.project, {
+      ...fullHd,
+      format: "gif",
+      width: 640,
+      height: 360,
+      fps: 30,
+    }).issues.map((issue) => issue.code),
+    ["frames"],
   );
   assert.equal(
     inspectRasterExport(project, { ...base, ...consented, format: "mp4", animationId: "nope" })
@@ -350,7 +396,7 @@ test("MP4 has the movie box first, exact constant timing and offsets that reach 
 });
 
 test("WebM sizes, clusters on key frames and cues that point at their clusters", () => {
-  const plan = planRasterFrames({ fps: 10, frames: 70, mode: "loop" }, 10),
+  const plan = planRasterFrames({ fps: 10, frames: 70, mode: "loop" }, 10, "webm"),
     samples = plan.times.map((_, index) => ({
       data: Uint8Array.from([index, index ^ 0xff, 7]),
       key: index % 20 === 0,
@@ -427,7 +473,7 @@ test("WebM sizes, clusters on key frames and cues that point at their clusters",
 });
 
 test("PNG sequences store the frames byte for byte with their timing manifest", () => {
-  const plan = planRasterFrames({ fps: 10, frames: 2, mode: "once" }, 10),
+  const plan = planRasterFrames({ fps: 10, frames: 2, mode: "once" }, 10, "png-sequence"),
     png = (value: number) =>
       Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, value]),
     frames = plan.times.map((_, index) => png(index));
@@ -461,7 +507,7 @@ test("PNG sequences store the frames byte for byte with their timing manifest", 
 
 test("once ends on the final pose even when the output rate rounds the duration down", () => {
   // 10 frames at 24 FPS = 0.41667 s; at 25 FPS that rounds to 10 output intervals.
-  const plan = planRasterFrames({ fps: 24, frames: 10, mode: "once" }, 25);
+  const plan = planRasterFrames({ fps: 24, frames: 10, mode: "once" }, 25, "mp4");
   assert.equal(plan.times.length, 11);
   assert.equal(plan.times.at(-1), 10 / 24);
   assert.ok(plan.times.every((time, index) => index === 0 || time > (plan.times[index - 1] ?? 0)));

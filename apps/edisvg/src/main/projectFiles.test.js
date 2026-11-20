@@ -207,6 +207,61 @@ test("new cancels safely or creates a blank detached document", async () => {
   assert.deepEqual(created.project.artboards[0].scene.nodes, []);
   assert.equal(disk.get("a.edisvg"), original);
 });
+test("closing asks about unsaved work, then leaves a blank project with nothing to save or recover", async () => {
+  const checkpoints = [];
+  let asked = 0,
+    choice = "cancel";
+  const files = createProjectFiles({
+    chooseOpen: async () => null,
+    chooseSave: async () => null,
+    confirm: async () => {
+      asked++;
+      return choice;
+    },
+    checkpoint: async (value) => {
+      checkpoints.push(value);
+    },
+  });
+  await files.changed({ ...project, name: "Pendente" });
+  // Cancelled: the project stays open, its work unsaved.
+  assert.equal(await files.close(), null);
+  assert.equal(files.status().dirty, true);
+  choice = "discard";
+  const closed = await files.close();
+  assert.equal(asked, 2);
+  assert.equal(closed.status.path, null);
+  assert.equal(closed.status.dirty, false);
+  assert.deepEqual(closed.project.artboards[0].scene.nodes, []);
+  assert.equal(checkpoints.at(-1), null);
+  // The window sends the blank project back as it shows it: still nothing to save.
+  assert.equal((await files.changed(closed.project)).dirty, false);
+  // Closing again, or closing a blank project never edited, asks nothing.
+  assert.notEqual(await files.close(), null);
+  assert.equal(asked, 2);
+});
+test("a request of another tool takes the place of a closed project without asking", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "edisvg-fechado-"));
+  try {
+    const target = join(directory, "Aula.edisvg");
+    let asked = 0;
+    const files = createProjectFiles({
+      chooseOpen: async () => null,
+      chooseSave: async () => null,
+      confirm: async () => {
+        asked++;
+        return "discard";
+      },
+    });
+    await files.changed({ ...project, name: "Trabalho" });
+    await files.close();
+    assert.equal(asked, 1);
+    const made = await files.openLinked(target, "Aula");
+    assert.equal(asked, 1);
+    assert.equal(made.status.path, target);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
 test("edits arriving while a discard confirmation is pending cancel document replacement", async () => {
   let decide;
   const files = createProjectFiles({
@@ -329,6 +384,51 @@ test("the project of a lesson is made beside it the first time, and opened the n
     await files.changed({ ...opened.project, name: "Outra de novo" });
     assert.equal((await files.save()).saved, true);
     assert.equal(JSON.parse(await readFile(target, "utf8")).name, "Outra de novo");
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("a project open in another EdiSVG window is neither opened nor written here", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "edisvg-outra-janela-"));
+  try {
+    const mine = join(directory, "Aula 1.edisvg");
+    const theirs = join(directory, "Aula 2.edisvg");
+    await writeFile(mine, JSON.stringify(newProject()));
+    await writeFile(theirs, JSON.stringify(newProject()));
+    let chosen = theirs;
+    const files = createProjectFiles({
+      chooseOpen: async () => chosen,
+      chooseSave: async () => chosen,
+      confirm: async () => "discard",
+      elsewhere: (path) =>
+        path.toLowerCase() === theirs.toLowerCase() ? "Aberto na janela 2." : null,
+    });
+    // An empty window: nothing in it yet, also once the window sends the project back with its
+    // own defaults; an edit of the person's makes it a window with work.
+    const empty = newProject();
+    await files.recover(empty, { persist: false });
+    assert.equal(files.isEmpty(), true);
+    await files.changed({ ...empty, inputs: { humor: 0.25, acenando: true } });
+    assert.equal(files.isEmpty(), true);
+    await files.changed({ ...empty, inputs: { humor: 0.25, acenando: true }, name: "Aula" });
+    assert.equal(files.isEmpty(), false);
+    await files.close();
+    assert.equal(files.isEmpty(), true);
+    await assert.rejects(files.open(), /Aberto na janela 2/);
+    await assert.rejects(files.openLinked(theirs), /Aberto na janela 2/);
+    assert.equal(files.status().path, null);
+    chosen = mine;
+    const opened = await files.open();
+    assert.equal(opened.status.path, mine);
+    assert.equal(files.isEmpty(), false);
+    // Saved as the other window's file: refused, and this window's file is untouched.
+    await files.changed({ ...opened.project, name: "Outro nome" });
+    chosen = theirs;
+    await assert.rejects(files.save(true), /Aberto na janela 2/);
+    assert.equal(files.status().path, mine);
+    // Saving to its own file needs no question.
+    assert.equal((await files.save()).saved, true);
   } finally {
     await rm(directory, { recursive: true });
   }

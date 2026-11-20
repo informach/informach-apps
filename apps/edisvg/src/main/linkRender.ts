@@ -1,17 +1,20 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rename, rm } from "node:fs/promises";
+import { rmSync } from "node:fs";
+import { mkdir, readdir, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import {
   animationIdSchema,
   artboardIdSchema,
   ediaulaLessonPathSchema,
   type LinkedAnimation,
+  MANIFEST_FILE,
   type RendersManifest,
   renderFileName,
   renderSchema,
 } from "@informach/edi-link/contract";
 import { readManifest, renderPath, rendersDir, writeManifest } from "@informach/edi-link/node";
+import { lock } from "proper-lockfile";
 import { z } from "zod";
 
 /**
@@ -72,10 +75,29 @@ export function renderArgs(spec: RenderSpec, out: string): string[] {
   ];
 }
 
-/** Manifest changes one at a time: two renders finishing together never lose an entry. */
+/**
+ * Manifest changes one at a time: two renders finishing together never lose an entry. Several
+ * EdiSVG windows may write the same project's manifest (one renders it from its queue while
+ * another has it open), so each change also holds a lock beside the manifest
+ * (`vinculos.json.lock`, proper-lockfile) across the processes.
+ */
 let queue: Promise<unknown> = Promise.resolve();
-function serial<T>(work: () => Promise<T>): Promise<T> {
-  const run = queue.then(work, work);
+function serial<T>(project: string, work: () => Promise<T>): Promise<T> {
+  const locked = async () => {
+    const folder = rendersDir(project);
+    await mkdir(folder, { recursive: true });
+    const release = await lock(join(folder, MANIFEST_FILE), {
+      realpath: false,
+      stale: 10_000,
+      retries: { retries: 60, minTimeout: 25, maxTimeout: 250 },
+    });
+    try {
+      return await work();
+    } finally {
+      await release().catch(() => undefined);
+    }
+  };
+  const run = queue.then(locked, locked);
   queue = run.catch(() => undefined);
   return run;
 }
@@ -112,7 +134,7 @@ export function registerLink(
   now = Date.now(),
 ): Promise<LinkedAnimation> {
   const value = registerSchema.parse(input);
-  return serial(async () => {
+  return serial(project, async () => {
     const manifest = await manifestOf(project, projectId);
     const before = manifest.items.find((i) => i.animationId === value.animationId);
     const item: LinkedAnimation = {
@@ -141,13 +163,35 @@ export function markLinkError(
 ): Promise<void> {
   const id = animationIdSchema.parse(animationId);
   const text = String(message ?? "").slice(0, 500) || "O render falhou.";
-  return serial(async () => {
+  return serial(project, async () => {
     const manifest = await manifestOf(project, projectId);
     const item = manifest.items.find((i) => i.animationId === id);
     if (!item || item.error === text) return;
     Object.assign(item, { error: text, updatedAt: now });
     await writeManifest(rendersDir(project), manifest);
   });
+}
+
+/** A part not written for this long is a render left half made, not one going in another window. */
+export const LEFT_PART_MS = 10 * 60_000;
+
+/**
+ * Removes the renders left half made in `folder` (EdiSVG closed while FFmpeg still held the
+ * file): the parts not `going` here and not written for LEFT_PART_MS (another EdiSVG window may
+ * be rendering one of this project's animations now).
+ */
+export async function removeLeftParts(
+  folder: string,
+  going: ReadonlySet<string>,
+  now = Date.now(),
+): Promise<void> {
+  for (const name of await readdir(folder).catch(() => [] as string[])) {
+    const path = join(folder, name);
+    if (!name.endsWith(".part.webm") || going.has(path)) continue;
+    const st = await stat(path).catch(() => null);
+    if (st && now - st.mtimeMs > LEFT_PART_MS)
+      await rm(path, { force: true }).catch(() => undefined);
+  }
 }
 
 interface Job {
@@ -177,6 +221,7 @@ export async function startRender(
   if (!linked.some((i) => i.animationId === spec.animationId))
     throw new Error("Esta animação não está vinculada a uma aula.");
   await mkdir(folder, { recursive: true });
+  await removeLeftParts(folder, new Set([...jobs.values()].map((job) => job.part)));
   const file = renderFileName(spec.animationId, spec.hash);
   // Its own name: a render of the same picture stopped meanwhile never removes this one.
   const part = join(folder, `${file}.${randomUUID()}.part.webm`);
@@ -258,7 +303,7 @@ export async function finishRender(id: unknown, now = Date.now()): Promise<Linke
     throw error;
   }
   const { spec } = job;
-  return serial(async () => {
+  return serial(job.project, async () => {
     const manifest = await manifestOf(job.project, job.projectId);
     const item = manifest.items.find((i) => i.animationId === spec.animationId);
     // Unlinked while it rendered: the video goes too.
@@ -304,4 +349,17 @@ export async function cancelRender(id: unknown): Promise<void> {
   job.process.kill();
   await job.done;
   await rm(job.part, { force: true });
+}
+
+/** EdiSVG closing: every render going stops and its half-made file goes (the queue keeps it). */
+export function stopRenders(): void {
+  for (const [id, job] of jobs) {
+    jobs.delete(id);
+    job.process.kill();
+    try {
+      rmSync(job.part, { force: true });
+    } catch {
+      // Still held by FFmpeg as it exits: the next render of the animation has its own name.
+    }
+  }
 }

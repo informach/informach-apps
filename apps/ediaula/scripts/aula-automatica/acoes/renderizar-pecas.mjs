@@ -1,7 +1,8 @@
 // No condutor do EdiSVG: gera o render das peças .edisvg vinculadas que ainda não têm render, uma de cada vez.
 // Os pedidos de vínculo que chegam juntos (aplicar.mjs vincula uma peça atrás da outra) abrem um projeto por
-// cima do outro, e só o último é renderizado. Esta ação abre cada peça sem render, salva (salvar renderiza as
-// animações vinculadas do projeto) e espera o render aparecer no vinculos.json da pasta "<peça> · renders".
+// cima do outro; desde a fila de renders do EdiSVG, cada um entra na fila e todos renderizam, um por vez. Esta
+// ação fica como garantia: abre cada peça ainda sem render, salva (salvar põe o projeto na fila) e espera o
+// render aparecer no vinculos.json da pasta "<peça> · renders".
 // Estado: svgArquivos = [caminhos dos .edisvg] (os que já têm render são pulados).
 // Devolve { renderizadas, ja_tinham, falharam }.
 import { existsSync, readFileSync } from "node:fs";
