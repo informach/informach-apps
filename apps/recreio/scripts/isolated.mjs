@@ -18,6 +18,8 @@ import postgres from "postgres";
 //   guardado (tudo é gerado aqui, a cada execução).
 // - `e2e-stripe-sandbox`: exceção explícita, só no GitHub, com conta de teste
 //   conferida e listener Stripe. Credenciais reais nunca entram nos modos comuns.
+// - `e2e-account-closure`: exceção GitHub para o livro S3 de homologação;
+//   sem credenciais financeiras reais e com limpeza do namespace próprio.
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
@@ -33,6 +35,7 @@ if (
     "commercial-reconciliation",
     "e2e-commercial-setup",
     "e2e-commercial-plans",
+    "e2e-account-closure",
     "e2e-stripe-sandbox",
     "e2e-trial-setup",
     "e2e-trial-experiment",
@@ -42,7 +45,7 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, backup-capture, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, backup-capture, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-account-closure, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const backupCapture = mode === "backup-capture";
@@ -50,6 +53,7 @@ const trialExperiment = mode === "trial-experiment";
 const commercialSetup = mode === "commercial-setup";
 const commercialReconciliation = mode === "commercial-reconciliation";
 const jornadaDasTrocas = mode === "e2e-commercial-plans";
+const jornadaDoEncerramento = mode === "e2e-account-closure";
 const commercialCheckout =
   mode === "commercial-checkout" || commercialReconciliation || jornadaDasTrocas;
 const jornadaDaCompra = mode === "e2e-commercial-setup";
@@ -66,7 +70,8 @@ const e2e =
   jornadaDoInicio ||
   jornadaDaCompra ||
   jornadaDasTrocas ||
-  jornadaStripe;
+  jornadaStripe ||
+  jornadaDoEncerramento;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -147,9 +152,9 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
-  RECREIO_FINANCIAL_JOBS_MODE: "off",
-  RECREIO_RENEWAL_JOBS_MODE: jornadaDasTrocas ? "on" : "off",
-  RECREIO_PORTAL_RENEWAL_MODE: jornadaDasTrocas ? "native" : "legacy",
+  RECREIO_FINANCIAL_JOBS_MODE: jornadaDoEncerramento ? "on" : "off",
+  RECREIO_RENEWAL_JOBS_MODE: jornadaDasTrocas || jornadaDoEncerramento ? "on" : "off",
+  RECREIO_PORTAL_RENEWAL_MODE: jornadaDasTrocas || jornadaDoEncerramento ? "native" : "legacy",
   NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA: process.env.GITHUB_SHA ?? "0".repeat(40),
   RECREIO_TRIAL_MODE:
     trialExperiment || jornadaDoInicio || commercialSetup || commercialCheckout
@@ -162,7 +167,7 @@ const testEnv = {
     : commercialSetup || jornadaDaCompra
       ? "setup"
       : "off",
-  ...(commercialCheckout
+  ...(commercialCheckout || jornadaDoEncerramento
     ? {
         STRIPE_MODE: "dev",
         STRIPE_SECRET_KEY: "sk_test_isolated_not_sent",
@@ -181,9 +186,10 @@ const testEnv = {
   RECREIO_EXPORT_MODE: "native",
   RECREIO_EXPORT_ACTIVE_KEY: "isolated",
   RECREIO_EXPORT_KEYRING: JSON.stringify([["isolated", randomBytes(32).toString("base64")]]),
-  RECREIO_RIGHTS_MODE: "off",
-  RECREIO_RIGHTS_CONSENT_MODE: "off",
-  RECREIO_ACCOUNT_CLOSURE_MODE: "off",
+  RECREIO_RIGHTS_MODE: jornadaDoEncerramento ? "process" : "off",
+  RECREIO_RIGHTS_CONSENT_MODE: jornadaDoEncerramento ? "native" : "off",
+  RECREIO_ACCOUNT_CLOSURE_MODE: jornadaDoEncerramento ? "native" : "off",
+  RECREIO_E2E_ACCOUNT_CLOSURE: jornadaDoEncerramento ? "1" : "0",
   RECREIO_MODERATION_SECRET: randomBytes(32).toString("hex"),
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
@@ -225,6 +231,39 @@ const testEnv = {
     : {}),
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
+if (jornadaDoEncerramento) {
+  if (
+    process.platform !== "linux" ||
+    process.env.GITHUB_ACTIONS !== "true" ||
+    process.env.CI !== "true" ||
+    process.env.GITHUB_REPOSITORY !== "informach/informach-apps" ||
+    process.env.RAILWAY_ENVIRONMENT_ID ||
+    process.env.RECREIO_S3_TEST_BUCKET !== "recreio-homologacao-c0xyqx" ||
+    process.env.RECREIO_S3_EXPECTED_BUCKET !== process.env.RECREIO_S3_TEST_BUCKET ||
+    process.env.RECREIO_S3_TEST_ENDPOINT !== "https://t3.storageapi.dev" ||
+    process.env.RECREIO_S3_TEST_REGION !== "auto" ||
+    !["true", "false"].includes(process.env.RECREIO_S3_TEST_PATH_STYLE) ||
+    !process.env.RECREIO_S3_TEST_ACCESS_KEY ||
+    !process.env.RECREIO_S3_TEST_SECRET_KEY
+  )
+    throw new Error(
+      "Native closure browser proof requires its explicit GitHub/homologation boundary",
+    );
+  Object.assign(childEnv, {
+    RECREIO_RIGHTS_SCOPE: "qualification",
+    RECREIO_RIGHTS_LEDGER_ID: randomUUID(),
+    RECREIO_RIGHTS_BUCKET: process.env.RECREIO_S3_TEST_BUCKET,
+    RECREIO_RIGHTS_ENDPOINT: process.env.RECREIO_S3_TEST_ENDPOINT,
+    RECREIO_RIGHTS_REGION: "auto",
+    RECREIO_RIGHTS_PATH_STYLE: process.env.RECREIO_S3_TEST_PATH_STYLE === "true" ? "1" : "0",
+    RECREIO_RIGHTS_ACCESS_KEY: process.env.RECREIO_S3_TEST_ACCESS_KEY,
+    RECREIO_RIGHTS_SECRET_KEY: process.env.RECREIO_S3_TEST_SECRET_KEY,
+    RECREIO_RIGHTS_ACTIVE_KEY: "e2e-closure",
+    RECREIO_RIGHTS_KEYRING: JSON.stringify([["e2e-closure", randomBytes(32).toString("base64")]]),
+    RECREIO_RIGHTS_POLICY: "retirar-textos-fundacao-v1",
+  });
+}
+
 if (jornadaStripe) {
   const key = process.env.RECREIO_STRIPE_SANDBOX_KEY;
   const secret = process.env.RECREIO_STRIPE_SANDBOX_WEBHOOK_SECRET;
@@ -301,12 +340,26 @@ function run(args, cwd) {
     throw new Error(`Verification command failed: ${args.join(" ")} (exit ${child.status})`);
 }
 let created = false;
+const failures = [];
 try {
   // The identifier is generated above and restricted by a closed regular expression.
   await admin.unsafe(`CREATE DATABASE "${name}"`);
   created = true;
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
+  if (jornadaDoEncerramento)
+    run(
+      [
+        "exec",
+        "node",
+        "--conditions=react-server",
+        "--import",
+        "tsx",
+        "scripts/encerramento-prova.ts",
+        "init",
+      ],
+      app,
+    );
   if (e2e) {
     if (
       !versoes &&
@@ -314,7 +367,8 @@ try {
       !jornadaDoTeste &&
       !jornadaDoInicio &&
       !jornadaDaCompra &&
-      !jornadaStripe
+      !jornadaStripe &&
+      !jornadaDoEncerramento
     )
       run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
@@ -354,6 +408,7 @@ try {
           ...(jornadaDaCompra ? ["--config", "playwright.compra.config.ts"] : []),
           ...(jornadaDasTrocas ? ["--config", "playwright.trocas.config.ts"] : []),
           ...(jornadaStripe ? ["--config", "playwright.stripe-sandbox.config.ts"] : []),
+          ...(jornadaDoEncerramento ? ["--config", "playwright.encerramento.config.ts"] : []),
           ...process.argv.slice(3),
         ],
         app,
@@ -383,22 +438,58 @@ try {
       app,
     );
 } catch (error) {
-  // Os traces e as capturas de uma falha ficam em `tmp/verification`.
-  if (privateArtifacts) {
-    console.error(`[recreio] Private evidence preserved outside repository: ${privateArtifacts}`);
-  } else if (resultsPath && existsSync(resultsPath)) {
-    const evidence = resolve(app, "tmp/verification", e2eRunId);
-    mkdirSync(evidence, { recursive: true });
-    cpSync(resultsPath, evidence, { recursive: true });
-    console.error(`[recreio] Failure traces and screenshots preserved: ${evidence}`);
+  failures.push(error);
+  // Preserve the original failure even if evidence retention also fails.
+  try {
+    if (privateArtifacts) {
+      console.error(`[recreio] Private evidence preserved outside repository: ${privateArtifacts}`);
+    } else if (resultsPath && existsSync(resultsPath)) {
+      const evidence = resolve(app, "tmp/verification", e2eRunId);
+      mkdirSync(evidence, { recursive: true });
+      cpSync(resultsPath, evidence, { recursive: true });
+      console.error(`[recreio] Failure traces and screenshots preserved: ${evidence}`);
+    }
+  } catch (evidenceFailure) {
+    failures.push(evidenceFailure);
   }
-  throw error;
 } finally {
-  for (const generatedPath of generatedPaths)
-    rmSync(generatedPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  if (created) {
-    await admin.unsafe(`DROP DATABASE "${name}" WITH (FORCE)`);
-    console.log(`[recreio] Removed isolated database ${name}`);
+  try {
+    if (jornadaDoEncerramento)
+      run(
+        [
+          "exec",
+          "node",
+          "--conditions=react-server",
+          "--import",
+          "tsx",
+          "scripts/encerramento-prova.ts",
+          "cleanup",
+        ],
+        app,
+      );
+  } catch (cleanupFailure) {
+    failures.push(cleanupFailure);
   }
-  await admin.end();
+  for (const generatedPath of generatedPaths) {
+    try {
+      rmSync(generatedPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (cleanupFailure) {
+      failures.push(cleanupFailure);
+    }
+  }
+  if (created) {
+    try {
+      await admin.unsafe(`DROP DATABASE "${name}" WITH (FORCE)`);
+      console.log(`[recreio] Removed isolated database ${name}`);
+    } catch (cleanupFailure) {
+      failures.push(cleanupFailure);
+    }
+  }
+  try {
+    await admin.end();
+  } catch (cleanupFailure) {
+    failures.push(cleanupFailure);
+  }
 }
+if (failures.length === 1) throw failures[0];
+if (failures.length > 1) throw new AggregateError(failures, "Verification and cleanup failures");

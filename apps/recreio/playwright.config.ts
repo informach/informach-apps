@@ -21,6 +21,8 @@ if (!e2eRunId || !/^[a-f0-9]{24}$/.test(e2eRunId))
 const origin = `http://localhost:${e2ePort}`;
 export default defineConfig({
   testDir: "./e2e",
+  // Explicit custody is required by the dedicated native-closure workflow.
+  testIgnore: "**/encerramento-nativo.spec.ts",
   outputDir: process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
     ? `${process.env.RECREIO_E2E_PRIVATE_ARTIFACTS}/test-results`
     : `test-results-${e2eRunId}`,

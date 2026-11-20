@@ -460,3 +460,33 @@ comum fixa explicitamente a nova capacidade em off para não herdar configuraç�
 do operador. Três casos novos do serviço e a matriz de ambiente foram preparados;
 a prova de navegador nativa terá modo próprio, com livro sintético no bucket de
 homologação já autorizado, sem segredos financeiros ou de produção.
+
+
+### Ensaio de navegador nativo — contrato de isolamento
+
+Criar workflow reutilizável `recreio-encerramento.yml`, chamado pela flag exclusiva
+`account_closure_probe` do workflow Recreio, e modo isolado
+`e2e-account-closure`. Usar PostgreSQL efêmero local no runner e somente os seis
+segredos existentes do bucket recreio-homologacao-c0xyqx; nenhum segredo de
+produção, Stripe real, jogo ou e-mail real. Fixar endpoint/bucket esperados,
+Linux/GitHub/repositório/fonte e bloquear api.stripe.com. O namespace dev do
+Stripe usa chave sintética: essa prova não homologa pagamento/cancelamento do
+provedor. Contas sem cliente financeiro usam ausência local admitida.
+
+Gerar livro UUID/keyring exclusivos no harness. `encerramento-prova.ts` inicializa
+com If-None-Match, conserva a composição gerada em arquivo 0600 no RUNNER_TEMP
+que nunca será artefato, e verifica o prefixo completo antes de congelar o livro
+para limpeza. Manifesto privado limitado a cem chaves/bytes/SHA permite retomar
+limpeza parcial; antes de apagar cada objeto, reler/conferir conteúdo, depois
+provar ausência. LIST/DELETE só neste executor de prova, no prefixo desse livro;
+portas normais da aplicação continuam sem essas capacidades. Limpeza no finally
+do harness e retry em step always do workflow. Artefato público só com recibo
+sanitizado/capturas sintéticas explicitadas, nunca ambiente/keyring/traces.
+
+A jornada deve usar Next standalone, login por OTP no sandbox local e as três
+caixas desmarcadas. Pausar o transporte da action sem simular resposta permite
+conferir o bloqueio de cancelar/trocar prévia durante envio. A action real produz
+consentimento/outbox; o CLI privado real publica/confere/retira/conclui, sem SQL
+que fabrique closing/closed. Conferir estado final e preservação de outra conta,
+cópia nova de direitos e capturas de 390 px. Modo dedicado impede a inclusão
+acidental dessas jornadas no E2E comum sem custódia explícita.
