@@ -12,6 +12,7 @@ import {
 } from "@/features/objetos/coleta-repository";
 import { reservarEntregaDaFotografia } from "@/features/objetos/entregas-repository";
 import { codigoDoPostgres } from "@/lib/repository";
+import { normalizarCapacidadesRestauradas } from "../scripts/backup/normalizar-capacidades";
 import { exigirBancoPrivadoDeRecuperacao } from "../scripts/backup/normalizar-fotografias";
 import { conexao } from "./backup-arquivos-apoio";
 import { fixture } from "./backup-publicacao-apoio";
@@ -36,6 +37,9 @@ describe("normalização: recusas/quarentena em PostgreSQL real; sem liberar tr�
     const origem = postgres(conexao().href, { max: 1, prepare: false });
     limpezas.push(() => origem.end({ timeout: 5 }));
     await expect(exigirBancoPrivadoDeRecuperacao(origem)).rejects.toMatchObject({
+      codigo: "DESTINO_NAO_PRIVADO",
+    });
+    await expect(normalizarCapacidadesRestauradas(origem)).rejects.toMatchObject({
       codigo: "DESTINO_NAO_PRIVADO",
     });
   });

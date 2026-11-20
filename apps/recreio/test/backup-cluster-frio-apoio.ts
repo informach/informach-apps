@@ -32,6 +32,11 @@ const Recibo = z.strictObject({
   normalizationConnectionLossVerified: z.literal(true),
   normalizedCorruptionRefused: z.literal(true),
   manifestMismatchRefused: z.literal(true),
+  temporaryCapabilitiesRemaining: z.literal(0),
+  temporaryCapabilitiesRevoked: z.literal(true),
+  temporaryCapabilitiesRollbackVerified: z.literal(true),
+  temporaryCapabilitiesIdempotent: z.literal(true),
+  permanentTablesPreserved: z.literal(true),
   authoritiesNormalizedForTraffic: z.literal(false),
   productionDataTouched: z.literal(false),
 });

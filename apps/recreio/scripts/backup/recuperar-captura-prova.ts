@@ -18,6 +18,7 @@ import { criarIndiceDeRecuperacao } from "./indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "./indice-s3";
 import { conferirInventarios, FalhaDeInventario, inventariarBackup } from "./inventario";
 import { FalhaDaNormalizacao, normalizarFotografiasRestauradas } from "./normalizar-fotografias";
+import { provarCapacidadesRecuperadas } from "./provar-capacidades-recuperadas";
 import { exigir, FalhaDaProva, limparDiretorioDeProva } from "./provas-arquivos";
 
 const variavel = (nome: string) => {
@@ -170,6 +171,7 @@ async function main() {
     clusterLimpo = false,
     resultado: unknown,
     normalizacao: Awaited<ReturnType<typeof normalizarFotografiasRestauradas>> | undefined,
+    capacidades: Awaited<ReturnType<typeof provarCapacidadesRecuperadas>> | undefined,
     falha = false,
     codigoDaFalha: CodigoDaRecuperacao = "EXECUTOR",
     etapa: EtapaDaRecuperacao = "LEITURA";
@@ -362,11 +364,14 @@ async function main() {
           );
           fotos = normalizacao.fotosAutenticadas;
           ligadas = normalizacao.vinculosConferidos;
+          etapa = "CAPACIDADES";
+          capacidades = await provarCapacidadesRecuperadas(copia);
         } finally {
           await inspecao?.end({ timeout: 5 });
         }
       });
       exigir(normalizacao, "NORMALIZACAO_AUSENTE");
+      exigir(capacidades, "CAPACIDADES_SINTETICAS_AUSENTES");
       clusterLimpo = prova.temporariosRemovidos;
       exigir(leituras >= 3, "LEITURAS_DO_BACKUP_INCOMPLETAS");
       resultado = {
@@ -396,6 +401,7 @@ async function main() {
         normalizationConnectionLossVerified: true,
         normalizedCorruptionRefused: true,
         manifestMismatchRefused: true,
+        ...capacidades,
         authoritiesNormalizedForTraffic: false,
         productionDataTouched: false,
       };

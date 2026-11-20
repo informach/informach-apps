@@ -1,5 +1,15 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, normalização de capacidades restauradas em implementação:**
+A fonte 6b8f6a56 passou direitos/qualidade 44649454419/44649458688, incluindo
+cópias de denúncias/recursos próprios, paginação e sigilo de terceiros. A etapa
+seguinte prepara a revogação offline de aparelhos, pareamento, ingressos,
+permissões temporárias, sessões/visitas/presenças, posses e cópias restauradas,
+somente no cluster privado. Prova de rollback, invariância dos dados permanentes
+e repetição será executada no GitHub. Não é admissão de tráfego ou replay F7;
+nenhuma alteração desta etapa foi aplicada em produção.
+[Contrato e pendências](recreio/normalizacao-recuperacao-2026-11-19.md).
+
 **19/11 — Recreio, encerramento nativo pelo navegador comprovado em candidata:**
 3b192f43 passou direitos 44647230157 e qualidade 44647234026. A jornada dedicada
 44647990093 usou três contas sintéticas, Next standalone, consentimento público

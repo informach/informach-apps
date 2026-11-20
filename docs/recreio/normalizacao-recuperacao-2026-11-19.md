@@ -81,3 +81,30 @@ Os dezesseis gates da fonte corrigida `bf6fa706` concluíram com sucesso em
 prova externa completa em `44509240153`, com ZIP/SHA e limpeza conferidos.
 Seus gates gerais/compartilhados e o quality posterior do migrator precisam
 ser conferidos separadamente; [controle da integração](integracao-f6-f8-2026-11-19.md).
+
+## Próxima etapa: capacidades temporárias recuperadas
+
+Implementar `scripts/backup/normalizar-capacidades.ts`, chamado somente depois
+de comparar o inventário do cluster privado restaurado. Reutilizar a exigência
+de socket privado/PostgreSQL 18.6/banco aleatório antes de qualquer escrita e
+uma transação com prazos. Recusar perfil de schema desconhecido. Sem cliente de
+rede, credencial da origem, ator fictício ou criação de consentimento.
+
+Revogar todos os aparelhos nativos/pareados conservando a primeira revogação e
+o contexto infantil. Retirar hashes portadores pareados, pedidos de pareamento,
+ingressos/handoffs e permissões transitórias de salvamento; encerrar SIDs abertos
+com motivo existente e nextval do cursor; liberar posses antigas, aposentar
+instâncias e encerrar presença/visita/sessão visitante. Limpar corpo/referência
+de exportações temporárias e conservar metadados/prazos originais. Não apagar
+core.users/core.sessions, dados/perfis, concessões, contratos ou períodos pagos.
+A fonte restaurada não decide o estado atual desses direitos permanentes.
+
+Provar no GitHub com captura sintética contendo capacidades realmente ativas,
+recusa em banco comum antes de mutação, rollback integral por falha antes do
+último efeito, zero capacidades restantes, invariância de todas as demais
+tabelas e segunda execução sem mudanças. Evidência agregada sem IDs/conteúdo;
+a sequência de encerramento pode consumir números em rollback, sem reuso.
+Integrar ao executor do cluster frio, preservando as provas anteriores de
+fotografia/quarentena/queda/limpeza. `authoritiesNormalizedForTraffic` continua
+false: reaplicação F7, identidade/cobrança atuais, capacidades de convite,
+chaves/destinos novos e admissão de tráfego ainda não estão comprovados.

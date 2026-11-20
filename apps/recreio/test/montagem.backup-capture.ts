@@ -25,6 +25,7 @@ import { criarRetiradaDoBackupS3 } from "../scripts/backup/retirada-s3";
 import { retirarCapturaGuardada } from "../scripts/backup/retirar-captura";
 import { novoJogador } from "./apoio";
 import { conexao, restaurar, temporarios } from "./backup-arquivos-apoio";
+import { semearCapacidadesDaCaptura } from "./backup-capacidades-apoio";
 import { provarClusterFrio } from "./backup-cluster-frio-apoio";
 import { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { mundoDe } from "./jogo-apoio";
@@ -37,7 +38,8 @@ it(
         fonte = postgres(url.href, { max: 1, prepare: false }),
         s3 = await criarBucketDaMontagem();
       const destino = s3.destino,
-        mundoId = await mundoDe(await novoJogador()),
+        jogador = await novoJogador(),
+        mundoId = await mundoDe(jogador),
         fotoId = randomUUID(),
         entregaId = randomUUID(),
         original = Buffer.from("FOTOGRAFIA_SINTETICA_AUTOSSUFICIENTE"),
@@ -62,6 +64,7 @@ it(
         }
       }
       try {
+        await semearCapacidadesDaCaptura(fonte, jogador, mundoId);
         const fotos = criarArmazenamentoPrivadoS3({
             cliente: s3.cliente,
             bucket: destino.bucketName,
