@@ -26,6 +26,7 @@ import { assertAllowed } from "@/lib/errors";
 import { comContaPessoal } from "./autoridade-repository";
 import { copiarAprovacoesPessoaisNaTransacao } from "./captura-aprovacoes-repository";
 import { copiarAtividadesPessoaisNaTransacao } from "./captura-atividades-repository";
+import { copiarAuditoriaPessoalNaTransacao } from "./captura-auditoria-repository";
 import { criarArquivoPessoal, LIMITES_DA_COPIA_PESSOAL as limites } from "./captura-contrato";
 import { copiarFinanciamentoPessoalNaTransacao } from "./captura-financiamento-repository";
 import { copiarSegurancaPessoalNaTransacao } from "./captura-seguranca-repository";
@@ -76,6 +77,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "observacao_financiamento",
             "captura_observada",
             "origem_financiamento",
+            "acao_propria_auditada",
           ],
           dadosDePerfisIncluidos: false,
           referenciasDeDecisoesPropriasIncluidas: true,
@@ -360,6 +362,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
         await copiarAprovacoesPessoaisNaTransacao(tx, autor.contaId, arquivo, prazo);
         await copiarAtividadesPessoaisNaTransacao(tx, autor.contaId, arquivo, prazo);
         await copiarFinanciamentoPessoalNaTransacao(tx, autor.contaId, arquivo, prazo);
+        await copiarAuditoriaPessoalNaTransacao(tx, autor.contaId, arquivo, prazo);
         await copiarTratamentoPessoalNaTransacao(tx, autor.contaId, arquivo, prazo);
         await logAuditEventStrict(
           "recreio.account_personal_capture_prepared",

@@ -27,7 +27,7 @@ Esta matriz confere a presença das fontes e registra lacunas. Revisão campo a 
 
 - `core.users` e `core.sessions`: identificação própria e metadados nativos, sem cookie, token, IP ou conteúdo de outro aplicativo. Encerramento Recreio não destrói login/identidade global.
 - `billing.customers`, `subscriptions` e `subscription_payment_periods`: projeções passam pelo domínio billing, com escopo user/app Recreio. Produto de origem e atual nativo devem ser distinguidos sem sobrescrever o histórico.
-- `audit.events`: finalidade, projeção própria e retenção ainda precisam de revisão formal. Direito pessoal não concede busca livre em logs ou dados de outro ator.
+- `audit.events`: candidata projeta tipos/datas dos atos próprios com ator e app Recreio explícitos; não lê payloads ou outros atores/apps. Retenção append-only de cinco anos segue `docs/audit-payload-policy.md`. Novo leitor aguarda gate; revisão formal dos campos e execução da retenção permanecem necessárias.
 - Redis, e-mail e telemetria: OTP, credenciais, tentativas e entrega têm retenção/expurgo próprios. Ausência em PostgreSQL não prova ausência no serviço.
 
 ## Sequência restante

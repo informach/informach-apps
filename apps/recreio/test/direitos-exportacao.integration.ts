@@ -82,6 +82,46 @@ async function cenario(
 }
 
 describe("direitos: artefato temporário pessoal", () => {
+  it("copia datas e tipos das próprias ações Recreio, pagina microssegundos e não carrega payloads ou outros atores/apps", async () => {
+    const a = await semJogador(),
+      b = await semJogador();
+    await db.execute(sql`insert into audit.events (id,event_type,actor_id,payload,created_at)
+      select gen_random_uuid()::text,'recreio.copy_fixture',${a.conta.id},
+        jsonb_build_object('app','recreio','conteudo','PAYLOAD_PRIVADO_NAO_EXPORTAR'),
+        '2025-01-01T00:00:00.123456Z'::timestamptz from generate_series(1,205)`);
+    await db.execute(sql`insert into audit.events (id,event_type,actor_id,payload,created_at) values
+      (gen_random_uuid()::text,'recreio.fixture_outro_ator',${b.conta.id},'{"app":"recreio"}',now()),
+      (gen_random_uuid()::text,'cozya.fixture_outro_app',${a.conta.id},'{"app":"recreio"}',now()),
+      (gen_random_uuid()::text,'recreio.fixture_escopo_divergente',${a.conta.id},'{"app":"cozya"}',now()),
+      (gen_random_uuid()::text,'recreio.fixture_sem_ator',null,'{"app":"recreio"}',now())`);
+    const captura = await capturarDadosPessoaisDaConta(a.autor);
+    try {
+      const texto = captura.bytes.toString("utf8");
+      const proprias = texto
+        .split("\n")
+        .filter(
+          (l) =>
+            l.startsWith('{"tipo":"acao_propria_auditada"') &&
+            l.includes('"evento":"recreio.copy_fixture"'),
+        );
+      expect(proprias).toHaveLength(205);
+      expect(
+        proprias.every((l) => l.includes('"registradaEm":"2025-01-01T00:00:00.123456Z"')),
+      ).toBe(true);
+      for (const proibido of [
+        "PAYLOAD_PRIVADO_NAO_EXPORTAR",
+        "recreio.fixture_outro_ator",
+        "cozya.fixture_outro_app",
+        "recreio.fixture_escopo_divergente",
+        "recreio.fixture_sem_ator",
+        b.conta.id,
+        b.conta.email,
+      ])
+        expect(texto).not.toContain(proibido);
+    } finally {
+      captura.bytes.fill(0);
+    }
+  });
   it("inclui todas as concessões do próprio grupo mesmo sem jogador, sem emitir dados da equipe ou de outro grupo", async () =>
     cenario(async (f) => {
       const a = await semJogador(),

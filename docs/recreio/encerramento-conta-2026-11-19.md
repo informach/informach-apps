@@ -698,3 +698,18 @@ leases, preços internos e segredos não são exportados. Uma cobrança pode con
 em várias provas; o arquivo declara expressamente que não soma nem rateia valores.
 Testes novos incluem mais de uma página, outra conta e observações repetidas.
 Este incremento ainda aguarda gates remotos; nenhuma ativação em produção.
+
+
+A primeira rodada do complemento (f4dd4eea, direitos 44763574259) recusou
+um tipo não exportado pelo package do banco (TS2724); nenhum teste foi ocultado.
+260d5674 usa o contrato público SQLWrapper, sem cast. Direitos 44763965632
+concluiu com sucesso; conciliação comercial 44763972616 e qualidade 44763978650
+continuam em execução.
+
+Novo leitor de auditoria pessoal seleciona somente tipo/data dos atos cujo ator
+é a própria conta, prefixo do evento Recreio e app explícito Recreio. Não carrega
+payloads, outros atores, eventos globais ou de outros apps. Cursor preserva os
+microssegundos originais do PostgreSQL, com desempate UUID, para não repetir ou
+saltar registros. Regressão inclui 205 atos no mesmo instante e quatro negativas.
+Retenção append-only de cinco anos segue a política comum; exportar não apaga
+o registro. Este novo incremento ainda aguarda a própria verificação remota.
