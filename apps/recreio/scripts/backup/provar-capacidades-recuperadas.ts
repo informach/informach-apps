@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { normalizarCapacidadesRestauradas } from "./normalizar-capacidades";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
+import { testemunharConvitesRecuperados } from "./provar-convites-recuperados";
 import { exigir } from "./provas-arquivos";
 
 /** Synthetic cold-cluster proof only. Failure injection is separate from the
@@ -27,6 +28,13 @@ export async function provarCapacidadesRecuperadas(copia: postgres.Sql) {
     "world_visits",
     "world_visit_sessions",
     "personal_exports",
+    "friend_codes",
+    "friend_requests",
+    "group_invites",
+    "space_invites",
+    "directed_space_invites",
+    "space_visit_invites",
+    "space_stewardship_requests",
   ]);
   exigir(
     [...alteradas].every((nome) =>
@@ -53,6 +61,7 @@ export async function provarCapacidadesRecuperadas(copia: postgres.Sql) {
     return r.sha;
   };
   const historicoOriginal = await historico();
+  const conferirConvites = await testemunharConvitesRecuperados(copia);
   await copia.unsafe(`create function recreio.capabilities_rollback_probe() returns trigger language plpgsql as $$
     begin raise exception 'synthetic capabilities rollback'; end $$`);
   await copia.unsafe(`create trigger capabilities_rollback_probe before update on recreio.personal_exports
@@ -74,7 +83,9 @@ export async function provarCapacidadesRecuperadas(copia: postgres.Sql) {
     await copia.begin("isolation level repeatable read read only", inventariarBackup),
   );
   exigir((await historico()) === historicoOriginal, "HISTORICO_DE_CAPACIDADES_ALTERADO");
+  await conferirConvites();
   const resultado = await normalizarCapacidadesRestauradas(copia);
+  await conferirConvites();
   exigir((await historico()) === historicoOriginal, "HISTORICO_DE_CAPACIDADES_ALTERADO");
   const depois = await copia.begin("isolation level repeatable read read only", inventariarBackup);
   const permanentes = (t: { schema: string; nome: string }) =>
@@ -84,6 +95,7 @@ export async function provarCapacidadesRecuperadas(copia: postgres.Sql) {
     { ...depois, tabelas: depois.tabelas.filter(permanentes) },
   );
   await normalizarCapacidadesRestauradas(copia);
+  await conferirConvites();
   conferirInventarios(
     depois,
     await copia.begin("isolation level repeatable read read only", inventariarBackup),
@@ -97,5 +109,7 @@ export async function provarCapacidadesRecuperadas(copia: postgres.Sql) {
     temporaryCapabilitiesRollbackVerified: true as const,
     temporaryCapabilitiesIdempotent: true as const,
     permanentTablesPreserved: true as const,
+    invitationHistoryPreserved: true as const,
+    originalInvitationDeadlinesPreserved: true as const,
   };
 }

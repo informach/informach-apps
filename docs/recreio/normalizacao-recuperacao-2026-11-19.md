@@ -125,3 +125,23 @@ preservado com SHA em `evidencias/capacidades-cluster-frio-44650838063.json`.
 `authoritiesNormalizedForTraffic` permanece false. Não é replay F7/admissão ou
 prova de recuperação de dados reais. O gate quality 44650821007 passou; a
 integração geral 44650832114 ainda precisa de conclusão.
+
+
+## Convites restaurados — candidata de 20/11
+
+A normalização passa a invalidar códigos de amizade ainda abertos, pedidos
+sociais pendentes e convites pendentes comerciais, de mundo, dirigidos, de
+visita e de responsabilidade. A lista fechada cresce de 13 para 20 tabelas.
+Convites comerciais pendentes perdem endereço/rótulo/vínculo temporário. Não
+altera relações já aceitas, nomes, responsabilidades, contratos ou períodos pagos.
+Datas de criação, expiração e retenção permanecem originais; somente o primeiro
+encerramento da pendência é registrado. Repetir não renova nenhum prazo.
+
+A prova sintética acrescenta testemunhas abertas e encerradas nas sete fontes,
+conserva hashes dos recibos terminais e de todos os prazos, injeta falha depois
+das revogações e exige rollback integral. Após sucesso, exige zero capacidades
+de convite, repetição idêntica e preservação das demais tabelas. O recibo estrito
+recebe quatro condições novas; ainda aguarda prova no cluster frio e bucket real.
+
+Isso não é replay F7 nem conciliação da identidade/permissões atuais. O recibo
+continua authoritiesNormalizedForTraffic=false e não autoriza abrir tráfego.

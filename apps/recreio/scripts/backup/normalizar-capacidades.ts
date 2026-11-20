@@ -15,6 +15,13 @@ const TABELAS = [
   "world_visits",
   "world_visit_sessions",
   "personal_exports",
+  "friend_codes",
+  "friend_requests",
+  "group_invites",
+  "space_invites",
+  "directed_space_invites",
+  "space_visit_invites",
+  "space_stewardship_requests",
 ] as const;
 
 /** ONLY a new private/offline cluster, after the authenticated inventory was
@@ -69,6 +76,34 @@ export async function normalizarCapacidadesRestauradas(copia: postgres.Sql) {
       closed_at=greatest(statement_timestamp(),updated_at),
       updated_at=greatest(statement_timestamp(),updated_at),close_reason='session_ended'
       where closed_at is null`);
+    // Invalidate pending invitations without deleting receipts, changing
+    // accepted relationships or extending any original expiry/retention date.
+    await tx.unsafe(`update recreio.friend_codes set
+      revoked_at=greatest(statement_timestamp(),created_at)
+      where consumed_at is null and revoked_at is null`);
+    await tx.unsafe(`update recreio.friend_requests set state='revoked',
+      finished_at=greatest(statement_timestamp(),created_at) where state='pending'`);
+    await tx.unsafe(`update recreio.group_invites set state='revoked',
+      finished_at=greatest(statement_timestamp(),created_at),
+      recipient_email=null,recipient_user_id=null,sender_label=null where state='pending'`);
+    await tx.unsafe(`update recreio.space_invites set state='revoked'
+      where state in ('pending_approval','sent')`);
+    await tx.unsafe(`update recreio.directed_space_invites set state='revoked',
+      finished_at=greatest(statement_timestamp(),created_at) where state='pending'`);
+    await tx.unsafe(`update recreio.space_visit_invites set state='revoked',
+      finished_at=greatest(statement_timestamp(),created_at) where state='pending'`);
+    await tx.unsafe(`update recreio.space_stewardship_requests set state='revoked',
+      completed_at=greatest(statement_timestamp(),created_at) where state='pending'`);
+    const [convites] = await tx.unsafe<{ quantidade: number }[]>(`select (
+      (select count(*) from recreio.friend_codes where consumed_at is null and revoked_at is null)+
+      (select count(*) from recreio.friend_requests where state='pending')+
+      (select count(*) from recreio.group_invites where state='pending')+
+      (select count(*) from recreio.space_invites where state in ('pending_approval','sent'))+
+      (select count(*) from recreio.directed_space_invites where state='pending')+
+      (select count(*) from recreio.space_visit_invites where state='pending')+
+      (select count(*) from recreio.space_stewardship_requests where state='pending')
+    )::int as quantidade`);
+    if (convites?.quantidade !== 0) throw new FalhaDaNormalizacao("INTEGRIDADE");
     await tx.unsafe(`update recreio.personal_exports set state='revoked',
       encrypted_bytes=null,reference=null,cleared_at=greatest(statement_timestamp(),created_at)
       where state='ready'`);
@@ -91,6 +126,8 @@ export async function normalizarCapacidadesRestauradas(copia: postgres.Sql) {
     return {
       temporaryCapabilitiesRemaining: restantes.quantidade,
       temporaryCapabilitiesRevoked: true as const,
+      invitationCapabilitiesRemaining: convites.quantidade,
+      pendingInvitationsRevoked: true as const,
       authoritiesNormalizedForTraffic: false as const,
     };
   });

@@ -27,6 +27,7 @@ import { novoJogador } from "./apoio";
 import { conexao, restaurar, temporarios } from "./backup-arquivos-apoio";
 import { semearCapacidadesDaCaptura } from "./backup-capacidades-apoio";
 import { provarClusterFrio } from "./backup-cluster-frio-apoio";
+import { semearConvitesDaCaptura } from "./backup-convites-apoio";
 import { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { mundoDe } from "./jogo-apoio";
 
@@ -64,7 +65,8 @@ it(
         }
       }
       try {
-        await semearCapacidadesDaCaptura(fonte, jogador, mundoId);
+        const capacidades = await semearCapacidadesDaCaptura(fonte, jogador, mundoId);
+        await semearConvitesDaCaptura(fonte, jogador, mundoId, capacidades);
         const fotos = criarArmazenamentoPrivadoS3({
             cliente: s3.cliente,
             bucket: destino.bucketName,
