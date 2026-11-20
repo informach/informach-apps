@@ -46,6 +46,14 @@ export const FalhaDaRecuperacaoSchema = z.strictObject({
     "NORMAL_VINCULO",
     "NORMAL_INTEGRIDADE",
     "SQL_23514",
+    "SQL_RECOVERY_HASHES",
+    "SQL_RECOVERY_KEYS",
+    "SQL_RECOVERY_STATE",
+    "SQL_RECOVERY_TIMES",
+    "SQL_RECOVERY_KIND",
+    "SQL_RECOVERY_REFERENCE",
+    "SQL_RECOVERY_PLAN",
+    "SQL_RECOVERY_WORLDS",
     "SQL_23503",
     "SQL_23001",
     "SQL_55P03",
@@ -61,3 +69,36 @@ export const FalhaDaRecuperacaoSchema = z.strictObject({
 });
 export type CodigoDaRecuperacao = z.infer<typeof FalhaDaRecuperacaoSchema>["codigo"];
 export type EtapaDaRecuperacao = z.infer<typeof FalhaDaRecuperacaoSchema>["etapa"];
+
+/** Fixed diagnostic vocabulary; never expose arbitrary provider messages,
+ * details, relation/constraint names, values, SQL or bind parameters. */
+export function classificarRestricaoDeRecuperacao(erro: unknown): CodigoDaRecuperacao | undefined {
+  if (
+    !erro ||
+    typeof erro !== "object" ||
+    !("code" in erro) ||
+    erro.code !== "23514" ||
+    !("constraint_name" in erro)
+  )
+    return undefined;
+  switch (erro.constraint_name) {
+    case "recreio_rights_recovery_hashes":
+      return "SQL_RECOVERY_HASHES";
+    case "recreio_rights_recovery_keys":
+      return "SQL_RECOVERY_KEYS";
+    case "recreio_rights_recovery_state":
+      return "SQL_RECOVERY_STATE";
+    case "recreio_rights_recovery_times":
+      return "SQL_RECOVERY_TIMES";
+    case "recreio_rights_recovery_source_kind":
+      return "SQL_RECOVERY_KIND";
+    case "recreio_rights_recovery_source_reference":
+      return "SQL_RECOVERY_REFERENCE";
+    case "recreio_rights_recovery_source_plan":
+      return "SQL_RECOVERY_PLAN";
+    case "recreio_rights_recovery_source_worlds":
+      return "SQL_RECOVERY_WORLDS";
+    default:
+      return undefined;
+  }
+}

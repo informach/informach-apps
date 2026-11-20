@@ -11,6 +11,7 @@ import { criarTransporteDeArquivosS3 } from "./arquivo-s3";
 import { comBancoRestaurado, FalhaDoClusterIsolado } from "./cluster-isolado";
 import {
   type CodigoDaRecuperacao,
+  classificarRestricaoDeRecuperacao,
   type EtapaDaRecuperacao,
   FalhaDaRecuperacaoSchema,
 } from "./diagnostico-recuperacao";
@@ -31,6 +32,8 @@ function codigoSeguro(erro: unknown): CodigoDaRecuperacao {
   const fila: unknown[] = [erro];
   for (let i = 0; i < 8 && fila.length; i++) {
     const e = fila.shift();
+    const restricao = classificarRestricaoDeRecuperacao(e);
+    if (restricao) return restricao;
     if (e instanceof z.ZodError) return "CONFIGURACAO_INVALIDA";
     if (e instanceof FalhaDeInventario) return `INVENTARIO_${e.codigo}`;
     if (e instanceof FalhaDaProva) {
