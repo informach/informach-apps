@@ -148,8 +148,8 @@ export async function importarFontesHistoricasDeDireitos(config: {
             intencao.contaId,
             intencao.tipo,
             intencao.planoSha256,
-            JSON.stringify(plano),
-            JSON.stringify(mapa),
+            tx.json(plano),
+            tx.json(mapa),
           ],
         );
         const [fonte] = await tx.unsafe<
