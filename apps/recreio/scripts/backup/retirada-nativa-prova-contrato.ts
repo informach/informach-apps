@@ -6,6 +6,11 @@ export const RetiradaNativaDeProvaSchema = z.strictObject({
   operacaoId: z.uuid(),
   perfilId: z.uuid(),
   contaId: z.string().min(1).max(256),
+  publicacaoPendente: z.strictObject({
+    operacaoId: z.uuid(),
+    perfilId: z.uuid(),
+    contaId: z.string().min(1).max(256),
+  }),
   anterior: z.strictObject({
     operacaoId: z.uuid(),
     perfilId: z.uuid(),

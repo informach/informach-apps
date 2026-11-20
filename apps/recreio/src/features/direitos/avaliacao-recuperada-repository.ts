@@ -28,6 +28,27 @@ export async function conferirOperacaoNaAvaliacao(
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>,
   escopo: { execucaoId: string; cercaSha256: string },
 ) {
+  return conferirOrigemNaAvaliacao(tx, op, assinatura, escopo, "admitida");
+}
+
+/** A pending native SQL publication may only be reconciled by the fixed
+ * private admission, after external prefix membership has been verified. */
+export async function conferirPublicacaoNativaNaAvaliacao(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+  assinatura: ReturnType<typeof criarAssinaturaDoLivro>,
+  escopo: { execucaoId: string; cercaSha256: string },
+) {
+  return conferirOrigemNaAvaliacao(tx, op, assinatura, escopo, "publicacao");
+}
+
+async function conferirOrigemNaAvaliacao(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+  assinatura: ReturnType<typeof criarAssinaturaDoLivro>,
+  escopo: { execucaoId: string; cercaSha256: string },
+  estado: "admitida" | "publicacao",
+) {
   const [fonte] = await tx
     .select({ avaliacao: evaluations, origem: sources, execucao: runs })
     .from(evaluations)
@@ -57,9 +78,20 @@ export async function conferirOperacaoNaAvaliacao(
       fonte.execucao.state === "replaying" &&
       fonte.execucao.frozenHeadSha256 === escopo.cercaSha256 &&
       op.ledgerEpoch <= fonte.execucao.frozenEpoch &&
-      (op.state === "admitted" || op.state === "running" || op.state === "completed") &&
-      op.admittedHeadSha256 !== null &&
-      op.admittedAt !== null,
+      (estado === "publicacao"
+        ? op.state === "publishing" &&
+          op.kind === "retirar_perfil" &&
+          op.preparationId !== null &&
+          op.recoverySourceId === null &&
+          op.admittedHeadSha256 === null &&
+          op.admittedAt === null &&
+          op.completedAt === null &&
+          fonte.avaliacao.state === "staged" &&
+          fonte.avaliacao.readyAt === null &&
+          fonte.avaliacao.admittedHeadSha256 === null
+        : (op.state === "admitted" || op.state === "running" || op.state === "completed") &&
+          op.admittedHeadSha256 !== null &&
+          op.admittedAt !== null),
     "DIREITOS_INTEGRIDADE",
     "A operação exige avaliação da execução atual.",
   );

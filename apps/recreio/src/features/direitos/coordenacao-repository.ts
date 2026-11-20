@@ -25,6 +25,7 @@ import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import {
   conferirOperacaoNaAvaliacao,
+  conferirPublicacaoNativaNaAvaliacao,
   conferirReciboDaAvaliacao,
 } from "./avaliacao-recuperada-repository";
 import {
@@ -56,11 +57,28 @@ type Privada = {
   storage: ReturnType<typeof criarArmazenamentoDoLivro>;
   signal: AbortSignal;
   admissoes: ReadonlyMap<string, AdmissaoPersistidaNoBackup>;
+  publicacoes: ReadonlyMap<string, PublicacaoPendenteNoBackup>;
   finalizando?: boolean;
   operacaoId?: string;
   autoridades?: ReadonlyMap<string, AutoridadeNoBackup>;
   pai?: CoordenacaoDeEfeitos;
 };
+type PublicacaoPendenteNoBackup = {
+  preparacaoId: string;
+  intencaoSha256: string;
+  revisao: number;
+};
+function correspondePublicacaoPendente(
+  op: typeof operations.$inferSelect,
+  anterior: PublicacaoPendenteNoBackup,
+) {
+  return (
+    op.preparationId === anterior.preparacaoId &&
+    op.recoverySourceId === null &&
+    op.intentSha256 === anterior.intencaoSha256 &&
+    op.revision === anterior.revisao
+  );
+}
 type AdmissaoPersistidaNoBackup = {
   preparacaoId: string | null;
   fonteRecuperadaId: string | null;
@@ -397,6 +415,59 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
         cabecalhoSha256: n.cabecalhoSha256,
       })),
     });
+    const publicacoesPendentes = await comLeituraLimitada(config.banco, (tx) =>
+      tx
+        .select({
+          id: operations.id,
+          kind: operations.kind,
+          preparationId: operations.preparationId,
+          recoverySourceId: operations.recoverySourceId,
+          revision: operations.revision,
+          intentSha256: operations.intentSha256,
+          admittedHeadSha256: operations.admittedHeadSha256,
+          admittedAt: operations.admittedAt,
+          completedAt: operations.completedAt,
+        })
+        .from(operations)
+        .where(
+          and(
+            eq(operations.ledgerId, config.assinatura.livroId),
+            eq(operations.state, "publishing"),
+          ),
+        )
+        .orderBy(operations.id)
+        .limit(config.maxEntradas + 1),
+    );
+    assertAllowed(
+      publicacoesPendentes.length <= config.maxEntradas,
+      "DIREITOS_INTEGRIDADE",
+      "Publicações anteriores excedem o perfil.",
+    );
+    const publicacoes = new Map<string, PublicacaoPendenteNoBackup>();
+    const referenciasPorOperacao = new Map(prova.referencias.map((r) => [r.operacaoId, r]));
+    for (const op of publicacoesPendentes) {
+      const referencia = referenciasPorOperacao.get(op.id);
+      if (
+        op.kind !== "retirar_perfil" ||
+        referencia?.revisao !== op.revision ||
+        referencia.sha256 !== op.intentSha256
+      )
+        continue;
+      assertAllowed(
+        op.preparationId !== null &&
+          op.recoverySourceId === null &&
+          op.admittedHeadSha256 === null &&
+          op.admittedAt === null &&
+          op.completedAt === null,
+        "DIREITOS_INTEGRIDADE",
+        "Publicação nativa anterior divergente.",
+      );
+      publicacoes.set(op.id, {
+        preparacaoId: op.preparationId,
+        intencaoSha256: op.intentSha256,
+        revisao: op.revision,
+      });
+    }
     const [run] = await comLeituraLimitada(config.banco, async (tx) =>
       tx.select().from(runs).where(eq(runs.id, config.execucaoId)),
     );
@@ -460,6 +531,22 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
               "Avaliação fora do prefixo completo.",
             );
             await conferirMapaHistoricoDeMundos(tx, plano, avaliacao.worldMap);
+            const publicacao = publicacoes.get(i.operacaoId);
+            if (publicacao) {
+              const [op] = await tx
+                .select()
+                .from(operations)
+                .where(eq(operations.id, i.operacaoId));
+              assertAllowed(
+                op && correspondePublicacaoPendente(op, publicacao),
+                "DIREITOS_INTEGRIDADE",
+                "Publicação anterior mudou durante a conferência.",
+              );
+              await conferirPublicacaoNativaNaAvaliacao(tx, op, config.assinatura, {
+                execucaoId: run.id,
+                cercaSha256: head.sha256,
+              });
+            }
             const persistida = admissoes.get(i.operacaoId);
             if (persistida) {
               const [op] = await tx
@@ -502,6 +589,7 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
       storage: config.storage,
       signal,
       admissoes,
+      publicacoes,
     });
     const resultado = await config.executar(coordenacao);
     conferirCoordenacaoDeDireitos(coordenacao);
@@ -538,6 +626,27 @@ export function dadosDaCoordenacaoPrivada(config: CoordenacaoDeEfeitos) {
   };
 }
 
+/** Only the original native publication authenticated while minting this root
+ * capability can receive SQL confirmation. Never admits a child or does I/O. */
+export async function conferirPublicacaoPendenteDaCoordenacao(
+  tx: Transacao,
+  config: CoordenacaoDeEfeitos,
+  op: typeof operations.$inferSelect,
+) {
+  dadosDaCoordenacaoPrivada(config);
+  const privado = contexto(config),
+    anterior = privado?.publicacoes.get(op.id);
+  assertAllowed(
+    privado && anterior && correspondePublicacaoPendente(op, anterior),
+    "DIREITOS_INTEGRIDADE",
+    "Publicação fora da prova privada.",
+  );
+  return conferirPublicacaoNativaNaAvaliacao(tx, op, config.assinatura, {
+    execucaoId: privado.execucaoId,
+    cercaSha256: privado.cerca,
+  });
+}
+
 /** The original persisted admission was checked against the complete ancestor
  * chain before this private capability was minted. This never changes origin
  * or dates and does not admit a different operation through a child scope. */
@@ -548,15 +657,16 @@ export async function conferirAdmissaoPersistidaDaCoordenacao(
 ) {
   conferirCoordenacaoDeDireitos(config);
   const privado = contexto(config),
-    anterior = privado?.admissoes.get(op.id);
+    anterior = privado?.admissoes.get(op.id),
+    publicacao = privado?.publicacoes.get(op.id);
   assertAllowed(
     privado &&
       (!privado.operacaoId || privado.operacaoId === op.id) &&
       (anterior
         ? correspondeAdmissaoPersistida(op, anterior)
-        : op.preparationId === null &&
-          op.recoverySourceId === op.id &&
-          op.admittedHeadSha256 === privado.cerca),
+        : op.admittedHeadSha256 === privado.cerca &&
+          ((op.preparationId === null && op.recoverySourceId === op.id) ||
+            (publicacao !== undefined && correspondePublicacaoPendente(op, publicacao)))),
     "DIREITOS_INTEGRIDADE",
     "Admissão fora da prova privada.",
   );

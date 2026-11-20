@@ -28,6 +28,7 @@ import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { inventariarBackup } from "./inventario";
 import { provarOperacaoNativaAnterior } from "./provar-operacao-anterior";
+import { provarPublicacaoNativaPendente } from "./provar-publicacao-pendente";
 import { provarVerificacaoDasRetiradas } from "./provar-verificacao-retiradas";
 import { exigir, FalhaDaProva } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
@@ -200,7 +201,7 @@ export async function provarRetiradaNativaPosterior(config: {
       tempoLimiteMs: 30000,
     };
     const importacao = await importarFontesHistoricasDeDireitos({ ...comum, copia });
-    exigir(importacao.fontesConferidas === 2, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(importacao.fontesConferidas === 3, "CONSENTIMENTO_NATIVO_DIVERGENTE");
     let passos = 0,
       dadosApagados = 0,
       fotosProcessadas = 0,
@@ -397,13 +398,20 @@ export async function provarRetiradaNativaPosterior(config: {
       preservadoId: dado.preservadoId,
       coordenar,
     });
+    const pendente = await provarPublicacaoNativaPendente({
+      copia,
+      pendente: dado.publicacaoPendente,
+      preservadoId: dado.preservadoId,
+      coordenar,
+    });
     const verificacao = await provarVerificacaoDasRetiradas({
       copia,
-      operacoes: [dado.operacaoId, dado.anterior.operacaoId],
+      operacoes: [dado.operacaoId, dado.anterior.operacaoId, dado.publicacaoPendente.operacaoId],
       coordenar,
     });
     return {
       ...anterior,
+      ...pendente,
       ...verificacao,
       nativePostCaptureConsentReplayed: true as const,
       nativePostCapturePersonalErasureExecuted: true as const,

@@ -39,6 +39,11 @@ confirmadas; qualidade/captura/cluster 44837795416/44837787315/44837791237.
 Faltam custódia/credenciais reais, agenda/alertas,
 publicação seletiva do Recreio com identidade/finanças atuais e aceites
 operacionais/comerciais finais. Nenhuma entrada operacional nova está ativa.
+Dois buckets produtivos e serviço vazio de custódia foram preparados, com
+vinte variáveis persistidas conferidas; sem captura/agenda/deploy. Backup
+manual pré-migração recusado pelo limite de dez cópias do volume, sem apagar
+backups antigos. Publicação histórica com confirmação SQL perdida está em
+[implementação separada](recreio/publicacao-historica-2026-11-20.md).
 
 **Provas reais recentes:** ensaio de 20/11 às 20h52 UTC restaurou conteúdo,
 estrutura e globais idênticos; serviço/temporários removidos, origem intacta,

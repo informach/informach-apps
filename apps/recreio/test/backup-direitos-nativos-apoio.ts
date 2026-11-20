@@ -19,7 +19,7 @@ import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
 import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { prepararPedidoDeDireitos } from "@/features/direitos/service";
-import { exigir } from "../scripts/backup/provas-arquivos";
+import { exigir, FalhaDaProva } from "../scripts/backup/provas-arquivos";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { familiaSocial } from "./social-apoio";
 
@@ -33,6 +33,7 @@ export async function prepararDireitosPosterioresACaptura(
 ) {
   const familia = await familiaSocial(15),
     familiaAnterior = await familiaSocial(15),
+    familiaPendente = await familiaSocial(15),
     livroId = randomUUID(),
     antiga = randomBytes(32),
     proxima = randomBytes(32),
@@ -41,7 +42,12 @@ export async function prepararDireitosPosterioresACaptura(
       chaveAtiva: "native-old",
       chaves: new Map([["native-old", antiga]]),
     });
-  for (const profileId of [familia.perfil.id, familiaAnterior.perfil.id, preservadoId]) {
+  for (const profileId of [
+    familia.perfil.id,
+    familiaAnterior.perfil.id,
+    familiaPendente.perfil.id,
+    preservadoId,
+  ]) {
     const [key] = await db
       .insert(keys)
       .values({
@@ -150,7 +156,11 @@ export async function prepararDireitosPosterioresACaptura(
       atualizadoEm: new Date().toISOString(),
     }),
   );
-  async function consentir(alvo: Awaited<ReturnType<typeof familiaSocial>>) {
+  let publicacaoPendenteId: string | undefined;
+  async function consentir(
+    alvo: Awaited<ReturnType<typeof familiaSocial>>,
+    perderConfirmacao = false,
+  ) {
     const previa = await prepararPedidoDeDireitos(alvo.autor, {
       pedidoId: randomUUID(),
       tipo: "retirar_perfil",
@@ -167,7 +177,66 @@ export async function prepararDireitosPosterioresACaptura(
       },
       { assinatura, storage, fonte },
     );
-    const publicada = await publicarProximoConsentimento({ assinatura, storage });
+    if (perderConfirmacao) {
+      const nome = `fixture_publish_${randomUUID().replaceAll("-", "")}`;
+      await db.execute(sql`create function audit.${sql.identifier(nome)}() returns trigger language plpgsql as $$
+        begin if new.event_type='recreio.rights_admitted' then raise exception 'fixture publication strict audit';
+        end if; return new; end $$`);
+      let recusou = false;
+      try {
+        await db.execute(sql`create trigger ${sql.identifier(nome)} before insert on audit.events
+          for each row execute function audit.${sql.identifier(nome)}()`);
+        try {
+          await publicarProximoConsentimento({ assinatura, storage });
+        } catch (error) {
+          let atual: unknown = error;
+          for (let n = 0; n < 5 && atual; n++) {
+            if (
+              typeof atual === "object" &&
+              "code" in atual &&
+              atual.code === "P0001" &&
+              "message" in atual &&
+              atual.message === "fixture publication strict audit"
+            )
+              recusou = true;
+            atual = atual instanceof Error ? atual.cause : undefined;
+          }
+          if (!recusou) throw error;
+        }
+      } finally {
+        try {
+          await db.execute(sql`drop trigger if exists ${sql.identifier(nome)} on audit.events`);
+        } finally {
+          await db.execute(sql`drop function audit.${sql.identifier(nome)}()`);
+        }
+      }
+      if (!recusou) throw new FalhaDaProva("PUBLICACAO_PENDENTE_NAO_REVERTIDA");
+      const [op] = await db.select().from(operations).where(eq(operations.id, pedido.operacaoId));
+      const prefixo = await conferirPrefixoDoLivro({
+        storage,
+        maxEntradas: 10,
+        tempoLimiteMs: 15000,
+      });
+      exigir(
+        op &&
+          op.state === "publishing" &&
+          op.admittedAt === null &&
+          op.admittedHeadSha256 === null &&
+          prefixo.referencias.some((r) => r.operacaoId === op.id && r.sha256 === op.intentSha256),
+        "PUBLICACAO_PENDENTE_DIVERGENTE",
+      );
+      return pedido;
+    }
+    let publicada = await publicarProximoConsentimento({ assinatura, storage });
+    // The old lease may naturally expire while capturing. Let the real source
+    // publisher reconcile that exact older operation, then admit this consent.
+    // The authenticated dump still preserves the original pending state.
+    if (
+      publicada.situacao === "admitida" &&
+      publicada.operacaoId === publicacaoPendenteId &&
+      publicada.operacaoId !== pedido.operacaoId
+    )
+      publicada = await publicarProximoConsentimento({ assinatura, storage });
     exigir(
       publicada.situacao === "admitida" && publicada.operacaoId === pedido.operacaoId,
       "CONSENTIMENTO_NATIVO_NAO_PUBLICADO",
@@ -197,6 +266,8 @@ export async function prepararDireitosPosterioresACaptura(
       nextAttemptAt: sql`statement_timestamp()+interval '90 seconds'`,
     })
     .where(eq(operations.id, anterior.operacaoId));
+  const publicacaoPendente = await consentir(familiaPendente, true);
+  publicacaoPendenteId = publicacaoPendente.operacaoId;
   return {
     fotografia: {
       bytes: gzipSync(JSON.stringify(foto)),
@@ -209,6 +280,11 @@ export async function prepararDireitosPosterioresACaptura(
       await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
       return {
         livroId,
+        publicacaoPendente: {
+          operacaoId: publicacaoPendente.operacaoId,
+          perfilId: familiaPendente.perfil.id,
+          contaId: familiaPendente.conta.id,
+        },
         anterior: {
           operacaoId: anterior.operacaoId,
           perfilId: familiaAnterior.perfil.id,

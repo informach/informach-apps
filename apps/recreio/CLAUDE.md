@@ -459,3 +459,11 @@ O CI compartilhado ac5ae7d1 passou 44824438593. Ensaio real preservou recibos
 históricos e atualizou apenas uma cópia privada de 204 para 244. Nenhuma nova
 entrada de backup, cron ou recurso comercial está ativa em produção.
 [Operação e pendências](../../docs/recreio/operacao-backup-2026-11-20.md).
+
+
+Publicação histórica com confirmação SQL perdida está em implementação. Somente
+a admissão fixa com capacidade privada genuína pode reconciliar `publishing`
+nativo pertencente ao prefixo completo; conferir preparação/MAC/plano/mapa
+antes, conservar datas do aceite, confirmar SQL/avaliação/auditoria atomicamente
+e não inventar admissão anterior. Sem essa confirmação não há escopo filho.
+[Contrato e gates](../../docs/recreio/publicacao-historica-2026-11-20.md).

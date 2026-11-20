@@ -352,3 +352,24 @@ registram a sequência histórica. Não demonstra custódia produtiva, recupera�
 financeira/identidades atuais, conteúdo jogado ou publicação seletiva F7.
 A agenda e as chaves/destinos reais continuam por implantar após preflight e
 backup durável anterior à atualização do schema compartilhado.
+
+
+## Preparação real de custódia, sem ativação
+
+Em 20/11 foram criados os buckets separados `recreio-arquivos-producao`
+(364e47df-0471-406e-8c04-aa05e1c7a657) e `recreio-objetos-producao`
+(d1112996-d9cc-42e5-8fe5-4587944e16d7), ambos sjc. O serviço vazio
+`recreio-custodia-operacional` (1b39b426-617b-45db-b437-11988d6c67aa)
+conserva vinte variáveis desses destinos: credenciais por bucket e materiais
+AES distintos, sem URL/senha do banco, login, SMTP ou Stripe. A comparação
+local protegida com as vinte variáveis persistidas confirmou igualdade exata,
+sem mostrar valores. Existe cópia local DPAPI do usuário Windows, fora do Git.
+Nada foi enviado ao GitHub e nenhum processo/deploy/cron foi iniciado.
+Isso é preparação, ainda sem prova de recuperação independente ou arquivo real.
+
+O PostgreSQL real foi relido às 23h50 UTC: 18.6, SSL ativo, 204 recibos.
+O backup diário do volume de 20/11 às 10h33 UTC está listado, mas criar uma
+cópia manual atual falhou: `Plan limit of 10 backups per volume exceeded`.
+Os onze registros incluem três manuais e cópias agendadas. Não foi apagada
+nenhuma cópia antiga. Foi pedido ao titular decidir somente sobre os dois
+backups manuais de 13/09; migração continua pendente dessa cópia atual.

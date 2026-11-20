@@ -19,6 +19,7 @@ import { conferirReciboDaAvaliacao } from "./avaliacao-recuperada-repository";
 import {
   type CoordenacaoDeEfeitos,
   conferirAdmissaoPersistidaDaCoordenacao,
+  conferirPublicacaoPendenteDaCoordenacao,
   dadosDaCoordenacaoPrivada,
 } from "./coordenacao-repository";
 import { conferirMapaHistoricoDeMundos } from "./fonte-intencao-repository";
@@ -164,13 +165,43 @@ export async function admitirRetiradaHistoricaRecuperada(
         .where(eq(operations.id, operacaoId))
         .for("update");
       if (anterior) {
-        const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, anterior);
+        let confirmada = anterior;
+        if (anterior.state === "publishing") {
+          await conferirPublicacaoPendenteDaCoordenacao(tx, config, anterior);
+          assertAllowed(
+            anterior.signedIntent.equals(registro.bytes),
+            "DIREITOS_INTEGRIDADE",
+            "Publicação anterior diverge da decisão externa.",
+          );
+          const [admitida] = await tx
+            .update(operations)
+            .set({
+              state: "admitted",
+              admittedHeadSha256: privado.cerca,
+              admittedAt: AGORA,
+              leaseToken: null,
+              leaseUntil: null,
+              nextAttemptAt: AGORA,
+              updatedAt: AGORA,
+            })
+            .where(and(eq(operations.id, operacaoId), eq(operations.state, "publishing")))
+            .returning();
+          assertAllowed(admitida, "DIREITOS_INTEGRIDADE", "Confirmação histórica indisponível.");
+          await logAuditEventStrict(
+            "recreio.rights_admitted",
+            admitida.requesterUserId,
+            { app: "recreio", operationId: admitida.id, kind: admitida.kind },
+            { writer: tx },
+          );
+          confirmada = admitida;
+        }
+        const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, confirmada);
         assertAllowed(
-          lida.execucao.id === privado.execucaoId && anterior.signedIntent.equals(registro.bytes),
+          lida.execucao.id === privado.execucaoId && confirmada.signedIntent.equals(registro.bytes),
           "DIREITOS_INTEGRIDADE",
           "A admissão anterior diverge da decisão externa.",
         );
-        await prepararRecibo(anterior, true);
+        await prepararRecibo(confirmada, true);
         dadosDaCoordenacaoPrivada(config);
         return {
           situacao:

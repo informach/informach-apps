@@ -12,7 +12,7 @@ import {
 import { AppError } from "../../src/lib/errors";
 import { exigir } from "./provas-arquivos";
 
-/** Only called in the actual owned private cluster after both native
+/** Only called in the actual owned private cluster after all three native
  * withdrawals finish. The audit rejection trigger is a temporary fixture,
  * not an operational switch or a bypass of strict audit. */
 export async function provarVerificacaoDasRetiradas(config: {
@@ -21,8 +21,8 @@ export async function provarVerificacaoDasRetiradas(config: {
   coordenar: (executar: (pai: CoordenacaoDeEfeitos) => Promise<void>) => Promise<void>;
 }) {
   const ids = z
-    .tuple([z.uuid(), z.uuid()])
-    .refine(([a, b]) => a !== b)
+    .tuple([z.uuid(), z.uuid(), z.uuid()])
+    .refine((ids) => new Set(ids).size === ids.length)
     .parse(config.operacoes);
   const { copia } = config;
   const lerOperacoes = () =>
