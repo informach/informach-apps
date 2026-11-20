@@ -130,3 +130,10 @@ ausente antes de conferir o tombstone. A correção acrescenta manifesto tardio
 assinado de protocolo MAC, sem criar confirmação SQL/verificação de arquivo.
 O teste continua exigindo RETIRADO, agora com ambos os objetos tardios; não
 aceita uma lista genérica de erros para passar. Não há mudança no leitor nativo.
+
+
+401a5b0e foi recusada em 44820794166: o manifesto tardio da fixture não
+registrava Content-Type application/json no servidor HTTP fechado; o leitor
+recusou integridade antes da conferência do tombstone. A fixture agora conserva
+esse metadado HTTP e confere o MAC antes de simular a escrita tardia. Decoder
+e exigência de RETIRADO permanecem estritos. Nenhum dado/serviço real alterado.
