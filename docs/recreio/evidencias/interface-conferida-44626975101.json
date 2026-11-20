@@ -1,0 +1,26 @@
+{
+  "runId": 44626975101,
+  "artifactId": 14581145460,
+  "artifactZipBytes": 1774871,
+  "artifactZipSha256": "3e92f783bae0c45b7845c54616ba7f7f5ff5e08f40c877444a72af502197cb66",
+  "visualInspectionCompleted": true,
+  "productionApplied": false,
+  "screens": [
+    {
+      "name": "renovacao-aceite-mobile.png",
+      "bytes": 229151,
+      "sha256": "01fba0838c6969e4538295ce34e675bc43f0db0a16a2a8e2db203593c337f8e1"
+    },
+    {
+      "name": "renovacao-conferencia-mobile.png",
+      "bytes": 164015,
+      "sha256": "4c0e8ac752691573b6403daf103c3aad1a5d88ed44e5bedb2a7ae5d42997974f"
+    },
+    {
+      "name": "renovacao-confirmada-mobile.png",
+      "bytes": 165659,
+      "sha256": "c2ae335b4585b35e904862c03c6827a890080db92484ca8012a26b84a86ccbfd"
+    }
+  ],
+  "scope": "Regular browser regression with declared later-state fixtures; not native account closure or actual provider confirmation."
+}

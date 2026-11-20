@@ -1,5 +1,23 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, encerramento nativo pelo navegador comprovado em candidata:**
+3b192f43 passou direitos 44647230157 e qualidade 44647234026. A jornada dedicada
+44647990093 usou três contas sintéticas, Next standalone, consentimento público
+com três aceites, executor privado real e PostgreSQL efêmero; participação foi
+encerrada com e sem jogador, outra conta permaneceu preservada e nova cópia
+pessoal foi entregue. Prefixo externo conferido e nove objetos próprios
+removidos; quatro capturas móveis inspecionadas. Nenhum segredo financeiro
+real ou dado de produção participou. Recibo em
+[evidência do navegador](recreio/evidencias/encerramento-navegador-44647990093.json).
+
+Inventário completo do SDK Stripe foi provado antes/depois da interrupção e
+após término em 44647994843, com relógio/cliente próprios de teste e limpeza.
+Não comprova Checkout humano ou entrega de webhook. Revisão agora amplia os
+recortes pessoais de segurança; cobertura formal, restauração/reaplicação antes
+de tráfego, custódia/agenda/monitoramento/custo e homologação/implantação seguem
+abertos. Produção não recebeu estas migrations/capacidades; testes manuais ficam
+para o final. Os blocos abaixo são marcos anteriores, não o estado mais recente.
+
 **19/11 — Recreio, conclusão privada qualificada:** 19012dc6 passou direitos
 44641290311 e finanças 44641299325, com seis novos casos de limpeza/conclusão:
 zero jogador, lotes, auditoria recusada, concorrência, namespace e expurgo após

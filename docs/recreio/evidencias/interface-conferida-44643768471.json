@@ -1,0 +1,16 @@
+{
+  "runId": 44643768471,
+  "artifactId": 14587673300,
+  "artifactZipBytes": 739713,
+  "artifactZipSha256": "eed7d37f3e2746229e3edb8f476f997bb13e747fcca02d4525c118d359e8b5a9",
+  "visualInspectionCompleted": true,
+  "productionApplied": false,
+  "screens": [
+    {
+      "name": "direitos-previa-conta-sem-jogador.png",
+      "bytes": 257582,
+      "sha256": "663edfc611870a9fae0c9fd83a5d48fd39b7146b4dceab4ab257a53f7115c731"
+    }
+  ],
+  "scope": "Regular browser regression with declared later-state fixtures; not native account closure or actual provider confirmation."
+}

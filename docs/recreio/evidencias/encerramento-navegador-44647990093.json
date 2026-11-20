@@ -1,0 +1,43 @@
+{
+  "formato": "recreio-encerramento-prova-v1",
+  "source": "3b192f4366abdd586bae17ad0f59c3cac6315870",
+  "runId": 44647990093,
+  "livroId": "3e1d1861-643b-4207-a129-491465ee52af",
+  "boundary": "github_disposable_database_and_homologation_ledger",
+  "status": "passed",
+  "browserJourneyVerified": true,
+  "fullPrefixVerified": true,
+  "cleanupConfirmed": true,
+  "objectCount": 9,
+  "productionDataTouched": false,
+  "realFinancialCredentialsPresent": false,
+  "artifactId": 14589343696,
+  "artifactZipBytes": 886549,
+  "artifactZipSha256": "848b8eb5b75312638f8713dbaa8bd9a696f87190ed01f4b60b10a034477d590f",
+  "originalReceiptSha256": "bad49c83b997fb521f41f4e26a1071ab829d027b07434a6c51ef1e1bf2812f42",
+  "productionApplied": false,
+  "screens": [
+    {
+      "name": "encerramento-processando-390.png",
+      "bytes": 214787,
+      "sha256": "e4bdac31ea5c9597de297fba57cc5d527dddb8ff31223ec331a941529415c57a"
+    },
+    {
+      "name": "encerramento-aceites-390.png",
+      "bytes": 319692,
+      "sha256": "9fb651078cadfcc9fa53557fb0f9faa6df03d10350ec5fb007d8c8628e5b5029"
+    },
+    {
+      "name": "encerramento-concluido-390.png",
+      "bytes": 60346,
+      "sha256": "82e2d491952de2782157580f9e8df865bab552d000722100b6c67a4fc1bc4c70"
+    },
+    {
+      "name": "encerramento-sem-jogador-390.png",
+      "bytes": 324058,
+      "sha256": "7e4515743bf0ed9ba0156334eee925685d870fccd51ac4f2def73be1b980fd92"
+    }
+  ],
+  "visualInspectionCompleted": true,
+  "inspectionNotes": "Four 390px captures inspected: two checks keep confirmation disabled; zero-player preview; processing separated from completion; no horizontal overflow."
+}

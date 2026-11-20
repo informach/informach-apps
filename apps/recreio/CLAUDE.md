@@ -25,13 +25,14 @@ Checkout humano e catálogo/portal/webhook Live reais continuam pendentes.
 
 ## Camadas
 
-Em candidata, o cancelamento nativo da renovação tem recibo durável próprio
-(0237/238 recibos), aceite recente do pagante sem jogador, idempotência,
-auditoria estrita e consulta pessoal. Propostas não enviadas são encerradas
-atomicamente; novas trocas desse contrato ficam bloqueadas. Ainda não há
-provider/worker/action/tela compostos: `accepted` não significa renovação
-interrompida. Portal restrito, capacidade antiga, resposta perdida e APIs reais
-seguem no [plano de cancelamento](../../docs/recreio/cancelamento-nativo-2026-11-19.md).
+Em candidata, o cancelamento nativo da renovação tem recibo durável próprio,
+aceite recente do pagante sem jogador, idempotência, auditoria estrita,
+provider Stripe limitado ao contrato original, worker privado e interface.
+Aceite, tentativa e confirmação são fatos distintos. APIs reais de teste
+44626969668/44647994843 comprovaram parada, replay, término e inventário completo;
+não comprovam Checkout humano, webhook ou operação Live. Portal nativo separado,
+capacidades antigas e ativação ainda precisam de homologação; o modo padrão
+continua legado/off. [Plano](../../docs/recreio/cancelamento-nativo-2026-11-19.md).
 
 Na candidata F7, `features/direitos` mantém a prévia e a confirmação de
 retirada separadas em `/conta/dados`. Consentimento/outbox, fotos/resumo/diário,
@@ -46,32 +47,37 @@ conferido. Nenhum argumento ou formulário cria livro/consentimento implícito.
 O plano externo imutável passou no bucket real em 44577680233, com limpeza;
 não é reaplicação nativa num banco restaurado.
 
-A cópia pessoal do perfil usa fotografia SQL consistente e páginas explícitas;
-o artefato AES-GCM de dez minutos fica em `personal_exports`, ligado ao login,
-aparelho, perfil, política e responsabilidade atuais. `RECREIO_EXPORT_MODE`
-é off por padrão e usa keyring próprio. Download via POST da mesma origem,
-revalidação depois de abrir, revogação/substituição atômica e expiração na
-manutenção. 98 casos/8 arquivos passaram em 44591852000/7b41f7ac; navegador
-e gates completos ainda em qualificação. Não é exportação integral da conta.
+As cópias pessoais do perfil e da conta/pagante usam fotografia SQL consistente,
+projeções explícitas e páginas limitadas, sem conteúdo compartilhado, contratos
+de outro adulto ou credenciais. O artefato AES-GCM de dez minutos fica em
+`personal_exports`, ligado ao login/aparelho/revisão de participação e, quando
+aplicável, perfil/política/responsabilidade atuais. Revalidar antes de abrir e
+antes de entregar os bytes; nova captura substitui a anterior. Download é POST
+da mesma origem e manutenção expurga o corpo/recibo no prazo original.
+`RECREIO_EXPORT_MODE=off` e keyring próprio por padrão. Migração 0239 acrescenta
+a revisão de participação; 240 recibos candidatos, nenhum aplicado em produção.
+Cobertura de segurança pessoal está em ampliação; inventário integral formal
+continua separado da existência do download.
 
-Conta/pagante também possui cópia própria, sem exigir jogador: 100 casos e
-upgrade 234→235 em 44598475811; quatro jornadas reais em 44596490165. A fonte
-851821a8 passou os dezesseis gates 44600003119, usando o Morada efetivamente
-publicado 644b3841/protocolo 1. Composição Live 21b5cd72 passou quality
-44601426279 e os dezesseis gates 44601444985, sem ativação ou cobrança real.
+A barreira `account_participations` distingue atividade, direitos e gestão
+financeira. Novas operações exigem active atual. Encerramento público exige
+prévia V2, três aceites separados, autenticação nativa recente e capacidade
+`RECREIO_ACCOUNT_CLOSURE_MODE=native`, off por padrão, com custódia/livro e
+processadores financeiros completos. A mesma TX grava consentimento, cerca,
+outbox e conferência financeira. Efeitos nos perfis só começam depois da
+confirmação financeira própria; mundos são liberados após o último sujeito.
+Limpeza de conta em lotes e conclusão closed3/operação completed são atômicas
+com auditoria. Identidade global, períodos/recibos financeiros, terceiros e
+referências técnicas nos prazos originais permanecem preservados.
 
-A barreira candidata `account_participations` distingue atividade de direitos
-e gestão financeira: novas operações exigem estado ativo atual; leitura de
-direitos e consulta/cancelamento financeiro preservam autenticação nativa.
-O kernel de jogo, seleção com PIN, aceite em grupo e início de teste também
-conferem a participação aplicável. 0235/0236 foram geradas separadamente para
-garantir UNIQUE antes da FK; 237 recibos, qualificação remota em curso. Não há
-writer público de estado ou encerramento completo. [Plano e geração](../../docs/recreio/encerramento-conta-2026-11-19.md).
-
-Encerramento, cobertura integral das cópias, reaplicação nativa/restauração,
-custódia/agenda/alertas e homologação permanecem em implementação; nenhuma
-ativação desta frente em produção. Contratos e falhas em
-[retirada e recuperação](../../docs/recreio/congelamento-direitos-2026-11-19.md).
+3b192f43 passou direitos/qualidade 44647230157/44647234026; navegador nativo
+44647990093 provou consentimento/action/CLI reais com e sem jogador, terceira
+conta preservada e nova cópia depois de closed. Prefixo externo completo e
+limpeza de nove objetos exclusivos foram comprovados; quatro capturas móveis
+inspecionadas. Nenhum dado de produção ou segredo financeiro real foi usado.
+Reaplicação nativa antes de tráfego, cobertura formal, custódia/agenda/alertas,
+custo, gates finais e implantação permanecem abertos. Nenhuma destas capacidades
+foi ativada em produção. [Plano e evidências](../../docs/recreio/encerramento-conta-2026-11-19.md).
 
 Autoridade recente própria ou responsabilidade explícita independe de
 assinatura/gameplay. A conta do adulto pode administrar com zero jogadores;

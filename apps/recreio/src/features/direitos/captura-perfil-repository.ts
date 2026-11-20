@@ -22,6 +22,7 @@ import { assertAllowed } from "@/lib/errors";
 import { comPerfilPessoal } from "./autoridade-repository";
 import { lerCadastroPessoalNaTransacao } from "./cadastro-repository";
 import { criarArquivoPessoal, LIMITES_DA_COPIA_PESSOAL as limites } from "./captura-contrato";
+import { copiarSegurancaPessoalNaTransacao } from "./captura-seguranca-repository";
 import { JogoPessoalIdSchema } from "./contrato";
 import { lerDadosPessoaisNaTransacao } from "./dados-repository";
 
@@ -65,6 +66,8 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
             "bloqueio_proprio",
             "convite_mundo",
             "restricao",
+            "denuncia_propria",
+            "recurso_restricao",
           ],
           conteudoCompartilhadoIncluido: false,
           financeiroIncluido: false,
@@ -285,6 +288,12 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
           .from(restrictions)
           .where(eq(restrictions.profileId, perfil.id));
         if (restricao) arquivo.adicionar("restricao", restricao);
+        await copiarSegurancaPessoalNaTransacao(
+          tx,
+          { contaId: autor.contaId, perfilId: perfil.id },
+          arquivo,
+          conferirPrazo,
+        );
         await logAuditEventStrict(
           "recreio.profile_personal_capture_prepared",
           autor.contaId,

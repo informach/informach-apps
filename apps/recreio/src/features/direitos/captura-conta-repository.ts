@@ -24,6 +24,7 @@ import { lerParticipacaoDoRecreioLocked } from "@/features/account/participacao-
 import { assertAllowed } from "@/lib/errors";
 import { comContaPessoal } from "./autoridade-repository";
 import { criarArquivoPessoal, LIMITES_DA_COPIA_PESSOAL as limites } from "./captura-contrato";
+import { copiarSegurancaPessoalNaTransacao } from "./captura-seguranca-repository";
 
 /** Projeções da própria conta/pagante no Recreio. A mesma pessoa em outro
  * aplicativo não amplia o escopo; pertencer à família não concede faturas
@@ -55,6 +56,8 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "periodo_financeiro",
             "previa_direitos",
             "pedido_direitos",
+            "denuncia_propria",
+            "recurso_restricao",
           ],
           dadosDePerfisIncluidos: false,
           conteudoCompartilhadoIncluido: false,
@@ -325,6 +328,12 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             )
             .orderBy(operations.id)
             .limit(limites.pagina),
+        );
+        await copiarSegurancaPessoalNaTransacao(
+          tx,
+          { contaId: autor.contaId, perfilId: null },
+          arquivo,
+          prazo,
         );
         await logAuditEventStrict(
           "recreio.account_personal_capture_prepared",

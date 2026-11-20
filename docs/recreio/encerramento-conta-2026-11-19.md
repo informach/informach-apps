@@ -506,3 +506,26 @@ pelo SDK antes do manifesto. Corrigidas as duas fronteiras por valores locais
 validados, sem cast, valor substituto ou relaxamento do inventário. A prova no
 bucket não foi iniciada a partir dessa fonte recusada. A qualificação precisa
 ser repetida na correção.
+
+### Provas atuais e revisão da cobertura
+
+3b192f43 passou direitos 44647230157 e quality 44647234026. A jornada nativa
+44647990093 concluiu com e sem jogador pelo consentimento/action/CLI reais,
+preservou a terceira conta e entregou nova cópia depois de closed. O prefixo
+foi conferido e nove objetos exclusivos removidos com ausência confirmada.
+Quatro capturas de 390 px foram inspecionadas; recibo/ZIP/hash preservados em
+`evidencias/encerramento-navegador-44647990093.json`. Nenhum segredo financeiro
+real ou dado de produção foi usado. O inventário real Stripe também passou
+44647994843 nas três fases, com limpeza do relógio/cliente de teste;
+`evidencias/inventario-stripe-44647994843.json`. Não homologa Checkout humano,
+webhook, conta com pagamento real ou restauração.
+
+A cópia pessoal precisa incluir denúncias emitidas pelo perfil e recursos que
+já são visíveis no acompanhamento próprio, além dos atos originais da própria
+conta mesmo após desvinculação do perfil. Selecionar apenas projeção explícita,
+paginar em lotes de cem na mesma fotografia/autorização, sem alvo, denunciante
+alheio, moderador, evidência, hash ou chave de repetição. Ser alvo nunca permite
+obter denúncia. Provar mais de uma página, segredo da outra ponta, recurso de
+outro adulto fechado e conta sem jogador com autoria preservada. Essa ampliação
+não altera as retenções de segurança nem concede acesso administrativo.
+Revisão de aprovações e inventário formal de todas as fontes continua na sequência.

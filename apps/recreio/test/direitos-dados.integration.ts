@@ -13,6 +13,8 @@ import {
   recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
   recreioMinorProtection as protection,
+  recreioSafetyReports as reports,
+  recreioRestrictionReviews as reviews,
   sessions,
   recreioSpaceMembers as spaceMembers,
   recreioSpaces as spaces,
@@ -22,6 +24,7 @@ import {
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
 import { capturarDadosPessoaisDoPerfil } from "@/features/direitos/captura-perfil-repository";
 import {
   cancelarPreviaDeDireitos,
@@ -110,6 +113,169 @@ const copiar = (autor: AutorNativoRecente, perfilId: string, jogo = JOGO) =>
   prepararCopiaPessoalDoJogo(autor, { perfilId, jogo });
 
 describe("direitos: captura pessoal consistente", () => {
+  it("copia todas as páginas de denúncias próprias e recursos sem revelar denúncias contra o perfil ou decisões de outro adulto", async () => {
+    const a = await adulto(),
+      b = await adulto();
+    const agora = new Date(),
+      expiraEm = new Date(agora.getTime() + 86_400_000);
+    const proprias = await db
+      .insert(reports)
+      .values(
+        Array.from({ length: 205 }, () => ({
+          reporterProfileId: proprio(a),
+          targetProfileId: proprio(b),
+          actorUserId: a.conta.id,
+          actorKind: "jogador" as const,
+          clientKey: crypto.randomUUID(),
+          requestHash: "a".repeat(64),
+          category: "outro" as const,
+          priority: false,
+          evidenceKind: "protecao" as const,
+          createdAt: agora,
+          updatedAt: agora,
+          expiresAt: expiraEm,
+        })),
+      )
+      .returning({ id: reports.id });
+    const [contra] = await db
+      .insert(reports)
+      .values({
+        reporterProfileId: proprio(b),
+        targetProfileId: proprio(a),
+        actorUserId: b.conta.id,
+        actorKind: "jogador",
+        clientKey: crypto.randomUUID(),
+        requestHash: "b".repeat(64),
+        category: "ameaca",
+        priority: true,
+        evidenceKind: "protecao",
+        createdAt: agora,
+        updatedAt: agora,
+        expiresAt: expiraEm,
+      })
+      .returning({ id: reports.id });
+    const [proprioRecurso] = await db
+      .insert(reviews)
+      .values({
+        profileId: proprio(a),
+        restrictionRevision: 1,
+        clientKey: crypto.randomUUID(),
+        requestHash: "c".repeat(64),
+        actorUserId: a.conta.id,
+        actorKind: "titular",
+        createdAt: agora,
+        expiresAt: expiraEm,
+      })
+      .returning({ id: reviews.id });
+    const [alheio] = await db
+      .insert(reviews)
+      .values({
+        profileId: proprio(a),
+        restrictionRevision: 2,
+        clientKey: crypto.randomUUID(),
+        requestHash: "d".repeat(64),
+        actorUserId: b.conta.id,
+        actorKind: "responsavel",
+        state: "resolvido",
+        decision: "manter",
+        createdAt: agora,
+        resolvedAt: agora,
+        expiresAt: expiraEm,
+      })
+      .returning({ id: reviews.id });
+    if (!contra || !proprioRecurso || !alheio) throw new Error("Safety fixtures absent");
+    for (const captura of [
+      await capturarDadosPessoaisDoPerfil(a.autor, proprio(a)),
+      await capturarDadosPessoaisDaConta(a.autor),
+    ]) {
+      try {
+        const texto = captura.bytes.toString("utf8");
+        expect(
+          texto.split("\n").filter((l) => l.startsWith('{"tipo":"denuncia_propria"')),
+        ).toHaveLength(205);
+        for (const propria of proprias) expect(texto).toContain(propria.id);
+        expect(texto).toContain(proprioRecurso.id);
+        for (const privado of [
+          contra.id,
+          alheio.id,
+          proprio(b),
+          b.conta.id,
+          b.conta.email,
+          "targetProfileId",
+          "moderatorUserId",
+          "evidenceKind",
+          "requestHash",
+          "a".repeat(64),
+          "b".repeat(64),
+          "c".repeat(64),
+          "d".repeat(64),
+        ])
+          expect(texto).not.toContain(privado);
+      } finally {
+        captura.bytes.fill(0);
+      }
+    }
+    await expect(capturarDadosPessoaisDoPerfil(b.autor, proprio(a))).rejects.toMatchObject({
+      code: "PERFIL",
+    });
+  });
+  it("a conta sem jogador conserva seus atos de segurança com perfil já desvinculado, sem herdar atos de terceiros", async () => {
+    const a = await adulto(false),
+      b = await adulto();
+    const agora = new Date(),
+      expiraEm = new Date(agora.getTime() + 86_400_000);
+    const [propria] = await db
+      .insert(reports)
+      .values({
+        reporterProfileId: null,
+        targetProfileId: proprio(b),
+        actorUserId: a.conta.id,
+        actorKind: "responsavel",
+        clientKey: crypto.randomUUID(),
+        requestHash: "e".repeat(64),
+        category: "outro",
+        priority: false,
+        evidenceKind: "protecao",
+        createdAt: agora,
+        updatedAt: agora,
+        expiresAt: expiraEm,
+      })
+      .returning({ id: reports.id });
+    const [alheia] = await db
+      .insert(reports)
+      .values({
+        reporterProfileId: proprio(b),
+        actorUserId: b.conta.id,
+        actorKind: "jogador",
+        clientKey: crypto.randomUUID(),
+        requestHash: "f".repeat(64),
+        category: "ameaca",
+        priority: true,
+        evidenceKind: "protecao",
+        createdAt: agora,
+        updatedAt: agora,
+        expiresAt: expiraEm,
+      })
+      .returning({ id: reports.id });
+    if (!propria || !alheia) throw new Error("Safety fixtures absent");
+    const captura = await capturarDadosPessoaisDaConta(a.autor);
+    try {
+      const texto = captura.bytes.toString("utf8");
+      expect(texto).toContain(propria.id);
+      expect(texto).toContain('"registradaPorMim":true');
+      for (const privado of [
+        alheia.id,
+        proprio(b),
+        b.conta.id,
+        b.conta.email,
+        "e".repeat(64),
+        "f".repeat(64),
+      ])
+        expect(texto).not.toContain(privado);
+    } finally {
+      captura.bytes.fill(0);
+    }
+  });
   it("inclui jogos históricos e todas as páginas próprias sem exportar credenciais ou conteúdo compartilhado", async () => {
     const a = await adulto(),
       b = await adulto();
