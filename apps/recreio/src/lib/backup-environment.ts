@@ -60,6 +60,7 @@ export function configuracaoDoBackupDoProcesso(
     vars.RECREIO_OBJECTS_MODE = "read";
     arquivo = configuracaoDosObjetosDoProcesso(vars) ?? undefined;
     if (!arquivo || fotos.escopo !== arquivo.escopo) return falhar();
+    const materiaisDoArquivo = [...arquivo.chaves.values()];
     const qualification = arquivo.escopo === "qualification";
     const url = new URL(input.DATABASE_URL ?? "");
     if (
@@ -91,9 +92,7 @@ export function configuracaoDoBackupDoProcesso(
         fotos.bucketName === arquivo.bucketName ||
         fotos.accessKeyId === arquivo.accessKeyId ||
         fotos.secretAccessKey === arquivo.secretAccessKey ||
-        [...fotos.chaves.values()].some((a) =>
-          [...arquivo.chaves.values()].some((b) => a.equals(b)),
-        )
+        [...fotos.chaves.values()].some((a) => materiaisDoArquivo.some((b) => a.equals(b)))
       )
         return falhar();
     }
