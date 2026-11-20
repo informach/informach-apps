@@ -120,6 +120,7 @@ export async function lerCadastroPessoalNaTransacao(
       apelido: perfil.nickname,
       avatar: perfil.avatar,
       estado: perfil.status,
+      coberturaHabilitada: perfil.coverageEnabled,
       criadoEm: perfil.createdAt.toISOString(),
       atualizadoEm: perfil.updatedAt.toISOString(),
     },

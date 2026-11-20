@@ -25,6 +25,7 @@ export interface CopiaDoCadastroPessoal {
     apelido: string;
     avatar: string;
     estado: "active" | "suspended";
+    coberturaHabilitada: boolean;
     criadoEm: string;
     atualizadoEm: string;
   };

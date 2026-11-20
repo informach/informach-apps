@@ -681,3 +681,20 @@ emprestar metadados à credencial selecionada. A prova usa FK/CHECK reais, alter
 somente fixture sintética, exige falha de integridade e restaura o campo no
 finally. Hashes de token/código/polling persistidos são confrontados com os
 bytes da cópia para comprovar sua ausência. Novos gates ainda pendentes.
+
+
+### Cobertura complementar de cadastro e finanças — 20/11
+
+58b77c82 passou direitos 44762618290: 150 testes/16 arquivos e upgrade
+234 para 241 recibos com dados preservados. Qualidade 44762623974 em curso.
+
+Novo incremento acrescenta grupo próprio, intenções de cadastro sem fingerprint,
+cobertura do perfil e vínculos pessoais em convites antigos/propostas de
+responsabilidade. Nenhum vínculo confere administração ou conteúdo compartilhado.
+A cópia da conta lê os contratos nativos atuais, conciliação e observações,
+capturas e períodos de origem próprios, na mesma fotografia autorizada. As páginas
+usam UUIDs/tuplas nativos, limite 100 e os limites globais originais. Hashes,
+leases, preços internos e segredos não são exportados. Uma cobrança pode constar
+em várias provas; o arquivo declara expressamente que não soma nem rateia valores.
+Testes novos incluem mais de uma página, outra conta e observações repetidas.
+Este incremento ainda aguarda gates remotos; nenhuma ativação em produção.

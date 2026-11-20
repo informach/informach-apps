@@ -38,6 +38,9 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
     // These are explicit historical record fixtures, not proof of native
     // approval/transfer UX. FK/CHECKs remain active and all six sources are read.
     await fonte.begin(async (tx) => {
+      for (const f of [familia, outra])
+        await tx`insert into recreio.profile_creation_requests (user_id,expires_at)
+          select ${f.conta.id},statement_timestamp()+interval '1 hour' from generate_series(1,105)`;
       await tx`insert into recreio.friend_requests
         (origin_profile_id,target_profile_id,client_key,request_hash,state,created_at,expires_at,finished_at)
         select ${familia.perfil.id},${host.perfil.id},gen_random_uuid(),${"a".repeat(64)},'rejected',
@@ -93,6 +96,14 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
       >`insert into recreio.space_members (space_id,profile_id,role,state)
         values (${mundo},${familia.perfil.id},'member','active') returning id`;
       if (!membro) throw new Error("Member fixture absent");
+      const [alheio] = await tx<
+        { id: string }[]
+      >`insert into recreio.space_members (space_id,profile_id,role,state)
+        values (${mundo},${outra.perfil.id},'member','active') returning id`;
+      if (!alheio) throw new Error("Other member fixture absent");
+      for (const emissor of [membro, alheio])
+        await tx`insert into recreio.space_invites (space_id,invited_by_member_id,form,code_hash,state,expires_at)
+          values (${mundo},${emissor.id},'member',${randomUUID().replaceAll("-", "")},'revoked',statement_timestamp()+interval '1 hour')`;
       await tx`insert into recreio.space_stewardship_requests
         (id,space_id,from_member_id,to_member_id,state,expires_at,completed_at)
         select ${sucessao},space_id,${membro.id},id,'accepted',statement_timestamp()+interval '1 hour',statement_timestamp()
@@ -161,6 +172,12 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
         expect(
           texto.split("\n").filter((l) => l.startsWith('{"tipo":"aviso_social"')),
         ).toHaveLength(autor.contaId === familia.conta.id ? 1 : 0);
+        expect(
+          texto.split("\n").filter((l) => l.startsWith('{"tipo":"grupo_proprio"')),
+        ).toHaveLength(1);
+        const criacoes = texto.split("\n").filter((l) => l.startsWith('{"tipo":"criacao_perfil"'));
+        if (autor.contaId === familia.conta.id) expect(criacoes.length).toBeGreaterThanOrEqual(105);
+        else expect(criacoes).toHaveLength(0);
         for (const privado of [
           ...ocultos,
           outra.conta.id,
@@ -176,6 +193,7 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
           "pollHash",
           "codeHash",
           "vinculoConfere",
+          "fingerprint",
         ])
           expect(texto).not.toContain(privado);
       } finally {
@@ -189,6 +207,13 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
         texto.split("\n").filter((l) => l.startsWith('{"tipo":"convite_visita"')),
       ).toHaveLength(1);
       expect(texto).toContain(mundo);
+      expect(
+        texto.split("\n").filter((l) => l.startsWith('{"tipo":"convite_mundo_anterior"')),
+      ).toHaveLength(1);
+      expect(
+        texto.split("\n").filter((l) => l.startsWith('{"tipo":"proposta_responsabilidade_mundo"')),
+      ).toHaveLength(1);
+      expect(texto).toContain('"coberturaHabilitada":true');
       for (const privado of [
         host.conta.id,
         host.conta.email,
@@ -196,6 +221,7 @@ it("exporta seis origens de aprovações próprias, mais de uma página, sem her
         "hostSessionId",
         "accessGeneration",
         "requestHash",
+        "codeHash",
       ])
         expect(texto).not.toContain(privado);
     } finally {

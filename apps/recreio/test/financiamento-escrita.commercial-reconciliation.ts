@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, db, eq, inArray, sql } from "@informach/db";
 import {
+  recreioFundingCaptures as captures,
   recreioBillingContracts as contracts,
   recreioPaymentFunding as current,
   events,
@@ -9,6 +10,7 @@ import {
   recreioFundingSourcePeriods as sources,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   confirmarConciliacaoLocked,
   iniciarConciliacaoLocked,
@@ -21,6 +23,7 @@ import { prepararPeriodosDoFinanciamento } from "@/features/cobranca/financiamen
 import { persistirFinanciamentoLocked } from "@/features/cobranca/financiamento-repository";
 import type { ConferenciaFinanceiraDoCliente } from "@/features/cobranca/financiamento-stripe";
 import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
+import { capturarDadosPessoaisDaConta } from "@/features/direitos/captura-conta-repository";
 import { fixtureDeFinanciamento } from "./financiamento-stripe-apoio";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
 
@@ -137,6 +140,124 @@ async function fixture() {
 }
 
 describe("escrita nativa das provas de financiamento", () => {
+  it("copia contrato, observações, capturas e fontes somente do pagante, sem somar provas repetidas", async () => {
+    const f = await fixture(),
+      outra = await fixture();
+    await f.gravar(await f.tentativa(), await f.ler());
+    const estados = await f.estados(),
+      original = estados.find(
+        (e) => e.periodo.providerLineId === f.financeiro.identidade("il_original"),
+      );
+    if (!original) throw new Error("Original period absent");
+    // Additional historical copy fixtures exercise compound pagination, not
+    // provider reconciliation or the economic validity of a synthetic charge.
+    await db.insert(observations).values(
+      Array.from({ length: 105 }, () => ({
+        paymentPeriodId: original.periodo.id,
+        subscriptionId: f.contrato.subscriptionId,
+        provider: "stripe" as const,
+        purchaseId: f.contrato.purchaseId,
+        groupId: f.contrato.groupId,
+        payerUserId: f.adulto.conta.id,
+        providerMode: "dev" as const,
+        originProductId: f.contrato.originProductId,
+        fundingStatus: "review" as const,
+        fundedUntil: original.prova.fundedUntil,
+        policyVersion: "copy-fixture-v1",
+        evidenceHash: `${randomUUID()}${randomUUID()}`.replaceAll("-", ""),
+        firstObservedAt: new Date(),
+      })),
+    );
+    await db.insert(captures).values(
+      Array.from({ length: 105 }, (_, n) => ({
+        observationId: original.prova.id,
+        providerChargeId: `ch_copy_${n.toString().padStart(3, "0")}`,
+        amountCapturedCents: 1,
+        amountRefundedCents: 0,
+        disputed: false,
+      })),
+    );
+    await db.insert(sources).values(
+      Array.from({ length: 105 }, (_, n) => ({
+        observationId: original.prova.id,
+        providerChargeId: `ch_copy_${n.toString().padStart(3, "0")}`,
+        sourcePaymentPeriodId: original.periodo.id,
+        sourceSubscriptionId: f.contrato.subscriptionId,
+        sourcePurchaseId: f.contrato.purchaseId,
+        sourceOriginProductId: f.contrato.originProductId,
+        provider: "stripe" as const,
+        groupId: f.contrato.groupId,
+        payerUserId: f.adulto.conta.id,
+        providerMode: "dev" as const,
+      })),
+    );
+    const propias = await db
+      .select()
+      .from(observations)
+      .where(eq(observations.payerUserId, f.adulto.conta.id));
+    const ids = propias.map((o) => o.id);
+    const capturas = await db.select().from(captures).where(inArray(captures.observationId, ids));
+    const origens = await db.select().from(sources).where(inArray(sources.observationId, ids));
+    const copia = await capturarDadosPessoaisDaConta(f.adulto.autor);
+    try {
+      const texto = copia.bytes.toString("utf8");
+      const Linha = z.object({ tipo: z.string(), dados: z.record(z.string(), z.unknown()) });
+      const linhas = texto
+        .trim()
+        .split("\n")
+        .map((l) => Linha.parse(JSON.parse(l)));
+      const secao = (tipo: string) => linhas.filter((l) => l.tipo === tipo).map((l) => l.dados);
+      expect(secao("contrato_nativo")).toEqual([
+        expect.objectContaining({
+          assinaturaReferencia: f.contrato.subscriptionId,
+          produtoOriginal: f.contrato.originProductId,
+          produtoAtual: f.contrato.currentProductId,
+          revisao: f.contrato.revision,
+        }),
+      ]);
+      expect(secao("conferencia_financeira")).toHaveLength(1);
+      expect(secao("observacao_financiamento")).toHaveLength(propias.length);
+      expect(secao("captura_observada")).toHaveLength(capturas.length);
+      expect(secao("origem_financiamento")).toHaveLength(origens.length);
+      expect(secao("leitura_financiamento")).toEqual([
+        {
+          valoresDeCapturasPodemSeRepetirEntreObservacoes: true,
+          valoresDeCapturasNaoRepresentamRateioPorPeriodo: true,
+          totaisCalculados: false,
+        },
+      ]);
+      const cobrancaRepetida = origens.filter(
+        (o) =>
+          o.sourcePaymentPeriodId === original.periodo.id &&
+          !o.providerChargeId.startsWith("ch_copy_"),
+      );
+      expect(cobrancaRepetida.length).toBeGreaterThan(1);
+      for (const c of capturas)
+        expect(secao("captura_observada")).toContainEqual({
+          observacaoReferencia: c.observationId,
+          cobrancaReferencia: c.providerChargeId,
+          valorCapturadoCentavos: c.amountCapturedCents,
+          valorEstornadoCentavos: c.amountRefundedCents,
+          contestado: c.disputed,
+        });
+      for (const segredo of [
+        outra.adulto.conta.id,
+        outra.adulto.conta.email,
+        outra.contrato.subscriptionId,
+        outra.recibo.id,
+        outra.providerCustomerId,
+        f.providerCustomerId,
+        f.contrato.originPriceId,
+        "leaseToken",
+        "leaseUntil",
+        "evidenceHash",
+        ...propias.map((o) => o.evidenceHash),
+      ])
+        expect(texto).not.toContain(segredo);
+    } finally {
+      copia.bytes.fill(0);
+    }
+  });
   it("preserva o período anual, limita sua prova e registra fontes e auditoria sem valores", async () => {
     const f = await fixture(),
       conferencia = await f.ler(),

@@ -1,8 +1,10 @@
 import "server-only";
 import { and, eq, gt, sql } from "@informach/db";
 import {
+  recreioProfileCreationRequests as creations,
   recreioPairedCredentials as credentials,
   recreioDeviceSessions as devices,
+  recreioGroups as groups,
   recreioSocialNotices as notices,
   recreioPairingRequests as pairing,
 } from "@informach/db/schema";
@@ -39,6 +41,28 @@ export async function copiarAtividadesPessoaisNaTransacao(
       if (linhas.length < limites.pagina) return;
     }
   }
+  await paginas("grupo_proprio", (apos) =>
+    tx
+      .select({ cursor: groups.id, criadoEm: groups.createdAt })
+      .from(groups)
+      .where(and(eq(groups.ownerUserId, contaId), apos ? gt(groups.id, apos) : undefined))
+      .orderBy(groups.id)
+      .limit(limites.pagina),
+  );
+  await paginas("criacao_perfil", (apos) =>
+    tx
+      .select({
+        cursor: creations.id,
+        perfilReferencia: creations.profileId,
+        criadaEm: creations.createdAt,
+        expiraEm: creations.expiresAt,
+        consumidaEm: creations.consumedAt,
+      })
+      .from(creations)
+      .where(and(eq(creations.userId, contaId), apos ? gt(creations.id, apos) : undefined))
+      .orderBy(creations.id)
+      .limit(limites.pagina),
+  );
   await paginas("aparelho_pareado", (apos) =>
     tx
       .select({

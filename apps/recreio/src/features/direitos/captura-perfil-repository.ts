@@ -9,9 +9,11 @@ import {
   recreioGameSessions as games,
   recreioGuardianLinks as guardians,
   recreioProfileDataKeys as keys,
+  recreioSpaceInvites as legacyInvites,
   recreioSpaceMembers as members,
   recreioFriendRequests as requests,
   recreioProfileRestrictions as restrictions,
+  recreioSpaceStewardshipRequests as stewardship,
   recreioMinorDailyUsage as usage,
   recreioSpaceVisitInvites as visitInvites,
   recreioWorldVisits as visits,
@@ -70,6 +72,8 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
             "denuncia_propria",
             "recurso_restricao",
             "convite_visita",
+            "convite_mundo_anterior",
+            "proposta_responsabilidade_mundo",
           ],
           conteudoCompartilhadoIncluido: false,
           financeiroIncluido: false,
@@ -134,6 +138,65 @@ export async function capturarDadosPessoaisDoPerfil(autor: AutorNativoRecente, p
             .from(members)
             .where(and(eq(members.profileId, perfil.id), apos ? gt(members.id, apos) : undefined))
             .orderBy(members.id)
+            .limit(limites.pagina),
+        );
+        // Historical participation is personal data, not present authority to
+        // administer a world or read the other participant's account/content.
+        const emitiuConvite = sql<boolean>`exists(select 1 from ${members}
+          where ${members.id}=${legacyInvites.invitedByMemberId} and ${members.profileId}=${perfil.id})`;
+        await paginas("convite_mundo_anterior", (apos) =>
+          tx
+            .select({
+              cursor: legacyInvites.id,
+              mundoId: legacyInvites.spaceId,
+              emitidoPorMim: emitiuConvite,
+              dirigidoAMim: sql<boolean>`coalesce(${legacyInvites.targetProfileId}=${perfil.id},false)`,
+              aceitoPorMim: sql<boolean>`coalesce(${legacyInvites.acceptedByProfileId}=${perfil.id},false)`,
+              forma: legacyInvites.form,
+              participacao: legacyInvites.participation,
+              estado: legacyInvites.state,
+              criadoEm: legacyInvites.createdAt,
+              expiraEm: legacyInvites.expiresAt,
+              aceitoEm: legacyInvites.acceptedAt,
+            })
+            .from(legacyInvites)
+            .where(
+              and(
+                or(
+                  emitiuConvite,
+                  eq(legacyInvites.targetProfileId, perfil.id),
+                  eq(legacyInvites.acceptedByProfileId, perfil.id),
+                ),
+                apos ? gt(legacyInvites.id, apos) : undefined,
+              ),
+            )
+            .orderBy(legacyInvites.id)
+            .limit(limites.pagina),
+        );
+        const proposResponsabilidade = sql<boolean>`exists(select 1 from ${members}
+          where ${members.id}=${stewardship.fromMemberId} and ${members.profileId}=${perfil.id})`;
+        const recebeuResponsabilidade = sql<boolean>`exists(select 1 from ${members}
+          where ${members.id}=${stewardship.toMemberId} and ${members.profileId}=${perfil.id})`;
+        await paginas("proposta_responsabilidade_mundo", (apos) =>
+          tx
+            .select({
+              cursor: stewardship.id,
+              mundoId: stewardship.spaceId,
+              propostaPorMim: proposResponsabilidade,
+              dirigidaAMim: recebeuResponsabilidade,
+              estado: stewardship.state,
+              criadaEm: stewardship.createdAt,
+              expiraEm: stewardship.expiresAt,
+              concluidaEm: stewardship.completedAt,
+            })
+            .from(stewardship)
+            .where(
+              and(
+                or(proposResponsabilidade, recebeuResponsabilidade),
+                apos ? gt(stewardship.id, apos) : undefined,
+              ),
+            )
+            .orderBy(stewardship.id)
             .limit(limites.pagina),
         );
         await paginas("convite_visita", (apos) =>
