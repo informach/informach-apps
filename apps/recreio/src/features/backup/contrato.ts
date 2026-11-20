@@ -4,6 +4,8 @@ import { conferirReferenciaDoObjeto } from "@/features/objetos/criptografia";
 
 // Par de int32: também permite conferir o proprietário em pg_locks sem hash.
 export const BARREIRA_CAPTURA_COLETA = Object.freeze({ grupo: 1_380_270_930, chave: 8 });
+/** Job lifetime, distinct from the short snapshot/collection barrier. */
+export const BARREIRA_EXECUTOR_BACKUP = Object.freeze({ grupo: 1_380_270_930, chave: 9 });
 export const DestinoDeCapturaSchema = z.strictObject({
   bucketId: z.uuid(),
   bucketName: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/),

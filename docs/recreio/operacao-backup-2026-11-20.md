@@ -83,3 +83,23 @@ fixture sintética, não cadência/retenção real. Gates ainda pendentes.
 Ainda faltam a composição protegida de ambiente/credenciais, a exclusão de
 execuções concorrentes, reconciliação das operações interrompidas, custódia e
 prova real antes da agenda. O núcleo sozinho não habilita serviço ou cron.
+
+
+## Coordenação limitada em candidata
+
+O núcleo passa a exigir uma capacidade emitida por uma transação READ ONLY
+própria que mantém uma trava de executor distinta da barreira de captura/GC.
+Outra execução retorna ocupada sem esperar ou entrar no callback. O prazo
+é limitado a quinze minutos; PID e posse reais são reconferidos entre fases.
+Cópia e uso após término são recusados. Encerramento/perda da conexão aborta
+o sinal e o proprietário aguarda a tarefa já iniciada antes de devolver.
+I/O já emitido continua sujeito aos prazos e recibos nativos; o escopo não
+fabrica prova de que uma escrita remota não ocorreu.
+
+As regressões preparadas executam concorrência real, derrubam somente a sessão
+coordenadora do banco descartável, exigem aborto sem nova fase, aguardam a
+tarefa proprietária, repetem a aquisição e preservam o erro original de callback.
+Não há ponte de teste, timeout maior, flag de bypass ou teste pesado local.
+O núcleo de publicação também reconfere a capacidade antes/depois do arquivo,
+PUT, índice e lote de reservas. Credenciais/ambiente, reconciliação e agenda
+produtiva permanecem nas etapas seguintes; gates desta candidata pendentes.

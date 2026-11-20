@@ -5,6 +5,7 @@ import { DestinoDeCapturaSchema, FalhaDaCaptura } from "../../src/features/backu
 import type { criarCifradorDeArquivos } from "./arquivo-cifrado";
 import type { criarArquivoComposto } from "./arquivo-composto";
 import type { criarTransporteDeArquivosS3 } from "./arquivo-s3";
+import { conferirExecucaoDoBackup, type ExecucaoDoBackup } from "./execucao-exclusiva";
 import type { criarIndiceDeRecuperacao } from "./indice-recuperacao";
 import type { criarArmazenamentoDoIndiceS3 } from "./indice-s3";
 import type { criarMontadorDaCaptura } from "./montar-captura";
@@ -16,6 +17,7 @@ import { publicarCapturaGuardada } from "./publicar-captura";
  * available for reconciliation; it never guesses that a PUT did not happen,
  * retires an uncertain archive or retries with another encryption reference. */
 export async function capturarEPublicarBackup(config: {
+  execucao: ExecucaoDoBackup;
   origemObjetos: z.input<typeof DestinoDeCapturaSchema>;
   destinoArquivo: z.input<typeof DestinoDeCapturaSchema>;
   source: string;
@@ -37,6 +39,7 @@ export async function capturarEPublicarBackup(config: {
     aberto: FileHandle;
   };
 }) {
+  await conferirExecucaoDoBackup(config.execucao);
   const origem = DestinoDeCapturaSchema.parse(config.origemObjetos),
     destino = DestinoDeCapturaSchema.parse(config.destinoArquivo),
     source = z
@@ -68,6 +71,7 @@ export async function capturarEPublicarBackup(config: {
     identidades.add(id);
   }
   const a = config.arquivos;
+  await conferirExecucaoDoBackup(config.execucao);
   const captura = await comCapturaConsistente(origem, (c) =>
     config.montador.montar(
       c,
@@ -75,11 +79,13 @@ export async function capturarEPublicarBackup(config: {
       config.chavesFotografias,
     ),
   );
+  await conferirExecucaoDoBackup(config.execucao);
   const arquivo = await config.cifrador.cifrar(a.composto, a.cifrado, {
     tipo: "backup",
     id: captura.capturaId,
   });
   // The exact ciphertext identity is persisted before the network sees bytes.
+  await conferirExecucaoDoBackup(config.execucao);
   const tentativa = await prepararPublicacao({
     capturaId: captura.capturaId,
     destino,
@@ -87,7 +93,9 @@ export async function capturarEPublicarBackup(config: {
     arquivo,
     composto: captura,
   });
+  await conferirExecucaoDoBackup(config.execucao);
   await config.transporte.enviar(arquivo, a.cifrado, a.readback);
+  await conferirExecucaoDoBackup(config.execucao);
   await publicarCapturaGuardada({
     tentativa,
     destino,
@@ -101,6 +109,8 @@ export async function capturarEPublicarBackup(config: {
   });
   // One bounded batch. Remaining holds are safe and belong to the reconciler;
   // publication success never implies an unbounded cleanup completed.
+  await conferirExecucaoDoBackup(config.execucao);
   const reservasLiberadas = await liberarReservasPublicadas(captura.capturaId);
+  await conferirExecucaoDoBackup(config.execucao);
   return { capturaId: captura.capturaId, publicada: true as const, reservasLiberadas };
 }
