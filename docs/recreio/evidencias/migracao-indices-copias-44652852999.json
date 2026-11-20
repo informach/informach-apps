@@ -1,0 +1,30 @@
+{
+  "source": "13e31a2bbc43dd925b269cad3239e3b9c9d18915",
+  "runId": 44652852999,
+  "artifactId": 14591154834,
+  "artifactZipBytes": 81383,
+  "artifactZipSha256": "b6c211c7fbd0f734165de6d090f9ea53a89a1aa90d1f84691b2082ea2af10c10",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0240_recreio_copias_indices.sql",
+      "bytes": 1811,
+      "sha256": "15670b40302ac3cf13910df255c809640819953f9c539805d257a967df5bf540"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0240_snapshot.json",
+      "bytes": 1145230,
+      "sha256": "7836afb17eee0dbbf042b08cc9466717bb165a38b3a29ed61af3c6e861e82528"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 36434,
+      "sha256": "389f06054db5886a27c67b18d706dd4888e0adac79cdace8a5dd211f805de244"
+    }
+  ],
+  "predecessor": "0239",
+  "journalEntries": 241,
+  "journalPrefixPreserved": true,
+  "allOtherSnapshotStructuresPreserved": true,
+  "onlyElevenNonUniqueIndexes": true,
+  "productionApplied": false
+}

@@ -1681,6 +1681,13 @@
       "when": 1795131246830,
       "tag": "0239_parched_johnny_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1795137652381,
+      "tag": "0240_recreio_copias_indices",
+      "breakpoints": true
     }
   ]
 }

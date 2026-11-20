@@ -1,5 +1,15 @@
 # Estado do trabalho no repositório
 
+**19/11 — Recreio, eficiência das cópias em qualificação:** as seis fontes de
+aprovações próprias passaram 44652204780/f2c5a444, com 205 atos e isolamento de
+contas. A nova paginação por UUID/autor usa índices aditivos gerados e revisados
+em 44652852999/13e31a2b: 0240, onze índices não únicos, demais estruturas e os
+240 recibos anteriores preservados. 241 recibos candidatos; nada aplicado em
+produção. EXPLAIN com massa sintética e gates da fonte final ainda pendentes.
+Recuperação de capacidades f5e658ec também passou integração 44650832114.
+Reaplicação F7/admissão de tráfego, cobertura formal, operação e homologação
+integral continuam abertos; testes humanos permanecem para o final.
+
 **19/11 — Recreio, capacidades temporárias recuperadas qualificadas:**
 f5e658ec passou quality 44650821007 e a prova externa 44650838063: cluster novo,
 zero capacidades temporárias restantes, rollback, repetição e demais tabelas

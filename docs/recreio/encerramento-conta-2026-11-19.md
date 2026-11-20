@@ -574,3 +574,16 @@ catálogo real dos índices após upgrade. EXPLAIN com massa sintética deve pro
 intervalo/ordem nativos; não inferir eficiência apenas de número de linhas ou
 forçar enable_seqscan=off. Gates de tipos, direitos, finanças/integração aplicáveis
 seguem separados da simples geração. Nenhum teste pesado roda nesta máquina.
+
+A correção de tipos f2c5a444 passou direitos em 44652204780, incluindo as seis
+origens e os 205 atos próprios. A geração 44652852999/13e31a2b produziu a 0240
+com onze CREATE INDEX não únicos, sem dados/CHECKs/alteração de colunas. Artefato
+original adotado byte a byte após conferir hashes, predecessor 0239, todos os
+240 recibos anteriores e igualdade de todo o snapshot removendo somente esses
+índices. São 241 recibos candidatos, nenhum aplicado em produção.
+`evidencias/migracao-indices-copias-44652852999.json` conserva proveniência.
+
+A nova paginação serial por fonte e seu EXPLAIN com 8.000 atos alheios e 205
+próprios ainda precisam passar no banco migrado do GitHub. A prova não desliga
+Seq Scan nem altera custos do otimizador. Índices gerados isoladamente não
+comprovam desempenho ou autorizam implantação.
