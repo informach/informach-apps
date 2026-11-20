@@ -1,5 +1,6 @@
 import { abandonarCapturaSemArquivo, liberarReservasSemArquivo } from "./abandono-repository";
 import { capturarEPublicarBackup } from "./capturar-e-publicar";
+import { listarPendenciasDoBackup } from "./fila-repository";
 import { exigir } from "./provas-arquivos";
 import {
   assumirPublicacao,
@@ -27,6 +28,7 @@ export function provarCarregamentoDoControle() {
   exigir(
     [
       reconciliarPublicacaoDoBackup,
+      listarPendenciasDoBackup,
       capturarEPublicarBackup,
       abandonarCapturaSemArquivo,
       liberarReservasSemArquivo,

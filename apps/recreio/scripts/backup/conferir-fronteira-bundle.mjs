@@ -10,6 +10,7 @@ const entradas = Object.keys(meta.inputs).map((p) =>
 );
 for (const arquivo of [
   "reconciliar-publicacao.ts",
+  "fila-repository.ts",
   "capturar-e-publicar.ts",
   "abandono-repository.ts",
   "publicacao-repository.ts",

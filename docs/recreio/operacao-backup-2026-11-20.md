@@ -173,3 +173,20 @@ O gate completo foi recusado porque os avisos padrão do postgres.js não eram
 JSONL. A correção registra somente o SQLSTATE validado em evento JSON, sem
 mensagem/identificador SQL; o leitor estrito do relatório não foi afrouxado.
 Repetir também a negativa de checksum antes de considerar o perfil aprovado.
+
+
+## Fila limitada em candidata
+
+listarPendenciasDoBackup lê somente IDs, no máximo vinte por fase, em TX
+somente leitura e com prazos SQL limitados. Exige ID/nome/escopo dos dois
+destinos, exclui protocolo legado, publicação com posse viva e retirada em
+andamento. Separa captura sem arquivo, reservas abandonadas, publicação
+vencida, reservas publicadas e reservas com ausência já confirmada. O scanner
+não decide ausência, retenção ou autorização e não carrega corpos/índices.
+Os escritores continuam obrigados a conferir fatos sob as travas nativas.
+
+As regressões SQL usam fixtures de controle/MAC: conferem todas as linhas de
+controle antes/depois da consulta, destinos divergentes, nova posse, etapas
+de retirada, limite/ordem e exclusão de legado. Não declaram prova externa
+do arquivo. Tipos/captura/cluster desta extensão ainda precisam de gates;
+o processo operacional que consumirá as pistas continua em implementação.
