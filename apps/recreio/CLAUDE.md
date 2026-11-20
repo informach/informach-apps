@@ -427,3 +427,12 @@ do callback não conserva a capacidade. Workers SQL escolhem banco/escopo pela
 coordenação, nunca por flag ou variável de banco alterada. O contexto privado
 atual exclui encerramento financeiro e não cria operações nem libera tráfego;
 admissão e efeitos históricos continuam em implementação.
+
+
+A admissão histórica em candidata preserva bytes/MAC e datas originais, com
+evento próprio `rights_historical_admitted`; não emite novo consentimento.
+Efeitos privados exigem escopo filho de uma operação, com snapshot limitado dos
+vínculos antigos do backup. Esse snapshot não transfere responsabilidade.
+Guarda atual interativa e autoria histórica assinada conservam contratos
+distintos. Encerramento financeiro, operações nativas anteriores ao backup e
+reaplicação integral ainda exigem os incrementos/provas indicados na frente.

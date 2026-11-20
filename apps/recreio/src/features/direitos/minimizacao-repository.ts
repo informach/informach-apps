@@ -22,6 +22,7 @@ import { z } from "zod";
 import { serializarContaNativa } from "@/features/account/serializacao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { autoridadeDoPerfilCongelado } from "./coordenacao-repository";
 import { type CoordenacaoDeEfeitos, comEfeitoNativoDeDireitos } from "./efeitos-repository";
 import { expurgarLoteDeReferenciasSociais } from "./referencias-lotes-repository";
 
@@ -92,10 +93,7 @@ export function minimizarProximoPerfil(config: CoordenacaoDeEfeitos) {
         perfil.rightsOperationId === op.id &&
         perfil.status === "suspended" &&
         perfil.rightsFrozenState !== null &&
-        (perfil.kind === "adult"
-          ? perfil.userId === op.requesterUserId
-          : vinculo?.guardianUserId === op.requesterUserId &&
-            vinculo.id === alvo.guardianReference),
+        autoridadeDoPerfilCongelado(config, op, perfil, vinculo, alvo),
       "DIREITOS_INTEGRIDADE",
       "A responsabilidade pessoal congelada mudou.",
     );

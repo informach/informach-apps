@@ -167,6 +167,7 @@ export type AuditEventType =
   | "recreio.account_closure_data_removed"
   | "recreio.account_closure_completed"
   | "recreio.rights_admitted"
+  | "recreio.rights_historical_admitted"
   | "recreio.rights_photo_processed"
   | "recreio.rights_journal_compacted"
   | "recreio.rights_processing_blocked"

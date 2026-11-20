@@ -27,6 +27,7 @@ import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
+import { prepararProvaDeAdmissaoHistorica } from "./provar-admissao-historica";
 
 function exigir(v: unknown): asserts v {
   if (!v) throw new Error("Historical recovery source qualification failed");
@@ -74,6 +75,7 @@ export async function provarFontesHistoricasRecuperadas(
     maxBytesPlanos: 65536,
     tempoLimiteMs: 30000,
   };
+  let limparAdmissao: (() => Promise<void>) | undefined;
   try {
     const [conta] = await copia.unsafe("select id from core.users where id=$1", [contaAusente]);
     exigir(!conta);
@@ -81,6 +83,9 @@ export async function provarFontesHistoricasRecuperadas(
       "select id,game_id from recreio.spaces order by id limit 1",
     );
     exigir(mundo);
+    const admissao = await prepararProvaDeAdmissaoHistorica(copia, contaAusente),
+      instante = new Date().toISOString();
+    limparAdmissao = admissao.limpar;
     await storage.iniciarCabecalho(
       assinatura.assinarCabecalho({
         formato: "recreio-livro-direitos-v1",
@@ -94,7 +99,7 @@ export async function provarFontesHistoricasRecuperadas(
         raizSha256: RAIZ_VAZIA,
         anteriorSha256: null,
         ultimaIntencao: null,
-        atualizadoEm: "2026-11-20T10:00:00.000Z",
+        atualizadoEm: instante,
       }),
     );
     const planos = [0, 1].map(() =>
@@ -121,13 +126,14 @@ export async function provarFontesHistoricasRecuperadas(
         financeiroSeparado: true,
       }),
     );
+    planos.push(admissao.plano);
     for (const plano of planos) {
       const bytes = Buffer.from(JSON.stringify(plano));
       await admitirIntencaoNoLivro({
         storage,
         assinatura,
         plano: bytes,
-        instante: "2026-11-20T10:01:00.000Z",
+        instante,
         bytes: assinatura.assinarIntencao({
           formato: "recreio-intencao-direitos-v1",
           livroId,
@@ -138,13 +144,13 @@ export async function provarFontesHistoricasRecuperadas(
           contaId: contaAusente,
           perfilIds: plano.perfis.map((p) => p.id),
           planoSha256: resumoDoRegistro(bytes),
-          consentidaEm: "2026-11-20T10:00:00.000Z",
-          autenticadaEm: "2026-11-20T09:59:00.000Z",
+          consentidaEm: instante,
+          autenticadaEm: instante,
           fonte: config.fonte,
         }),
       });
     }
-    await storage.congelarCabecalho(await storage.lerCabecalho(), "2026-11-20T10:02:00.000Z");
+    await storage.congelarCabecalho(await storage.lerCabecalho(), instante);
     const configComum = {
       assinatura,
       prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 10, tempoLimiteMs: 10000 }),
@@ -206,12 +212,13 @@ export async function provarFontesHistoricasRecuperadas(
       );
     const fontes = await ler();
     exigir(
-      fontes.length === 2 &&
-        fontes.every(
-          (f) =>
-            f.world_map.length === 2 &&
-            f.world_map.some((m) => m.mundoVivoId === mundo.id) &&
-            f.world_map.some((m) => m.mundoVivoId === null),
+      fontes.length === planos.length &&
+        fontes.every((f) =>
+          isDeepStrictEqual(f.plan, admissao.plano)
+            ? f.world_map.length === 0
+            : f.world_map.length === 2 &&
+              f.world_map.some((m) => m.mundoVivoId === mundo.id) &&
+              f.world_map.some((m) => m.mundoVivoId === null),
         ),
     );
     const repetida = await importarFontesHistoricasDeDireitos(config);
@@ -223,7 +230,7 @@ export async function provarFontesHistoricasRecuperadas(
         .from(sources)
         .where(eq(sources.runId, primeira.execucaoId));
       exigir(
-        nativas.length === 2 &&
+        nativas.length === planos.length &&
           nativas.every((f) => planos.some((p) => isDeepStrictEqual(f.plan, p))),
       );
       let reverteu = false;
@@ -298,6 +305,9 @@ export async function provarFontesHistoricasRecuperadas(
             copiada = true;
           }
           exigir(copiada);
+          const fonteHistorica = fontes.find((f) => isDeepStrictEqual(f.plan, admissao.plano));
+          exigir(fonteHistorica);
+          await admissao.verificar(banco, coordenacao, fonteHistorica.operation_id);
           return coordenacao;
         },
       });
@@ -338,7 +348,7 @@ export async function provarFontesHistoricasRecuperadas(
       rejeitou = true;
     }
     exigir(rejeitou && isDeepStrictEqual(fontes, await ler()));
-    const fonte = fontes[0];
+    const fonte = fontes.find((f) => f.world_map.length > 0);
     exigir(fonte);
     await copia.unsafe(
       "update recreio.rights_recovery_sources set world_map='[]'::jsonb where operation_id=$1",
@@ -366,13 +376,14 @@ export async function provarFontesHistoricasRecuperadas(
       [contaAusente],
     );
     exigir(
-      nativas?.n === 0 &&
+      nativas?.n === 1 &&
         identidades?.n === 0 &&
         !primeira.execucaoAutorizada &&
         !primeira.trafegoAutorizado,
     );
   } finally {
     try {
+      await limparAdmissao?.();
       await copia.begin(async (tx) => {
         await tx.unsafe("delete from recreio.rights_recovery_sources where ledger_id=$1", [
           livroId,
@@ -407,6 +418,11 @@ export async function provarFontesHistoricasRecuperadas(
     privateSqlCoordinationFullPreflightVerified: true as const,
     privateSqlCoordinationCopyRefused: true as const,
     privateSqlCoordinationExpired: true as const,
+    historicalNativeAdmissionVerified: true as const,
+    historicalAdmissionIdempotenceVerified: true as const,
+    historicalBackupGuardianPreserved: true as const,
+    historicalOperationScopeExpired: true as const,
+    historicalPersonalErasureExecuted: false as const,
     historicalSourceEffectsExecuted: false as const,
   };
 }

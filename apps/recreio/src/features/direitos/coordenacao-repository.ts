@@ -1,10 +1,13 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
-import { and, type Database, db, eq, isNull, sql } from "@informach/db";
+import { and, type Database, db, eq, inArray, isNull, sql } from "@informach/db";
 import {
+  recreioGuardianLinks as guardians,
   recreioRightsOperations as operations,
+  recreioProfiles as profiles,
   recreioRightsRecoveryRuns as runs,
   recreioRightsRecoverySources as sources,
+  recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
 import { z } from "zod";
@@ -32,10 +35,26 @@ export type CoordenacaoDeEfeitos = {
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
   prova: Awaited<ReturnType<typeof conferirPrefixoDoLivro>>;
 };
-type Privada = { banco: Database; execucaoId: string; cerca: string };
+type AutoridadeNoBackup = {
+  tipo: "adult" | "minor";
+  conta: string | null;
+  politicaCongelada: number;
+  responsabilidade: string | null;
+  responsavel: string | null;
+};
+type Privada = {
+  banco: Database;
+  execucaoId: string;
+  cerca: string;
+  storage: ReturnType<typeof criarArmazenamentoDoLivro>;
+  signal: AbortSignal;
+  operacaoId?: string;
+  autoridades?: ReadonlyMap<string, AutoridadeNoBackup>;
+};
 const privadas = new WeakMap<CoordenacaoDeEfeitos, Privada>(),
   emitidas = new WeakSet<CoordenacaoDeEfeitos>(),
   ocupadas = new WeakSet<Database>();
+const filhasAtivas = new WeakSet<CoordenacaoDeEfeitos>();
 function contexto(config: CoordenacaoDeEfeitos) {
   const privado = privadas.get(config);
   assertAllowed(
@@ -68,8 +87,9 @@ export function bancoDaCoordenacao(config: CoordenacaoDeEfeitos) {
 export function escopoDaCoordenacao(config: CoordenacaoDeEfeitos) {
   conferirCoordenacaoDeDireitos(config);
   const privado = contexto(config);
+  if (privado && !privado.operacaoId) return sql`false`;
   return privado
-    ? sql`(${operations.kind}='retirar_perfil' and
+    ? sql`(${operations.id}=${privado.operacaoId}::uuid and ${operations.kind}='retirar_perfil' and
     ${operations.admittedHeadSha256}=${privado.cerca} and exists(
       select 1 from recreio.rights_recovery_sources s join recreio.rights_recovery_runs r
       on r.id=s.run_id and r.ledger_id=s.ledger_id
@@ -92,6 +112,11 @@ export async function conferirIntencaoDaCoordenacao(
   );
   const privado = contexto(config);
   if (privado) {
+    assertAllowed(
+      privado.operacaoId === op.id,
+      "DIREITOS_INTEGRIDADE",
+      "A operação não possui escopo privado ativo.",
+    );
     const lida = await conferirIntencaoHistoricaRecuperada(tx, op, config.assinatura);
     assertAllowed(
       lida.execucao.id === privado.execucaoId &&
@@ -265,7 +290,13 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
     });
     emitida = coordenacao;
     emitidas.add(coordenacao);
-    privadas.set(coordenacao, { banco: config.banco, execucaoId: run.id, cerca: head.sha256 });
+    privadas.set(coordenacao, {
+      banco: config.banco,
+      execucaoId: run.id,
+      cerca: head.sha256,
+      storage: config.storage,
+      signal,
+    });
     const resultado = await config.executar(coordenacao);
     const atual = await config.storage.lerCabecalho(signal);
     assertAllowed(
@@ -279,4 +310,187 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
     if (emitida) privadas.delete(emitida);
     ocupadas.delete(config.banco);
   }
+}
+
+/** Metadata for the fixed historical admission service; never mints a child
+ * scope or transforms an operator into the original requester. */
+export function dadosDaCoordenacaoPrivada(config: CoordenacaoDeEfeitos) {
+  conferirCoordenacaoDeDireitos(config);
+  const privado = contexto(config);
+  assertAllowed(
+    privado && !privado.operacaoId,
+    "DIREITOS_LIVRO",
+    "Coordenação privada de execução ausente.",
+  );
+  return {
+    banco: privado.banco,
+    execucaoId: privado.execucaoId,
+    cerca: privado.cerca,
+    storage: privado.storage,
+    signal: privado.signal,
+  };
+}
+
+/** At most one active operation per execution; at most 256 authority records.
+ * Original signed responsibility remains in the plan/subject. Backup authority
+ * is only a sealed consistency snapshot, never a reassignment to that actor. */
+export async function comOperacaoPrivadaDeDireitos<T>(
+  config: CoordenacaoDeEfeitos,
+  operacaoId: string,
+  executar: (coordenacao: CoordenacaoDeEfeitos) => Promise<T>,
+) {
+  z.uuid().parse(operacaoId);
+  const privado = contexto(config);
+  conferirCoordenacaoDeDireitos(config);
+  assertAllowed(
+    privado && !privado.operacaoId && !filhasAtivas.has(config),
+    "DIREITOS_LIVRO",
+    "A execução já tem operação privada ativa.",
+  );
+  filhasAtivas.add(config);
+  let emitida: CoordenacaoDeEfeitos | undefined;
+  try {
+    const autoridades = await privado.banco.transaction(async (tx) => {
+      await tx.execute(sql`set local statement_timeout='5s'`);
+      await tx.execute(sql`set local lock_timeout='2s'`);
+      await tx.execute(sql`set local transaction_timeout='15s'`);
+      const [op] = await tx
+        .select()
+        .from(operations)
+        .where(eq(operations.id, operacaoId))
+        .for("update");
+      assertAllowed(
+        op &&
+          op.kind === "retirar_perfil" &&
+          (op.state === "admitted" || op.state === "running" || op.state === "completed") &&
+          op.admittedHeadSha256 === privado.cerca &&
+          config.prova.referencias.some(
+            (r) =>
+              r.operacaoId === op.id && r.revisao === op.revision && r.sha256 === op.intentSha256,
+          ),
+        "DIREITOS_INTEGRIDADE",
+        "Operação histórica não admitida.",
+      );
+      const lida = await conferirIntencaoHistoricaRecuperada(tx, op, config.assinatura);
+      assertAllowed(
+        lida.execucao.id === privado.execucaoId &&
+          lida.execucao.state === "replaying" &&
+          isDeepStrictEqual(
+            await referenciasDeMundosDaOperacao(tx, op.id),
+            lida.mapa
+              .filter((m) => m.mundoVivoId !== null)
+              .map((m) => ({ id: m.mundoReferencia, jogo: m.jogo })),
+          ),
+        "DIREITOS_INTEGRIDADE",
+        "Mundos fora da operação histórica.",
+      );
+      const mundos = lida.mapa.filter((m) => m.mundoVivoId !== null).map((m) => m.mundoReferencia);
+      if (mundos.length)
+        await tx
+          .select({ id: spaces.id })
+          .from(spaces)
+          .where(inArray(spaces.id, mundos))
+          .orderBy(spaces.id)
+          .for("update");
+      const alvos = await tx
+        .select()
+        .from(subjects)
+        .where(eq(subjects.operationId, op.id))
+        .orderBy(subjects.profileReference);
+      const selecionados = alvos.filter((s) => s.phase === "selected");
+      const ids = selecionados.map((s) => s.profileReference);
+      const presentes = ids.length
+        ? await tx
+            .select()
+            .from(profiles)
+            .where(inArray(profiles.id, ids))
+            .orderBy(profiles.id)
+            .for("update")
+        : [];
+      const vinculos = ids.length
+        ? await tx
+            .select()
+            .from(guardians)
+            .where(inArray(guardians.profileId, ids))
+            .orderBy(guardians.profileId)
+            .for("share")
+        : [];
+      assertAllowed(
+        presentes.length === ids.length,
+        "DIREITOS_INTEGRIDADE",
+        "Sujeito selecionado ausente sem recibo.",
+      );
+      const mapa = new Map<string, AutoridadeNoBackup>();
+      for (const p of presentes) {
+        const s = selecionados.find((s) => s.profileReference === p.id),
+          original = lida.plano.perfis.find((s) => s.id === p.id),
+          g = vinculos.find((g) => g.profileId === p.id);
+        assertAllowed(
+          s &&
+            original &&
+            p.kind === original.tipo &&
+            p.rightsOperationId === op.id &&
+            p.status === "suspended" &&
+            p.rightsFrozenState !== null &&
+            p.policyVersion === s.policyVersion + 1 &&
+            s.guardianReference === original.responsabilidadeId &&
+            (p.kind === "adult" ? p.userId === op.requesterUserId && !g : !!g),
+          "DIREITOS_INTEGRIDADE",
+          "A autoridade do backup não corresponde ao sujeito congelado.",
+        );
+        mapa.set(p.id, {
+          tipo: p.kind,
+          conta: p.userId,
+          politicaCongelada: p.policyVersion,
+          responsabilidade: g?.id ?? null,
+          responsavel: g?.guardianUserId ?? null,
+        });
+      }
+      return mapa;
+    });
+    const filha = Object.freeze({ assinatura: config.assinatura, prova: config.prova });
+    emitida = filha;
+    emitidas.add(filha);
+    privadas.set(filha, { ...privado, operacaoId, autoridades });
+    const resultado = await executar(filha);
+    const head = await privado.storage.lerCabecalho(privado.signal);
+    assertAllowed(
+      head.sha256 === privado.cerca && head.documento.estado === "congelado",
+      "DIREITOS_LIVRO",
+      "A cerca histórica mudou.",
+    );
+    return resultado;
+  } finally {
+    if (emitida) privadas.delete(emitida);
+    filhasAtivas.delete(config);
+  }
+}
+
+export function autoridadeDoPerfilCongelado(
+  config: CoordenacaoDeEfeitos,
+  op: typeof operations.$inferSelect,
+  perfil: typeof profiles.$inferSelect,
+  vinculo: typeof guardians.$inferSelect | undefined,
+  alvo: typeof subjects.$inferSelect | undefined,
+) {
+  conferirCoordenacaoDeDireitos(config);
+  const privado = contexto(config);
+  if (!privado)
+    return perfil.kind === "adult"
+      ? perfil.userId === op.requesterUserId
+      : vinculo?.guardianUserId === op.requesterUserId && vinculo.id === alvo?.guardianReference;
+  assertAllowed(
+    privado.operacaoId === op.id,
+    "DIREITOS_INTEGRIDADE",
+    "Operação privada fora de escopo.",
+  );
+  const original = privado.autoridades?.get(perfil.id);
+  return (
+    !!original &&
+    perfil.kind === original.tipo &&
+    perfil.userId === original.conta &&
+    perfil.policyVersion === original.politicaCongelada &&
+    (vinculo?.id ?? null) === original.responsabilidade &&
+    (vinculo?.guardianUserId ?? null) === original.responsavel
+  );
 }

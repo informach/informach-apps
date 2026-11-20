@@ -230,3 +230,34 @@ apresentada como execução de retirada: não há operação nativa importada ne
 prova e `historicalSourceEffectsExecuted` permanece falso. Admissão histórica,
 perfis ausentes/responsabilidades antigas, fotos/diário e finanças continuam
 pendentes de implementação e prova.
+
+
+## Admissão por operação em candidata
+
+A fonte 67048f29 passou cluster frio 44784096494, qualidade 44784102274 e
+integração 44784107192. Essa prova consultou filas vazias: não importou uma
+operação nativa ou executou retirada.
+
+O incremento seguinte limita a coordenação principal à preparação: ela não
+seleciona operações para efeitos. Cada operação exige um escopo filho exclusivo,
+verificação do MAC/seleção completos e captura limitada a 256 vínculos do backup.
+O escopo expira no término. A responsabilidade assinada continua no plano e no
+sujeito; o vínculo antigo do backup é somente uma conferência de consistência
+na memória, nunca uma reatribuição ao solicitante histórico. A autoridade dos
+workers interativos permanece a mesma.
+
+`admissao-recuperada-repository` usa bytes/datas/fonte/chave originais, verifica
+a execução e registra admissão histórica, sem consentimento ou identidade
+novos. Preparo SQL é o mesmo da admissão interativa. Perfil ausente recebe
+recibo explícito; mundo ausente permanece no mapa integral. Mundo adicional,
+cadastro incompatível ou operação nativa anterior ainda sem conciliação são
+recusas explícitas. Não reescrever admissão/conclusão antigas ou inventar sucessor.
+Cobrança permanece fora desse perfil de admissão.
+
+A prova preparada usa um menor real do backup sem mundo, responsabilidade
+histórica posterior e solicitante ausente, com MAC de fixture declarado. Confere
+admissão/repetição, assinatura/datas originais, auditoria histórica única, guarda
+antiga preservada, escopo exclusivo e vencimento. Nenhum apagador pessoal roda:
+ao final é desfeito apenas o congelamento sintético e o inventário completo
+deve voltar a ser idêntico, inclusive microssegundos. Não é retirada executada
+ou prova de aceite nativo; ambas continuam necessárias na composição final.

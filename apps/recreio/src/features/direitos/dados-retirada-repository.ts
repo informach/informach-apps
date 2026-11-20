@@ -12,6 +12,7 @@ import {
 import { ContaIdSchema } from "@informach/recreio";
 import { serializarContaNativa } from "@/features/account/serializacao-repository";
 import { assertAllowed } from "@/lib/errors";
+import { autoridadeDoPerfilCongelado } from "./coordenacao-repository";
 import { type CoordenacaoDeEfeitos, comEfeitoNativoDeDireitos } from "./efeitos-repository";
 
 /** Conteúdo pessoal opaco, não fotografias ou histórico dos demais jogadores.
@@ -50,14 +51,13 @@ export function retirarProximosDadosPessoais(config: CoordenacaoDeEfeitos) {
             p.rightsOperationId === op.id &&
             p.status === "suspended" &&
             p.rightsFrozenState !== null &&
-            (p.kind === "adult"
-              ? p.userId === op.requesterUserId
-              : vinculos.some(
-                  (v) =>
-                    v.profileId === p.id &&
-                    v.guardianUserId === op.requesterUserId &&
-                    alvos.some((a) => a.profileReference === p.id && a.guardianReference === v.id),
-                )),
+            autoridadeDoPerfilCongelado(
+              config,
+              op,
+              p,
+              vinculos.find((v) => v.profileId === p.id),
+              alvos.find((a) => a.profileReference === p.id),
+            ),
         ),
       "DIREITOS_INTEGRIDADE",
       "A autoridade pessoal congelada mudou.",
