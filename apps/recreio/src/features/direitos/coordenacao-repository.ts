@@ -52,6 +52,7 @@ type Privada = {
   signal: AbortSignal;
   operacaoId?: string;
   autoridades?: ReadonlyMap<string, AutoridadeNoBackup>;
+  pai?: CoordenacaoDeEfeitos;
 };
 const privadas = new WeakMap<CoordenacaoDeEfeitos, Privada>(),
   emitidas = new WeakSet<CoordenacaoDeEfeitos>(),
@@ -64,6 +65,26 @@ function contexto(config: CoordenacaoDeEfeitos) {
     "DIREITOS_LIVRO",
     "A coordenação privada terminou.",
   );
+  if (privado) {
+    assertAllowed(
+      !privado.signal.aborted,
+      "DIREITOS_LIVRO",
+      "O prazo da coordenação privada terminou.",
+    );
+    if (privado.pai) {
+      const pai = privadas.get(privado.pai);
+      assertAllowed(
+        pai &&
+          !pai.signal.aborted &&
+          !pai.operacaoId &&
+          pai.banco === privado.banco &&
+          pai.execucaoId === privado.execucaoId &&
+          pai.cerca === privado.cerca,
+        "DIREITOS_LIVRO",
+        "A execução privada da operação terminou.",
+      );
+    }
+  }
   return privado;
 }
 /** A normal config cannot opt into frozen execution with a boolean or a copied
@@ -325,6 +346,7 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
       signal,
     });
     const resultado = await config.executar(coordenacao);
+    conferirCoordenacaoDeDireitos(coordenacao);
     const atual = await config.storage.lerCabecalho(signal);
     assertAllowed(
       atual.sha256 === head.sha256 && atual.documento.estado === "congelado",
@@ -478,8 +500,10 @@ export async function comOperacaoPrivadaDeDireitos<T>(
     const filha = Object.freeze({ assinatura: config.assinatura, prova: config.prova });
     emitida = filha;
     emitidas.add(filha);
-    privadas.set(filha, { ...privado, operacaoId, autoridades });
+    contexto(config);
+    privadas.set(filha, { ...privado, operacaoId, autoridades, pai: config });
     const resultado = await executar(filha);
+    conferirCoordenacaoDeDireitos(filha);
     const head = await privado.storage.lerCabecalho(privado.signal);
     assertAllowed(
       head.sha256 === privado.cerca && head.documento.estado === "congelado",

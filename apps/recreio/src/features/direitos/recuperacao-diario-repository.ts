@@ -221,6 +221,7 @@ export async function confirmarRecuperacaoDeDireitos(
       },
       { writer: tx },
     );
+    conferirCoordenacaoDeDireitos(config);
     return true;
   });
 }
@@ -250,6 +251,7 @@ export function revisarRecuperacaoDeDireitos(
       { app: "recreio", operationId: op.id, kind: op.kind, reasonCode: "integrity" },
       { writer: tx },
     );
+    conferirCoordenacaoDeDireitos(config);
     return true;
   });
 }

@@ -62,6 +62,8 @@ const Recibo = z.strictObject({
   historicalOperationScopeExpired: z.literal(true),
   nativePhotographicWorkersLoadedWithoutAppCredentials: z.literal(true),
   privatePhotographicQueuesBound: z.literal(true),
+  privateChildCannotOutliveParent: z.literal(true),
+  privateCoordinationCancellationVerified: z.literal(true),
   historicalPersonalErasureExecuted: z.literal(false),
   historicalSourceEffectsExecuted: z.literal(false),
   authoritiesNormalizedForTraffic: z.literal(false),

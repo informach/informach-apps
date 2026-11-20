@@ -33,6 +33,7 @@ import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
 import { prepararProvaDeAdmissaoHistorica } from "./provar-admissao-historica";
+import { provarPrazoDaCoordenacao } from "./provar-prazo-coordenacao";
 
 function exigir(v: unknown): asserts v {
   if (!v) throw new Error("Historical recovery source qualification failed");
@@ -333,6 +334,9 @@ export async function provarFontesHistoricasRecuperadas(
         expirou = true;
       }
       exigir(expirou);
+      const fonteParaPrazo = fontes.find((f) => isDeepStrictEqual(f.plan, admissao.plano));
+      exigir(fonteParaPrazo);
+      await provarPrazoDaCoordenacao(parametros, fonteParaPrazo.operation_id);
       return banco;
     });
     let encerrou = false;
@@ -438,6 +442,8 @@ export async function provarFontesHistoricasRecuperadas(
     historicalOperationScopeExpired: true as const,
     nativePhotographicWorkersLoadedWithoutAppCredentials: true as const,
     privatePhotographicQueuesBound: true as const,
+    privateChildCannotOutliveParent: true as const,
+    privateCoordinationCancellationVerified: true as const,
     historicalPersonalErasureExecuted: false as const,
     historicalSourceEffectsExecuted: false as const,
   };

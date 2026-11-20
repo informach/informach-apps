@@ -55,6 +55,7 @@ export async function admitirRetiradaHistoricaRecuperada(
       "Intenção histórica divergente.",
     );
     return await privado.banco.transaction(async (tx) => {
+      dadosDaCoordenacaoPrivada(config);
       await tx.execute(sql`set local statement_timeout='5s'`);
       await tx.execute(sql`set local lock_timeout='2s'`);
       await tx.execute(sql`set local transaction_timeout='15s'`);
@@ -183,6 +184,7 @@ export async function admitirRetiradaHistoricaRecuperada(
         "O cadastro do backup exige conciliação antes da retirada.",
       );
       const drenando = await inspecionarDrenagemDaSelecao(tx, ids, mundos);
+      dadosDaCoordenacaoPrivada(config);
       const [op] = await tx
         .insert(operations)
         .values({
@@ -241,6 +243,7 @@ export async function admitirRetiradaHistoricaRecuperada(
         },
         { writer: tx },
       );
+      dadosDaCoordenacaoPrivada(config);
       return { situacao: "admitida" as const, operacaoId };
     });
   } finally {

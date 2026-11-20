@@ -136,6 +136,7 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
           .update(operations)
           .set({ nextAttemptAt: sql`${AGORA}+interval '1 minute'`, updatedAt: AGORA })
           .where(eq(operations.id, op.id));
+        conferirCoordenacaoDeDireitos(config);
         return { situacao: "retencao_pendente" as const, operacaoId: op.id };
       }
       if (lote && lote.count > 0) {
@@ -149,6 +150,7 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
           .update(operations)
           .set({ nextAttemptAt: AGORA, updatedAt: AGORA })
           .where(eq(operations.id, op.id));
+        conferirCoordenacaoDeDireitos(config);
         return {
           situacao: "referencias_expurgadas" as const,
           operacaoId: op.id,
@@ -189,6 +191,7 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
         .update(operations)
         .set({ nextAttemptAt: AGORA, updatedAt: AGORA })
         .where(eq(operations.id, op.id));
+      conferirCoordenacaoDeDireitos(config);
       return { situacao: "perfil_removido" as const, operacaoId: op.id };
     });
   } catch (erro) {

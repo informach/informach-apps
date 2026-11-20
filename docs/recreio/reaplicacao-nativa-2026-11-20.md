@@ -289,3 +289,24 @@ recusa normal do livro congelado e consulta as filas fotográficas privadas
 vazias. Isso não comprova transformação/reaplicação de fotos; a composição
 operacional, admissão das operações já existentes, encerramento financeiro e
 prova integral em outro cluster continuam pendentes.
+
+
+## Duração dos escopos em candidata
+
+A fonte 74d714da falhou nos tipos: reserva fotográfica ainda devolvia uma
+preparação removida e a prova acessava `situacao` sem distinguir material
+de recuperação. 22645047 retira o campo sem consumidor e estreita a união
+explicitamente; cluster frio 44790153497 passou com oito workers sem credenciais
+do portal e filas privadas vazias. Qualidade e integração dessa fonte ainda
+estão em curso; isto não comprova transformação das fotografias.
+
+O incremento seguinte vincula cada filho à vida do pai e ao cancelamento/prazo
+da execução. Admissão revalida o contexto depois da leitura externa e antes
+de finalizar SQL; fases de dados, fotos, diário, conclusão e expurgo revalidam
+antes de confirmar suas transações. Não recorrer ao pool original após expirar.
+
+A prova preparada usa promessas observadas e barreiras explícitas, sem sleeps:
+o pai termina, só então um filho retido tenta chamar o worker real. Outro
+caso cancela o contexto antes da mutação. Ambos devem recusar; o inventário
+completo após desfazer apenas o congelamento sintético detecta qualquer
+apagador que rode indevidamente. Nenhum apagamento é esperado nesses casos.

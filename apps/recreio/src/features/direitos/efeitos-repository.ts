@@ -131,6 +131,7 @@ export async function comEfeitoNativoDeDireitos<T>(
       const { plano } = await conferirIntencaoDaCoordenacao(tx, op, config);
       await conferirFinanceiroDosEfeitos(tx, op, plano);
       const resultado = await executar(tx, op);
+      conferirCoordenacaoDeDireitos(config);
       const liberadas = await tx
         .update(operations)
         .set({ leaseToken: null, leaseUntil: null, nextAttemptAt: AGORA, updatedAt: AGORA })

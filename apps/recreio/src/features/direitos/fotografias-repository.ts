@@ -145,6 +145,7 @@ export async function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
         .update(operations)
         .set({ nextAttemptAt: AGORA, updatedAt: AGORA })
         .where(eq(operations.id, operacao.id));
+      conferirCoordenacaoDeDireitos(config);
       return { tipo: "fotos_prontas" as const, operacaoId: operacao.id };
     }
     const fonte = await armazenamentoPg.prepararLeituraDaFotografia(
@@ -164,6 +165,7 @@ export async function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
         updatedAt: AGORA,
       })
       .where(eq(operations.id, operacao.id));
+    conferirCoordenacaoDeDireitos(config);
     return {
       tipo: "fotografia" as const,
       operacao,
@@ -320,6 +322,7 @@ export async function revisarFotografiaDeDireitos(
       { app: "recreio", operationId: op.id, kind: op.kind, reasonCode: motivo },
       { writer: tx },
     );
+    conferirCoordenacaoDeDireitos(config);
     return true;
   });
 }
@@ -479,6 +482,7 @@ export async function confirmarFotografiaDeDireitos(
         { app: "recreio", operationId: operacao.id, gameId: reserva.mundo.gameId, photoCount: 1 },
         { writer: tx },
       );
+      conferirCoordenacaoDeDireitos(config);
       return { processada: true as const, operacaoId: operacao.id };
     });
   } finally {

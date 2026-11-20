@@ -93,6 +93,7 @@ export async function concluirProximaRetirada(config: CoordenacaoDeEfeitos) {
         { writer: tx },
       );
       await conferirPrazosDaConclusao(tx, op.id);
+      conferirCoordenacaoDeDireitos(config);
       return {
         situacao: "retirada_concluida" as const,
         operacaoId: op.id,
