@@ -3,11 +3,12 @@ import { gzipSync } from "node:zlib";
 import { db } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,
+  recreioSpaceJournal as journal,
   recreioProfileDataKeys as keys,
   recreioProfileWorldTraces as traces,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
-import { criarMundo } from "@informach/morada-sim";
+import { canonico, criarMundo } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
 import { confirmarRetiradaDePerfil } from "@/features/direitos/consentimento-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
@@ -72,17 +73,56 @@ export async function prepararDireitosPosterioresACaptura(
   // A privacy trace is historical authorship, never a world membership or
   // permission. The other real player remains the world's native steward.
   await db.insert(traces).values({ profileId: familia.perfil.id, spaceId: mundoId });
-  const foto = criarMundo({
+  const simulacao = criarMundo({
     mundoId,
     semente: 42,
     definicao: BAIRRO_DA_PROVA,
     fundadores: [familia.perfil.id, preservadoId],
-  }).fotografar();
+  });
+  const foto = simulacao.fotografar(),
+    acesso = simulacao.estado.acessos.find((a) => a.perfilId === preservadoId);
+  exigir(acesso?.permissoes.includes("gastar"), "ACESSO_DO_OUTRO_FUNDADOR_AUSENTE");
+  exigir(
+    simulacao.aplicar({
+      t: "conceder_acesso",
+      perfilId: preservadoId,
+      familiaId: acesso.familiaId,
+      permissoes: acesso.permissoes.filter((p) => p !== "gastar"),
+    }).ok,
+    "FATO_SINTETICO_RECUSADO",
+  );
+  const fatos = simulacao.avancar(1000).fatos;
+  exigir(fatos.length > 0 && fatos.length <= 1000, "DIARIO_SINTETICO_AUSENTE");
+  const entradas = fatos.map((f, i) => {
+    const payload = Buffer.from(JSON.stringify(f));
+    return {
+      spaceId: mundoId,
+      seq: i + 1,
+      fence: 0,
+      tick: f.tick,
+      factId: f.id,
+      payload,
+      byteSize: payload.length,
+    };
+  });
+  try {
+    await db.insert(journal).values(entradas);
+  } finally {
+    for (const entrada of entradas) entrada.payload.fill(0);
+  }
+  const final = simulacao.fotografar(),
+    acessoFinal = final.estado.acessos.find((a) => a.perfilId === preservadoId);
+  exigir(acessoFinal && !acessoFinal.permissoes.includes("gastar"), "FATO_SINTETICO_RECUSADO");
+  const familiasFinaisSha256 = createHash("sha256")
+      .update(canonico(final.estado.familias))
+      .digest("hex"),
+    acessoFinalSha256 = createHash("sha256").update(canonico(acessoFinal)).digest("hex");
   return {
     fotografia: {
       bytes: gzipSync(JSON.stringify(foto)),
       versao: foto.estado.versao,
       tick: foto.tick,
+      diarioFinal: fatos.length,
     },
     async publicar() {
       await bucket.admitirPrefixo("direitos", livroId);
@@ -137,6 +177,10 @@ export async function prepararDireitosPosterioresACaptura(
         contaId: familia.conta.id,
         preservadoId,
         mundoId,
+        diarioFinal: fatos.length,
+        tickFinal: final.tick,
+        familiasFinaisSha256,
+        acessoFinalSha256,
         chaves: {
           "native-old": antiga.toString("base64"),
           "native-next": proxima.toString("base64"),

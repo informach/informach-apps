@@ -104,7 +104,7 @@ it(
         await fonte`insert into recreio.space_snapshots (id,space_id,revision,fence,schema_version,journal_seq,tick,kind,storage,data,object_key,byte_size,sha256)
       values (${fotoId},${mundoId},1,0,${versaoDaFoto},0,${tickDaFoto},'checkpoint','bucket',null,${objectKey},${r.bytes},${r.sha256})`;
         if (direitos)
-          await fonte`update recreio.spaces set revision=1,schema_version=${versaoDaFoto} where id=${mundoId}`;
+          await fonte`update recreio.spaces set revision=1,schema_version=${versaoDaFoto},journal_seq=${direitos.fotografia.diarioFinal} where id=${mundoId}`;
         fotoGravada = true;
         await fonte`insert into recreio.snapshot_object_deliveries (id,snapshot_reference,snapshot_id,space_id,plaintext_sha256,plaintext_bytes,storage_scope,bucket_id,bucket_name,object_key,cipher_sha256,cipher_bytes,encryption_key_id,state,verified_at)
       values (${entregaId},${fotoId},${fotoId},${mundoId},${r.sha256},${r.bytes},'qualification',${destino.bucketId},${destino.bucketName},${objectKey},${r.sha256Cifrado},${r.bytesCifrados},${r.chaveId},'verified',clock_timestamp())`;

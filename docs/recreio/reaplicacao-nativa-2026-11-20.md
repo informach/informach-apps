@@ -451,3 +451,23 @@ mundos e as fronteiras estáticas dos imports continuam intactas. Nenhuma
 mudança no prefetch do produto ou exceção para importar engine no portal.
 Documentação Playwright 1.64.1 conferida para `resourceType` e `response.text`.
 Gates desta correção ainda pendentes.
+
+
+## Diário posterior à fotografia — candidata
+
+A prova seguinte produz um fato durável com o próprio motor depois da foto:
+a permissão de jogo `gastar` do fundador preservado é retirada na simulação,
+sem modificar sua identidade ou autoridade no portal. Todos os fatos emitidos
+pelo avanço curto são guardados, em sequência, no banco descartável antes da
+captura. A foto inicial continua na revisão 1/diário 0; o mundo aponta para o
+último fato confirmado. Não é uma sessão real de usuário ou prova de desempenho.
+
+Na segunda restauração, o adapter recupera o diário ainda não fotografado,
+confirma a revisão 2, drena, trata ambas as fotos e só então compacta o prefixo
+coberto e retira o perfil. Exige exatamente uma recuperação, dois tratamentos
+fotográficos, quantidade compactada igual ao diário original e nenhum fato
+restante. Hashes SHA-256 do JSON canônico das famílias e do acesso de jogo do
+outro fundador vêm do estado final anterior à captura, somente como oráculos
+de comparação: não são usados para criar/restaurar estado. Tick, revisão, cerca
+nova e liberação do mundo também são conferidos. Gates pendentes; operações
+prévias ao backup, seleção toda ausente, finanças e publicação seguem abertas.

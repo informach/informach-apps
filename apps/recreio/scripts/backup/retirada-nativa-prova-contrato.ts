@@ -8,6 +8,10 @@ export const RetiradaNativaDeProvaSchema = z.strictObject({
   contaId: z.string().min(1).max(256),
   preservadoId: z.uuid(),
   mundoId: z.uuid(),
+  diarioFinal: z.number().int().min(1).max(1000),
+  tickFinal: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  familiasFinaisSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  acessoFinalSha256: z.string().regex(/^[a-f0-9]{64}$/),
   chaves: z.strictObject({
     "native-old": z.string().regex(/^[A-Za-z0-9+/]{43}=$/),
     "native-next": z.string().regex(/^[A-Za-z0-9+/]{43}=$/),
