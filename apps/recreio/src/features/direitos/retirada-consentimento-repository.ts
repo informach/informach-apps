@@ -6,19 +6,11 @@ import { and, db, eq, inArray, isNull, sql } from "@informach/db";
 import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
-  recreioSpaceLeases as leases,
-  recreioSpaceMembers as members,
   recreioRightsOperations as operations,
   recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
-  recreioRightsProfileProjection,
-  recreioRightsWorldDrainingProjection,
-  recreioRightsWorldProjection,
-  recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
-  recreioRightsSubjects as subjects,
   users,
-  recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
 import { z } from "zod";
 import {
@@ -40,6 +32,10 @@ import { mesmoEscopoDeDireitos } from "./escopo";
 import { type criarAssinaturaDoLivro, resumoDoRegistro } from "./livro/assinatura";
 import { ConsentimentoDeRetiradaSchema } from "./preparacao-contrato";
 import { lerPlanoDeDireitos, montarPlanoDeDireitos } from "./preparacao-repository";
+import {
+  congelarSelecaoDeDireitos,
+  inspecionarDrenagemDaSelecao,
+} from "./selecao-congelamento-repository";
 
 const Configuracao = z.strictObject({
   fonte: z.string().regex(/^[a-f0-9]{40}$/),
@@ -222,48 +218,7 @@ function consentirPlanoNoBanco(
     const mundos = idsMundos.length
       ? await tx.select().from(spaces).where(inArray(spaces.id, idsMundos)).orderBy(spaces.id)
       : [];
-    const drenando = new Set<string>();
-    for (const mundo of mundos) {
-      assertAllowed(
-        mundo.rightsOperationId === null && !mundo.rightsDraining,
-        "MUNDO_EM_USO",
-        "Um mundo já tem retirada em andamento.",
-      );
-      const outrosAtuais = await tx.$count(
-        members,
-        and(
-          eq(members.spaceId, mundo.id),
-          sql`${members.profileId} is not null and ${members.profileId} not in (${sql.join(
-            ids.map((id) => sql`${id}::uuid`),
-            sql`, `,
-          )})`,
-          sql`${members.state}<>'former'`,
-        ),
-      );
-      assertAllowed(
-        outrosAtuais === 0 || !ids.some((id) => id === mundo.stewardProfileId),
-        "RESPONSABILIDADE",
-        "Transfira a responsabilidade pelo mundo compartilhado antes de retirar este perfil.",
-      );
-      const [posse] = await tx
-        .select({ id: leases.id })
-        .from(leases)
-        .where(and(eq(leases.spaceId, mundo.id), isNull(leases.releasedAt)))
-        .limit(1);
-      const [sessao] = await tx
-        .select({ id: games.id })
-        .from(games)
-        .where(and(eq(games.spaceId, mundo.id), isNull(games.endedAt)))
-        .limit(1);
-      const [foto] = await tx
-        .select({ diario: snapshots.journalSeq })
-        .from(snapshots)
-        .where(and(eq(snapshots.spaceId, mundo.id), eq(snapshots.revision, mundo.revision)))
-        .limit(1);
-      const fotoCompleta =
-        mundo.revision === 0 ? mundo.journalSeq === 0 && !foto : foto?.diario === mundo.journalSeq;
-      if (mundo.status === "active" || posse || sessao || !fotoCompleta) drenando.add(mundo.id);
-    }
+    const drenando = await inspecionarDrenagemDaSelecao(tx, ids, mundos);
     const bytes = assinatura.assinarIntencao({
       formato: "recreio-intencao-direitos-v1",
       livroId: assinatura.livroId,
@@ -300,65 +255,13 @@ function consentirPlanoNoBanco(
       })
       .returning();
     assertAllowed(operacao, "DIREITOS", "Não foi possível registrar o consentimento.");
-    for (const perfil of alvos) {
-      const original = plano.perfis.find((p) => p.id === perfil.id);
-      assertAllowed(original, "ESCOPO", "Perfil fora da prévia.");
-      await tx.insert(subjects).values({
-        operationId: operacao.id,
-        profileReference: perfil.id,
-        liveProfileId: perfil.id,
-        policyVersion: perfil.policyVersion,
-        guardianReference: original.responsabilidadeId,
-      });
-      const versao = sql`${profiles.policyVersion}+1`;
-      await tx
-        .update(profiles)
-        .set({
-          status: "suspended",
-          policyVersion: versao,
-          rightsOperationId: operacao.id,
-          rightsFrozenState: recreioRightsProfileProjection({
-            ...profiles,
-            status: sql`'suspended'`,
-            policyVersion: versao,
-          }),
-          updatedAt: AGORA,
-        })
-        .where(eq(profiles.id, perfil.id));
-    }
-    for (const mundo of mundos) {
-      const drenar = drenando.has(mundo.id);
-      await tx.insert(worlds).values({
-        operationId: operacao.id,
-        spaceId: mundo.id,
-        sourceStatus: mundo.status === "active" ? "hibernating" : mundo.status,
-        phase: drenar ? "draining" : "frozen",
-        sourceRevision: mundo.revision,
-        sourceJournalSeq: mundo.journalSeq,
-        sourceLeaseEpoch: mundo.leaseEpoch,
-        sourceManagementRevision: mundo.managementRevision,
-      });
-      const cerca = drenar ? sql`${spaces.leaseEpoch}` : sql`${spaces.leaseEpoch}+1`,
-        gestao = drenar ? sql`${spaces.managementRevision}` : sql`${spaces.managementRevision}+1`;
-      const projetar = drenar ? recreioRightsWorldDrainingProjection : recreioRightsWorldProjection;
-      await tx
-        .update(spaces)
-        .set({
-          status: "archived",
-          leaseEpoch: cerca,
-          managementRevision: gestao,
-          rightsOperationId: operacao.id,
-          rightsDraining: drenar,
-          rightsFrozenState: projetar({
-            ...spaces,
-            status: sql`'archived'`,
-            leaseEpoch: cerca,
-            managementRevision: gestao,
-          }),
-          updatedAt: AGORA,
-        })
-        .where(eq(spaces.id, mundo.id));
-    }
+    await congelarSelecaoDeDireitos(tx, {
+      operacaoId: operacao.id,
+      plano,
+      alvos,
+      mundos,
+      drenando,
+    });
     await tx
       .update(devices)
       .set({ revokedAt: AGORA })

@@ -219,6 +219,29 @@ export function criarArmazenamentoDoLivro(config: {
     if (concorrencia || !falhou) throw new FalhaDoLivroDeDireitos("CONCORRENCIA");
     throw new FalhaDoLivroDeDireitos("INCONCLUSIVO");
   }
+  /** Original authenticated bytes, never re-signed with the recovery key. */
+  async function lerRegistroDaIntencaoReferencia(entrada: unknown, signal?: AbortSignal) {
+    const p = ReferenciaDaIntencaoSchema.safeParse(entrada);
+    if (!p.success) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+    const ref = p.data;
+    return comPrazo(async (s) => {
+      const r = await get(`${prefixo}intencoes/${ref.operacaoId}-${ref.revisao}.json`, s);
+      try {
+        const assinada = assinatura.lerIntencaoAssinada(r.bytes),
+          doc = assinada.documento;
+        if (
+          doc.operacaoId !== ref.operacaoId ||
+          doc.revisao !== ref.revisao ||
+          resumoDoRegistro(r.bytes) !== ref.sha256
+        )
+          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+        return { ...assinada, bytes: r.bytes };
+      } catch (erro) {
+        r.bytes.fill(0);
+        throw erro;
+      }
+    }, signal);
+  }
   return {
     prefixo,
     /** Objeto imutável endereçado pelo SHA autenticado da intenção. Não admite
@@ -350,23 +373,15 @@ export function criarArmazenamentoDoLivro(config: {
         return doc;
       }, signal);
     },
-    lerIntencaoAssinadaReferencia(entrada: unknown, signal?: AbortSignal) {
-      const p = ReferenciaDaIntencaoSchema.safeParse(entrada);
-      if (!p.success) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
-      const ref = p.data;
-      return comPrazo(async (s) => {
-        const r = await get(`${prefixo}intencoes/${ref.operacaoId}-${ref.revisao}.json`, s),
-          assinada = assinatura.lerIntencaoAssinada(r.bytes),
-          doc = assinada.documento;
-        if (
-          doc.operacaoId !== ref.operacaoId ||
-          doc.revisao !== ref.revisao ||
-          resumoDoRegistro(r.bytes) !== ref.sha256
-        )
-          throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
-        return assinada;
-      }, signal);
+    async lerIntencaoAssinadaReferencia(entrada: unknown, signal?: AbortSignal) {
+      const lida = await lerRegistroDaIntencaoReferencia(entrada, signal);
+      try {
+        return { documento: lida.documento, chaveId: lida.chaveId };
+      } finally {
+        lida.bytes.fill(0);
+      }
     },
+    lerRegistroDaIntencaoReferencia,
     publicarIntencao(entrada: Uint8Array, signal?: AbortSignal) {
       const bytes = Buffer.from(entrada);
       assinatura.lerIntencao(bytes);

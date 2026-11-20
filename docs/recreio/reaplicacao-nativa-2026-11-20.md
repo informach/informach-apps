@@ -158,3 +158,22 @@ continua compatível com as URLs usadas nos provisionamentos Conta/Edi; esses
 consumidores exigem CI compartilhado. Prova fria preparada confere leitura
 nativa das fontes, rollback, fechamento efetivo e inventário integral após
 a limpeza. Nenhuma porta de worker foi liberada para execução offline.
+
+
+## Preparação SQL compartilhada em candidata
+
+A inspeção de drenagem e o congelamento de perfis/mundos foram extraídos da
+admissão interativa para funções que recebem a transação explicitamente.
+A admissão continua conferindo identidade, prévia, aceite e livro nos mesmos
+pontos; revogação de aparelhos/sessões, finanças e auditoria permanecem na
+mesma transação. Seleções duplicadas, perfil/jogo fora do plano e drenagem de
+mundo alheio são recusados pelo helper. Não há nova rota, criação implícita
+de consentimento ou permissão de execução com livro congelado. As provas
+nativas existentes devem ser repetidas na nova fonte.
+
+O leitor privado do livro passa a disponibilizar os bytes autenticados originais
+da intenção por referência/SHA. Uma chave nova ativa não reassina nem substitui
+a decisão antiga. A prova preparada compara bytes e chave originais, relê
+depois de zerar o buffer e recusa SHA divergente usando o SDK/HTTP real fechado.
+Isto permite importar a operação sem fabricar uma nova assinatura/autoridade;
+a admissão e os efeitos históricos ainda precisam da composição privada.

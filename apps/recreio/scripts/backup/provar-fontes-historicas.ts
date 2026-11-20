@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { type Database, eq, sql } from "@informach/db";
+import { eq, sql } from "@informach/db";
 import { recreioRightsRecoverySources as sources } from "@informach/db/schema";
 import type postgres from "postgres";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
@@ -178,10 +178,8 @@ export async function provarFontesHistoricasRecuperadas(
     );
     const repetida = await importarFontesHistoricasDeDireitos(config);
     exigir(isDeepStrictEqual(primeira, repetida) && isDeepStrictEqual(fontes, await ler()));
-    let emprestada: Database | undefined;
     const causa = new Error("Private native transaction rollback qualification");
-    await comConexaoPrivadaDeDireitos(copia, async (banco) => {
-      emprestada = banco;
+    const emprestada = await comConexaoPrivadaDeDireitos(copia, async (banco) => {
       const nativas = await banco
         .select()
         .from(sources)
@@ -204,8 +202,8 @@ export async function provarFontesHistoricasRecuperadas(
         reverteu = true;
       }
       exigir(reverteu && isDeepStrictEqual(fontes, await ler()));
+      return banco;
     });
-    exigir(emprestada);
     let encerrou = false;
     try {
       await emprestada.execute(sql`select 1`);

@@ -43,6 +43,54 @@ async function preparar() {
 }
 const limites = { maxEntradas: 10, tempoLimiteMs: 10_000 };
 describe("continuidade do livro externo", () => {
+  it("recupera os bytes originais com a próxima chave ativa sem reassinar a decisão antiga", async () =>
+    cenario(async (f) => {
+      const { doc, head } = await f.admitir(),
+        original = f.assinatura.assinarIntencao(doc),
+        proximo = randomBytes(32),
+        assinatura = criarAssinaturaDoLivro({
+          livroId: f.livroId,
+          chaveAtiva: "v2",
+          chaves: new Map([...f.chaves, ["v2", proximo]]),
+        });
+      const ref = head.documento.ultimaIntencao;
+      if (!ref) throw new Error("Admitted fixture reference absent");
+      const storage = criarArmazenamentoDoLivro({
+        cliente: f.http.cliente,
+        bucket: "recreio-fixture",
+        assinatura,
+        tempoLimiteMs: 2000,
+      });
+      try {
+        const lida = await storage.lerRegistroDaIntencaoReferencia(ref);
+        try {
+          expect(lida.chaveId).toBe("v1");
+          expect(lida.documento).toEqual(doc);
+          expect(lida.bytes).toEqual(original);
+          const reassinada = assinatura.assinarIntencao(doc);
+          try {
+            expect(reassinada).not.toEqual(lida.bytes);
+          } finally {
+            reassinada.fill(0);
+          }
+        } finally {
+          lida.bytes.fill(0);
+        }
+        const relida = await storage.lerRegistroDaIntencaoReferencia(ref);
+        try {
+          expect(relida.bytes).toEqual(original);
+        } finally {
+          relida.bytes.fill(0);
+        }
+        await expect(
+          storage.lerRegistroDaIntencaoReferencia({ ...ref, sha256: "0".repeat(64) }),
+        ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+      } finally {
+        assinatura.encerrar();
+        proximo.fill(0);
+        original.fill(0);
+      }
+    }));
   it("confere o prefixo aberto sem autorizar replay de recuperação", async () =>
     cenario(async (f) => {
       const { head } = await f.admitir(),
