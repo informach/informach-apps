@@ -1,14 +1,23 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
+import { z } from "zod";
 import type { criarArmazenamentoDoLivro } from "./armazenamento";
 import { resumoDoRegistro } from "./assinatura";
 import {
   FalhaDoLivroDeDireitos,
   type IntencaoDeDireitos,
   type ReferenciaDaIntencao,
+  ReferenciaDaIntencaoSchema,
+  ShaDoLivroSchema,
 } from "./contrato";
 
 type Armazenamento = ReturnType<typeof criarArmazenamentoDoLivro>;
+const AdmissaoPersistidaSchema = ReferenciaDaIntencaoSchema.extend({
+  cabecalhoSha256: ShaDoLivroSchema,
+});
+export type AdmissaoPersistida = z.infer<typeof AdmissaoPersistidaSchema>;
+const chaveDaReferencia = (ref: ReferenciaDaIntencao) =>
+  `${ref.operacaoId}:${ref.revisao}:${ref.sha256}`;
 interface Limites {
   maxEntradas: number;
   tempoLimiteMs: number;
@@ -42,7 +51,25 @@ async function comPrazo<T>(config: Limites, executar: (signal: AbortSignal) => P
     c.abort();
   }
 }
-async function conferir(storage: Armazenamento, max: number, signal: AbortSignal) {
+async function conferir(
+  storage: Armazenamento,
+  max: number,
+  signal: AbortSignal,
+  esperadas: readonly AdmissaoPersistida[] = [],
+) {
+  if (!Array.isArray(esperadas) || esperadas.length > max)
+    throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+  const parsed = z.array(AdmissaoPersistidaSchema).max(max).safeParse(esperadas);
+  if (!parsed.success) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+  const admissoes = parsed.data,
+    pares = new Set(admissoes.map((a) => `${chaveDaReferencia(a)}:${a.cabecalhoSha256}`));
+  if (pares.size !== admissoes.length) throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+  // Store only the requested memberships. An authentic ancestor alone is not
+  // enough: it must already contain this exact operation/revision/MAC hash.
+  const cabecalhosDesejados = new Set(admissoes.map((a) => a.cabecalhoSha256)),
+    referenciasDesejadas = new Set(admissoes.map(chaveDaReferencia)),
+    entradasPorCabecalho = new Map<string, number>(),
+    entradasPorReferencia = new Map<string, number>();
   const inicial = await storage.lerCabecalho(signal),
     refs: ReferenciaDaIntencao[] = [],
     vistos = new Set<string>();
@@ -51,6 +78,8 @@ async function conferir(storage: Armazenamento, max: number, signal: AbortSignal
   // O próprio ponteiro corrente também deve ter sua cópia imutável.
   await storage.lerHistorico(inicial.documento.geracao, inicial.sha256, signal);
   let atual = inicial;
+  if (cabecalhosDesejados.has(atual.sha256))
+    entradasPorCabecalho.set(atual.sha256, atual.documento.entradas);
   while (atual.documento.geracao > 0) {
     if (signal.aborted) throw new FalhaDoLivroDeDireitos("INCONCLUSIVO");
     const doc = atual.documento;
@@ -98,18 +127,36 @@ async function conferir(storage: Armazenamento, max: number, signal: AbortSignal
         if (assinada.chaveId !== atual.chaveId || assinada.documento.epoca !== doc.epoca)
           throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
         refs.push(Object.freeze({ ...ref }));
+        if (referenciasDesejadas.has(chaveDaReferencia(ref)))
+          entradasPorReferencia.set(chaveDaReferencia(ref), doc.entradas);
       }
     }
     atual = anterior;
+    if (cabecalhosDesejados.has(atual.sha256))
+      entradasPorCabecalho.set(atual.sha256, atual.documento.entradas);
   }
   if (refs.length !== inicial.documento.entradas) throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+  for (const admissao of admissoes) {
+    const cabecalho = entradasPorCabecalho.get(admissao.cabecalhoSha256),
+      referencia = entradasPorReferencia.get(chaveDaReferencia(admissao));
+    if (cabecalho === undefined || referencia === undefined || cabecalho < referencia)
+      throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
+  }
   return { cabecalho: inicial, referencias: Object.freeze(refs.reverse()) };
 }
 /** Prefixo autêntico observado, também útil para conciliar uma resposta
  * perdida. Não afirma que o livro esteja fechado nem autoriza efeitos locais. */
-export function conferirPrefixoDoLivro(config: Limites & { storage: Armazenamento }) {
+export function conferirPrefixoDoLivro(
+  config: Limites & {
+    storage: Armazenamento;
+    /** Read-only proof, not consent or authority to execute a restored operation. */
+    admissoes?: readonly AdmissaoPersistida[];
+  },
+) {
   const { storage, maxEntradas, tempoLimiteMs, signal } = config;
-  return comPrazo({ maxEntradas, tempoLimiteMs, signal }, (s) => conferir(storage, maxEntradas, s));
+  return comPrazo({ maxEntradas, tempoLimiteMs, signal }, (s) =>
+    conferir(storage, maxEntradas, s, config.admissoes),
+  );
 }
 /** Primeiro verifica a cadeia inteira; só depois chama o consumidor em ordem.
  * O consumidor deve manter o destino isolado e idempotência por op/revisão.

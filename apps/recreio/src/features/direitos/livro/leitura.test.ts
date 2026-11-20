@@ -43,6 +43,83 @@ async function preparar() {
 }
 const limites = { maxEntradas: 10, tempoLimiteMs: 10_000 };
 describe("continuidade do livro externo", () => {
+  it("confere admissão num cabeçalho ancestral que já continha a intenção exata", async () =>
+    cenario(async (f) => {
+      const primeira = await f.admitir(),
+        doc = f.intencao(),
+        bytes = f.assinatura.assinarIntencao(doc);
+      let segunda: Awaited<ReturnType<typeof f.storage.lerCabecalho>>;
+      try {
+        await f.storage.publicarIntencao(bytes);
+        segunda = await f.storage.trocarCabecalho(
+          primeira.head,
+          f.assinatura.assinarCabecalho(f.proximo(primeira.head, bytes)),
+        );
+      } finally {
+        bytes.fill(0);
+      }
+      const a = primeira.head.documento.ultimaIntencao,
+        b = segunda.documento.ultimaIntencao;
+      if (!a || !b) throw new Error("Admitted references absent");
+      await f.storage.congelarCabecalho(segunda, "2026-11-19T10:02:00.000Z");
+      const prova = await conferirPrefixoDoLivro({
+        ...limites,
+        storage: f.storage,
+        admissoes: [
+          { ...a, cabecalhoSha256: primeira.head.sha256 },
+          { ...a, cabecalhoSha256: segunda.sha256 },
+          { ...b, cabecalhoSha256: segunda.sha256 },
+        ],
+      });
+      expect(prova.cabecalho.documento.estado).toBe("congelado");
+      expect(prova.referencias).toEqual([a, b]);
+    }));
+
+  it("recusa cabeçalho autêntico anterior à decisão, outro hash e ancestral ausente", async () =>
+    cenario(async (f) => {
+      const primeira = await f.admitir(),
+        inicial = primeira.head.documento.anteriorSha256,
+        doc = f.intencao(),
+        bytes = f.assinatura.assinarIntencao(doc);
+      let segunda: Awaited<ReturnType<typeof f.storage.lerCabecalho>>;
+      try {
+        await f.storage.publicarIntencao(bytes);
+        segunda = await f.storage.trocarCabecalho(
+          primeira.head,
+          f.assinatura.assinarCabecalho(f.proximo(primeira.head, bytes)),
+        );
+      } finally {
+        bytes.fill(0);
+      }
+      const a = primeira.head.documento.ultimaIntencao,
+        b = segunda.documento.ultimaIntencao;
+      if (!a || !b || !inicial) throw new Error("Admitted references absent");
+      await f.storage.congelarCabecalho(segunda, "2026-11-19T10:02:00.000Z");
+      for (const admissao of [
+        { ...a, cabecalhoSha256: inicial },
+        { ...b, cabecalhoSha256: primeira.head.sha256 },
+        { ...a, sha256: "0".repeat(64), cabecalhoSha256: segunda.sha256 },
+        { ...a, cabecalhoSha256: "0".repeat(64) },
+      ])
+        await expect(
+          conferirPrefixoDoLivro({ ...limites, storage: f.storage, admissoes: [admissao] }),
+        ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+    }));
+
+  it("recusa pares repetidos ou malformados antes de consultar o provedor", async () =>
+    cenario(async (f) => {
+      const { head } = await f.admitir(),
+        ref = head.documento.ultimaIntencao;
+      if (!ref) throw new Error("Admitted reference absent");
+      const admissao = { ...ref, cabecalhoSha256: head.sha256 },
+        pedidos = f.http.pedidos.length;
+      for (const admissoes of [[admissao, admissao], [{ ...admissao, revisao: 0 }]])
+        await expect(
+          conferirPrefixoDoLivro({ ...limites, storage: f.storage, admissoes }),
+        ).rejects.toMatchObject({ codigo: "CONFIGURACAO" });
+      expect(f.http.pedidos).toHaveLength(pedidos);
+    }));
+
   it("recupera os bytes originais com a próxima chave ativa sem reassinar a decisão antiga", async () =>
     cenario(async (f) => {
       const { doc, head } = await f.admitir(),

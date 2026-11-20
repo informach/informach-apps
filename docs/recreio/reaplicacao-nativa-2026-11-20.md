@@ -471,3 +471,45 @@ outro fundador vêm do estado final anterior à captura, somente como oráculos
 de comparação: não são usados para criar/restaurar estado. Tick, revisão, cerca
 nova e liberação do mundo também são conferidos. Gates pendentes; operações
 prévias ao backup, seleção toda ausente, finanças e publicação seguem abertas.
+
+
+## Cabeçalhos de operações já admitidas — verificador em candidata
+
+O leitor recebe opcionalmente pares limitados de intenção/revisão/hash e
+cabeçalho persistido. Confere a cadeia inteira e a posição da admissão: um
+cabeçalho autêntico anterior à inclusão dessa intenção é recusado. Só guarda
+contadores para os pares solicitados, sem duplicar todos os cabeçalhos no fluxo
+comum; o formato da prova devolvida permanece igual. Par malformado/repetido
+é configuração inválida antes de I/O. Cabeçalho ausente, hash diferente ou
+intenção posterior ao cabeçalho são integridade inválida. Não autoriza efeitos.
+
+Casos preparados com HTTP/S3 fechado real: duas intenções, admissão ancestral
+válida após congelar e negativas para cabeça anterior/ausente e outro hash.
+Gates desse incremento pendentes.
+
+Sequência de integração ainda necessária:
+
+1. No cluster privado, inventariar as operações nativas admitidas/em execução/
+   concluídas do mesmo livro, com limite, e conferir seus pares antes dos efeitos.
+2. Conservar `preparation_id` e a origem nativa; validar preparação/MAC/plano
+   inteiro contra a fonte externa e o mapa da captura. Não converter a operação
+   existente em importação recém-admitida nem sobrescrever datas/cabeçalhos.
+3. Vincular essa conferência à coordenação privada temporária e à operação
+   específica. A execução normal continua exigindo livro aberto/chave atual.
+4. Reconciliação de lease/backoff do worker ocorre só na cópia privada, depois
+   da prova integral, com auditoria própria. Não é novo consentimento. Conclusão
+   anterior e prazos de retenção são conservados; estados de revisão não viram
+   autorização automática. Outbox não admitida exige seu próprio tratamento.
+5. A prova fria precisa de uma decisão nativa publicada ANTES da captura e
+   outra DEPOIS, no mesmo livro. O primeiro cabeçalho deve ser ancestral real;
+   aplicar ambas na segunda restauração e conferir os recibos originais. Nenhum
+   usuário/preparação/dado pessoal é recriado para fechar uma FK.
+6. A seleção inteiramente ausente com mundo presente ainda precisa da liberação
+   compartilhada dos mundos após fotos/diário, sem depender de um último perfil
+   vivo. Não inventar responsável/aceite para liberar mundo compartilhado.
+
+Fad2a884 falhou antes de executar diário: TS18048 no acesso opcional da fixture
+(44799100250/44799105139). Guardas explícitas sem assertion ou exceção de lint
+foram publicadas em 10197642; repetição 44799702439/44799708245/44799713119.
+Qualidade e integração das fontes anteriores 2a955293 e 6c7eb4d4 passaram; os
+recibos aprovados dessas fontes continuam distintos da prova nova de diário.
