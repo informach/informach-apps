@@ -30,6 +30,7 @@ import { provarClusterFrio } from "./backup-cluster-frio-apoio";
 import { semearConvitesDaCaptura } from "./backup-convites-apoio";
 import { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { mundoDe } from "./jogo-apoio";
+import { familiaSocial } from "./social-apoio";
 
 it(
   "recupera SQL e fotografia apenas pelo índice e arquivo guardados, sem fontes locais ou objeto vivo",
@@ -65,6 +66,9 @@ it(
         }
       }
       try {
+        // Native family creation BEFORE capture: the cold historical-admission
+        // proof must find this child in the authenticated backup itself.
+        await familiaSocial(15);
         const capacidades = await semearCapacidadesDaCaptura(fonte, jogador, mundoId);
         await semearConvitesDaCaptura(fonte, jogador, mundoId, capacidades);
         const fotos = criarArmazenamentoPrivadoS3({
