@@ -34,3 +34,23 @@ Gerar outro código e exige a mudança efetiva do código exibido antes de
 convidar a próxima pessoa. Não altera produto, teto, rate limit ou timeout.
 O banco descartável foi removido mesmo nessa falha. Ainda não há resultado
 de capacidade desta rodada; a candidata corrigida exige nova execução.
+
+
+A correção ee1a4157 passou carga 44771690103 e qualidade 44771697104. Foram
+908 comandos (60/120/240/488), zero perdas, contador final 908 conferido no
+PostgreSQL e recuperado por processo novo; banco descartável removido. O ensaio
+usou 60/60/60/61 segundos reais por cenário, sem desligar limites. ZIP original
+de 1.575 bytes e JSON conferidos por SHA no
+[recibo](evidencias/capacidade-protocolo-44771690103.json).
+
+| Jogadores | p95 da rodada com automação | CPU média do título (núcleos) | RSS máximo amostrado |
+| --- | --- | --- | --- |
+| 1 | 123,37 ms | 0,00766 | 129,13 MiB |
+| 2 | 227,23 ms | 0,00990 | 124,49 MiB |
+| 4 | 379,02 ms | 0,01621 | 125,87 MiB |
+| 8 | 1.023,49 ms | 0,03058 | 152,37 MiB |
+
+Esses valores não isolam RTT WebSocket e incluem a automação de oito páginas.
+Não são orçamento de latência WAN, custo ou capacidade do Railway. O título é
+interno e sem simulação/arte do Morada. F10 continua exigindo recursos dos
+outros processos, carga operacional e custo/rateio por mundo-hora em produção.

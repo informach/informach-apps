@@ -47,6 +47,11 @@ const Configuracao = z.strictObject({
 });
 type Assinatura = ReturnType<typeof criarAssinaturaDoLivro>;
 function recibo(linha: typeof operations.$inferSelect) {
+  assertAllowed(
+    linha.preparationId !== null && linha.recoverySourceId === null,
+    "DIREITOS_INTEGRIDADE",
+    "Este pedido não é um consentimento interativo.",
+  );
   return {
     operacaoId: linha.id,
     preparacaoId: linha.preparationId,

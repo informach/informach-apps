@@ -7,7 +7,6 @@ import {
   recreioSpaceJournal as journal,
   recreioProfileDataKeys as keys,
   recreioRightsOperations as operations,
-  recreioRightsPreparations as preparations,
   recreioRightsSubjects as subjects,
   recreioRightsWorlds as worlds,
 } from "@informach/db/schema";
@@ -18,6 +17,7 @@ import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
 } from "./encerramento-efeitos-repository";
+import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
@@ -132,10 +132,7 @@ export async function comEfeitoNativoDeDireitos<T>(
         "DIREITOS_INTEGRIDADE",
         "A intenção nativa mudou.",
       );
-      const [preparacao] = await tx
-        .select()
-        .from(preparations)
-        .where(eq(preparations.id, op.preparationId));
+      const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
       const selecionados = await tx
         .select({ id: subjects.profileReference })
         .from(subjects)

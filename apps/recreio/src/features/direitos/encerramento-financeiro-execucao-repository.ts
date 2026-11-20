@@ -17,7 +17,6 @@ import {
   recreioAccountClosureFinances as finances,
   recreioRightsOperations as operations,
   recreioAccountParticipations as participations,
-  recreioRightsPreparations as preparations,
   recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
 import { VERSAO_DO_CANCELAMENTO_DA_RENOVACAO } from "@/features/cobranca/renovacao-constantes";
@@ -25,6 +24,7 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
 import { lerOrigemFinanceiraDoEncerramentoLocked } from "./encerramento-origem-financeira-repository";
+import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
@@ -150,10 +150,7 @@ async function comTrabalho<T>(
       "DIREITOS_LIVRO",
       "Consentimento ausente do prefixo verificado.",
     );
-    const [preparacao] = await tx
-      .select()
-      .from(preparations)
-      .where(eq(preparations.id, op.preparationId));
+    const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
     const selecionados = await tx
       .select({ id: subjects.profileReference })
       .from(subjects)

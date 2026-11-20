@@ -1,0 +1,159 @@
+{
+  "formato": "recreio-capacidade-protocolo-v1",
+  "source": "ee1a415732ade873f9fa496eecedb5ae6ace7388",
+  "runId": "44771690103",
+  "node": "v24.15.0",
+  "plataforma": "linux",
+  "arquitetura": "x64",
+  "cpus": [
+    {
+      "modelo": "AMD EPYC 7763 64-Core Processor",
+      "velocidade": 0
+    },
+    {
+      "modelo": "AMD EPYC 7763 64-Core Processor",
+      "velocidade": 0
+    },
+    {
+      "modelo": "AMD EPYC 7763 64-Core Processor",
+      "velocidade": 0
+    },
+    {
+      "modelo": "AMD EPYC 7763 64-Core Processor",
+      "velocidade": 0
+    }
+  ],
+  "memoriaExecutor": 16759431168,
+  "bancoBaseBytes": 24270527,
+  "resultados": [
+    {
+      "simultaneos": 1,
+      "mundos": 1,
+      "duracaoMs": 60000.450106000004,
+      "rodadas": 60,
+      "comandos": 60,
+      "comandosPorSegundo": 0.9999924982896093,
+      "latenciaRodadaMs": {
+        "p50": 104.36801299999934,
+        "p95": 123.36613300000317,
+        "p99": 220.2651809999952,
+        "max": 220.2651809999952
+      },
+      "servidorTitulo": {
+        "cpuMicros": 459831,
+        "cpuNucleosMedios": 0.007663792508016822,
+        "rssMaxAmostrado": 135397376
+      },
+      "horasMundo": 0.016666791696111113,
+      "horasJogador": 0.016666791696111113,
+      "diarioPersistido": 60,
+      "contadorRecuperado": 60,
+      "fotografiaBytes": 4888,
+      "diarioBytes": 0,
+      "bancoBytes": 24655551,
+      "erros": 0
+    },
+    {
+      "simultaneos": 2,
+      "mundos": 1,
+      "duracaoMs": 60000.12977099999,
+      "rodadas": 60,
+      "comandos": 120,
+      "comandosPorSegundo": 1.999995674309356,
+      "latenciaRodadaMs": {
+        "p50": 216.9062269999995,
+        "p95": 227.2327859999932,
+        "p99": 247.89437699998962,
+        "max": 247.89437699998962
+      },
+      "servidorTitulo": {
+        "cpuMicros": 593726,
+        "cpuNucleosMedios": 0.00989541193104164,
+        "rssMaxAmostrado": 130539520
+      },
+      "horasMundo": 0.016666702714166665,
+      "horasJogador": 0.03333340542833333,
+      "diarioPersistido": 180,
+      "contadorRecuperado": 180,
+      "fotografiaBytes": 10101,
+      "diarioBytes": 1800,
+      "bancoBytes": 24753855,
+      "erros": 0
+    },
+    {
+      "simultaneos": 4,
+      "mundos": 1,
+      "duracaoMs": 60000.366408,
+      "rodadas": 60,
+      "comandos": 240,
+      "comandosPorSegundo": 3.999975572949171,
+      "latenciaRodadaMs": {
+        "p50": 342.93627299999935,
+        "p95": 379.01659199999995,
+        "p99": 859.4822799999965,
+        "max": 859.4822799999965
+      },
+      "servidorTitulo": {
+        "cpuMicros": 972777,
+        "cpuNucleosMedios": 0.016212850991361567,
+        "rssMaxAmostrado": 131981312
+      },
+      "horasMundo": 0.016666768446666667,
+      "horasJogador": 0.06666707378666667,
+      "diarioPersistido": 420,
+      "contadorRecuperado": 420,
+      "fotografiaBytes": 15314,
+      "diarioBytes": 5400,
+      "bancoBytes": 24950463,
+      "erros": 0
+    },
+    {
+      "simultaneos": 8,
+      "mundos": 1,
+      "duracaoMs": 61000.13951800001,
+      "rodadas": 61,
+      "comandos": 488,
+      "comandosPorSegundo": 7.999981702599225,
+      "latenciaRodadaMs": {
+        "p50": 920.868936999992,
+        "p95": 1023.4865439999849,
+        "p99": 1427.2420360000106,
+        "max": 1427.2420360000106
+      },
+      "servidorTitulo": {
+        "cpuMicros": 1865492,
+        "cpuNucleosMedios": 0.030581766119559903,
+        "rssMaxAmostrado": 159768576
+      },
+      "horasMundo": 0.016944483199444447,
+      "horasJogador": 0.13555586559555557,
+      "diarioPersistido": 908,
+      "contadorRecuperado": 908,
+      "fotografiaBytes": 20527,
+      "diarioBytes": 12720,
+      "bancoBytes": 25237183,
+      "erros": 0
+    }
+  ],
+  "recuperacaoAposReinicio": true,
+  "bancoDescartavel": true,
+  "productionDataTouched": false,
+  "limitesDesligados": false,
+  "limites": [
+    "Título sintético interno; não mede simulação, arte ou FPS do Morada.",
+    "Latência inclui automação e atualização do navegador, além de HTTP/PG/WS.",
+    "CPU/RSS referem-se ao processo do título; não incluem portal, PostgreSQL ou navegadores.",
+    "Horas normalizadas do ensaio não são custo financeiro nem capacidade do Railway.",
+    "Um mundo; cenários sustentados pelo tempo declarado, não busca automática de saturação."
+  ],
+  "bancoDescartavelLimpo": true,
+  "conferidoEm": "2026-11-20T16:25:07.937Z",
+  "runUrl": "https://github.com/informach/informach-apps/actions/runs/44771690103",
+  "qualityRunId": "44771697104",
+  "artifact": {
+    "id": 14647534144,
+    "zipBytes": 1575,
+    "zipSha256": "21cda156d9fd328c5d2a252bcf4cc9b8f28f04387d410211c98761c0ca2e57f1",
+    "receiptSha256": "687cb21079de60741e5d70bf16bafb458964dcd59198f3684ed3de02f0dea624"
+  }
+}

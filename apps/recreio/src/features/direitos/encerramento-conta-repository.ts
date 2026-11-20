@@ -4,7 +4,6 @@ import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
   recreioAccountParticipations as participations,
-  recreioRightsPreparations as preparations,
   recreioRightsSubjects as subjects,
   users,
 } from "@informach/db/schema";
@@ -22,6 +21,7 @@ import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
 } from "./encerramento-efeitos-repository";
+import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
@@ -92,10 +92,7 @@ export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) 
         "DIREITOS_LIVRO",
         "Consentimento ausente do prefixo verificado.",
       );
-      const [preparacao] = await tx
-        .select()
-        .from(preparations)
-        .where(eq(preparations.id, op.preparationId));
+      const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
       const alvos = await tx
         .select()
         .from(subjects)

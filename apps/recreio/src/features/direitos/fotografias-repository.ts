@@ -6,7 +6,6 @@ import {
   recreioSnapshotObjectDeliveries as deliveries,
   recreioSpaceJournal as journal,
   recreioRightsOperations as operations,
-  recreioRightsPreparations as preparations,
   recreioRightsWorldProjection,
   recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
@@ -26,6 +25,7 @@ import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
 } from "./encerramento-efeitos-repository";
+import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
@@ -101,10 +101,7 @@ export function reservarFotografiaDeDireitos(config: CoordenacaoDuravel) {
       "DIREITOS_LIVRO",
       "Intenção não admitida no prefixo verificado.",
     );
-    const [preparacao] = await tx
-      .select()
-      .from(preparations)
-      .where(eq(preparations.id, operacao.preparationId));
+    const preparacao = await lerPreparacaoInterativaDaOperacao(tx, operacao);
     const selecionados = await tx
       .select({ id: subjects.profileReference })
       .from(subjects)
@@ -377,10 +374,7 @@ export function confirmarFotografiaDeDireitos(
       "DIREITOS_INTEGRIDADE",
       "A intenção original precisa de revisão.",
     );
-    const [preparacao] = await tx
-      .select()
-      .from(preparations)
-      .where(eq(preparations.id, operacao.preparationId));
+    const preparacao = await lerPreparacaoInterativaDaOperacao(tx, operacao);
     const selecionados = await tx
       .select({ id: subjects.profileReference })
       .from(subjects)

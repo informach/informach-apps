@@ -1,6 +1,21 @@
 # Estado do trabalho no repositório
 
 
+## Recreio — carga nativa e origem de recuperação, 20/11
+
+Carga ee1a4157 passou 44771690103/qualidade 44771697104: um mundo com 1/2/4/8
+membros nativos, 908 comandos, PG/HTTP/WS, saída e recuperação por processo novo,
+sem perdas ou limites desligados. Banco removido. Métricas incluem automação;
+não comprovam capacidade/custo Railway ou FPS. [Prova](recreio/capacidade-protocolo-2026-11-20.md).
+
+Índices 0241 adotados intactos, 242 recibos: fonte dbeaedb9 passou direitos
+44770726381, qualidade 44770733529 e conciliação 44770739502. Nova fonte
+histórica de recuperação está em implementação: conserva referências ausentes
+sem criar identidade e mantém os workers interativos bloqueados para essa
+origem. Não é replay F7 executado. [Sequência](recreio/reaplicacao-nativa-2026-11-20.md).
+Nenhuma destas novas capacidades foi implantada; testes humanos continuam no final.
+
+
 ## Recreio — cobertura e convites recuperados, 20/11
 
 Cópias pessoais receberam metadados próprios de cadastro, pareamento, avisos,

@@ -4,7 +4,6 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
-  recreioRightsPreparations as preparations,
   recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
   recreioRightsWorlds as worlds,
@@ -25,6 +24,7 @@ import {
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { type CoordenacaoDeEfeitos, comEfeitoNativoDeDireitos } from "./efeitos-repository";
+import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
@@ -139,7 +139,7 @@ async function conferirAtual(
     "DIREITOS_INTEGRIDADE",
     "A intenção nativa mudou.",
   );
-  const [p] = await tx.select().from(preparations).where(eq(preparations.id, op.preparationId));
+  const p = await lerPreparacaoInterativaDaOperacao(tx, op);
   const selecionados = await tx
     .select({ id: subjects.profileReference })
     .from(subjects)

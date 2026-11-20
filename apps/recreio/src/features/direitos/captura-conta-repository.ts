@@ -17,6 +17,7 @@ import {
   recreioNativePins as pins,
   recreioRightsPreparations as preparations,
   recreioPurchaseAuthorizations as purchases,
+  recreioRightsRecoverySources as recoverySources,
   recreioTrialEnrollments as trials,
 } from "@informach/db/schema";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
@@ -78,6 +79,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "captura_observada",
             "origem_financiamento",
             "acao_propria_auditada",
+            "fonte_recuperada",
           ],
           dadosDePerfisIncluidos: false,
           referenciasDeDecisoesPropriasIncluidas: true,
@@ -331,6 +333,23 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
               ),
             )
             .orderBy(preparations.id)
+            .limit(limites.pagina),
+        );
+        await paginas("fonte_recuperada", (apos) =>
+          tx
+            .select({
+              cursor: recoverySources.operationId,
+              tipo: recoverySources.kind,
+              importadaEm: recoverySources.importedAt,
+            })
+            .from(recoverySources)
+            .where(
+              and(
+                eq(recoverySources.requesterReference, autor.contaId),
+                apos ? gt(recoverySources.operationId, apos) : undefined,
+              ),
+            )
+            .orderBy(recoverySources.operationId)
             .limit(limites.pagina),
         );
         await paginas("pedido_direitos", (apos) =>

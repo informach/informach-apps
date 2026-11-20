@@ -11,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { recreioRightsPreparations as preparations } from "./recreio-direitos-preparacao";
+import { recreioRightsRecoverySources as recoverySources } from "./recreio-direitos-recuperacao";
 import { recreio } from "./recreio-namespace";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
@@ -22,7 +23,8 @@ export const recreioRightsOperations = recreio.table(
   "rights_operations",
   {
     id: uuid("id").primaryKey(),
-    preparationId: uuid("preparation_id").notNull(),
+    preparationId: uuid("preparation_id"),
+    recoverySourceId: uuid("recovery_source_id"),
     requesterUserId: text("requester_user_id").notNull(),
     planSha256: text("plan_sha256").notNull(),
     kind: text("kind").$type<"retirar_perfil" | "encerrar_conta">().notNull(),
@@ -54,6 +56,23 @@ export const recreioRightsOperations = recreio.table(
   },
   (t) => [
     unique("recreio_rights_operation_preparation").on(t.preparationId),
+    foreignKey({
+      name: "recreio_rights_operation_recovery_scope",
+      columns: [t.recoverySourceId, t.requesterUserId, t.planSha256, t.kind, t.ledgerId],
+      foreignColumns: [
+        recoverySources.operationId,
+        recoverySources.requesterReference,
+        recoverySources.planSha256,
+        recoverySources.kind,
+        recoverySources.ledgerId,
+      ],
+    }).onDelete("restrict"),
+    check(
+      "recreio_rights_operation_origin",
+      sql`
+      (${t.preparationId} is not null and ${t.recoverySourceId} is null) or
+      (${t.preparationId} is null and ${t.recoverySourceId} is not null and ${t.recoverySourceId}=${t.id} and ${t.state}<>'publishing')`,
+    ),
     unique("recreio_rights_operation_participation").on(t.id, t.requesterUserId, t.kind),
     foreignKey({
       name: "recreio_rights_operation_preparation_identity",

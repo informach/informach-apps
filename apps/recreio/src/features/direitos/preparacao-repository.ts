@@ -1,5 +1,4 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import type { StripeMode } from "@informach/config";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
@@ -25,31 +24,20 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { lerFinanceiroDoEncerramentoLocked } from "./encerramento-financeiro-repository";
 import { mesmoEscopoDeDireitos } from "./escopo";
+import { lerPlanoDeDireitos, resumirPlanoDeDireitos as SHA } from "./plano-persistido";
 import {
   apresentarPlanoDeDireitos,
   type PedidoDePreparacaoDeDireitos,
   type PlanoDeDireitos,
-  PlanoDeDireitosSchema,
   PlanoDeDireitosV1Schema,
   PlanoDeEncerramentoSchema,
   type ReferenciaDaPreparacao,
 } from "./preparacao-contrato";
 
-const SHA = (plano: PlanoDeDireitos) =>
-  createHash("sha256").update(JSON.stringify(plano)).digest("hex");
+export { lerPlanoDeDireitos } from "./plano-persistido";
+
 function ausente(valor: unknown): asserts valor {
   assertAllowed(valor, "DIREITOS", "Preparação não disponível. Faça uma nova prévia.");
-}
-
-export function lerPlanoDeDireitos(linha: typeof preparations.$inferSelect, contaId: string) {
-  const plano = PlanoDeDireitosSchema.parse(linha.plan);
-  ausente(
-    linha.requesterUserId === contaId &&
-      plano.contaId === contaId &&
-      plano.tipo === linha.kind &&
-      SHA(plano) === linha.planSha256,
-  );
-  return plano;
 }
 
 function recibo(
@@ -239,6 +227,16 @@ function prepararDireitosComModoNoBanco(
       const agora = await nativa.conferirPrazo(autor.login);
       return recibo(existente, anterior, agora, !mesmoEscopoDeDireitos(anterior, plano));
     }
+    const [operacaoAnterior] = await tx
+      .select({ id: operations.id })
+      .from(operations)
+      .where(eq(operations.id, pedido.pedidoId))
+      .limit(1);
+    assertAllowed(
+      !operacaoAnterior,
+      "CONFLITO",
+      "Este pedido já foi usado. Prepare uma nova prévia.",
+    );
     await exigirParticipacaoAtivaLocked(tx, autor.contaId);
     const [{ quantidade } = { quantidade: 3 }] = await tx
       .select({ quantidade: sql<number>`count(*)`.mapWith(Number) })

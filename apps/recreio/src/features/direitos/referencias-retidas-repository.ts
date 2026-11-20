@@ -3,7 +3,6 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
-  recreioRightsPreparations as preparations,
   recreioProfiles as profiles,
   recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
@@ -16,6 +15,7 @@ import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
 } from "./encerramento-efeitos-repository";
+import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import { expurgarLoteDeReferencias } from "./referencias-lotes-repository";
@@ -66,10 +66,7 @@ export async function expurgarProximaReferencia(config: CoordenacaoDeEfeitos) {
         "DIREITOS_LIVRO",
         "Intenção ausente do prefixo verificado.",
       );
-      const [preparacao] = await tx
-        .select()
-        .from(preparations)
-        .where(eq(preparations.id, op.preparationId));
+      const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
       const selecionados = await tx
         .select({ id: subjects.profileReference })
         .from(subjects)

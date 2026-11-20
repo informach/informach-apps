@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { recreioRightsOperations, recreioRightsPreparations } from "@informach/db/schema";
 import { type criarAssinaturaDoLivro, resumoDoRegistro } from "./livro/assinatura";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
-import { lerPlanoDeDireitos } from "./preparacao-repository";
+import { lerPlanoDeDireitos } from "./plano-persistido";
 
 /** Verifica a cópia nativa contra os bytes assinados e a seleção imutável.
  * Publicação e execução usam o mesmo contrato; não confiam apenas no state. */
@@ -14,7 +14,12 @@ export function conferirIntencaoNativa(
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>,
   mundos: readonly { id: string; jogo: string }[],
 ) {
-  if (!preparacao || resumoDoRegistro(atual.signedIntent) !== atual.intentSha256)
+  if (
+    !preparacao ||
+    atual.preparationId === null ||
+    atual.recoverySourceId !== null ||
+    resumoDoRegistro(atual.signedIntent) !== atual.intentSha256
+  )
     throw new FalhaDoLivroDeDireitos("INTEGRIDADE");
   const plano = lerPlanoDeDireitos(preparacao, atual.requesterUserId);
   const { documento: doc, chaveId } = assinatura.lerIntencaoAssinada(atual.signedIntent);

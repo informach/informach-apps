@@ -4,12 +4,12 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
-  recreioRightsPreparations as preparations,
   recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
 import { ZodError } from "zod";
 import { AppError } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
 import { conferirIntencaoNativa } from "./intencao-nativa";
 import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 import type { criarArmazenamentoDoLivro } from "./livro/armazenamento";
@@ -56,10 +56,7 @@ export async function publicarProximoConsentimento(config: {
       .where(eq(operations.id, linha.id))
       .returning();
     if (!atual) throw new Error("Rights operation reservation absent");
-    const [preparacao] = await tx
-      .select()
-      .from(preparations)
-      .where(eq(preparations.id, atual.preparationId));
+    const preparacao = await lerPreparacaoInterativaDaOperacao(tx, atual);
     const selecionados = await tx
       .select({ id: subjects.profileReference })
       .from(subjects)

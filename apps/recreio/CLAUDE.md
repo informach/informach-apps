@@ -109,6 +109,13 @@ abertos. Confira fontes e limites no [protocolo F8](../../docs/recreio/backup-e-
 e na [normalização offline](../../docs/recreio/normalizacao-recuperacao-2026-11-19.md).
 [Escopo e integração pendente](../../docs/recreio/objetos-privados-2026-11-18.md).
 
+Origem histórica de recuperação em implementação: a operação terá uma única
+proveniência, preparação interativa ou fonte importada vinculada à execução.
+Não recriar usuário/mundo ausente, falsificar login ou usar o operador como
+solicitante. Leitura de plano histórico não autoriza efeitos; os workers
+interativos recusam essa fonte e continuam exigindo cabeçalho aberto/chave
+corrente. [Fases, prova preparada e lacunas](../../docs/recreio/reaplicacao-nativa-2026-11-20.md).
+
 Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
 o layout não exige jogador. Estante e mundos adultos conferem `paginaDoPortal`
 por página; a página do jogo usa `paginaDoJogador`, com referência restrita
