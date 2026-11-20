@@ -64,6 +64,8 @@ const Recibo = z.strictObject({
   privatePhotographicQueuesBound: z.literal(true),
   privateChildCannotOutliveParent: z.literal(true),
   privateCoordinationCancellationVerified: z.literal(true),
+  privateOperationalQueuesBound: z.literal(true),
+  privateContextPreservedAfterIo: z.literal(true),
   historicalPersonalErasureExecuted: z.literal(false),
   historicalSourceEffectsExecuted: z.literal(false),
   authoritiesNormalizedForTraffic: z.literal(false),

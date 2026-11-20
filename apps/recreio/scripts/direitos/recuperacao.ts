@@ -1,6 +1,11 @@
 import { FalhaDeFatoDuravel } from "@informach/morada-sim/diario";
 import { FalhaDaRetiradaDoMorada } from "@informach/morada-sim/direitos";
 import { ZodError } from "zod";
+import {
+  type CoordenacaoDeEfeitos,
+  conferirLeitorDaCoordenacao,
+  reconferirCoordenacaoDeDireitos,
+} from "../../src/features/direitos/coordenacao-repository";
 import type { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
 import { conferirPrefixoDoLivro } from "../../src/features/direitos/livro/leitura";
@@ -21,20 +26,29 @@ import { FalhaDaPreparacaoDeFotoPessoal, prepararRecuperacaoDoMorada } from "./m
 /** Recupera o commit durável que o host perdeu antes da foto. Não avança
  * relógio, não inventa fatos e não compacta o diário. Confirmação otimista
  * relê toda a impressão; uma segunda preparação nunca cria outra revisão. */
-export async function recuperarProximoDiarioDeDireitos(config: {
-  assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
+type OpcoesDeRecuperacao = {
   storage: ReturnType<typeof criarArmazenamentoDoLivro>;
   leitor: LeitorDeFotografiasPrivadas | null;
-}) {
-  const coordenacao = async () => ({
-    assinatura: config.assinatura,
-    prova: await conferirPrefixoDoLivro({
-      storage: config.storage,
-      maxEntradas: 100_000,
-      tempoLimiteMs: 30_000,
-    }),
+};
+export async function recuperarProximoDiarioDeDireitos(
+  config: OpcoesDeRecuperacao & {
+    assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
+  },
+) {
+  const prova = await conferirPrefixoDoLivro({
+    storage: config.storage,
+    maxEntradas: 100000,
+    tempoLimiteMs: 30000,
   });
-  const reserva = await prepararRecuperacaoDeDireitos(await coordenacao());
+  return recuperarDiarioNaCoordenacao({ assinatura: config.assinatura, prova }, config);
+}
+
+export async function recuperarDiarioNaCoordenacao(
+  coordenacao: CoordenacaoDeEfeitos,
+  config: OpcoesDeRecuperacao,
+) {
+  conferirLeitorDaCoordenacao(coordenacao, config.leitor);
+  const reserva = await prepararRecuperacaoDeDireitos(coordenacao);
   if (!("tipo" in reserva)) return reserva;
   let bytes: Uint8Array | undefined,
     material: MaterialDeRecuperacao | undefined,
@@ -58,7 +72,7 @@ export async function recuperarProximoDiarioDeDireitos(config: {
       },
     );
     const confirmada = await confirmarRecuperacaoDeDireitos(
-      await coordenacao(),
+      await reconferirCoordenacaoDeDireitos(coordenacao, config.storage),
       reserva,
       material,
       resultado,
@@ -81,7 +95,11 @@ export async function recuperarProximoDiarioDeDireitos(config: {
     if (integridade && material) {
       let marcada: boolean;
       try {
-        marcada = await revisarRecuperacaoDeDireitos(await coordenacao(), reserva, material);
+        marcada = await revisarRecuperacaoDeDireitos(
+          await reconferirCoordenacaoDeDireitos(coordenacao, config.storage),
+          reserva,
+          material,
+        );
       } catch (falhaDaRevisao) {
         throw new AggregateError(
           [erro, falhaDaRevisao],

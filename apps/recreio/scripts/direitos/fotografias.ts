@@ -2,6 +2,11 @@ import { FalhaDaRetiradaDoMorada } from "@informach/morada-sim/direitos";
 import { ErroDoRecreio } from "@informach/recreio";
 import { ZodError } from "zod";
 import {
+  type CoordenacaoDeEfeitos,
+  conferirLeitorDaCoordenacao,
+  reconferirCoordenacaoDeDireitos,
+} from "../../src/features/direitos/coordenacao-repository";
+import {
   compactarDiarioDeDireitos,
   confirmarFotografiaDeDireitos,
   reservarFotografiaDeDireitos,
@@ -18,19 +23,33 @@ import { FalhaDaPreparacaoDeFotoPessoal, prepararFotoDePerfisDoMorada } from "./
 /** Composição operacional fora do grafo Next. Uma foto por passagem; o
  * chamador cuida do agendamento, custódia, alertas e credenciais restritas.
  * Nenhum resultado desta etapa representa retirada completa do perfil. */
-export async function processarProximaFotografiaDeDireitos(config: {
+type OpcoesDeFotografia = {
   storage: ReturnType<typeof criarArmazenamentoDoLivro>;
-  assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
   leitor: LeitorDeFotografiasPrivadas | null;
   politica: { retirarTextosDaFundacao: boolean };
-}) {
+};
+export async function processarProximaFotografiaDeDireitos(
+  config: OpcoesDeFotografia & {
+    assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
+  },
+) {
   const prova = await conferirPrefixoDoLivro({
     storage: config.storage,
-    maxEntradas: 100_000,
-    tempoLimiteMs: 30_000,
+    maxEntradas: 100000,
+    tempoLimiteMs: 30000,
   });
-  const reserva = await reservarFotografiaDeDireitos({ prova, assinatura: config.assinatura });
-  if (!reserva) return compactarDiarioDeDireitos({ prova, assinatura: config.assinatura });
+  return processarFotografiaNaCoordenacao({ assinatura: config.assinatura, prova }, config);
+}
+
+/** Same operational adapter for normal jobs and an actual scoped recovery.
+ * No caller flag can convert an ordinary frozen config into private authority. */
+export async function processarFotografiaNaCoordenacao(
+  coordenacao: CoordenacaoDeEfeitos,
+  config: OpcoesDeFotografia,
+) {
+  conferirLeitorDaCoordenacao(coordenacao, config.leitor);
+  const reserva = await reservarFotografiaDeDireitos(coordenacao);
+  if (!reserva) return compactarDiarioDeDireitos(coordenacao);
   if (reserva.tipo === "fotos_prontas")
     return { situacao: "dependencias" as const, operacaoId: reserva.operacaoId };
   let bytes: Uint8Array | undefined,
@@ -55,15 +74,8 @@ export async function processarProximaFotografiaDeDireitos(config: {
       reserva.selecionados.map((p) => p.id),
       config.politica,
     );
-    const provaAtual = await conferirPrefixoDoLivro({
-      storage: config.storage,
-      maxEntradas: 100_000,
-      tempoLimiteMs: 30_000,
-    });
-    await confirmarFotografiaDeDireitos(reserva, resultado, {
-      assinatura: config.assinatura,
-      prova: provaAtual,
-    });
+    const atual = await reconferirCoordenacaoDeDireitos(coordenacao, config.storage);
+    await confirmarFotografiaDeDireitos(reserva, resultado, atual);
     return { situacao: "fotografia_processada" as const, operacaoId: reserva.operacao.id };
   } catch (erro) {
     if (erro instanceof AppError && erro.code === "DIREITOS_POSSE")
@@ -80,7 +92,7 @@ export async function processarProximaFotografiaDeDireitos(config: {
     const marcada = await revisarFotografiaDeDireitos(
       reserva,
       integridade ? "integrity" : "dependency",
-      { assinatura: config.assinatura, prova },
+      coordenacao,
     );
     return {
       situacao: marcada ? ("revisao" as const) : ("posse_perdida" as const),

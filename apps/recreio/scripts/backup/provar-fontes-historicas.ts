@@ -7,6 +7,7 @@ import { concluirProximaRetirada } from "../../src/features/direitos/conclusao-r
 import {
   bancoDaCoordenacao,
   comCoordenacaoPrivadaDeDireitos,
+  reconferirCoordenacaoDeDireitos,
 } from "../../src/features/direitos/coordenacao-repository";
 import { retirarProximosDadosPessoais } from "../../src/features/direitos/dados-retirada-repository";
 import { concluirProximaDrenagem } from "../../src/features/direitos/drenagem-repository";
@@ -28,6 +29,8 @@ import { prepararRecuperacaoDeDireitos } from "../../src/features/direitos/recup
 import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
 import { AppError } from "../../src/lib/errors";
 import { criarBucketDoLivro } from "../../test/livro-s3-apoio";
+import { processarFotografiaNaCoordenacao } from "../direitos/fotografias";
+import { recuperarDiarioNaCoordenacao } from "../direitos/recuperacao";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { conferirInventarios, inventariarBackup } from "./inventario";
@@ -312,6 +315,18 @@ export async function provarFontesHistoricasRecuperadas(
           exigir((await compactarDiarioDeDireitos(coordenacao)).situacao === "ociosa");
           const recuperacao = await prepararRecuperacaoDeDireitos(coordenacao);
           exigir("situacao" in recuperacao && recuperacao.situacao === "ociosa");
+          exigir((await reconferirCoordenacaoDeDireitos(coordenacao, storage)) === coordenacao);
+          const fotografiaOperacional = await processarFotografiaNaCoordenacao(coordenacao, {
+            storage,
+            leitor: null,
+            politica: { retirarTextosDaFundacao: false },
+          });
+          exigir(fotografiaOperacional.situacao === "ociosa");
+          const diarioOperacional = await recuperarDiarioNaCoordenacao(coordenacao, {
+            storage,
+            leitor: null,
+          });
+          exigir(diarioOperacional.situacao === "ociosa");
           let copiada = false;
           try {
             await minimizarProximoPerfil({ ...coordenacao });
@@ -444,6 +459,8 @@ export async function provarFontesHistoricasRecuperadas(
     privatePhotographicQueuesBound: true as const,
     privateChildCannotOutliveParent: true as const,
     privateCoordinationCancellationVerified: true as const,
+    privateOperationalQueuesBound: true as const,
+    privateContextPreservedAfterIo: true as const,
     historicalPersonalErasureExecuted: false as const,
     historicalSourceEffectsExecuted: false as const,
   };

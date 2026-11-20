@@ -310,3 +310,44 @@ o pai termina, só então um filho retido tenta chamar o worker real. Outro
 caso cancela o contexto antes da mutação. Ambos devem recusar; o inventário
 completo após desfazer apenas o congelamento sintético detecta qualquer
 apagador que rode indevidamente. Nenhum apagamento é esperado nesses casos.
+
+
+## Composição operacional em candidata
+
+40798712 passou cluster frio 44791374487, qualidade 44791379919 e integração
+44791385771. Filho retido após o término do pai e cancelamento antes da mutação
+foram recusados usando o worker real, com inventário preservado após a limpeza.
+Nenhum apagador pessoal rodou.
+
+Os mesmos adaptadores operacionais de foto/diário agora possuem uma entrada
+que recebe a coordenação efetiva. A entrada online conserva sua conferência
+completa do livro; a privada exige reader externo nulo e fotos normalizadas
+em PG. Após o I/O, relê a cerca original e conserva o MESMO objeto de capacidade
+privada; uma cópia de assinatura/prova não ganha autoridade. Nenhum engine
+entra no grafo Next: a composição permanece em `scripts/direitos`.
+
+A prova preparada reconfere o cabeçalho por HTTP e exige a mesma coordenação,
+além de consultar as filas operacionais vazias sem credenciais do portal.
+Transformação real, consentimento nativo posterior à captura, operações já
+existentes, finanças e publicação final continuam pendentes.
+
+## Próximos pontos de prova e publicação
+
+1. Criar o consentimento pelos serviços nativos depois da captura e consumir
+   o livro independente guardado, em outro cluster frio. O teste de apagamento
+   usa cluster descartável próprio: não recompor dados pessoais para esconder
+   o efeito. Conservar terceiro/global/retencões e provar ausência do alvo.
+2. Executar foto/diário reais com snapshot tipado, incluindo referência
+   presente/ausente. Para operações já nativas no backup, conservar as datas
+   e a evidência de admissão/conclusão anteriores; provar o cabeçalho ancestral
+   autêntico, sem reescrever a decisão como consentimento novo.
+3. Confirmar finanças atuais antes de qualquer encerramento recuperado.
+   Proveniência posterior ao backup não autoriza criar conta/cliente/fato
+   financeiro fictício nem inferir ausência do provedor pela ausência local.
+4. A captura inclui outros domínios para a restauração isolada e a conferência.
+   Isso NÃO autoriza publicar o dump inteiro no banco compartilhado ou retroceder
+   identidade, auditoria, finanças e conteúdo dos outros apps. A publicação
+   precisa de destino/escopo próprios do Recreio, identidade atual e reconciliação
+   das FKs/recibos, novos destinos/chaves e prova antes de liberar tráfego.
+5. Manter custódia independente, agenda/alertas, retenção/checkpoint do livro,
+   RPO/RTO/custo observados, gates finais e testes humanos no final.

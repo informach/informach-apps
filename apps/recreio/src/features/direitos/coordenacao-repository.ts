@@ -13,6 +13,7 @@ import {
 } from "@informach/db/schema";
 import { z } from "zod";
 import { manifestoNoCatalogo } from "@/features/jogos/catalogo";
+import type { LeitorDeFotografiasPrivadas } from "@/features/posse/armazenamento";
 import {
   CONSULTA_CAPACIDADES_TEMPORARIAS,
   CONSULTA_CONVITES_PENDENTES,
@@ -104,6 +105,51 @@ export function conferirCoordenacaoDeDireitos(config: CoordenacaoDeEfeitos) {
 export function bancoDaCoordenacao(config: CoordenacaoDeEfeitos) {
   conferirCoordenacaoDeDireitos(config);
   return contexto(config)?.banco ?? db;
+}
+
+export function conferirLeitorDaCoordenacao(
+  config: CoordenacaoDeEfeitos,
+  leitor: LeitorDeFotografiasPrivadas | null,
+) {
+  conferirCoordenacaoDeDireitos(config);
+  assertAllowed(
+    !contexto(config) || leitor === null,
+    "DIREITOS_LIVRO",
+    "A recuperação privada exige fotografias normalizadas no próprio banco.",
+  );
+}
+
+/** Keep the exact private capability after I/O; copying its fields is not an
+ * authorization. Normal jobs retain complete fresh-prefix verification. */
+export async function reconferirCoordenacaoDeDireitos(
+  config: CoordenacaoDeEfeitos,
+  storage: ReturnType<typeof criarArmazenamentoDoLivro>,
+) {
+  conferirCoordenacaoDeDireitos(config);
+  const privado = contexto(config);
+  if (privado) {
+    assertAllowed(
+      storage === privado.storage,
+      "DIREITOS_LIVRO",
+      "Livro fora da coordenação privada.",
+    );
+    const head = await storage.lerCabecalho(privado.signal);
+    conferirCoordenacaoDeDireitos(config);
+    assertAllowed(
+      head.sha256 === privado.cerca && head.documento.estado === "congelado",
+      "DIREITOS_LIVRO",
+      "A cerca histórica mudou.",
+    );
+    return config;
+  }
+  const prova = await conferirPrefixoDoLivro({
+    storage,
+    maxEntradas: 100000,
+    tempoLimiteMs: 30000,
+  });
+  const atual = { assinatura: config.assinatura, prova };
+  conferirCoordenacaoDeDireitos(atual);
+  return atual;
 }
 
 /** Resolve composition before opening a SQL transaction. Offline recovery uses
