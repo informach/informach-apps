@@ -591,10 +591,14 @@ export async function criarMundo(page: Page, nomeDoJogo: string, nome: string): 
 export async function convidar(dono: Page, convidada: Page, mundoId: string): Promise<void> {
   if (!new URL(dono.url()).pathname.endsWith(`/mundos/${mundoId}`))
     await dono.goto(`/mundos/${mundoId}`);
-  const gerar = dono.getByRole("button", { name: "Gerar código de convite" });
+  const gerar = dono.getByRole("button", { name: /^Gerar (código de convite|outro código)$/ });
+  const naTela = dono.getByText(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/);
+  const anterior = (await naTela.count()) ? await naTela.textContent() : null;
   await hidratado(gerar);
   await gerar.click();
-  const codigo = await dono.getByText(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/).textContent();
+  await expect(naTela).toBeVisible();
+  if (anterior) await expect(naTela).not.toHaveText(anterior);
+  const codigo = await naTela.textContent();
   if (!codigo) throw new Error("O convite não apareceu");
   await convidada.goto("/estante");
   const campo = convidada.getByLabel("Código do convite");

@@ -25,3 +25,12 @@ exigindo medição operacional separada, com rateio dos recursos compartilhados.
 
 O gate auxiliar capacity não substitui os 16 gates regulares. Ele só existe
 pelo workflow explícito e não entra nos testes cotidianos ou no build público.
+
+
+A primeira fonte 140daa7c passou qualidade 44768767055. A rodada de carga
+44768761710 falhou antes da medição, em convidar o segundo participante:
+o helper esperava apenas o rótulo inicial do botão. A correção reconhece
+Gerar outro código e exige a mudança efetiva do código exibido antes de
+convidar a próxima pessoa. Não altera produto, teto, rate limit ou timeout.
+O banco descartável foi removido mesmo nessa falha. Ainda não há resultado
+de capacidade desta rodada; a candidata corrigida exige nova execução.
