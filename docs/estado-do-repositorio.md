@@ -1,5 +1,22 @@
 # Estado do trabalho no repositório
 
+
+## Recreio — cobertura e convites recuperados, 20/11
+
+Cópias pessoais receberam metadados próprios de cadastro, pareamento, avisos,
+convites/propostas e contratos/financiamento (260d5674): direitos 44763965632,
+conciliação 44763972616 e qualidade 44763978650 aprovados. Auditoria própria sem
+payload, com cursor de microssegundos (db229682), passou direitos/qualidade
+44764693811/44764699861. A [matriz pessoal](recreio/cobertura-dados-pessoais-2026-11-20.md)
+ainda exige revisão formal de campos e retenções dos provedores.
+
+A normalização offline eebafa8b invalida sete fontes de convites pendentes,
+preserva histórias encerradas e prazos originais; bucket real/cluster frio
+44765446054 passou com limpeza dos quatro objetos. Não reaplica direitos F7 nem
+admite tráfego restaurado. [Contrato](recreio/normalizacao-recuperacao-2026-11-19.md).
+Nova ficha pública dos jogos está em implementação, ainda sem gate. Produção
+continua no alfa fechado e sem estas novas capacidades. Testes humanos no final.
+
 **20/11 — Recreio, retenção técnica comprovada na interface:** 04dd3987 passou
 direitos/quality 44759920970/44759925814, regressão UI 44760447990 e prova nativa
 v2 44760442710. Action/CLI reais concluíram conta com e sem jogador, conservaram

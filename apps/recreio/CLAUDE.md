@@ -129,6 +129,12 @@ Novos escritores protegidos são desligados por padrão (`RECREIO_FAMILY_MODE`);
 desligar não elimina a restrição nativa ou a recuperação pelo adulto. Contratos,
 gates e partes ainda não integradas em [F3](../../docs/recreio/politicas-sessoes-2026-11-17.md).
 
+Ficha pública candidata em `/jogos/[jogo]`: editorial/estado/classificação vêm
+do catálogo central. Não carregar jogo, autenticação, arte licenciada ou banco
+para renderizá-la. Títulos sintéticos não têm ficha pública. Ler o catálogo
+não concede sessão nem ingresso; a entrada continua na estante e no kernel.
+[Contrato e prova pendente](../../docs/recreio/ficha-publica-jogos-2026-11-20.md).
+
 - `src/app`: rotas e composição. Páginas não importam o banco.
 - `src/features/<área>`: `components/` (telas), `actions.ts` (server actions), `service.ts` (sem Next), `repository.ts` (banco). Lógica pura fica em arquivo próprio, com teste (`estante/catalogo.ts`, `perfis/regras.ts`, `acesso/cobertura.ts`, `acesso/texto.ts`). O que precisa do Next sem ser ação fica em arquivo próprio da área (`sessao/ator.ts`, `sessao/http.ts`).
 - `src/components`: peças visuais sem dados (marca, capa, formulário de entrada, moldura das páginas de texto).

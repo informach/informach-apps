@@ -145,3 +145,13 @@ recebe quatro condições novas; ainda aguarda prova no cluster frio e bucket re
 
 Isso não é replay F7 nem conciliação da identidade/permissões atuais. O recibo
 continua authoritiesNormalizedForTraffic=false e não autoriza abrir tráfego.
+
+
+A candidata eebafa8b passou a prova 44765446054: 16 cenários/3 arquivos,
+recuperação no cluster privado novo, zero convites/capacidades restantes,
+históricos e prazos originais preservados, rollback e repetição idêntica.
+Quatro objetos exclusivos, arquivos e cluster foram limpos. Original ZIP de
+1.131 bytes e JSON conferidos por SHA-256 no
+[recibo](evidencias/convites-cluster-frio-44765446054.json).
+Sem credenciais do banco original ou dados de produção; replay F7 e tráfego
+continuam sem autorização.

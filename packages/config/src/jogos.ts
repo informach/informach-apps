@@ -42,6 +42,14 @@ export type LimitesDoJogo = {
   diarioPendenteMaxBytes: number;
 };
 
+export type EditorialDoJogo = {
+  resumo: string;
+  descricao: string;
+  controles: readonly string[];
+  requisitos: readonly string[];
+  avisos: readonly string[];
+};
+
 export type GameManifest = {
   /** Imutável. */
   id: GameId;
@@ -51,6 +59,8 @@ export type GameManifest = {
   sdk: string;
   versao: string;
   estado: EstadoDoJogo;
+  /** Public information, separate from capability negotiation and access. */
+  editorial?: EditorialDoJogo;
   aparelhos: readonly Aparelho[];
   capacidades: {
     /** Medido, não prometido. 1 = só sozinho. */
@@ -84,6 +94,26 @@ export const JOGOS = [
     sdk: "^0.1",
     versao: "0.1.0",
     estado: "alfa_fechado",
+    editorial: {
+      resumo: "Uma casa, seus moradores e um mundo para compartilhar.",
+      descricao:
+        "No Morada, você acompanha moradores em uma casa e compartilha o mesmo mundo com outras pessoas convidadas. O jogo está em desenvolvimento; recursos e disponibilidade ainda estão em teste.",
+      controles: [
+        "Arraste a cena ou use WASD e as setas para mover a câmera.",
+        "Use o botão direito para girar e a roda do mouse para aproximar ou afastar.",
+        "Espaço pede a pausa e Esc fecha o menu.",
+        "Use o botão Sair do jogo e aguarde a confirmação de salvamento.",
+      ],
+      requisitos: [
+        "Computador com teclado e mouse, navegador com gráficos 3D habilitados e conexão à internet durante a partida.",
+        "Celular, tablet e funcionamento sem internet ainda não estão disponíveis neste alfa.",
+      ],
+      avisos: [
+        "O alfa fechado está disponível para adultos convidados pela equipe.",
+        "A classificação indicativa está em análise. O Morada ainda não está liberado para perfis de menores.",
+        "Uma falha pode exigir reconectar ou refazer alterações recentes.",
+      ],
+    },
     aparelhos: ["computador"],
     capacidades: {
       mundos: { membrosMax: 8 },
@@ -110,7 +140,7 @@ export const JOGOS = [
       diarioPendenteMaxBytes: 8 * 1024 * 1024,
     },
   },
-] as const satisfies readonly GameManifest[];
+] as const satisfies readonly (GameManifest & { editorial: EditorialDoJogo })[];
 
 export function jogoPorId(id: string): GameManifest | null {
   return JOGOS.find((jogo) => jogo.id === id) ?? null;

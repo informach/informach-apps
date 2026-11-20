@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CapaMorada } from "@/components/desenhos";
 import type { CartaoDeJogo } from "../catalogo";
 
@@ -29,6 +30,9 @@ export function CartaoDoJogo({
             : `O ${jogo.nome} não está aberto para jogar agora.`}
         </p>
         <p className="mt-auto pt-2 text-sm text-tinta-suave">Feito para {jogo.aparelhos}.</p>
+        <Link href={`/jogos/${jogo.id}`} className="text-sm font-bold underline underline-offset-4">
+          Conhecer o {jogo.nome}
+        </Link>
       </div>
     </article>
   );

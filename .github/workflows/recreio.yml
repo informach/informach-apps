@@ -14,7 +14,7 @@ on:
       verification_gate:
         description: Verificação auxiliar; somente all qualifica a rodada completa
         type: choice
-        options: [all, quality, integration, rights, rights-ui, backup-capture, commercial-reconciliation, commercial-ui]
+        options: [all, quality, integration, rights, rights-ui, catalog-ui, backup-capture, commercial-reconciliation, commercial-ui]
         default: all
       sandbox_catalog:
         description: Conferir catálogo real no Stripe Sandbox (sem clientes ou cobranças)
@@ -222,7 +222,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: ${{ fromJSON(inputs.verification_gate == 'rights-ui' && '["rights-ui"]' || inputs.verification_gate == 'rights' && '["rights"]' || inputs.verification_gate == 'quality' && '["quality"]' || inputs.verification_gate == 'integration' && '["integration"]' || inputs.verification_gate == 'backup-capture' && '["backup-capture"]' || inputs.verification_gate == 'commercial-reconciliation' && '["commercial-reconciliation"]' || inputs.verification_gate == 'commercial-ui' && '["commercial-ui"]' || '["quality","integration","trial-setup","trial-experiment","trial-ui","trial-play","commercial-setup","commercial-checkout","commercial-ui","commercial-reconciliation","e2e","checkpoint","cliente","longa","versoes","equipe"]') }}
+        gate: ${{ fromJSON(inputs.verification_gate == 'catalog-ui' && '["catalog-ui"]' || inputs.verification_gate == 'rights-ui' && '["rights-ui"]' || inputs.verification_gate == 'rights' && '["rights"]' || inputs.verification_gate == 'quality' && '["quality"]' || inputs.verification_gate == 'integration' && '["integration"]' || inputs.verification_gate == 'backup-capture' && '["backup-capture"]' || inputs.verification_gate == 'commercial-reconciliation' && '["commercial-reconciliation"]' || inputs.verification_gate == 'commercial-ui' && '["commercial-ui"]' || '["quality","integration","trial-setup","trial-experiment","trial-ui","trial-play","commercial-setup","commercial-checkout","commercial-ui","commercial-reconciliation","e2e","checkpoint","cliente","longa","versoes","equipe"]') }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -335,13 +335,16 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'rights-ui' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'rights-ui' || matrix.gate == 'catalog-ui' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
       - name: Conferir somente a interface de direitos (nao qualifica a rodada completa)
         if: matrix.gate == 'rights-ui'
         run: pnpm --filter @informach/recreio-app e2e e2e/direitos-
+      - name: Conferir ficha publica (nao qualifica a rodada completa)
+        if: matrix.gate == 'catalog-ui'
+        run: pnpm --filter @informach/recreio-app e2e e2e/ficha-jogo.spec.ts
       - if: matrix.gate == 'equipe'
         run: pnpm --filter @informach/recreio-app e2e:equipe
       - if: matrix.gate == 'trial-ui'
@@ -559,3 +562,14 @@ jobs:
           path: apps/recreio/tmp/telas/troca-de-versao.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Preservar ficha publica desktop e celular
+        if: always() && (matrix.gate == 'catalog-ui' || matrix.gate == 'e2e')
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-catalogo-telas-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/ficha-morada-desktop.png
+            apps/recreio/tmp/telas/ficha-morada-390.png
+          if-no-files-found: error
+          retention-days: 7

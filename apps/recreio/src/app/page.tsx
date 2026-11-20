@@ -73,6 +73,12 @@ export default async function Inicio() {
               <p className="mt-1 text-tinta-suave">
                 Alfa fechado para adultos convidados pela equipe.
               </p>
+              <Link
+                href="/jogos/morada"
+                className="mt-3 inline-block font-bold underline underline-offset-4"
+              >
+                Conhecer o Morada
+              </Link>
             </div>
           </div>
         </section>
