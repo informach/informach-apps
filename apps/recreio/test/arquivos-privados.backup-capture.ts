@@ -24,6 +24,11 @@ describe("owned native backup files", () => {
       expect(Object.isFrozen(files)).toBe(true);
       await files.dump.writeFile("synthetic-sensitive-output");
       await files.dump.sync();
+      const readback = Buffer.alloc(Buffer.byteLength("synthetic-sensitive-output"));
+      const read = await files.dump.read(readback, 0, readback.length, 0);
+      expect(read.bytesRead).toBe(readback.length);
+      expect(readback.toString("utf8")).toBe("synthetic-sensitive-output");
+      readback.fill(0);
       expect((await files.inventario.stat()).size).toBe(0);
       return { completed: true };
     });

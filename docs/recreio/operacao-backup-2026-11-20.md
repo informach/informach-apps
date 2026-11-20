@@ -315,3 +315,18 @@ objetos próprios, exigindo NoSuchKey, sem tratar erro de bucket/permissão como
 ausência. Containers têm nomes/labels únicos e posse conferida antes de retirar.
 Relatório público contém somente estados/contagens/IDs técnicos, nunca chaves,
 URL do banco ou conteúdo. A prova ainda não foi executada.
+
+
+44836468149 foi recusada antes da execução porque o ambiente mínimo do
+subprocesso não declarava NODE_ENV exigido pelos tipos; 833411ab corrigiu o
+contrato explicitamente, sem copiar todo o ambiente da aplicação.
+44837074484 executou a imagem real e falhou na captura, mantendo origem
+somente no CI e limpeza confirmada de seu único objeto sintético.
+
+O descriptor proprietário usava wx, mas dump/composto/cifra precisam de leitura
+nas fases seguintes. A correção usa wx+ com criação exclusiva e modo 0600,
+sem abrir ou truncar arquivo preexistente. Regressão real relê o conteúdo pelo
+mesmo descriptor. O cenário de arquivo íntegro já guardado e confirmação
+perdida passa também a usar a fila operacional, incluindo sua alocação própria
+de arquivos; não somente o reconciliador unitário. Repetir CLI e captura fria
+antes de qualificar a correção. Nenhum serviço de produção foi alterado.

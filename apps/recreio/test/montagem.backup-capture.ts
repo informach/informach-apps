@@ -20,7 +20,7 @@ import {
   prepararPublicacao,
 } from "../scripts/backup/publicacao-repository";
 import { publicarCapturaGuardada } from "../scripts/backup/publicar-captura";
-import { reconciliarPublicacaoDoBackup } from "../scripts/backup/reconciliar-publicacao";
+import { reconciliarFilaDoBackup } from "../scripts/backup/reconciliar-fila";
 import { prepararRetirada } from "../scripts/backup/retirada-repository";
 import { criarRetiradaDoBackupS3 } from "../scripts/backup/retirada-s3";
 import { retirarCapturaGuardada } from "../scripts/backup/retirar-captura";
@@ -231,9 +231,9 @@ it(
         const retomada = await comExecucaoExclusivaDoBackup(
           { conexao: url.href, tempoLimiteMs: 120000 },
           (execucao) =>
-            reconciliarPublicacaoDoBackup({
+            reconciliarFilaDoBackup({
               execucao,
-              capturaId: ref.contexto.id,
+              fotografias: destino,
               publicacao: {
                 destino,
                 transporte,
@@ -241,8 +241,6 @@ it(
                 composto: container,
                 indice,
                 indices,
-                recuperado: conferido,
-                aberto: abertoPublicacao,
               },
               retirada: criarRetiradaDoBackupS3({
                 cliente: s3.cliente,
@@ -254,7 +252,14 @@ it(
         );
         expect(retomada).toEqual({
           situacao: "executada",
-          valor: { situacao: "publicada", capturaId: ref.contexto.id, reservasLiberadas: 1 },
+          valor: {
+            observadas: 1,
+            abandonadas: 0,
+            publicadas: 1,
+            retiradas: 0,
+            reservasLiberadas: 1,
+            falhas: 0,
+          },
         });
         expect(await liberarReservasPublicadas(ref.contexto.id, destino)).toBe(0);
         const [controle] = await fonte`select c.state as captura,p.state as publicacao,

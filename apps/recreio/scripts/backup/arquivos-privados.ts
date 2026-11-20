@@ -50,7 +50,9 @@ export async function comArquivosPrivadosDoBackup<T>(
       throw new FalhaDosArquivosPrivados("DIRETORIO");
     identidade = { dev: meta.dev, ino: meta.ino };
     const criar = async (nome: (typeof NOMES)[number]) => {
-      const h = await open(join(criado, nome), "wx", 0o600);
+      // Later native phases re-read the completed outputs through the same
+      // owned descriptor. Keep exclusive creation and private mode, with RW.
+      const h = await open(join(criado, nome), "wx+", 0o600);
       handles.push(h);
       const f = await h.stat({ bigint: true });
       if (
