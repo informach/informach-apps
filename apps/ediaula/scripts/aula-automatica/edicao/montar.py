@@ -30,8 +30,11 @@ ap.add_argument("--ate", type=float, default=1e9)
 args = ap.parse_args()
 dec = json.load(open(args.decisoes, encoding="utf8"))
 caixas = json.load(open(args.caixas, encoding="utf8"))
+# A gravação que não passou pelo palco (a área dos pais) não tem a ponte que registra os contornos:
+# a sonda devolve {} sem página nenhuma.
+FORA_DO_PALCO = caixas == {}
 if isinstance(caixas, dict):  # {página: registros}: a última página aberta é a da gravação
-    caixas = caixas[max(caixas, key=lambda k: int(k))]
+    caixas = caixas[max(caixas, key=lambda k: int(k))] if caixas else []  # fora do palco: sem contornos
 de, ate, saida = args.de, args.ate, args.saida
 ANIM = json.loads(args.animacoes)
 W, H = 1920, 1080
@@ -176,6 +179,20 @@ for gi, g in enumerate(gestos):
                                    "tail": "top-right", "fill": AMARELO}, f"balão ({v})")
             cmds[-1]["papel"] = "balao"
         continue
+    if g["tipo"] == "aponta" and FORA_DO_PALCO and g.get("x") is not None:
+        # Gravação fora do palco (a área dos pais, sem os contornos que a ponte do palco registra):
+        # apontar um campo ou uma opção, ou escrever num campo, amplia em volta do ponto da mão para
+        # ler o rótulo. A mão descansa logo abaixo do texto, então o quadro sobe um pouco. Nas aulas
+        # do palco há contornos, e nada muda.
+        if t0 >= 3.0 and not v.startswith("rolar"):
+            # O balão do clique de antes (que levou a esta tela) sai antes de o zoom mudar de lugar.
+            balao = next((c for c in reversed(cmds) if c.get("papel") == "balao"), None)
+            fim_balao = balao["input"]["at"] + balao["input"]["duration"] if balao else 0.0
+            ini = max(t0 - 0.3, fim_balao)
+            fim = max(t1 + 1.0, ta + 2.5)
+            if fim - ini >= 1.5:
+                zoom(ini, fim, [g["x"] - 260, g["y"] - 90, g["x"] + 260, g["y"] + 30], f"zoom no que a mão aponta ({v})")
+        continue
     if g["tipo"] == "categoria":
         # A paleta: um zoom só para as categorias abertas em seguida.
         pt = (g["x"], g["y"])
@@ -187,7 +204,14 @@ for gi, g in enumerate(gestos):
             grupo = {"tipo": "categoria", "ini": t0 - 0.3, "fim": max(t1 + 0.6, ta + 1.5 + EASE), "pts": [pt]}
             cmds.append({"tool": "_zoom_categoria", "grupo": grupo})
         # Caixa amarela numerada (instrução), apontando a categoria que a fala manda abrir.
-        nome = v[len("abrir categoria "):]
+        nome = re.sub(r"^(abrir )?categoria ", "", v)
+        # "categoria X" alterna: repetida em seguida, recolhe a mesma categoria (mostrar e
+        # recolher), e recolher não é instrução, então não ganha caixa.
+        recolhe = v.startswith("categoria ") and grupo.get("ultima") == nome
+        grupo["ultima"] = None if recolhe else nome
+        if recolhe:
+            grupo["pts"].pop()
+            continue
         n = len(grupo["pts"])
         # 1 = a categoria, 2 = o item dentro dela. Entra no clique; a ponta encosta na paleta (a borda esquerda
         # da caixa em PALETA, acertada pelo aplicar.mjs com a largura de verdade).

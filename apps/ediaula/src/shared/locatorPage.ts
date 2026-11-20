@@ -78,17 +78,34 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       (el.tagName === "INPUT" && !/^(button|submit|reset|checkbox|radio|range|color|file|image)$/i.test(el.type)) ||
       el.tagName === "TEXTAREA");
 
-  function facts(el, point) {
+  // A radio or checkbox drawn by its own label (hidden as sr-only, with the label as the chip
+  // people click, like "7 dias" in a duration picker): the label stands for it, where it is and
+  // whether something covers it. Clicking the label is how the control is chosen.
+  function drawnByLabel(el) {
+    if (el.tagName !== "INPUT" || !/^(radio|checkbox)$/i.test(el.type) || !el.labels) return null;
+    const label = [...el.labels].find((l) => {
+      const q = l.getBoundingClientRect();
+      return q.width > 2 && q.height > 2;
+    });
+    if (!label) return null;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 2 || r.height <= 2 || Number(getComputedStyle(el).opacity) === 0) return label;
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return hit && hit !== el && (hit === label || label.contains(hit)) ? label : null;
+  }
+
+  function facts(target, point) {
+    const el = drawnByLabel(target) || target;
     const r = rectOf(el);
     const st = getComputedStyle(el);
     const visible =
       r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && Number(st.opacity) !== 0;
     const inView = r.x + r.width > 0 && r.y + r.height > 0 && r.x < innerWidth && r.y < innerHeight;
     const enabled =
-      el.disabled !== true &&
-      el.getAttribute("aria-disabled") !== "true" &&
-      !el.closest("fieldset:disabled") &&
-      !el.closest("[inert]");
+      target.disabled !== true &&
+      target.getAttribute("aria-disabled") !== "true" &&
+      !target.closest("fieldset:disabled") &&
+      !target.closest("[inert]");
     const p = point || { u: 0.5, v: 0.5 };
     let covered = true;
     if (visible && inView) {
@@ -98,7 +115,7 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       covered = !(hit && (hit === el || el.contains(hit)));
     }
     const scroller = covered ? scrollerOf(el, r) : null;
-    return { tag: tagOf(el), text: textOf(el), rect: r, visible, enabled, covered, inView, cursor: cursorOf(st.cursor), ...(scroller ? { scroller } : {}) };
+    return { tag: tagOf(target), text: textOf(el), rect: r, visible, enabled, covered, inView, cursor: cursorOf(st.cursor), ...(scroller ? { scroller } : {}) };
   }
 
   // A list with its own scroll (a menu, a picker) that hides the element: the wheel goes there.

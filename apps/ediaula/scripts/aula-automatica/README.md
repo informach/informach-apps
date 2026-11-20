@@ -64,8 +64,15 @@ O motor da gravação guiada é do próprio EdiAula. Veja "Gravação guiada" no
    - a música.
 3. Os endereços das aulas no palco já estão no exemplo. Para um curso novo, copie um bloco e troque o `slug` e o `id` de cada aula.
 4. Para usar uma cópia ajustada do roteiro no lugar da do Sistema Zero, ponha `"roteiroLocal": "<caminho>"` na aula. Isso serve, por exemplo, para uma citação que a transcrição escreve diferente.
-5. Perfis do EdiAula e do EdiSVG: o padrão é `~/EdiAula-teste/user-data` e `~/EdiSVG-teste/user-data`. Para usar outros, defina `AULA_PERFIL_EDIAULA` e `AULA_PERFIL_EDISVG`.
-6. Confira o que cada parte resolve:
+5. **Aula sem Estúdio próprio.** Uma aula que demonstra o Estúdio de outro curso grava a tela na aula desse curso, no palco. Ponha na aula `"palco": {"slug": "...", "id": "...", "partes": {"<parte do roteiro>": "<sufixo do endereço>"}}`.
+   - Exemplo: a Aula 6 do curso dos pais (`vilao`) grava a Parte 2 em `cade-todo-mundo`, Aula 1, com `?parte=4`. Essa parte abre com o jardim, Achados em zero e o Quando clicar ou tocar vazio.
+   - **A própria plataforma, fora do palco** (a área dos pais, na Aula 7 do curso dos pais): `"palco": {"url": "<endereço da plataforma>", "partes": {"<parte>": "<caminho>"}}` e `"plataforma": {"contas": "<contas.json>", "porParte": {"<parte>": "<chave da conta>"}}`. O arquivo de contas (`{ "<chave>": { "email", "password" } }`) fica fora do git; `parte.sh … plataforma` entra na janela da aula com a conta da parte.
+6. **Por curso, quando quem demonstra não é uma criança** (curso dos pais):
+   - `"movimento": "professora"`: a mão do robô se move como a da professora. O padrão é `"crianca"`.
+   - `"tempos": {"dwell": 0.4, "after": 0.5}`: os tempos do plano guiado, em segundos: `move` (Movimento), `dwell` (Antes do clique) e `after` (Após a ação). Sem eles, valem os do plano novo.
+   - `"subtituloCapa"`: o subtítulo da capa. O padrão é o curso do EdiAula.
+7. Perfis do EdiAula e do EdiSVG: o padrão é `~/EdiAula-teste/user-data` e `~/EdiSVG-teste/user-data`. Para usar outros, defina `AULA_PERFIL_EDIAULA` e `AULA_PERFIL_EDISVG`.
+8. Confira o que cada parte resolve:
 
 ```bash
 S=apps/ediaula/scripts/aula-automatica
@@ -122,6 +129,8 @@ Os dois podem rodar juntos, e na edição rodam juntos: o EdiAula do condutor ma
 | `quadro.mjs` | quadro composto como a exportação desenha |
 | `ia.mjs` | chama uma ferramenta do EdiAula |
 | `exportar-svg.mjs` | no EdiSVG, abre um `.edisvg` e exporta o MP4 (só para conferir quadros) |
+| `entrar-na-plataforma.mjs` | entra na plataforma com uma conta de ensaio, na sessão da janela da aula (etapa `plataforma`) |
+| `prints.mjs` | põe imagens no lugar de trechos da tela (`place_cutaway`, com transição) e destaques por cima delas |
 
 ## Gravar uma parte
 
@@ -133,6 +142,8 @@ $S/parte.sh farol 3 2 empacotar  # "Parte 2 - Projeto EdiAula.zip" na pasta da p
 ```
 
 **Regras da gravação:**
+- **Gestos que mudam a plataforma** (ativar um presente, criar um perfil): só acontecem uma vez por conta, e o Verificar plano os faz de verdade. Faça o ensaio com uma conta e grave com outra, nova, com `comando.sh estado '{"semVerificar": true}'` antes do `gravar` (e `false` depois), para a gravação não rodar a verificação de novo.
+- **Prints na edição:** o que o robô não grava (a área da criança vista por outra conta, a entrada com o código) entra por `prints.mjs` nos trechos `[na edição: …]`; passe esses trechos ao `montar` como animações, para o zoom não ampliar os prints.
 - **Uma tomada por projeto:** para regravar, o `ensaio` cria um projeto limpo.
 - **Ensaio antes de gravar:** só grave depois que o ensaio disser que todas as etapas passaram.
 - **Etapa com problema no ensaio:** quase sempre é citação do roteiro que a transcrição escreveu diferente (use `roteiroLocal`) ou alvo fora da tela (falta um `[arrastar até "…"]` no roteiro).
@@ -193,7 +204,7 @@ Saem em `<parte>/edicao/`:
 - `comandos-revisar.json` e `comandos-pecas.json`: o que vai para o relatório.
 
 **5. No EdiAula**, com os condutores rodando:
-1. Abra a cópia: `acao abrir-projeto.mjs '{"arquivo": "<cópia>"}'`.
+1. Abra a cópia: `acao abrir-projeto.mjs '{"arquivo": "<cópia>"}'`. O `aplicar` age no projeto que estiver aberto: depois do `empacotar`, o aberto é o gravado, e sem este passo as marcações vão para ele. Confira o nome em `ia get_overview` antes de aplicar.
 2. Importe as mídias pela janela de abrir: `acao importar.mjs '{"arquivos": [...]}'`. Use `/` nos caminhos do JSON.
    - a apresentadora (`Parte N - HeyGen.mp4`), posta em seguida no segundo 0 com `ia add_clip`: o acabamento espera um clipe só dela;
    - a música. Ao importar, o EdiAula põe a música sozinho numa faixa "Voz", com o papel de professora: tire esse clipe (`ia remove_clips`), e o acabamento a distribui nas faixas de música;
@@ -285,7 +296,7 @@ O `decisoes.py` e o `montar.py` aplicam estas regras. A revisão de 17/11/2026 e
 - **Destaque:** amarelo, no bloco mexido, quando o arrasto acaba. Bloco inteiro na primeira vez escurece o resto da tela; o encaixe vazio é azul (REGRAS.md).
 
 **Caixas, balões e transições**
-- **Caixas das categorias:** numeradas (1 = categoria, 2 = item), pequenas, com a ponta na paleta. A 1 sai quando a 2 entra; a 2 fica 1,5 s (REGRAS.md).
+- **Caixas das categorias:** numeradas (1 = categoria, 2 = item), pequenas, com a ponta na paleta. A 1 sai quando a 2 entra; a 2 fica 1,5 s (REGRAS.md). Valem os dois verbos do roteiro: `abrir categoria A > B` (Farol) e `categoria A`, um nível por gesto (Cadê). Um `categoria A` repetido em seguida só recolhe a mesma categoria e não ganha caixa.
 - **Balões:** explicam os botões clicados.
 - **Transição:** círculos coloridos quando muda o contexto, como na entrada e na saída de uma animação.
 

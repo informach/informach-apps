@@ -92,7 +92,8 @@ for s in run["steps"]:
     tipo = (
         "botao" if v in BOTOES or v.startswith("clicar \"")
         else "bloco" if BLOCO.match(v)
-        else "categoria" if v.startswith("abrir categoria")
+        # "abrir categoria" (Farol) e "categoria" (Cadê, um nível por gesto) navegam na paleta.
+        else "categoria" if v.startswith(("abrir categoria", "categoria "))
         else "jogo" if "prévia" in v or v.startswith("segurar tecla")
         else "aponta"
     )

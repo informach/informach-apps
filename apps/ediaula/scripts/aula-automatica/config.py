@@ -39,6 +39,20 @@ def parte(curso, aula, n):
     titulo = os.path.basename(pasta)[len(f"Parte {n} - "):]
     perfil = _caminho(os.environ.get("AULA_PERFIL_EDIAULA") or "~/EdiAula-teste/user-data")
     nome = f"{c['prefixo']} Aula{int(aula):02d} Parte {n} {titulo}"
+    # Uma aula que não tem Estúdio próprio grava a tela numa aula de outro curso no palco (a
+    # demonstração do curso dos pais usa o Estúdio do Cadê): "palco": {"slug", "id", "partes":
+    # {"<parte do roteiro>": "<sufixo do endereço>"}}. "enderecos" sai sempre, vazio quando não há,
+    # porque o estado do condutor guarda o da parte anterior.
+    palco = a.get("palco") or {}
+    slug = palco.get("slug", c["slug"])
+    aula_id = palco.get("id", a.get("id"))
+    # Uma aula que mostra a própria plataforma (a área dos pais, na Aula 7 do curso dos pais) grava
+    # fora do palco: "palco": {"url": "<endereço da plataforma>", "partes": {...}}, e a janela da
+    # aula entra com uma conta de ensaio por parte: "plataforma": {"contas": "<contas.json>",
+    # "porParte": {"<parte>": "<chave da conta>"}}. O arquivo de contas fica fora do git.
+    endereco_aula = palco["url"].rstrip("/") if palco.get("url") else f"{cfg['palco'].rstrip('/')}/aulas/{slug}/{aula_id}"
+    plat = a.get("plataforma") or {}
+    conta = (plat.get("porParte") or {}).get(str(n))
     return {
         "curso": curso,
         "aulaN": int(aula),
@@ -46,7 +60,17 @@ def parte(curso, aula, n):
         "titulo": titulo,
         "nome": nome,
         "cursoEdiAula": c["cursoEdiAula"],
-        "aula": f"{cfg['palco'].rstrip('/')}/aulas/{c['slug']}/{a['id']}",
+        "aula": endereco_aula,
+        "plataforma": {"url": endereco_aula, "contas": _caminho(plat["contas"]), "conta": conta} if conta else None,
+        "enderecos": {str(k): v for k, v in (palco.get("partes") or {}).items()},
+        # Como a mão do robô se move: a da criança nos cursos delas, a da professora quando quem
+        # demonstra é ela (curso dos pais). Sai sempre, pelo mesmo motivo de "enderecos".
+        "movimento": c.get("movimento", "crianca"),
+        # Tempos do plano guiado que o curso muda ({"after": 0.5} encurta a pausa depois de cada
+        # gesto). Vazio deixa os do plano novo.
+        "tempos": c.get("tempos") or {},
+        # Subtítulo da capa; sem ele, a capa leva o curso do EdiAula, como antes.
+        "subtituloCapa": c.get("subtituloCapa") or c["cursoEdiAula"],
         "roteiro": _caminho(a.get("roteiroLocal") or os.path.join(cfg["sistemaZero"], a["roteiro"])),
         "pasta": pasta,
         "voz": f"{pasta}/Parte {n} - Áudio.wav",

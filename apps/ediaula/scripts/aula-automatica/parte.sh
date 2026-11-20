@@ -2,6 +2,7 @@
 # Etapas de uma parte. Uso: parte.sh <curso> <aula> <parte> <etapa> [opções]
 #   info        mostra o que o config.json resolve para a parte (projeto, palco, roteiro, voz, pastas)
 #   palco       entra no palco com a conta da equipe (uma vez por perfil)
+#   plataforma  entra na janela da aula com a conta de ensaio da parte (aula que grava a própria plataforma)
 #   ensaio      projeto novo, roteiro, voz, plano gerado e ensaio seco (Verificar plano); não grava
 #   gravar      grava a parte já ensaiada, registrando os contornos dos alvos (edicao/caixas.json)
 #   empacotar   empacota o projeto gravado em "Parte N - Projeto EdiAula.zip" na pasta da parte
@@ -30,6 +31,9 @@ case "$ETAPA" in
   info) echo "$CFG" ;;
   palco)
     "$C" acao entrar-no-palco.mjs "$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); print(json.dumps({'aula': c['aula'], 'parte': c['parte'], 'credenciais': c['credenciais']}))" "$CFG")" ;;
+  plataforma)
+    # Aula que grava a própria plataforma: entra na janela da aula com a conta de ensaio da parte.
+    "$C" acao entrar-na-plataforma.mjs "$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); p=c['plataforma']; assert p, 'esta parte não tem conta de plataforma no config.json'; print(json.dumps({'plataforma': p}, ensure_ascii=False))" "$CFG")" ;;
   ensaio)
     "$C" estado "$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); c.update(soVerificar=True, curso=c['cursoEdiAula']); print(json.dumps(c, ensure_ascii=False))" "$CFG")" >/dev/null
     "$C" acao novo-projeto.mjs >/dev/null
@@ -63,7 +67,7 @@ print(r.get('gerado') if isinstance(r,dict) else r); print(len(r.get('etapas',[]
   montar)
     ANIM="${1:-[]}"; echo "$ANIM" > "$ED/animacoes.json"
     python -X utf8 "$AQUI/edicao/montar.py" "$ED/decisoes.json" "$ED/caixas.json" "$ED/comandos.json" --animacoes "$ANIM" | grep -E "^(apresentadora|revisar|[0-9]+ comandos)"
-    CAPA="$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); print(json.dumps({'kicker': f\"AULA {c['aulaN']} · PARTE {c['parte']}\", 'title': c['titulo'], 'subtitle': c['cursoEdiAula']}, ensure_ascii=False))" "$CFG")"
+    CAPA="$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); print(json.dumps({'kicker': f\"AULA {c['aulaN']} · PARTE {c['parte']}\", 'title': c['titulo'], 'subtitle': c['subtituloCapa']}, ensure_ascii=False))" "$CFG")"
     python -X utf8 "$AQUI/edicao/pecas.py" "$ED/comandos.json" "$(v pasta)/pecas" --animacoes "$ANIM" --capa "$CAPA" ;;
   aplicar)
     "$AQUI/edicao/aplicar.sh" "$ED/comandos.json" "$(python -X utf8 -c "import sys; print(sys.argv[1][:-len('.ediaula')] + ' · edição automática.ediaula')" "$(v projeto)")" "${1:-}"
