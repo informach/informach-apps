@@ -709,3 +709,11 @@ Esta candidata não comprova duas restaurações consecutivas, retenção técni
 após reabertura do livro, custódia produtiva, conciliação financeira histórica
 ou publicação seletiva na base compartilhada. São pendências reais, mantidas
 no fechamento F7/F8. Não houve alteração em produção.
+
+
+1d7b22cd foi recusada pelo typecheck remoto em 44811627558/44811637551: a
+função interna declarada podia ser chamada antes do narrowing da avaliação.
+A definição passa a expressão const criada após a validação, sem cast, assert
+não nulo ou supressão. Os três gates serão refeitos na nova fonte. A candidata
+de schema f50bc3be passou direitos 44810698876, qualidade 44810703406 e versões
+44810707510; isso não qualifica a implementação posterior de retomada.

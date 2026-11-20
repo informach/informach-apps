@@ -104,7 +104,7 @@ export async function admitirRetiradaHistoricaRecuperada(
         )
         .for("update");
       assertAllowed(avaliacao, "DIREITOS_INTEGRIDADE", "Avaliação atual ausente.");
-      async function prepararRecibo(op: typeof operations.$inferSelect, retomada: boolean) {
+      const prepararRecibo = async (op: typeof operations.$inferSelect, retomada: boolean) => {
         if (avaliacao.state !== "staged") {
           conferirReciboDaAvaliacao(avaliacao, op);
           return;
@@ -146,7 +146,7 @@ export async function admitirRetiradaHistoricaRecuperada(
             { app: "recreio", operationId: op.id, kind: op.kind },
             { writer: tx },
           );
-      }
+      };
       const plano = lerPlanoDeDireitos(
         {
           requesterUserId: fonte.requesterReference,
