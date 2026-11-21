@@ -237,6 +237,43 @@ describe("encerramento: coordenação financeira com PostgreSQL/S3/Stripe SDK re
     }
   });
 
+  it("falha de auditoria reverte também o despertar financeiro após a parada remota", async () => {
+    const f = await pagamentoParaEncerramento();
+    const livro = await livroDoEncerramento(f.adulto.autor, () => ({
+      modo: "dev",
+      inventario: f.inventario,
+    }));
+    try {
+      expect(await livro.processar()).toMatchObject({ situacao: "aguardando_renovacao" });
+      const espera = await livro.linha();
+      await db.execute(sql`create function audit.recusar_despertar_financeiro() returns trigger language plpgsql as $$ begin
+        if new.event_type='recreio.renewal_cancellation_confirmed' then raise exception 'fixture financial wakeup audit failure' using errcode='P7784'; end if; return new; end $$`);
+      await db.execute(
+        sql`create trigger recusar_despertar_financeiro before insert on audit.events for each row execute function audit.recusar_despertar_financeiro()`,
+      );
+      try {
+        expect(await f.cancelar()).toMatchObject({ confirmadas: 0, falhasTecnicas: 1 });
+        expect(await livro.linha()).toEqual(espera);
+        const [cancelamento] = await db
+          .select()
+          .from(cancellations)
+          .where(eq(cancellations.closureOperationId, livro.recibo.operacaoId));
+        expect(cancelamento).toMatchObject({
+          state: "attempted",
+          confirmedAt: null,
+          observedAt: null,
+        });
+        expect(f.posts).toEqual(["cancel_at_period_end=true"]);
+        expect(f.financeiro.assinatura.cancel_at_period_end).toBe(true);
+      } finally {
+        await db.execute(sql`drop trigger recusar_despertar_financeiro on audit.events`);
+        await db.execute(sql`drop function audit.recusar_despertar_financeiro()`);
+      }
+    } finally {
+      await livro.fechar();
+    }
+  });
+
   it("falha de leitura mantém a conferência sem prova ou cancelamento inventado; pode retomar", async () => {
     const f = await pagamentoParaEncerramento();
     const livro = await livroDoEncerramento(f.adulto.autor, () => ({

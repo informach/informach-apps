@@ -52,6 +52,16 @@ if (
   );
 const trialSetup = mode === "trial-setup";
 const backupCapture = mode === "backup-capture";
+const nativeFinancialCapture =
+  backupCapture && process.env.RECREIO_BACKUP_FRESH_CLUSTER_PROBE === "1";
+if (
+  nativeFinancialCapture &&
+  (process.platform !== "linux" ||
+    process.env.GITHUB_ACTIONS !== "true" ||
+    process.env.CI !== "true" ||
+    process.env.GITHUB_REPOSITORY !== "informach/informach-apps")
+)
+  throw new Error("Paid native capture fixtures require the repository GitHub runner");
 const worldTraces = mode === "world-traces";
 const backupOperational = mode === "backup-operational";
 if (
@@ -192,12 +202,13 @@ const testEnv = {
       : trialSetup || jornadaDoTeste
         ? "setup"
         : "off",
-  RECREIO_BILLING_MODE: commercialCheckout
-    ? "sandbox"
-    : commercialSetup || jornadaDaCompra
-      ? "setup"
-      : "off",
-  ...(commercialCheckout || jornadaDoEncerramento
+  RECREIO_BILLING_MODE:
+    commercialCheckout || nativeFinancialCapture
+      ? "sandbox"
+      : commercialSetup || jornadaDaCompra
+        ? "setup"
+        : "off",
+  ...(commercialCheckout || jornadaDoEncerramento || nativeFinancialCapture
     ? {
         STRIPE_MODE: "dev",
         STRIPE_SECRET_KEY: "sk_test_isolated_not_sent",

@@ -337,3 +337,13 @@ agendamento da conciliação, antes de executar a captura. O agendamento foi
 separado como escrita puramente transacional, mantendo a API dos consumidores
 normais. O executor privado importa só essa parte; a fronteira que recusa
 Better Auth no recuperador permanece obrigatória.
+
+6371a1f1 ainda foi recusado pelo transporte de sessões Redis importado pela
+composição de grupo (44875489328); a composição técnica foi separada da
+autenticação em 6e572322. Esse build passou a fronteira, e o ensaio
+44875790699 recusou preparar compra com a composição comercial desligada na
+origem sintética. O executor de testes passa agora os preços e a chave literal
+fechada já usados pela suíte comercial, somente no banco de origem da prova
+fria no GitHub. Não muda o ambiente do recuperador nem fornece chave real.
+A prova comercial também verifica rollback do despertar financeiro quando a
+auditoria P7784 falha depois da parada remota, sem antecipar a próxima tentativa.
