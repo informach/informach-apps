@@ -4,12 +4,13 @@ import { configuracaoDoBackupDoProcesso } from "./backup-environment";
 function fixture(production = false): Record<string, string | undefined> {
   const scope = production ? "production" : "qualification";
   return {
-    CI: "true",
-    GITHUB_ACTIONS: "true",
+    CI: production ? undefined : "true",
+    GITHUB_ACTIONS: production ? undefined : "true",
+    GITHUB_REPOSITORY: production ? undefined : "informach/informach-apps",
     GITHUB_SHA: "a".repeat(40),
-    RAILWAY_PROJECT_ID: "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
-    RAILWAY_ENVIRONMENT_ID: "174b2cb0-e1cd-410c-8764-d913e3af18d3",
-    RAILWAY_SERVICE_ID: "50000000-0000-4000-8000-000000000003",
+    RAILWAY_PROJECT_ID: production ? "f4da4285-5b98-48b5-b03e-5be02f4e7c56" : undefined,
+    RAILWAY_ENVIRONMENT_ID: production ? "174b2cb0-e1cd-410c-8764-d913e3af18d3" : undefined,
+    RAILWAY_SERVICE_ID: production ? "50000000-0000-4000-8000-000000000003" : undefined,
     RAILWAY_GIT_COMMIT_SHA: "b".repeat(40),
     DATABASE_URL: production
       ? "postgres://fixture:fixture@postgres.railway.internal/railway?sslmode=require"

@@ -5,6 +5,7 @@ function fixture(): Record<string, string | undefined> {
   return {
     CI: "true",
     GITHUB_ACTIONS: "true",
+    GITHUB_REPOSITORY: "informach/informach-apps",
     RECREIO_BACKUP_MONITOR_MODE: "on",
     RECREIO_BACKUP_MONITOR_MAX_AGE_SECONDS: "25200",
     RECREIO_OBJECTS_SCOPE: "qualification",

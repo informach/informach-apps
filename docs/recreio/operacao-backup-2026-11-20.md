@@ -1,13 +1,16 @@
 # Executor e agenda de backup do Recreio
 
-Continuação de F8/F10, autorizada no fechamento da plataforma. Os componentes
-já têm prova nativa, mas ainda falta o processo agendado que os compõe e se
-recupera das interrupções. Este plano não declara agenda/custódia habilitadas.
+Estado em 21/11: executor 2967cf32 implantado separadamente; cron horário no
+minuto 14, intervalo mínimo de 13.500 segundos e retenção de 28 dias. A sonda
+do portal 00326e46 usa idade máxima de 19.800 segundos. Configuração relida,
+saúde/prontidão dos três alvos em 200. A nova cadência/custo aguardam execução
+observada; não são SLA contratado. O histórico dos incrementos segue abaixo.
 
-Base qualificada: 0243/244 recibos/80 tabelas; replay técnico a33e94b7 passou
-direitos e cluster frio, all/CI ainda em execução. Ensaio real de 20/11, origem
-0203/204, restaurou conteúdo/estrutura/globais idênticos e removeu serviço e
-temporários. Custo acumulado está medido com pool compartilhado discriminado.
+Produção em 0244/245 recibos/81 tabelas, com os 244 recibos anteriores intactos.
+A segunda captura real 716897a1, de 07:14 UTC, passou duas cópias privadas
+244→245; clusters e serviço temporários removidos, sem credenciais da origem.
+Publicação seletiva, direitos/finanças atuais e duas recuperações completas
+continuam pendentes. [Schema](evidencias/schema-producao-0244-2026-11-21.json).
 
 ## Ordem de execução
 
@@ -466,13 +469,31 @@ continuam omitidos. Não altera a cadência, as credenciais, os limites nem o
 tratamento de erros. O ensaio da imagem exata agora exige duas linhas concluídas,
 captura positiva e repetição negativa, contagens numéricas e ausência de ID.
 
-Esta candidata usa o schema 0244/245 recibos, ainda não aplicado em produção.
-O executor produtivo 5fe5710e e sua próxima agenda permanecem preservados até
-a qualificação e a implantação compatível. Duas cópias físicas privadas da CLI
+O gate usou o schema 0244/245 recibos antes de sua aplicação em produção.
+A atualização do migrador e do executor ocorreu separadamente após essas
+qualificações e as duas cópias reais descritas no estado atual. Duas cópias físicas privadas da CLI
 não equivalem às duas recuperações completas com direitos/identidade atuais.
 
 A imagem de 2967cf32 passou 44876190424: resumo nativo não vazio, captura e
 cadência, origem indisponível, duas restaurações privadas 245→245 sem URL da
 origem, sete GETs e limpeza confirmada. [Recibo](evidencias/backup-resumo-44876190424.json).
-Continua candidata; a imagem produtiva 5fe5710e e o schema 0243 não foram
-alterados por esse gate.
+O gate não alterou produção. A implantação posterior de 2967cf32 e a migração
+0244 estão registradas no estado atual deste documento.
+
+## Margem de cadência — configuração de 21/11
+
+As duas capturas positivas da agenda anterior ficaram aproximadamente seis horas
+e 45 segundos apartadas, incluindo arranque. O alerta anterior aceitava sete
+horas. Em 21/11 a configuração mudou para tentativa horária (`14 * * * *`),
+intervalo de três horas e 45 minutos e alerta de cinco horas e meia. Esperam-se
+capturas aproximadamente a cada quatro horas, com nova tentativa na hora seguinte
+se uma falhar e margem antes do objetivo interno de seis horas. Retenção/prazos
+originais dos arquivos, credenciais, limites e ausência de acesso web ao arquivo
+permanecem os mesmos. A alteração cria margem operacional antes do objetivo.
+
+A frequência positiva esperada passa de quatro para cerca de seis capturas/dia,
+com mais rodadas ociosas. Medir o custo real e o intervalo após a agenda, sem
+extrapolar preços ou chamar essa expectativa de cadência já comprovada. Portal
+foi reimplantado na mesma fonte 00326e46, deploy 63213705; backup está em
+079f8a2d/2967cf32. Saúde/prontidão/backup em 200 após a implantação. A última
+captura confirmada continua sendo 716897a1; primeira execução nova pendente.

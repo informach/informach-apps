@@ -101,6 +101,12 @@ function configurar(estado: Estado) {
     "ORIGEM_PRIVADA_DIVERGENTE",
   );
   const config = configuracaoDosDireitosDoProcesso({
+    CI: process.env.CI,
+    GITHUB_ACTIONS: process.env.GITHUB_ACTIONS,
+    GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY,
+    RAILWAY_PROJECT_ID: process.env.RAILWAY_PROJECT_ID,
+    RAILWAY_ENVIRONMENT_ID: process.env.RAILWAY_ENVIRONMENT_ID,
+    RAILWAY_SERVICE_ID: process.env.RAILWAY_SERVICE_ID,
     RECREIO_RIGHTS_MODE: "process",
     RECREIO_RIGHTS_SCOPE: "qualification",
     RECREIO_RIGHTS_LEDGER_ID: estado.livroId,

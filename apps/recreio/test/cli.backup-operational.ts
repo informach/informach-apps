@@ -180,6 +180,7 @@ it("uses the exact image to capture/cadence, lose source capabilities and restor
     const archiveEnv = {
       CI: "true",
       GITHUB_ACTIONS: "true",
+      GITHUB_REPOSITORY: required("GITHUB_REPOSITORY"),
       GITHUB_SHA: required("GITHUB_SHA"),
       NODE_ENV: "production",
       RECREIO_BACKUP_SCOPE: "qualification",

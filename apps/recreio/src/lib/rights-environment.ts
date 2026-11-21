@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contextoDeCustodiaPrivadaPermitido } from "./private-storage-context";
 
 const KeyId = z.string().regex(/^[A-Za-z0-9._-]{1,64}$/);
 const Config = z.strictObject({
@@ -76,6 +77,7 @@ export function configuracaoDosDireitosDoProcesso(
   const qualification =
     v.bucket === "recreio-homologacao" || v.bucket.startsWith("recreio-homologacao-");
   if (
+    !contextoDeCustodiaPrivadaPermitido(input, v.scope) ||
     ids.size !== v.keyring.length ||
     values.size !== v.keyring.length ||
     !ids.has(v.chaveAtiva) ||

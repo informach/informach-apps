@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { configuracaoDosObjetosDoProcesso, objectEnvironmentSchema } from "./object-environment";
+import { contextoDeCustodiaPrivadaPermitido } from "./private-storage-context";
 
 export const camposDeLimiteDoBackup = {
   tempoLimiteMs: z.coerce.number().int().min(1000).max(900000),
@@ -32,11 +33,6 @@ export function conferirContextoDoBackup(
   input: Readonly<Record<string, string | undefined>>,
   scope: "production" | "qualification",
 ) {
-  const permitido =
-    scope === "qualification"
-      ? input.CI === "true" && input.GITHUB_ACTIONS === "true"
-      : input.RAILWAY_PROJECT_ID === "f4da4285-5b98-48b5-b03e-5be02f4e7c56" &&
-        input.RAILWAY_ENVIRONMENT_ID === "174b2cb0-e1cd-410c-8764-d913e3af18d3" &&
-        z.uuid().safeParse(input.RAILWAY_SERVICE_ID).success;
-  if (!permitido) throw new Error("Invalid RECREIO_BACKUP process context");
+  if (!contextoDeCustodiaPrivadaPermitido(input, scope))
+    throw new Error("Invalid RECREIO_BACKUP process context");
 }

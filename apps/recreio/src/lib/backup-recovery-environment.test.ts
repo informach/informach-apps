@@ -5,6 +5,7 @@ const input = () => ({
   RECREIO_BACKUP_MODE: "restore",
   CI: "true",
   GITHUB_ACTIONS: "true",
+  GITHUB_REPOSITORY: "informach/informach-apps",
   RECREIO_BACKUP_SCOPE: "qualification",
   RECREIO_BACKUP_BUCKET: "recreio-homologacao-fixture",
   RECREIO_BACKUP_BUCKET_ID: "60000000-0000-4000-8000-000000000001",

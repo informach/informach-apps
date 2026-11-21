@@ -85,6 +85,9 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
   });
   const storage = criarArmazenamentoDoLivro({ cliente, bucket, assinatura, tempoLimiteMs: 10000 });
   const env = {
+    CI: "true",
+    GITHUB_ACTIONS: "true",
+    GITHUB_REPOSITORY: required("GITHUB_REPOSITORY"),
     DATABASE_URL: url.href,
     RECREIO_RIGHTS_MODE: "process",
     RECREIO_RIGHTS_SCOPE: "qualification",

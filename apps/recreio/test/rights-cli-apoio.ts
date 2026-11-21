@@ -18,7 +18,13 @@ export async function executarImagemDeDireitos(
     process.env.RECREIO_RIGHTS_OPERATIONAL_DOCKER_IMAGE !== "recreio-direitos:qualification" ||
     Object.keys(env).some(
       (k) =>
-        !["DATABASE_URL", "RECREIO_OBJECTS_MODE"].includes(k) &&
+        ![
+          "DATABASE_URL",
+          "RECREIO_OBJECTS_MODE",
+          "CI",
+          "GITHUB_ACTIONS",
+          "GITHUB_REPOSITORY",
+        ].includes(k) &&
         !/^RECREIO_RIGHTS_(?:MODE|SCOPE|LEDGER_ID|BUCKET|ENDPOINT|REGION|PATH_STYLE|ACCESS_KEY|SECRET_KEY|ACTIVE_KEY|KEYRING|POLICY)$/.test(
           k,
         ),

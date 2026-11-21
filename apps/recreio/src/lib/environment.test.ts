@@ -50,6 +50,9 @@ describe("deployment environment", () => {
       }),
     );
     const native = {
+      CI: "true",
+      GITHUB_ACTIONS: "true",
+      GITHUB_REPOSITORY: "informach/informach-apps",
       ...base,
       ...prices,
       RECREIO_ACCOUNT_CLOSURE_MODE: "native",

@@ -4,6 +4,9 @@ import { configuracaoDosDireitosDoProcesso as ler } from "./rights-environment";
 
 function variaveis() {
   return {
+    CI: "true",
+    GITHUB_ACTIONS: "true",
+    GITHUB_REPOSITORY: "informach/informach-apps",
     RECREIO_RIGHTS_MODE: "process",
     RECREIO_RIGHTS_SCOPE: "qualification",
     RECREIO_RIGHTS_LEDGER_ID: randomUUID(),
@@ -51,8 +54,17 @@ describe("configuração operacional de direitos", () => {
     expect(config?.pathStyle).toBe(true);
     expect(config?.chaves.get("v1")).toHaveLength(32);
     expect(
-      ler({ ...v, RECREIO_RIGHTS_SCOPE: "production", RECREIO_RIGHTS_BUCKET: "recreio-direitos" })
-        ?.scope,
+      ler({
+        ...v,
+        CI: undefined,
+        GITHUB_ACTIONS: undefined,
+        GITHUB_REPOSITORY: undefined,
+        RAILWAY_PROJECT_ID: "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+        RAILWAY_ENVIRONMENT_ID: "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+        RAILWAY_SERVICE_ID: randomUUID(),
+        RECREIO_RIGHTS_SCOPE: "production",
+        RECREIO_RIGHTS_BUCKET: "recreio-direitos",
+      })?.scope,
     ).toBe("production");
     expect(() => ler({ ...v, RECREIO_RIGHTS_SCOPE: "production" })).toThrow(
       "Invalid RECREIO_RIGHTS configuration",
