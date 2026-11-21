@@ -1,6 +1,6 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth/audit";
-import { and, db, eq, inArray, isNull, or, sql } from "@informach/db";
+import { and, eq, inArray, isNull, or, sql } from "@informach/db";
 import {
   recreioRightsOperations as operations,
   recreioAccountParticipations as participations,
@@ -15,15 +15,18 @@ import {
   conferirConclusaoDosPerfis,
   conferirPrazosDaConclusao,
 } from "./conclusao-perfis-repository";
-import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
+import {
+  bancoDaCoordenacao,
+  type CoordenacaoDeEfeitos,
+  conferirCoordenacaoDeDireitos,
+  conferirIntencaoDaCoordenacao,
+  escopoDaCoordenacao,
+} from "./coordenacao-repository";
 import { retirarLoteDaContaEncerrada } from "./encerramento-conta-lotes-repository";
 import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
 } from "./encerramento-efeitos-repository";
-import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
-import { conferirIntencaoNativa } from "./intencao-nativa";
-import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
 const pronta = () =>
   and(
@@ -47,22 +50,17 @@ async function limites(tx: Transacao) {
  * writers/copy publications finish before the account's final revision. */
 export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) {
   const livroId = config.assinatura.livroId;
-  assertAllowed(
-    config.prova.cabecalho.documento.livroId === livroId &&
-      config.prova.cabecalho.documento.estado === "aberto" &&
-      config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva,
-    "DIREITOS_LIVRO",
-    "Livro indisponível para conclusão.",
-  );
-  const [pista] = await db
+  conferirCoordenacaoDeDireitos(config);
+  const banco = bancoDaCoordenacao(config);
+  const [pista] = await banco
     .select({ id: operations.id, contaId: operations.requesterUserId })
     .from(operations)
-    .where(and(eq(operations.ledgerId, livroId), pronta()))
+    .where(and(eq(operations.ledgerId, livroId), pronta(), escopoDaCoordenacao(config)))
     .orderBy(operations.nextAttemptAt, operations.id)
     .limit(1);
   if (!pista) return { situacao: "ociosa" as const };
   try {
-    return await db.transaction(async (tx) => {
+    return await banco.transaction(async (tx) => {
       await limites(tx);
       await serializarContaNativa(tx, ContaIdSchema.parse(pista.contaId));
       const [conta] = await tx
@@ -80,6 +78,7 @@ export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) 
             eq(operations.requesterUserId, conta.id),
             eq(operations.ledgerId, livroId),
             pronta(),
+            escopoDaCoordenacao(config),
           ),
         )
         .for("update", { skipLocked: true });
@@ -92,7 +91,6 @@ export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) 
         "DIREITOS_LIVRO",
         "Consentimento ausente do prefixo verificado.",
       );
-      const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
       const alvos = await tx
         .select()
         .from(subjects)
@@ -100,13 +98,7 @@ export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) 
         .orderBy(subjects.profileReference)
         .limit(257)
         .for("update");
-      const { plano } = conferirIntencaoNativa(
-        op,
-        preparacao,
-        alvos.map((s) => ({ id: s.profileReference })),
-        config.assinatura,
-        await referenciasDeMundosDaOperacao(tx, op.id),
-      );
+      const { plano } = await conferirIntencaoDaCoordenacao(tx, op, config);
       await conferirFinanceiroDosEfeitos(tx, op, plano);
       const retidos = await conferirConclusaoDosPerfis(tx, op, alvos);
       const [residual] = await tx.execute<{ pendente: boolean }>(sql`select
@@ -197,7 +189,7 @@ export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) 
     });
   } catch (erro) {
     try {
-      await db
+      await banco
         .update(operations)
         .set({ nextAttemptAt: sql`${AGORA}+interval '1 minute'`, updatedAt: AGORA })
         .where(
@@ -206,6 +198,7 @@ export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) 
             eq(operations.ledgerId, livroId),
             inArray(operations.state, ["admitted", "running"]),
             or(isNull(operations.leaseUntil), sql`${operations.leaseUntil}<=${AGORA}`),
+            escopoDaCoordenacao(config),
           ),
         );
     } catch (falhaDaFila) {

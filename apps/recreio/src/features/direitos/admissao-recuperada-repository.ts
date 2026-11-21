@@ -22,6 +22,7 @@ import {
   conferirPublicacaoPendenteDaCoordenacao,
   dadosDaCoordenacaoPrivada,
 } from "./coordenacao-repository";
+import { conferirFinanceiroAtualRecuperadoLocked } from "./encerramento-financeiro-recuperado-guard";
 import { conferirMapaHistoricoDeMundos } from "./fonte-intencao-repository";
 import { resumoDoRegistro } from "./livro/assinatura";
 import { conferirEscopoDoPlanoExterno } from "./livro/plano-externo";
@@ -40,6 +41,22 @@ export async function admitirRetiradaHistoricaRecuperada(
   config: CoordenacaoDeEfeitos,
   entrada: string,
 ) {
+  return admitirDecisaoHistoricaRecuperada(config, entrada, "retirar_perfil");
+}
+/** Initial closure profile: original native admission and no player selection.
+ * A fresh per-run financial receipt is required before data readiness. Missing
+ * native consent, interrupted publication and profile erasure stay refused. */
+export async function admitirEncerramentoNativoHistoricoRecuperado(
+  config: CoordenacaoDeEfeitos,
+  entrada: string,
+) {
+  return admitirDecisaoHistoricaRecuperada(config, entrada, "encerrar_conta");
+}
+async function admitirDecisaoHistoricaRecuperada(
+  config: CoordenacaoDeEfeitos,
+  entrada: string,
+  tipo: "retirar_perfil" | "encerrar_conta",
+) {
   const operacaoId = z.uuid().parse(entrada),
     privado = dadosDaCoordenacaoPrivada(config),
     ref = config.prova.referencias.find((r) => r.operacaoId === operacaoId);
@@ -49,7 +66,7 @@ export async function admitirRetiradaHistoricaRecuperada(
     const autenticada = config.assinatura.lerIntencaoAssinada(registro.bytes),
       i = autenticada.documento;
     assertAllowed(
-      i.tipo === "retirar_perfil" &&
+      i.tipo === tipo &&
         i.operacaoId === operacaoId &&
         i.revisao === 1 &&
         autenticada.chaveId === registro.chaveId &&
@@ -164,6 +181,19 @@ export async function admitirRetiradaHistoricaRecuperada(
         .from(operations)
         .where(eq(operations.id, operacaoId))
         .for("update");
+      if (tipo === "encerrar_conta") {
+        assertAllowed(
+          anterior &&
+            anterior.kind === "encerrar_conta" &&
+            anterior.preparationId !== null &&
+            anterior.recoverySourceId === null &&
+            ["admitted", "running", "completed"].includes(anterior.state) &&
+            plano.formato === "recreio-previa-encerramento-v2" &&
+            plano.perfis.length === 0,
+          "DIREITOS_INTEGRIDADE",
+          "Encerramento privado fora do perfil nativo qualificado.",
+        );
+      }
       if (anterior) {
         let confirmada = anterior;
         if (anterior.state === "publishing") {
@@ -201,6 +231,11 @@ export async function admitirRetiradaHistoricaRecuperada(
           "DIREITOS_INTEGRIDADE",
           "A admissão anterior diverge da decisão externa.",
         );
+        if (tipo === "encerrar_conta")
+          await conferirFinanceiroAtualRecuperadoLocked(tx, confirmada, lida.plano, {
+            execucaoId: privado.execucaoId,
+            cercaSha256: privado.cerca,
+          });
         await prepararRecibo(confirmada, true);
         dadosDaCoordenacaoPrivada(config);
         return {

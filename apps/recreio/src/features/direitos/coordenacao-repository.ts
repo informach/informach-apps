@@ -30,6 +30,10 @@ import {
   conferirReciboDaAvaliacao,
 } from "./avaliacao-recuperada-repository";
 import {
+  conferirFinanceiroAtualRecuperadoLocked,
+  type SeloFinanceiroRecuperado,
+} from "./encerramento-financeiro-recuperado-guard";
+import {
   conferirMapaHistoricoDeMundos,
   lerPreparacaoInterativaDaOperacao,
 } from "./fonte-intencao-repository";
@@ -62,6 +66,7 @@ type Privada = {
   finalizando?: boolean;
   operacaoId?: string;
   financeiro?: { contaId: string };
+  financeiroAvaliado?: SeloFinanceiroRecuperado;
   autoridades?: ReadonlyMap<string, AutoridadeNoBackup>;
   pai?: CoordenacaoDeEfeitos;
 };
@@ -222,15 +227,24 @@ export async function resolverLimitesDaCoordenacao(
     return limitesDoJogo(jogo);
   };
 }
-/** Private scope is restricted to withdrawn profiles until the historical
- * financial coordinator is implemented. Closure is never silently settled. */
+/** Every private data operation requires its own admitted evaluation. Native
+ * closures additionally bind the current financial assessment and its token. */
 export function escopoDaCoordenacao(config: CoordenacaoDeEfeitos) {
   conferirCoordenacaoDeDireitos(config);
   const privado = contexto(config);
   if (privado?.financeiro) return sql`false`;
   if (privado && !privado.operacaoId) return sql`false`;
+  const financeiro = privado?.financeiroAvaliado;
+  const tipoPrivado =
+    financeiro && privado
+      ? sql`${operations.kind}='encerrar_conta' and exists(select 1 from recreio.rights_recovery_finances f
+      where f.run_id=${privado.execucaoId}::uuid and f.operation_id=${operations.id} and f.state='current'
+      and f.attempt_token=${financeiro.token}::uuid and f.attempts=${financeiro.numero}
+      and f.receipt_sha256=${financeiro.reciboSha256} and f.observed_at<=clock_timestamp()
+      and f.observed_at>=clock_timestamp()-interval '5 minutes')`
+      : eq(operations.kind, "retirar_perfil");
   return privado
-    ? sql`(${operations.id}=${privado.operacaoId}::uuid and ${operations.kind}='retirar_perfil' and
+    ? sql`(${operations.id}=${privado.operacaoId}::uuid and (${tipoPrivado}) and
       exists(select 1 from recreio.rights_recovery_evaluations e join recreio.rights_recovery_runs r
         on r.id=e.run_id and r.ledger_id=e.ledger_id where e.operation_id=${operations.id}
         and e.ledger_id=${operations.ledgerId} and r.id=${privado.execucaoId}::uuid
@@ -274,7 +288,8 @@ export async function conferirIntencaoDaCoordenacao(
     assertAllowed(
       lida.execucao.id === privado.execucaoId &&
         lida.execucao.state === "replaying" &&
-        op.kind === "retirar_perfil" &&
+        (op.kind === "retirar_perfil" ||
+          (op.kind === "encerrar_conta" && privado.financeiroAvaliado !== undefined)) &&
         isDeepStrictEqual(
           await referenciasDeMundosDaOperacao(tx, op.id),
           lida.mapa
@@ -284,6 +299,22 @@ export async function conferirIntencaoDaCoordenacao(
       "DIREITOS_INTEGRIDADE",
       "A operação não pertence à coordenação privada.",
     );
+    if (op.kind === "encerrar_conta") {
+      assertAllowed(
+        privado.financeiroAvaliado &&
+          lida.plano.formato === "recreio-previa-encerramento-v2" &&
+          lida.plano.perfis.length === 0,
+        "DIREITOS_INTEGRIDADE",
+        "Encerramento privado fora do perfil qualificado.",
+      );
+      await conferirFinanceiroAtualRecuperadoLocked(
+        tx,
+        op,
+        lida.plano,
+        { execucaoId: privado.execucaoId, cercaSha256: privado.cerca },
+        privado.financeiroAvaliado,
+      );
+    }
     return { plano: lida.plano, intencao: lida.intencao };
   }
   const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op),
@@ -725,6 +756,7 @@ export async function comOperacaoPrivadaDeDireitos<T>(
   );
   filhasAtivas.add(config);
   let emitida: CoordenacaoDeEfeitos | undefined;
+  let financeiroAvaliado: SeloFinanceiroRecuperado | undefined;
   try {
     const autoridades = await privado.banco.transaction(async (tx) => {
       await tx.execute(sql`set local statement_timeout='5s'`);
@@ -737,7 +769,7 @@ export async function comOperacaoPrivadaDeDireitos<T>(
         .for("update");
       assertAllowed(
         op &&
-          op.kind === "retirar_perfil" &&
+          (op.kind === "retirar_perfil" || op.kind === "encerrar_conta") &&
           (op.state === "admitted" || op.state === "running" || op.state === "completed") &&
           config.prova.referencias.some(
             (r) =>
@@ -748,6 +780,20 @@ export async function comOperacaoPrivadaDeDireitos<T>(
       );
       const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
       conferirReciboDaAvaliacao(lida.avaliacao, op);
+      if (op.kind === "encerrar_conta") {
+        assertAllowed(
+          op.preparationId !== null &&
+            op.recoverySourceId === null &&
+            lida.plano.formato === "recreio-previa-encerramento-v2" &&
+            lida.plano.perfis.length === 0,
+          "DIREITOS_INTEGRIDADE",
+          "Encerramento privado fora do perfil qualificado.",
+        );
+        financeiroAvaliado = await conferirFinanceiroAtualRecuperadoLocked(tx, op, lida.plano, {
+          execucaoId: privado.execucaoId,
+          cercaSha256: privado.cerca,
+        });
+      }
       assertAllowed(
         lida.execucao.id === privado.execucaoId &&
           lida.execucao.state === "replaying" &&
@@ -828,7 +874,7 @@ export async function comOperacaoPrivadaDeDireitos<T>(
     emitida = filha;
     emitidas.add(filha);
     contexto(config);
-    privadas.set(filha, { ...privado, operacaoId, autoridades, pai: config });
+    privadas.set(filha, { ...privado, operacaoId, autoridades, financeiroAvaliado, pai: config });
     const resultado = await executar(filha);
     conferirCoordenacaoDeDireitos(filha);
     const head = await privado.storage.lerCabecalho(privado.signal);

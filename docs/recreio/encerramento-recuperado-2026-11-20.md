@@ -147,6 +147,25 @@ a 17 tentativas e testa datas vencidas/futuras com rollback, revisão posterior
 e recibo substituído. Esse guard ainda não emite filha de dados: admissão e
 efeitos de encerramento permanecem fechados até sua qualificação e integração.
 
+42d0ecf9 passou cluster frio 44862809669: 17 tentativas, mutação posterior
+à leitura do SDK recusada, datas vencidas/futuras e selo substituído recusados,
+auditoria atômica e cópia própria conferidas. Todos os 28 objetos e clusters
+foram removidos. [Recibo](evidencias/financeiro-recuperado-44862809669.json).
+O teste 44862252106 havia encontrado 23514: chamadas voláteis separadas a
+clock_timestamp podiam inverter criação/tentativa por microssegundos. A
+correção reutiliza um único instante PostgreSQL em texto/cast, preservando
+microssegundos e as restrições; não converte o relógio para Date do JavaScript.
+
+Próximo perfil candidato: encerramento original nativo já admitido, sem
+seleção de jogadores. Sua admissão de dados exige avaliação financeira atual,
+e a filha de efeitos sela tentativa/recibo que são reconferidos a cada TX.
+O executor de conta passa a usar o banco/escopo da coordenação, mantendo a
+identidade global e a confirmação financeira. A fixture grava PINs nativos
+de dois adultos antes da captura; somente um encerramento deve remover seu
+PIN, concluir a participação, repetir sem mudar datas e preservar o outro
+adulto/tabelas fora da seleção. Não admite encerramento ausente/publishing,
+seleção de jogadores ou tráfego; o recibo integral continua false.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

@@ -19,13 +19,15 @@ import { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assina
 import { AppError } from "../../src/lib/errors";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
+import { provarEncerramentoNativoRecuperado } from "./provar-encerramento-nativo-recuperado";
 import { provarInventarioFinanceiroRecuperado } from "./provar-inventario-financeiro-recuperado";
 import { exigir } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
 
-/** Synthetic native closure in the actual second private cluster. Only its
- * pending no-customer financial step is resumed. No data erasure, provider
- * inventory, historical confirmed-row refresh or traffic admission is claimed. */
+/** Synthetic native closures in the actual second private cluster. Financial
+ * assessment precedes a separate zero-player native closure replay. Real
+ * provider settlement, all closure profiles and recovered traffic stay outside
+ * this qualification; no live financial or identity credential is supplied. */
 export async function provarFinanceiroRecuperado(config: {
   copia: postgres.Sql;
   cliente: S3Client;
@@ -249,7 +251,13 @@ export async function provarFinanceiroRecuperado(config: {
       conferida?.valida === true && leituras > 0 && inventario,
       "CONSENTIMENTO_NATIVO_DIVERGENTE",
     );
+    const encerramento = await provarEncerramentoNativoRecuperado(
+      copia,
+      { ...comum, execucaoId: importacao.execucaoId },
+      dado,
+    );
     return {
+      ...encerramento,
       ...inventario,
       nativeClosureFinancialPrivateConnectionVerified: true,
       nativeClosureFinancialRetryVerified: true,

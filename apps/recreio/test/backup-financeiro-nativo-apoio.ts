@@ -10,6 +10,8 @@ import { PedidoDePreparacaoDeDireitosSchema } from "@/features/direitos/preparac
 import { prepararEncerramentoNoBanco } from "@/features/direitos/preparacao-repository";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { consentirEncerramentoNoBanco } from "@/features/direitos/retirada-consentimento-repository";
+import { gravarPinNativo } from "@/features/protecao/repository";
+import { gerarHashDoPin } from "@/features/protecao/segredos";
 import { criarInventarioFinanceiroDeProva } from "../scripts/backup/inventario-financeiro-prova";
 import { exigir } from "../scripts/backup/provas-arquivos";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
@@ -53,8 +55,9 @@ export async function prepararFinanceiroNativoAnterior(
         atualizadoEm: new Date().toISOString(),
       }),
     );
-    async function admitir(entrada?: Awaited<ReturnType<typeof adultoDoTeste>>) {
+    async function admitir(entrada?: Awaited<ReturnType<typeof adultoDoTeste>>, comPin = false) {
       const adulto = entrada ?? (await adultoDoTeste());
+      if (comPin) await gravarPinNativo(adulto.autor, await gerarHashDoPin("482731"));
       const previa = await prepararEncerramentoNoBanco(
         adulto.autor,
         PedidoDePreparacaoDeDireitosSchema.parse({
@@ -82,7 +85,7 @@ export async function prepararFinanceiroNativoAnterior(
       );
       return { operacaoId: recibo.operacaoId, contaId: adulto.conta.id };
     }
-    const anterior = await admitir();
+    const anterior = await admitir(undefined, true);
     const processar = criarProcessadorFinanceiroDoEncerramento({
       livroId,
       obterCoordenacao: async () => ({
@@ -104,7 +107,7 @@ export async function prepararFinanceiroNativoAnterior(
       app: "recreio",
       email: pagante.conta.email,
     });
-    const provedor = await admitir(pagante);
+    const provedor = await admitir(pagante, true);
     const http = await criarInventarioFinanceiroDeProva({
       contaId: pagante.conta.id,
       clienteStripeId,
