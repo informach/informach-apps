@@ -1,0 +1,22 @@
+{
+  "source": "ed61dd1a303756737321b5444a8541935d253f09",
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44872951624",
+  "artifactSha256": "06c2c661a59fa90112a6809f7b8754508d6826a015f1afa8d369569ff0b2a491",
+  "cleanupConfirmed": true,
+  "coldRecovery": {
+    "postCaptureCustomerClosureReplayed": true,
+    "postCaptureCustomerClosureSdkHttpVerified": true,
+    "postCaptureCustomerClosureProviderFailureRefused": true,
+    "postCaptureCustomerClosureRequiresCurrentFinance": true,
+    "postCaptureCustomerClosureOriginalConfirmationPreserved": true,
+    "postCaptureCustomerClosureCustomerNotManufactured": true,
+    "postCaptureCustomerClosureOtherFinancesAndIdentityPreserved": true,
+    "postCaptureCustomerClosureHttpReads": 10,
+    "ok": true,
+    "clusterCleanupConfirmed": true,
+    "localCleanupConfirmed": true,
+    "nativeClosureReplayReceiptVerified": true,
+    "nativeAccountClosureFullyReplayed": false
+  },
+  "productionActivated": false
+}

@@ -152,7 +152,9 @@ async function main() {
     clienteFinanceiro = new S3Client(configS3);
   const textoDireitos = variavel("RECREIO_BACKUP_PROBE_NATIVE_RIGHTS");
   delete process.env.RECREIO_BACKUP_PROBE_NATIVE_RIGHTS;
-  exigir(textoDireitos.length <= 4096, "CONFIGURACAO_INVALIDA");
+  // Eight typed synthetic decisions now include the original paid contract's
+  // coordinates. This CI-only payload is still bounded and strictly parsed.
+  exigir(textoDireitos.length <= 8192, "CONFIGURACAO_INVALIDA");
   const retiradaNativa = RetiradaNativaDeProvaSchema.parse(JSON.parse(textoDireitos));
   let leituras = 0;
   cliente.middlewareStack.add(

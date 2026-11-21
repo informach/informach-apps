@@ -63,9 +63,12 @@ interrompida passaram 44867642872/44868026640, com limpeza confirmada.
 Decisão posterior sem jogadores/cliente passou 44868795994/9f44950f.
 Seleção posterior com mundo passou 44870023436/998a9aaf, com negativas de
 escopo/responsabilidade e limpeza. Decisão ausente com cliente Stripe sem
-contratos está em candidata; contratos, identidade atual e publicação seletiva
-continuam pendentes. A composição
-45d246c2 está no gate integral 44872287047.
+contratos passou qualidade/direitos/conciliação e cluster frio 44872951624, com
+limpeza dos 40 objetos. 45d246c2 passou os 17 gates em 44872287047. 8fa83d1c
+corrige confirmação de renovação fabricada/copiada/mutada: regressão vermelha
+44873741020, conciliação verde 44874372112 e qualidade 44874374878. Executor
+privado para contrato pago está em implementação; identidade atual e publicação
+seletiva continuam pendentes.
 [Execução](recreio/encerramento-recuperado-2026-11-20.md).
 
 **Custódia do livro:** destino separado e MAC próprio preparados no Railway,

@@ -294,7 +294,10 @@ consulta HTTP fechado para confirmar a fila e avaliar a situação atual. Uma
 falha 503 posterior deve limpar a avaliação positiva, conservar a confirmação
 original e impedir admissão de dados. Só nova observação completa permite
 prosseguir. A prova conserva também todos os clientes globais e a identidade.
-São sete decisões, 36 objetos de direitos/40 totais, ainda em candidata.
+São sete decisões, 36 objetos de direitos/40 totais. ed61dd1a passou qualidade
+44872949389, direitos 44872953903, conciliação 44872956110 e cluster frio
+44872951624. Foram dez leituras HTTP fechadas e limpeza integral confirmada.
+[Recibo](evidencias/encerramento-ausente-cliente-44872951624.json).
 Compras/trocas não enviadas, contratos, identidade global atual e publicação
 seletiva continuam exigindo suas etapas próprias; não inferir liquidação.
 
@@ -302,3 +305,29 @@ Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou
 reativar credenciais antigas. A fonte corrente mantém esses caminhos fechados.
+
+## Contrato pago e confirmação de renovação (21/11)
+
+O teste de regressão b0a18c70 em 44873741020 demonstrou que uma confirmação
+interna com formato válido era aceita sem origem no SDK. 8fa83d1c vincula a
+observação real, por identidade local, a pedido/cliente/contrato/compra/modo;
+recusa cópia, data alterada e prazo vencido. Congela o escopo antes de I/O e
+devolve valores primitivos para a escrita transacional. Conciliação
+44874372112 e qualidade 44874374878 passaram; CI compartilhado e gate integral
+da mesma fonte continuam em execução. Não era uma entrada pública do navegador.
+
+O candidato seguinte acrescenta executor privado de renovação, limitado ao
+encerramento/pagante da filha financeira e à conexão Unix já conferida. A
+intenção e a origem local são relidas antes de cada transação; após I/O, a cerca
+é conferida novamente. Resposta real confirmada desperta o financeiro que
+aguarda a parada, atomicamente com o recibo/auditoria; não é necessário alterar
+o relógio nem reduzir a espera nos testes. Outros contratos/contas não entram
+na seleção. Configurações comuns, copiadas e expiradas devem ser recusadas.
+
+A oitava decisão sintética tem compra/Checkout/contrato/período pago emitidos
+pelo fluxo nativo de teste antes da captura. O estado externo é HTTP fechado,
+com SDK real, uma única mutação `cancel_at_period_end=true`, leitura posterior,
+avaliação financeira atual, efeitos de conta e verificação individual. Não
+qualifica pagamento real nem encerramento ausente com contrato. O livro passa
+a 39 objetos de direitos/43 totais; as coordenadas estritamente tipadas da prova
+CI têm limite de 8 KiB. Publicação seletiva e identidade atual seguem pendentes.

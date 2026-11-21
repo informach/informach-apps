@@ -208,7 +208,11 @@ describe("encerramento: coordenação financeira com PostgreSQL/S3/Stripe SDK re
       });
       expect(f.posts).toEqual([]);
       expect(await f.cancelar()).toMatchObject({ confirmadas: 1 });
-      await livro.devida();
+      const aguardando = await livro.linha();
+      expect(aguardando.state).toBe("waiting");
+      expect(aguardando.nextAttemptAt.getTime()).toBeLessThanOrEqual(
+        aguardando.updatedAt.getTime(),
+      );
       expect(await livro.processar()).toMatchObject({ situacao: "confirmada" });
       expect(await livro.linha()).toMatchObject({
         state: "confirmed",

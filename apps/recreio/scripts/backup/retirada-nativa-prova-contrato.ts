@@ -45,6 +45,16 @@ export const RetiradaNativaDeProvaSchema = z.strictObject({
       contaId: z.string().min(1).max(256),
       clienteStripeId: z.string().regex(/^cus_recovery_[a-f0-9]{32}$/),
     }),
+    comContrato: z.strictObject({
+      operacaoId: z.uuid(),
+      contaId: z.string().min(1).max(256),
+      clienteStripeId: z.string().regex(/^cus_native_[a-f0-9]{32}$/),
+      assinaturaStripeId: z.string().regex(/^sub_fixture_[a-f0-9]{32}$/),
+      compraId: z.uuid(),
+      checkoutStripeId: z.string().regex(/^cs_test_[a-f0-9]{32}_[0-9]+_native$/),
+      inicio: z.number().int().positive(),
+      fim: z.number().int().positive(),
+    }),
     chaves: z.strictObject({
       "finance-old": z.string().regex(/^[A-Za-z0-9+/]{43}=$/),
       "finance-next": z.string().regex(/^[A-Za-z0-9+/]{43}=$/),

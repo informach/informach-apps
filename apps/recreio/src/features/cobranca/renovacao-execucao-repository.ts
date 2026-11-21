@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import {
   assertRecreioRenewalObservation,
   type RecreioRenewalObservation,
@@ -13,8 +13,16 @@ import { and, db, eq, isNull, lte, ne, or, sql } from "@informach/db";
 import {
   recreioRenewalCancellations as cancellations,
   recreioBillingContracts as contracts,
+  recreioAccountClosureFinances as finances,
+  recreioRightsOperations as operations,
 } from "@informach/db/schema";
 import { ContaIdSchema, GrupoIdSchema } from "@informach/recreio";
+import {
+  conferirIntencaoFinanceiraDaCoordenacao,
+  dadosFinanceirosDaCoordenacaoPrivada,
+} from "@/features/direitos/coordenacao-repository";
+import type { CoordenacaoDeEfeitos } from "@/features/direitos/efeitos-repository";
+import { lerOrigemFinanceiraDoEncerramentoLocked } from "@/features/direitos/encerramento-origem-financeira-repository";
 import {
   admitirGrupoDaConciliacao,
   ComposicaoDoGrupoMudou,
@@ -46,40 +54,109 @@ async function limites(tx: Transacao) {
   await tx.execute(sql`set local lock_timeout='2s'`);
 }
 
+function bancoDaRenovacao(config?: CoordenacaoDeEfeitos) {
+  return config ? dadosFinanceirosDaCoordenacaoPrivada(config).banco : db;
+}
+function escopoDaRenovacao(config?: CoordenacaoDeEfeitos) {
+  if (!config) return undefined;
+  const privado = dadosFinanceirosDaCoordenacaoPrivada(config);
+  return and(
+    eq(cancellations.initiator, "account_closure"),
+    eq(cancellations.closureOperationId, privado.operacaoId),
+    eq(cancellations.payerUserId, privado.contaId),
+  );
+}
+async function conferirRenovacaoPrivada(tx: Transacao, linha: Linha, config: CoordenacaoDeEfeitos) {
+  const privado = dadosFinanceirosDaCoordenacaoPrivada(config);
+  const [op] = await tx
+    .select()
+    .from(operations)
+    .where(
+      and(
+        eq(operations.id, privado.operacaoId),
+        eq(operations.requesterUserId, privado.contaId),
+        eq(operations.kind, "encerrar_conta"),
+        eq(operations.ledgerId, config.assinatura.livroId),
+      ),
+    )
+    .for("share");
+  assertAllowed(
+    op &&
+      ["admitted", "running"].includes(op.state) &&
+      linha.initiator === "account_closure" &&
+      linha.closureOperationId === op.id &&
+      linha.payerUserId === op.requesterUserId &&
+      linha.source === op.source &&
+      linha.authenticatedAt.getTime() === op.authenticatedAt.getTime() &&
+      linha.acceptedAt.getTime() === op.consentedAt.getTime(),
+    "DIREITOS_INTEGRIDADE",
+    "Cancelamento fora do consentimento financeiro privado.",
+  );
+  const { plano } = await conferirIntencaoFinanceiraDaCoordenacao(tx, op, config);
+  assertAllowed(
+    plano.formato === "recreio-previa-encerramento-v2" &&
+      plano.financeiro.modo === linha.providerMode,
+    "DIREITOS_INTEGRIDADE",
+    "O cancelamento exige origem financeira própria.",
+  );
+  const origem = await lerOrigemFinanceiraDoEncerramentoLocked(tx, plano);
+  const contrato = origem.assinaturas.find(
+    (s) => s.contrato.subscriptionId === linha.subscriptionId,
+  );
+  assertAllowed(
+    contrato &&
+      contrato.contrato.groupId === linha.groupId &&
+      contrato.contrato.purchaseId === linha.purchaseId &&
+      contrato.contrato.originProductId === linha.originProductId &&
+      contrato.comum.providerCustomerId === linha.providerCustomerId &&
+      contrato.comum.providerSubscriptionId === linha.providerSubscriptionId,
+    "DIREITOS_INTEGRIDADE",
+    "A origem privada do contrato mudou.",
+  );
+}
+
 /** Reserve one due receipt, not a batch that could outlive its lease. */
-export function reservarCancelamentoDaRenovacao(modo: StripeMode) {
-  return db.transaction(async (tx): Promise<TrabalhoDeCancelamentoDaRenovacao | null> => {
-    await limites(tx);
-    const [linha] = await tx
-      .select()
-      .from(cancellations)
-      .where(
-        and(
-          eq(cancellations.providerMode, modo),
-          ne(cancellations.state, "confirmed"),
-          lte(cancellations.nextAttemptAt, AGORA),
-          or(isNull(cancellations.leaseUntil), lte(cancellations.leaseUntil, AGORA)),
-        ),
-      )
-      .orderBy(cancellations.nextAttemptAt, cancellations.id)
-      .limit(1)
-      .for("update", { skipLocked: true });
-    if (!linha) return null;
-    const token = randomUUID();
-    await tx
-      .update(cancellations)
-      .set({ leaseToken: token, leaseUntil: sql`${AGORA}+interval '3 minutes'`, updatedAt: AGORA })
-      .where(eq(cancellations.id, linha.id));
-    return {
-      [RESERVADA]: true,
-      id: linha.id,
-      paganteId: linha.payerUserId,
-      grupoId: linha.groupId,
-      modo,
-      assinaturaId: linha.subscriptionId,
-      token,
-    };
-  });
+export function reservarCancelamentoDaRenovacao(modo: StripeMode, config?: CoordenacaoDeEfeitos) {
+  return bancoDaRenovacao(config).transaction(
+    async (tx): Promise<TrabalhoDeCancelamentoDaRenovacao | null> => {
+      await limites(tx);
+      const [linha] = await tx
+        .select()
+        .from(cancellations)
+        .where(
+          and(
+            escopoDaRenovacao(config),
+            eq(cancellations.providerMode, modo),
+            ne(cancellations.state, "confirmed"),
+            lte(cancellations.nextAttemptAt, AGORA),
+            or(isNull(cancellations.leaseUntil), lte(cancellations.leaseUntil, AGORA)),
+          ),
+        )
+        .orderBy(cancellations.nextAttemptAt, cancellations.id)
+        .limit(1)
+        .for("update", { skipLocked: true });
+      if (!linha) return null;
+      if (config) await conferirRenovacaoPrivada(tx, linha, config);
+      const token = randomUUID();
+      await tx
+        .update(cancellations)
+        .set({
+          leaseToken: token,
+          leaseUntil: sql`${AGORA}+interval '3 minutes'`,
+          updatedAt: AGORA,
+        })
+        .where(eq(cancellations.id, linha.id));
+      return {
+        [RESERVADA]: true,
+        id: linha.id,
+        paganteId: linha.payerUserId,
+        grupoId: linha.groupId,
+        modo,
+        assinaturaId: linha.subscriptionId,
+        token,
+      };
+    },
+  );
 }
 
 /** Caller holds the payer's financial lifecycle. Technical authority comes
@@ -87,11 +164,12 @@ export function reservarCancelamentoDaRenovacao(modo: StripeMode) {
 async function comTrabalho<T>(
   prova: TrabalhoDeCancelamentoDaRenovacao,
   executar: (tx: Transacao, linha: Linha, agora: Date) => Promise<T>,
+  config?: CoordenacaoDeEfeitos,
 ) {
   assertAllowed(prova[RESERVADA], "COBRANCA", "Trabalho não admitido.");
   for (const repeticao of [0, 1]) {
     try {
-      return await db.transaction(async (tx) => {
+      return await bancoDaRenovacao(config).transaction(async (tx) => {
         await limites(tx);
         await admitirGrupoDaConciliacao(
           tx,
@@ -116,6 +194,7 @@ async function comTrabalho<T>(
           .from(cancellations)
           .where(
             and(
+              escopoDaRenovacao(config),
               eq(cancellations.id, prova.id),
               eq(cancellations.payerUserId, prova.paganteId),
               eq(cancellations.groupId, prova.grupoId),
@@ -127,6 +206,7 @@ async function comTrabalho<T>(
           )
           .for("update");
         assertAllowed(linha, "CONFLITO", "O cancelamento já foi retomado por outro executor.");
+        if (config) await conferirRenovacaoPrivada(tx, linha, config);
         const [relogio] = await tx
           .select({ agora: sql<Date>`${AGORA}`.mapWith(cancellations.createdAt) })
           .from(cancellations)
@@ -164,7 +244,10 @@ function conferirTentativa(prova: TentativaDeCancelamentoDaRenovacao, linha: Lin
   );
 }
 
-export function iniciarCancelamentoDaRenovacaoLocked(prova: TrabalhoDeCancelamentoDaRenovacao) {
+export function iniciarCancelamentoDaRenovacaoLocked(
+  prova: TrabalhoDeCancelamentoDaRenovacao,
+  config?: CoordenacaoDeEfeitos,
+) {
   return comTrabalho(
     prova,
     async (tx, linha, agora): Promise<TentativaDeCancelamentoDaRenovacao> => {
@@ -203,99 +286,125 @@ export function iniciarCancelamentoDaRenovacaoLocked(prova: TrabalhoDeCancelamen
         },
       };
     },
+    config,
   );
 }
 
 export function confirmarCancelamentoDaRenovacaoLocked(
   prova: TentativaDeCancelamentoDaRenovacao,
   observacao: RecreioRenewalObservation,
+  config?: CoordenacaoDeEfeitos,
 ) {
-  return comTrabalho(prova, async (tx, linha, agora) => {
-    conferirTentativa(prova, linha);
-    await conferirOrigem(tx, linha);
-    const resultado = assertRecreioRenewalObservation(
-      observacao,
-      {
-        intentId: linha.id,
-        customerId: linha.providerCustomerId,
-        subscriptionId: linha.providerSubscriptionId,
-        origin: {
-          authorizationId: linha.purchaseId,
-          productId: linha.originProductId,
-          payerId: linha.payerUserId,
+  return comTrabalho(
+    prova,
+    async (tx, linha, agora) => {
+      conferirTentativa(prova, linha);
+      await conferirOrigem(tx, linha);
+      const resultado = assertRecreioRenewalObservation(
+        observacao,
+        {
+          intentId: linha.id,
+          customerId: linha.providerCustomerId,
+          subscriptionId: linha.providerSubscriptionId,
+          origin: {
+            authorizationId: linha.purchaseId,
+            productId: linha.originProductId,
+            payerId: linha.payerUserId,
+          },
         },
-      },
-      linha.providerMode,
-    );
-    assertAllowed(
-      resultado.stopsAtMs === null || resultado.stopsAtMs > agora.getTime(),
-      "ORIGEM_FINANCEIRA",
-      "A interrupção da renovação ainda não foi comprovada.",
-    );
-    await tx
-      .update(cancellations)
-      .set({
-        state: "confirmed",
-        providerResult: resultado.outcome,
-        providerStopAt: resultado.stopsAtMs === null ? null : new Date(resultado.stopsAtMs),
-        observationSha256: resultado.sha256,
-        observedAt: agora,
-        confirmedAt: agora,
-        leaseToken: null,
-        leaseUntil: null,
-        reviewCode: null,
-        updatedAt: agora,
-      })
-      .where(eq(cancellations.id, linha.id));
-    await agendarConciliacaoDaCompra(tx, {
-      paganteId: linha.payerUserId,
-      grupoId: linha.groupId,
-      modo: linha.providerMode,
-    });
-    await logAuditEventStrict(
-      "recreio.renewal_cancellation_confirmed",
-      null,
-      {
-        app: "recreio",
-        cancellationId: linha.id,
-        groupId: linha.groupId,
-        attemptCount: linha.attempts,
-        state: "confirmed",
-      },
-      { writer: tx },
-    );
-  });
+        linha.providerMode,
+      );
+      assertAllowed(
+        resultado.stopsAtMs === null || resultado.stopsAtMs > agora.getTime(),
+        "ORIGEM_FINANCEIRA",
+        "A interrupção da renovação ainda não foi comprovada.",
+      );
+      await tx
+        .update(cancellations)
+        .set({
+          state: "confirmed",
+          providerResult: resultado.outcome,
+          providerStopAt: resultado.stopsAtMs === null ? null : new Date(resultado.stopsAtMs),
+          observationSha256: resultado.sha256,
+          observedAt: agora,
+          confirmedAt: agora,
+          leaseToken: null,
+          leaseUntil: null,
+          reviewCode: null,
+          updatedAt: agora,
+        })
+        .where(eq(cancellations.id, linha.id));
+      await agendarConciliacaoDaCompra(tx, {
+        paganteId: linha.payerUserId,
+        grupoId: linha.groupId,
+        modo: linha.providerMode,
+      });
+      if (linha.initiator === "account_closure" && linha.closureOperationId) {
+        // A verified stop is a new financial fact: wake its waiting coordinator
+        // atomically, without changing a review or another operation's lease.
+        await tx
+          .update(finances)
+          .set({ nextAttemptAt: agora, updatedAt: agora })
+          .where(
+            and(
+              eq(finances.operationId, linha.closureOperationId),
+              eq(finances.requesterUserId, linha.payerUserId),
+              eq(finances.providerMode, linha.providerMode),
+              eq(finances.state, "waiting"),
+            ),
+          );
+      }
+      await logAuditEventStrict(
+        "recreio.renewal_cancellation_confirmed",
+        null,
+        {
+          app: "recreio",
+          cancellationId: linha.id,
+          groupId: linha.groupId,
+          attemptCount: linha.attempts,
+          state: "confirmed",
+        },
+        { writer: tx },
+      );
+    },
+    config,
+  );
 }
 
 /** Also records a failure before admission without falsely inventing a send. */
 export function registrarFalhaDoCancelamentoDaRenovacaoLocked(
   prova: TrabalhoDeCancelamentoDaRenovacao,
   motivo: RecreioRenewalReviewCode,
+  config?: CoordenacaoDeEfeitos,
 ) {
-  return comTrabalho(prova, async (tx, linha, agora) => {
-    const espera = Math.min(3600, 300 * 2 ** Math.min(4, Math.max(0, linha.attempts - 1)));
-    await tx
-      .update(cancellations)
-      .set({
-        state: "review",
-        reviewCode: motivo,
-        leaseToken: null,
-        leaseUntil: null,
-        nextAttemptAt: sql`${AGORA}+${espera}*interval '1 second'`,
-        updatedAt: agora,
-      })
-      .where(eq(cancellations.id, linha.id));
-    await logAuditEventStrict(
-      "recreio.renewal_cancellation_failed",
-      null,
-      {
-        app: "recreio",
-        cancellationId: linha.id,
-        groupId: linha.groupId,
-        attemptCount: linha.attempts,
-        reasonCode: motivo,
-      },
-      { writer: tx },
-    );
-  });
+  return comTrabalho(
+    prova,
+    async (tx, linha, agora) => {
+      const espera = Math.min(3600, 300 * 2 ** Math.min(4, Math.max(0, linha.attempts - 1)));
+      await tx
+        .update(cancellations)
+        .set({
+          state: "review",
+          reviewCode: motivo,
+          leaseToken: null,
+          leaseUntil: null,
+          nextAttemptAt: sql`${AGORA}+${espera}*interval '1 second'`,
+          updatedAt: agora,
+        })
+        .where(eq(cancellations.id, linha.id));
+      await logAuditEventStrict(
+        "recreio.renewal_cancellation_failed",
+        null,
+        {
+          app: "recreio",
+          cancellationId: linha.id,
+          groupId: linha.groupId,
+          attemptCount: linha.attempts,
+          reasonCode: motivo,
+        },
+        { writer: tx },
+      );
+    },
+    config,
+  );
 }

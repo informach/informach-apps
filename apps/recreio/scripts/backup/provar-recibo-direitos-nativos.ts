@@ -130,7 +130,7 @@ export async function provarReciboDosDireitosNativos(
         const recibo = await verificarReaplicacaoDeDireitos(pai);
         exigir(
           recibo.escopo === "direitos" &&
-            recibo.operacoesVerificadas === 7 &&
+            recibo.operacoesVerificadas === 8 &&
             !recibo.trafegoAutorizado &&
             /^[a-f0-9]{64}$/.test(recibo.reciboSha256),
           "RECIBO_DIREITOS_NATIVOS_DIVERGENTE",

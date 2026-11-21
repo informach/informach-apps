@@ -6,6 +6,12 @@ import {
   RecreioRenewalReviewError,
 } from "@informach/billing/providers/stripe-recreio-renewals";
 import type { StripeMode } from "@informach/config";
+import {
+  comCicloFinanceiroDaCoordenacao,
+  exigirFinanceiroPrivado,
+  reconferirFinanceiroPrivado,
+} from "@/features/direitos/coordenacao-repository";
+import type { CoordenacaoDeEfeitos } from "@/features/direitos/efeitos-repository";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { comCicloDeCobranca } from "./lifecycle";
 import {
@@ -27,11 +33,26 @@ function motivo(error: unknown): RecreioRenewalReviewCode | null {
 
 /** Durable reduction consent survives logout. Never fabricates native authority
  * or admits a new commercial operation. No network inside row transactions. */
-export function criarProcessadorDeCancelamentoDaRenovacao(deps: {
+type DependenciasDaRenovacao = {
   modo: StripeMode;
   obterRuntime: () => RuntimeDoCancelamentoDaRenovacao;
   relatarFalha: (entrada: { reasonCode: RecreioRenewalReviewCode | "technical_failure" }) => void;
-}) {
+};
+export function criarProcessadorDeCancelamentoDaRenovacao(deps: DependenciasDaRenovacao) {
+  return processadorDeRenovacoes(deps);
+}
+
+/** Scoped private entry; an ordinary/copy/expired coordination is rejected.
+ * The original child and its single private connection remain held across I/O. */
+export function criarProcessadorDeRenovacaoRecuperada(
+  config: CoordenacaoDeEfeitos,
+  deps: DependenciasDaRenovacao,
+) {
+  exigirFinanceiroPrivado(config);
+  return processadorDeRenovacoes(deps, config);
+}
+
+function processadorDeRenovacoes(deps: DependenciasDaRenovacao, config?: CoordenacaoDeEfeitos) {
   return async () => {
     const resultado = { reservadas: 0, confirmadas: 0, emConferencia: 0, falhasTecnicas: 0 };
     const relatar = (reasonCode: RecreioRenewalReviewCode | "technical_failure") => {
@@ -44,31 +65,37 @@ export function criarProcessadorDeCancelamentoDaRenovacao(deps: {
     const inicio = Date.now();
     let runtime: RuntimeDoCancelamentoDaRenovacao | undefined;
     for (let n = 0; n < 8 && Date.now() - inicio < 60_000; n++) {
-      const trabalho = await reservarCancelamentoDaRenovacao(deps.modo);
+      if (config) await reconferirFinanceiroPrivado(config);
+      const trabalho = await reservarCancelamentoDaRenovacao(deps.modo, config);
       if (!trabalho) break;
       resultado.reservadas++;
       try {
-        await comCicloDeCobranca(trabalho.paganteId, async () => {
+        const comCiclo = <T>(executar: () => Promise<T>) =>
+          config
+            ? comCicloFinanceiroDaCoordenacao(config, trabalho.paganteId, executar)
+            : comCicloDeCobranca(trabalho.paganteId, executar);
+        await comCiclo(async () => {
           try {
-            const tentativa = await iniciarCancelamentoDaRenovacaoLocked(trabalho);
+            const tentativa = await iniciarCancelamentoDaRenovacaoLocked(trabalho, config);
             runtime ??= deps.obterRuntime();
             if (runtime.modo !== trabalho.modo) {
               throw new RecreioRenewalReviewError("namespace_mismatch");
             }
             const budget = { deadlineMs: Date.now() + 90_000 };
             const observacao = await runtime.renovacoes.stop({ ...tentativa.entrada, budget });
+            if (config) await reconferirFinanceiroPrivado(config);
             assertAllowed(
               Date.now() < budget.deadlineMs,
               "COBRANCA",
               "A conferência excedeu o prazo.",
             );
             assertRecreioRenewalObservation(observacao, tentativa.entrada, trabalho.modo);
-            await confirmarCancelamentoDaRenovacaoLocked(tentativa, observacao);
+            await confirmarCancelamentoDaRenovacaoLocked(tentativa, observacao, config);
             resultado.confirmadas++;
           } catch (error) {
             const reasonCode = motivo(error);
             if (reasonCode === null) throw error;
-            await registrarFalhaDoCancelamentoDaRenovacaoLocked(trabalho, reasonCode);
+            await registrarFalhaDoCancelamentoDaRenovacaoLocked(trabalho, reasonCode, config);
             resultado.emConferencia++;
             relatar(reasonCode);
           }

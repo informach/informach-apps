@@ -24,6 +24,7 @@ import {
   provarEncerramentoAusenteComCliente,
 } from "./provar-encerramento-ausente";
 import { provarEncerramentoAusenteSelecionado } from "./provar-encerramento-ausente-selecionado";
+import { provarEncerramentoComContrato } from "./provar-encerramento-contrato";
 import { provarEncerramentoNativoRecuperado } from "./provar-encerramento-nativo-recuperado";
 import { provarEncerramentoSelecionadoRecuperado } from "./provar-encerramento-selecionado-recuperado";
 import { provarInventarioFinanceiroRecuperado } from "./provar-inventario-financeiro-recuperado";
@@ -135,7 +136,7 @@ export async function provarFinanceiroRecuperado(config: {
       tempoLimiteMs: 120000,
     };
     const importacao = await importarFontesHistoricasDeDireitos({ ...comum, copia });
-    exigir(importacao.fontesConferidas === 7, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(importacao.fontesConferidas === 8, "CONSENTIMENTO_NATIVO_DIVERGENTE");
     let inventario: Awaited<ReturnType<typeof provarInventarioFinanceiroRecuperado>> | undefined;
     async function negada(
       executar: () => unknown | Promise<unknown>,
@@ -289,6 +290,11 @@ export async function provarFinanceiroRecuperado(config: {
       { ...comum, execucaoId: importacao.execucaoId },
       dado.posteriorComCliente,
     );
+    const contrato = await provarEncerramentoComContrato(
+      copia,
+      { ...comum, execucaoId: importacao.execucaoId },
+      dado.comContrato,
+    );
     const recibo = await provarReciboDosDireitosNativos(
       copia,
       { ...comum, execucaoId: importacao.execucaoId },
@@ -300,6 +306,7 @@ export async function provarFinanceiroRecuperado(config: {
       ...posterior,
       ...selecaoPosterior,
       ...clientePosterior,
+      ...contrato,
       ...selecionado,
       ...encerramento,
       ...inventario,

@@ -17,6 +17,7 @@ import { exigir } from "../scripts/backup/provas-arquivos";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { interromperPublicacaoDeEncerramento } from "./backup-publicacao-encerramento-apoio";
 import { prepararSelecaoDoEncerramento } from "./backup-selecao-encerramento-apoio";
+import { pagamentoParaEncerramento } from "./encerramento-financeiro-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
 /** Native synthetic closures: historical no-customer and closed-HTTP customer
@@ -145,6 +146,20 @@ export async function prepararFinanceiroNativoAnterior(
     } finally {
       await http.encerrar();
     }
+    const pagamento = await pagamentoParaEncerramento();
+    const reciboContrato = await admitir(pagamento.adulto, true);
+    const itemPago = pagamento.financeiro.assinatura.items.data[0],
+      checkoutPago = pagamento.sessions[0];
+    exigir(itemPago && checkoutPago?.status === "complete", "CONTRATO_NATIVO_DIVERGENTE");
+    const comContrato = {
+      ...reciboContrato,
+      clienteStripeId: pagamento.providerCustomerId,
+      assinaturaStripeId: pagamento.financeiro.assinatura.id,
+      compraId: pagamento.recibo.id,
+      checkoutStripeId: checkoutPago.id,
+      inicio: itemPago.current_period_start,
+      fim: itemPago.current_period_end,
+    };
     const { familia, perfisSelecionados, mundo } = await prepararSelecaoDoEncerramento();
     const pendente = await admitir(familia, false, perfisSelecionados);
     const publicacaoPendente = await admitir(undefined, true, [], true);
@@ -187,6 +202,7 @@ export async function prepararFinanceiroNativoAnterior(
             mundo: selecaoPosterior.mundo,
           },
           posteriorComCliente: { ...reciboCliente, clienteStripeId: clientePosteriorId },
+          comContrato,
           anterior,
           provedor: { ...provedor, clienteStripeId },
           chaves: {
