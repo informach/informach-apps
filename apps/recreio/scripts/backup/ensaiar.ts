@@ -94,8 +94,14 @@ async function principal(): Promise<void> {
         (select count(*)::int from recreio.spaces) as mundos,
         (select count(*)::int from recreio.space_snapshots) as fotografias,
         pg_export_snapshot() as id, statement_timestamp()::text as instante`;
-        if (!material || material.mundos < 1 || material.fotografias < 1)
-          throw new FalhaDeEnsaio("MUNDO_PERSISTIDO_AUSENTE");
+        if (
+          !material ||
+          !Number.isSafeInteger(material.mundos) ||
+          material.mundos < 0 ||
+          !Number.isSafeInteger(material.fotografias) ||
+          material.fotografias < 0
+        )
+          throw new FalhaDeEnsaio("ESTATISTICAS_DA_ORIGEM_INVALIDAS");
         const snapshot = material;
         if (!/^[A-Fa-f0-9-]+$/.test(snapshot.id)) throw new FalhaDeEnsaio("SNAPSHOT_INVALIDO");
         const instante = snapshot.instante;
@@ -131,12 +137,19 @@ async function principal(): Promise<void> {
         }
         const backupMs = Math.round(performance.now() - inicioDoBackup);
         const bytes = (await stat(arquivo)).size;
-        return { inventario, instante, backupMs, bytes };
+        return {
+          inventario,
+          instante,
+          backupMs,
+          bytes,
+          mundos: snapshot.mundos,
+          fotografias: snapshot.fotografias,
+        };
       },
     );
     await origem.end({ timeout: 5 });
     origem = undefined;
-    const { inventario: fatos, instante, backupMs, bytes } = preparado;
+    const { inventario: fatos, instante, backupMs, bytes, mundos, fotografias } = preparado;
     if (bytes === 0) throw new FalhaDeEnsaio("BACKUP_AUSENTE");
     fase = "restaurar_cluster_isolado";
     destinoLimpo = false;
@@ -162,6 +175,8 @@ async function principal(): Promise<void> {
       operacao,
       ok: true,
       snapshotEm: instante,
+      mundos,
+      fotografias,
       backupMs,
       restauracaoMs: restauracao.restauracaoMs,
       bytes,

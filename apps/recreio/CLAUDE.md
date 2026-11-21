@@ -468,3 +468,10 @@ nativo pertencente ao prefixo completo; conferir preparação/MAC/plano/mapa
 antes, conservar datas do aceite, confirmar SQL/avaliação/auditoria atomicamente
 e não inventar admissão anterior. Sem essa confirmação não há escopo filho.
 [Contrato e gates](../../docs/recreio/publicacao-historica-2026-11-20.md).
+
+
+Backup lógico/upgrade privado não deve depender da presença de um jogo ou
+mundo. A correção candidata aceita contagens zero e as expõe no recibo,
+conservando inventário, globais/ACL, origem, hashes e limpeza. Isso não prova
+gameplay. Os gates anteriores com mundo continuam e foram acrescentadas
+origens sem mundos. [Estado e evidências](../../docs/recreio/backup-sem-mundos-2026-11-20.md).

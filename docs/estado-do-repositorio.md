@@ -46,6 +46,10 @@ do volume, sem apagar backups antigos. Publicação histórica com confirmação
 SQL perdida passou cluster externo 44841477078, qualidade 44841480696 e
 captura 44841484383, preservando as provas anteriores e sem novo aceite.
 [Contrato e evidências](recreio/publicacao-historica-2026-11-20.md).
+Homologação tem backup de volume atual e TLS 1.3 comprovado; schema permanece
+em 224. O ensaio antigo recusou ausência de mundos, sem atualizar a origem.
+A correção permite backup da plataforma antes do primeiro mundo, com contagens
+explícitas e provas remotas novas, sem flag de dispensa. [Contrato e estado](recreio/backup-sem-mundos-2026-11-20.md).
 
 **Provas reais recentes:** ensaio de 20/11 às 20h52 UTC restaurou conteúdo,
 estrutura e globais idênticos; serviço/temporários removidos, origem intacta,

@@ -24,6 +24,8 @@ async function main() {
   assert.equal(process.argv.length, 2);
   const historical = process.env.RECREIO_FIXTURE_HISTORY === "historical";
   assert.ok(["published", "historical"].includes(process.env.RECREIO_FIXTURE_HISTORY ?? ""));
+  assert.ok(["present", "empty"].includes(process.env.RECREIO_FIXTURE_WORLDS ?? ""));
+  const comMundos = process.env.RECREIO_FIXTURE_WORLDS === "present";
   const url = new URL(process.env.DATABASE_URL ?? "");
   assert.equal(url.protocol, "postgres:");
   assert.equal(url.hostname, "127.0.0.1");
@@ -98,16 +100,18 @@ async function main() {
           values(${key},${profile},'prova-upgrade',0,1,'accepted',${bytes},${hash})`;
         await tx`insert into recreio.profile_achievements(profile_id,game_id,achievement_id,key_hash)
           values(${profile},'prova-upgrade','marca',${hash})`;
-        await tx`insert into recreio.spaces(id,game_id,steward_profile_id,created_by_profile_id,name,content_policy,status,revision,journal_seq,lease_epoch)
-          values(${world},'morada',${profile},${profile},'Synthetic','todas_as_idades','hibernating',5,2,7)`;
-        await tx`insert into recreio.space_members(space_id,profile_id,role,state,participation)
-          values(${world},${profile},'steward','active','synthetic')`;
-        for (let revision = 1; revision <= 5; revision++)
-          await tx`insert into recreio.space_snapshots(space_id,revision,fence,schema_version,journal_seq,tick,kind,storage,data,byte_size,sha256)
-            values(${world},${revision},7,2,1,12,'hibernate','pg',${bytes},${bytes.length},${hash})`;
-        for (let seq = 1; seq <= 2; seq++)
-          await tx`insert into recreio.space_journal(space_id,seq,fence,tick,fact_id,payload,byte_size)
-            values(${world},${seq},7,${12 + seq},${`synthetic-${n}-${seq}`},${bytes},${bytes.length})`;
+        if (comMundos) {
+          await tx`insert into recreio.spaces(id,game_id,steward_profile_id,created_by_profile_id,name,content_policy,status,revision,journal_seq,lease_epoch)
+            values(${world},'morada',${profile},${profile},'Synthetic','todas_as_idades','hibernating',5,2,7)`;
+          await tx`insert into recreio.space_members(space_id,profile_id,role,state,participation)
+            values(${world},${profile},'steward','active','synthetic')`;
+          for (let revision = 1; revision <= 5; revision++)
+            await tx`insert into recreio.space_snapshots(space_id,revision,fence,schema_version,journal_seq,tick,kind,storage,data,byte_size,sha256)
+              values(${world},${revision},7,2,1,12,'hibernate','pg',${bytes},${bytes.length},${hash})`;
+          for (let seq = 1; seq <= 2; seq++)
+            await tx`insert into recreio.space_journal(space_id,seq,fence,tick,fact_id,payload,byte_size)
+              values(${world},${seq},7,${12 + seq},${`synthetic-${n}-${seq}`},${bytes},${bytes.length})`;
+        }
       }
       await tx.unsafe("create schema upgrade_foreign_fixture");
       await tx.unsafe(
@@ -124,8 +128,8 @@ async function main() {
         syntheticSource: true,
         release: RELEASE,
         receipts: 204,
-        worlds: 2,
-        snapshots: 10,
+        worlds: comMundos ? 2 : 0,
+        snapshots: comMundos ? 10 : 0,
         publishedSqlAndJournalPrefixUnchanged: true,
         historicalReceiptVariantsExecutedInEmptyFixture: historical ? originals.size : 0,
         gameContentValidated: false,

@@ -31,3 +31,10 @@ INSERT INTO recreio.space_snapshots VALUES (
 );
 GRANT USAGE ON SCHEMA recreio TO recreio_backup_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA recreio TO recreio_backup_reader;
+
+-- Non-game state must survive even before any world is created.
+CREATE SCHEMA backup_fixture;
+CREATE TABLE backup_fixture.sentinel (id integer PRIMARY KEY, data jsonb NOT NULL, bytes bytea NOT NULL);
+INSERT INTO backup_fixture.sentinel VALUES (1, '{"note":"FIXTURE_NAO_PUBLICAR_CONTEUDO","value":42}', decode('007fff','hex'));
+GRANT USAGE ON SCHEMA backup_fixture TO recreio_backup_reader;
+GRANT SELECT ON backup_fixture.sentinel TO recreio_backup_reader;

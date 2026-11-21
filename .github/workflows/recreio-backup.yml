@@ -95,24 +95,32 @@ jobs:
             const texto=readFileSync(process.env.RUNNER_TEMP+"/recreio-backup.jsonl","utf8");
             const resultados=texto.trim().split("\n").map(s=>JSON.parse(s));
             const resultado=resultados.at(-1);
-            if (!resultado?.ok || !resultado.conteudoIdentico || !resultado.estruturaIdentica || !resultado.globaisIdenticos || resultado.papeis!==4 || resultado.participacoesEmPapeis<4 || !resultado.temporariosRemovidos || resultado.tabelas<2 || resultado.bytes<=0 || texto.includes("FIXTURE_NAO_PUBLICAR_CONTEUDO")) process.exit(1);
+            if (!resultado?.ok || !resultado.conteudoIdentico || !resultado.estruturaIdentica || !resultado.globaisIdenticos || resultado.papeis!==4 || resultado.participacoesEmPapeis<4 || !resultado.temporariosRemovidos || resultado.tabelas<2 || resultado.bytes<=0 || resultado.mundos!==1 || resultado.fotografias!==1 || texto.includes("FIXTURE_NAO_PUBLICAR_CONTEUDO")) process.exit(1);
           '
           intacta=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select count(*)=1 and bool_and(bytes=decode('0001ff','hex')) from recreio.space_snapshots")
           test "$intacta" = t
-      - name: Recusar prova sem mundo persistido e origem fora do escopo
+      - name: Restaurar plataforma sem mundos e preservar dados alheios
         shell: bash
         run: |
           set -euo pipefail
-          docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -v ON_ERROR_STOP=1 -c 'delete from recreio.space_snapshots'
-          set +e
+          docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -v ON_ERROR_STOP=1 -c 'delete from recreio.space_snapshots; delete from recreio.spaces'
           docker run --rm --network host --env CI=true \
             --env "RECREIO_BACKUP_DATABASE_URL=postgres://${RECREIO_FIXTURE_USER}:ci@127.0.0.1:55431/fixture" \
-            recreio-backup:ci > "$RUNNER_TEMP/sem-mundo.jsonl" 2>&1
-          status=$?
-          set -e
-          test "$status" -eq 1
-          grep '"codigo":"MUNDO_PERSISTIDO_AUSENTE"' "$RUNNER_TEMP/sem-mundo.jsonl"
-          grep '"temporariosRemovidos":true' "$RUNNER_TEMP/sem-mundo.jsonl"
+            recreio-backup:ci | tee "$RUNNER_TEMP/sem-mundo.jsonl"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const texto=readFileSync(process.env.RUNNER_TEMP+"/sem-mundo.jsonl","utf8");
+            const r=texto.trim().split("\n").map(s=>JSON.parse(s)).at(-1);
+            if(!r || !r.ok || r.mundos!==0 || r.fotografias!==0 || r.linhas!==1 || r.tabelas!==3 ||
+              !r.conteudoIdentico || !r.estruturaIdentica || !r.globaisIdenticos || !r.temporariosRemovidos ||
+              r.bytes<=0 || texto.includes("FIXTURE_NAO_PUBLICAR_CONTEUDO")) process.exit(1);
+          '
+          intacta=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select (select count(*)=0 from recreio.spaces) and (select count(*)=0 from recreio.space_snapshots) and (select count(*)=1 and bool_and(bytes=decode('007fff','hex')) from backup_fixture.sentinel)")
+          test "$intacta" = t
+      - name: Recusar origem e opcoes fora do escopo
+        shell: bash
+        run: |
+          set -euo pipefail
           set +e
           docker run --rm --env CI=true \
             --env RECREIO_BACKUP_DATABASE_URL=postgres://postgres:ci@192.0.2.10/fixture \
@@ -134,7 +142,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: recreio-backup-fixture-${{ matrix.postgres_user }}
-          path: ${{ runner.temp }}/recreio-backup.jsonl
+          path: |
+            ${{ runner.temp }}/recreio-backup.jsonl
+            ${{ runner.temp }}/sem-mundo.jsonl
           if-no-files-found: error
           retention-days: 30
       - name: Encerrar somente a origem criada neste job

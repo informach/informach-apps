@@ -49,13 +49,19 @@ jobs:
         include:
           - postgres_user: postgres
             history: published
+            worlds: present
           - postgres_user: ci
             history: historical
+            worlds: present
+          - postgres_user: postgres
+            history: published
+            worlds: empty
     env:
       CI: "true"
       RECREIO_FIXTURE_USER: ${{ matrix.postgres_user }}
       RECREIO_FIXTURE_HISTORY: ${{ matrix.history }}
-      RECREIO_FIXTURE_CONTAINER: recreio-upgrade-fixture-${{ github.run_id }}-${{ matrix.postgres_user }}
+      RECREIO_FIXTURE_WORLDS: ${{ matrix.worlds }}
+      RECREIO_FIXTURE_CONTAINER: recreio-upgrade-fixture-${{ github.run_id }}-${{ matrix.postgres_user }}-${{ matrix.worlds }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -111,10 +117,14 @@ jobs:
             if(!r || flags.some(k=>r[k]!==true) || r.receiptsBefore!==204 || r.receiptsAfter!==244 ||
               r.migrationsApplied!==40 || r.sourceDatabaseMutated!==false || r.trafficAuthorized!==false ||
               r.tablesAfter<=r.tablesBefore || r.bytes<=0 ||
+              r.mundos!==(process.env.RECREIO_FIXTURE_WORLDS==="empty"?0:2) ||
+              r.fotografias!==(process.env.RECREIO_FIXTURE_WORLDS==="empty"?0:10) ||
               r.historyProfile!=="informach-historical-sql-2026-11-20" ||
               r.historicalReceiptVariantsVerified!==(process.env.RECREIO_FIXTURE_HISTORY==="historical"?2:0)) process.exit(1);
           '
-          original=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select (select count(*)=204 from drizzle.__drizzle_migrations) and (select count(*)=10 from recreio.space_snapshots) and to_regclass('recreio.rights_recovery_evaluations') is null")
+          snapshots=10
+          if [ "$RECREIO_FIXTURE_WORLDS" = empty ]; then snapshots=0; fi
+          original=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U "$RECREIO_FIXTURE_USER" -d fixture -Atc "select (select count(*)=204 from drizzle.__drizzle_migrations) and (select count(*)=$snapshots from recreio.space_snapshots) and to_regclass('recreio.rights_recovery_evaluations') is null")
           test "$original" = t
       - name: Recusar checksum adulterado antes de qualquer upgrade
         shell: bash
@@ -141,7 +151,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: recreio-upgrade-fixture-${{ matrix.postgres_user }}
+          name: recreio-upgrade-fixture-${{ matrix.postgres_user }}-${{ matrix.worlds }}
           path: |
             ${{ runner.temp }}/recreio-backup.jsonl
             ${{ runner.temp }}/recreio-upgrade-recusa.jsonl
