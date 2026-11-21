@@ -18,7 +18,6 @@ export function origemDeEncerramentoPrivadoPermitida(
     ((op.preparationId !== null && op.recoverySourceId === null) ||
       (op.preparationId === null &&
         op.recoverySourceId === op.id &&
-        plano.financeiro.clientes.length === 0 &&
         plano.financeiro.comprasNaoEnviadas.length === 0 &&
         plano.financeiro.trocasNaoEnviadas.length === 0))
   );

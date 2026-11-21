@@ -286,6 +286,18 @@ e clusters foram removidos. [Recibo](evidencias/encerramento-ausente-selecao-448
 O gate integral da composição 45d246c2 está em 44872287047; não confundir
 essa execução com promoção à main ou implantação do portal.
 
+O próximo perfil acrescenta cliente financeiro existente no arquivo, mas sem
+compras/contratos locais. A conta e o cliente são criados antes da captura;
+o consentimento ocorre depois. A fila recuperada referencia somente o cliente
+do plano autenticado, sem inserir/alterar `billing.customers`. O SDK real
+consulta HTTP fechado para confirmar a fila e avaliar a situação atual. Uma
+falha 503 posterior deve limpar a avaliação positiva, conservar a confirmação
+original e impedir admissão de dados. Só nova observação completa permite
+prosseguir. A prova conserva também todos os clientes globais e a identidade.
+São sete decisões, 36 objetos de direitos/40 totais, ainda em candidata.
+Compras/trocas não enviadas, contratos, identidade global atual e publicação
+seletiva continuam exigindo suas etapas próprias; não inferir liquidação.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

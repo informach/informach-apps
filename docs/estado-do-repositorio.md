@@ -62,8 +62,9 @@ qualidade, direitos e conciliação aprovados. Mundo compartilhado e publicaçã
 interrompida passaram 44867642872/44868026640, com limpeza confirmada.
 Decisão posterior sem jogadores/cliente passou 44868795994/9f44950f.
 Seleção posterior com mundo passou 44870023436/998a9aaf, com negativas de
-escopo/responsabilidade e limpeza. Decisão ausente com cliente Stripe,
-identidade atual e publicação seletiva continuam pendentes. A composição
+escopo/responsabilidade e limpeza. Decisão ausente com cliente Stripe sem
+contratos está em candidata; contratos, identidade atual e publicação seletiva
+continuam pendentes. A composição
 45d246c2 está no gate integral 44872287047.
 [Execução](recreio/encerramento-recuperado-2026-11-20.md).
 

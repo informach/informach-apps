@@ -38,7 +38,7 @@ import {
 } from "./selecao-congelamento-repository";
 
 /** Lost operation, authenticated consent: initial qualified profile is an
- * existing account and no Stripe customer. Does not
+ * existing account and no local contracts or unsent requests. Does not
  * create identity/native preparation, backdate finance, mark data readiness,
  * or infer the absence of current global/provider changes. */
 export async function prepararEncerramentoAusenteRecuperado(
@@ -117,7 +117,6 @@ export async function prepararEncerramentoAusenteRecuperado(
       conferirEscopoDoPlanoExterno(i, plano);
       assertAllowed(
         plano.formato === "recreio-previa-encerramento-v2" &&
-          plano.financeiro.clientes.length === 0 &&
           plano.financeiro.comprasNaoEnviadas.length === 0 &&
           plano.financeiro.trocasNaoEnviadas.length === 0,
         "DIREITOS_DEPENDENCIA",
@@ -260,7 +259,7 @@ export async function prepararEncerramentoAusenteRecuperado(
       const drenando = await inspecionarDrenagemDaSelecao(tx, ids, mundos);
       const origem = await lerOrigemFinanceiraDoEncerramentoLocked(tx, plano);
       assertAllowed(
-        !origem.cliente && !origem.checkout && origem.assinaturas.length === 0,
+        !origem.checkout && origem.assinaturas.length === 0,
         "DIREITOS_DEPENDENCIA",
         "O financeiro do backup exige conciliação.",
       );
@@ -316,10 +315,13 @@ export async function prepararEncerramentoAusenteRecuperado(
         "Relógio financeiro indisponível.",
       );
       const agora = sql`${relogio.agora}::timestamptz`;
+      const cliente = plano.financeiro.clientes[0];
       await tx.insert(finances).values({
         operationId: id,
         requesterUserId: i.contaId,
         providerMode: plano.financeiro.modo,
+        customerId: cliente?.id ?? null,
+        providerCustomerId: cliente?.referenciaStripe ?? null,
         policyVersion: "encerramento-financeiro-2026-11-19-v1",
         state: "pending",
         attempts: 0,

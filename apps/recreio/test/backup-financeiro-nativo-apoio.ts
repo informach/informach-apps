@@ -152,6 +152,17 @@ export async function prepararFinanceiroNativoAnterior(
     const adultaPosterior = await adultoDoTeste();
     await gravarPinNativo(adultaPosterior.autor, await gerarHashDoPin("482731"));
     const selecaoPosterior = await prepararSelecaoDoEncerramento();
+    const adultaCliente = await adultoDoTeste(),
+      clientePosteriorId = `cus_recovery_${randomUUID().replaceAll("-", "")}`;
+    await gravarPinNativo(adultaCliente.autor, await gerarHashDoPin("482731"));
+    await db.insert(customers).values({
+      provider: "stripe",
+      providerCustomerId: clientePosteriorId,
+      subjectType: "user",
+      subjectId: adultaCliente.conta.id,
+      app: "recreio",
+      email: adultaCliente.conta.email,
+    });
     return {
       async publicar() {
         const posterior = await admitir(adultaPosterior);
@@ -160,6 +171,7 @@ export async function prepararFinanceiroNativoAnterior(
           false,
           selecaoPosterior.perfisSelecionados,
         );
+        const reciboCliente = await admitir(adultaCliente);
         await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
         return {
           livroId,
@@ -174,6 +186,7 @@ export async function prepararFinanceiroNativoAnterior(
             perfisSelecionados: selecaoPosterior.perfisSelecionados,
             mundo: selecaoPosterior.mundo,
           },
+          posteriorComCliente: { ...reciboCliente, clienteStripeId: clientePosteriorId },
           anterior,
           provedor: { ...provedor, clienteStripeId },
           chaves: {
