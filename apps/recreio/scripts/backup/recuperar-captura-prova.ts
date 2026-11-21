@@ -415,40 +415,47 @@ async function main() {
       let vinculosAtuais: Awaited<ReturnType<typeof provarVinculosGlobaisAtuais>> | undefined;
       // Reopen the authenticated dump in a separate fresh cluster. Never undo
       // an erasure to make the metadata/idempotence proof above appear intact.
-      const segunda = await comBancoRestaurado({ dump, inventario }, async (copia) => {
-        await normalizarFotografiasRestauradas({
-          copia,
-          acesso,
-          fotografia,
-          inventario: fria.publicacao.inventario,
-        });
-        await normalizarCapacidadesRestauradas(copia);
-        etapa = "FINANCEIRO_NATIVO";
-        financeiro = await provarFinanceiroRecuperado({
-          copia,
-          cliente: clienteFinanceiro,
-          bucket,
-          capturaSha256: fria.publicacao.composto.sha256,
-          entrada: retiradaNativa.financeiro,
-        });
-        etapa = "RETIRADA_NATIVA";
-        retirada = await provarRetiradaNativaPosterior({
-          copia,
-          cliente: clienteDireitos,
-          bucket,
-          capturaSha256: fria.publicacao.composto.sha256,
-          entrada: retiradaNativa,
-        });
-        etapa = "VINCULOS_ATUAIS";
-        const terceiro = await comBancoRestaurado({ dump, inventario }, async (atual) => {
-          vinculosAtuais = await provarVinculosGlobaisAtuais(
+      const segunda = await comBancoRestaurado(
+        { dump, inventario },
+        async (copia, ferramentasDaFonte) => {
+          await normalizarFotografiasRestauradas({
             copia,
-            atual,
-            retiradaNativa.financeiro,
+            acesso,
+            fotografia,
+            inventario: fria.publicacao.inventario,
+          });
+          await normalizarCapacidadesRestauradas(copia);
+          etapa = "FINANCEIRO_NATIVO";
+          financeiro = await provarFinanceiroRecuperado({
+            copia,
+            cliente: clienteFinanceiro,
+            bucket,
+            capturaSha256: fria.publicacao.composto.sha256,
+            entrada: retiradaNativa.financeiro,
+          });
+          etapa = "RETIRADA_NATIVA";
+          retirada = await provarRetiradaNativaPosterior({
+            copia,
+            cliente: clienteDireitos,
+            bucket,
+            capturaSha256: fria.publicacao.composto.sha256,
+            entrada: retiradaNativa,
+          });
+          etapa = "VINCULOS_ATUAIS";
+          const terceiro = await comBancoRestaurado(
+            { dump, inventario },
+            async (atual, ferramentasDoAtual) => {
+              vinculosAtuais = await provarVinculosGlobaisAtuais(
+                copia,
+                atual,
+                retiradaNativa.financeiro,
+                { fonte: ferramentasDaFonte, atual: ferramentasDoAtual },
+              );
+            },
           );
-        });
-        exigir(terceiro.temporariosRemovidos && vinculosAtuais, "VINCULOS_GLOBAIS_DIVERGENTES");
-      });
+          exigir(terceiro.temporariosRemovidos && vinculosAtuais, "VINCULOS_GLOBAIS_DIVERGENTES");
+        },
+      );
       exigir(
         financeiro && retirada && vinculosAtuais && segunda.temporariosRemovidos,
         "RETIRADA_NATIVA_NAO_CONCLUIDA",

@@ -14,6 +14,10 @@ import {
   type InventarioDoBackup,
   inventariarBackup,
 } from "./inventario";
+import {
+  criarFerramentasNativasDeSchema,
+  type FerramentasNativasDeSchema,
+} from "./schema-nativo-privado";
 
 const PORTA = 55432;
 export class FalhaDoClusterIsolado extends Error {
@@ -39,7 +43,10 @@ const literal = (v: string) => `'${v.replaceAll("'", "''")}'`;
  * começa depois de restaurar/conferir; conexões e arquivos pertencem ao escopo. */
 export async function comBancoRestaurado(
   pedido: { dump: FileHandle; inventario: InventarioDoBackup; signal?: AbortSignal },
-  executar: (copia: postgres.Sql) => Promise<void> = async () => undefined,
+  executar: (
+    copia: postgres.Sql,
+    ferramentas: FerramentasNativasDeSchema,
+  ) => Promise<void> = async () => undefined,
 ) {
   const { dump, signal } = pedido;
   const inventario = structuredClone(pedido.inventario);
@@ -85,6 +92,7 @@ export async function comBancoRestaurado(
     removido = false,
     controle: postgres.Sql | undefined,
     copia: postgres.Sql | undefined,
+    ferramentas: FerramentasNativasDeSchema | undefined,
     falha: unknown,
     houveFalha = false;
   try {
@@ -178,12 +186,20 @@ export async function comBancoRestaurado(
       await copia.begin("isolation level repeatable read read only", inventariarBackup),
     );
     if (signal?.aborted) throw new FalhaDoClusterIsolado("CONFIGURACAO_DO_CLUSTER");
-    await executar(copia);
+    ferramentas = await criarFerramentasNativasDeSchema(copia, {
+      host: absoluto,
+      port: PORTA,
+      username: inventario.globais.operador,
+      password: senha,
+      database: nome,
+    });
+    await executar(copia, ferramentas);
     if (signal?.aborted) throw new FalhaDoClusterIsolado("CONFIGURACAO_DO_CLUSTER");
   } catch (e) {
     falha = e;
     houveFalha = true;
   } finally {
+    ferramentas?.encerrar();
     const encerramentos = await Promise.allSettled([
       controle?.end({ timeout: 5 }),
       copia?.end({ timeout: 5 }),

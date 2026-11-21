@@ -2,8 +2,10 @@ import type postgres from "postgres";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
 import { provarDescarteDeExportacoes } from "./provar-descarte-exportacoes";
+import { provarEstagioNativoPrivado } from "./provar-schema-privado";
 import { exigir } from "./provas-arquivos";
 import type { RetiradaNativaDeProva } from "./retirada-nativa-prova-contrato";
+import type { FerramentasNativasDeSchema } from "./schema-nativo-privado";
 import { conferirVinculosGlobaisAtuais, FalhaDosVinculosAtuais } from "./vinculos-globais";
 
 /** A third owned Unix cluster models a current shared target whose Recreio
@@ -13,6 +15,7 @@ export async function provarVinculosGlobaisAtuais(
   restaurado: postgres.Sql,
   atual: postgres.Sql,
   dado: RetiradaNativaDeProva["financeiro"],
+  ferramentas: { fonte: FerramentasNativasDeSchema; atual: FerramentasNativasDeSchema },
 ) {
   await exigirBancoPrivadoDeRecuperacao(restaurado);
   await exigirBancoPrivadoDeRecuperacao(atual);
@@ -79,6 +82,12 @@ export async function provarVinculosGlobaisAtuais(
       !semExportacoes.trafegoAutorizado,
     "VINCULOS_GLOBAIS_DIVERGENTES",
   );
+  const estagio = await provarEstagioNativoPrivado(
+    restaurado,
+    atual,
+    ferramentas.fonte,
+    ferramentas.atual,
+  );
   await atual.begin(async (tx) => {
     await tx.unsafe(`update core.users set banned=true,updated_at=clock_timestamp() where id=$1`, [
       dado.comContrato.contaId,
@@ -127,6 +136,7 @@ export async function provarVinculosGlobaisAtuais(
   );
   exigir(ausente?.n === 0, "VINCULOS_GLOBAIS_DIVERGENTES");
   return {
+    ...estagio,
     currentGlobalBindingReadOnlyVerified: true,
     currentGlobalIdentityChangesObserved: true,
     currentGlobalFinancialChangesRequireReconciliation: true,

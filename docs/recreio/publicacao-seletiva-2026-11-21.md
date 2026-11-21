@@ -71,3 +71,21 @@ prova não substituem a homologação da publicação seletiva restante.
 Referência técnica: [ALTER SCHEMA no PostgreSQL 18](https://www.postgresql.org/docs/18/sql-alterschema.html).
 Renomear exige propriedade do schema e CREATE no banco; isso não valida por si só
 as dependências, os dados nem a segurança do corte.
+
+## Estágio nativo privado em candidata
+
+`serializar-schema-privado.ts` renomeia temporariamente somente o Recreio no
+cluster restaurado, exige capacidades técnicas já revogadas e downloads antigos
+removidos, e devolve o nome original mesmo em falha do dump. Recusa dependências
+externas de entrada e funções/event triggers fora do perfil. `schema-nativo-privado`
+vincula as ferramentas ao socket/banco/operador privados reais; senha somente no
+ambiente do subprocesso, arquivo regular privado, SHA e capacidade opaca com prazo.
+A importação usa outro cluster privado, schema novo e transação única, sem owner,
+ACL, limpeza de schema anterior ou SQL reescrito. Copiar o descritor não autoriza
+leitura/importação. Encerrar o cluster expira a capacidade.
+
+A próxima prova compara dados e globais, altera o arquivo, interrompe o backend
+nativo durante uma trava real e exige rollback integral. O schema importado é
+retirado do destino descartável ao final. Essa etapa não implementa o corte em
+produção nem encerra conciliação financeira, auditoria nova ou permissões atuais;
+`privateSelectivePublicationProven` permanece falso.
