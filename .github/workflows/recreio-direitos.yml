@@ -24,7 +24,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @informach/recreio-app typecheck
-      - run: pnpm --filter @informach/recreio-app test -- src/features/direitos/financeiro-runtime.test.ts src/lib/rights-environment.test.ts src/lib/object-environment.test.ts
+      - run: pnpm --filter @informach/recreio-app test -- src/features/direitos/financeiro-runtime.test.ts src/features/direitos/coordenacao-catalogo.test.ts src/lib/rights-environment.test.ts src/lib/object-environment.test.ts
       - name: Construir executor sem login, email ou servidor web
         run: docker build -f infrastructure/railway/recreio-direitos.Dockerfile -t recreio-direitos:qualification .
       - name: Conferir modo desligado sem rede ou credenciais

@@ -12,6 +12,7 @@ import {
   recreioSpaces as spaces,
   recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
+import { ErroDoRecreio } from "@informach/recreio";
 import { z } from "zod";
 import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
 import { manifestoNoCatalogo } from "@/features/jogos/catalogo";
@@ -222,10 +223,14 @@ export async function resolverLimitesDaCoordenacao(
       );
       return manifesto.limites;
     };
-  const { limitesDoJogo } = await import("@/features/jogos/config");
   return (jogo) => {
     conferirCoordenacaoDeDireitos(config);
-    return limitesDoJogo(jogo);
+    // Erasure uses the known storage contract, even after an internal title
+    // has been disabled in the portal. This never admits play or issues a
+    // capability, and needs no host/login configuration in the worker.
+    const manifesto = manifestoNoCatalogo(jogo, true);
+    if (!manifesto) throw new ErroDoRecreio("JOGO_INDISPONIVEL");
+    return manifesto.limites;
   };
 }
 /** Every private data operation requires its own admitted evaluation. Native

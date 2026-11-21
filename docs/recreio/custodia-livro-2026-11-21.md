@@ -10,6 +10,14 @@ recusa de argumentos/configuração incompleta. Ainda faltam prova operacional
 ativa, credenciais mínimas, agenda, observação e implantação. A construção da
 imagem não ativa direitos nem altera a custódia real.
 
+O build 8f147631/44879106668 recusou a configuração web importada pelo resolver
+de limites da retirada. O caminho normal passa a consultar os contratos de
+formato conhecidos diretamente no catálogo, inclusive título interno desativado;
+isso permite retirar dados antigos sem carregar login/hosts. A recuperação
+privada conserva seu recorte canônico anterior. Publicação de jogos e emissão
+de ingressos continuam nos seus adapters próprios. O executor mede GETs/PUTs
+do livro e recusa comandos/destinos fora do prefixo configurado.
+
 **Executor ocioso, candidata de 21/11:** a fila distingue expurgo devido de
 retenção futura. Sem publicação, processamento, revisão ou expurgo devido, a
 rodada confere disponibilidade/MAC/chave atual do cabeçalho com um GET e não
