@@ -19,13 +19,13 @@ describe("monitor sem capacidade de ler o arquivo", () => {
   it("é desligado por padrão e exige só identidades e limite explícitos", () => {
     expect(configuracaoDoMonitorDeBackup({})).toBeNull();
     expect(configuracaoDoMonitorDeBackup(fixture())?.idadeMaximaSegundos).toBe(25200);
-    for (const campo of [
-      "RECREIO_BACKUP_MONITOR_MODE",
-      "RECREIO_BACKUP_MONITOR_MAX_AGE_SECONDS",
-      "RECREIO_BACKUP_BUCKET_ID",
-      "RECREIO_OBJECTS_BUCKET",
+    for (const alteracao of [
+      { RECREIO_BACKUP_MONITOR_MODE: "invalid" },
+      { RECREIO_BACKUP_MONITOR_MAX_AGE_SECONDS: "not-a-number" },
+      { RECREIO_BACKUP_BUCKET_ID: "not-a-uuid" },
+      { RECREIO_OBJECTS_BUCKET: "invalid/bucket" },
     ])
-      expect(() => configuracaoDoMonitorDeBackup({ ...fixture(), [campo]: "invalid" })).toThrow();
+      expect(() => configuracaoDoMonitorDeBackup({ ...fixture(), ...alteracao })).toThrow();
   });
   it("recusa destinos iguais, escopos misturados e contexto não autorizado", () => {
     const f = fixture();
