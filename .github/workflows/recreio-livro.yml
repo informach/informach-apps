@@ -1,0 +1,50 @@
+name: Recreio - inicializacao operacional do livro
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: recreio-livro-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - run: pnpm --filter @informach/recreio-app test -- src/features/direitos/livro src/lib/rights-environment.test.ts
+      - name: Construir papel sem banco, login ou cobranca
+        run: docker build -f infrastructure/railway/recreio-livro.Dockerfile -t recreio-livro:qualification .
+      - name: Recusar bootstrap implicito sem rede ou credenciais
+        shell: bash
+        run: |
+          set +e
+          output=$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges recreio-livro:qualification 2>&1)
+          result=$?
+          set -e
+          test "$result" -eq 1
+          EXPECTED_OUTPUT="$output" node -e 'const x=JSON.parse(process.env.EXPECTED_OUTPUT); if(x.formato!=="recreio-livro-inicializacao-v1" || x.erro!=="LIVRO_INICIALIZACAO_FALHOU" || Object.keys(x).length!==2) process.exit(1)'
+      - name: Guardar bundle e fronteira da fonte candidata
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/recreio-livro"
+          id=$(docker create recreio-livro:qualification)
+          trap 'docker rm "$id" >/dev/null' EXIT
+          docker cp "$id:/opt/recreio/inicializar-livro.cjs" "$RUNNER_TEMP/recreio-livro/inicializar-livro.cjs"
+          sha256sum "$RUNNER_TEMP/recreio-livro/inicializar-livro.cjs" > "$RUNNER_TEMP/recreio-livro/SHA256SUMS"
+          ARTIFACT_DIR="$RUNNER_TEMP/recreio-livro" node --input-type=module -e 'import {readFile,writeFile} from "node:fs/promises";import {createHash} from "node:crypto";const p=process.env.ARTIFACT_DIR;const sha=createHash("sha256").update(await readFile(`${p}/inicializar-livro.cjs`)).digest("hex");await writeFile(`${p}/recibo.json`,JSON.stringify({formato:"recreio-livro-build-v1",source:process.env.GITHUB_SHA,run:process.env.GITHUB_RUN_ID,bundleSha256:sha,implicitInitializationRefused:true,productionCredentialsUsed:false,productionDataTouched:false})+"\n")'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recreio-livro-${{ github.run_id }}
+          path: ${{ runner.temp }}/recreio-livro
+          retention-days: 7
