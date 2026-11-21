@@ -164,6 +164,11 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
       fonte: required("GITHUB_SHA"),
     });
     let effectRounds = 0;
+    const observedRounds: {
+      etapas: { etapa: string; situacao: string }[];
+      state: string | null;
+    }[] = [];
+    report.nativeRounds = observedRounds;
     for (; effectRounds < 6; ) {
       phase = "native_round";
       const rows = await executarImagemDeDireitos(env);
@@ -180,7 +185,9 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
         .parse(rows[0]);
       expect(result.etapas.every((e) => !["revisao", "falhou"].includes(e.situacao))).toBe(true);
       effectRounds++;
-      if ((await withdrawal.estado())?.state === "completed") break;
+      const state = (await withdrawal.estado())?.state ?? null;
+      observedRounds.push({ etapas: result.etapas, state });
+      if (state === "completed") break;
     }
     phase = "native_verification";
     await withdrawal.verificar();

@@ -5,6 +5,7 @@ import {
   recreioRightsOperations as operations,
   recreioProfiles as profiles,
   sessions,
+  recreioRightsSubjects as subjects,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
 import { expect } from "vitest";
@@ -145,11 +146,19 @@ export async function prepararRetiradaParaImagem(config: {
         });
         expect((await estado())?.completedAt).toBeInstanceOf(Date);
         const [perfil] = await db.select().from(profiles).where(eq(profiles.id, alvo.perfil.id));
-        expect(perfil).toMatchObject({
-          status: "archived",
-          userId: null,
-          rightsOperationId: confirmacao.operacaoId,
+        // This fixture has no game/social retention: the native worker must
+        // finish physical removal, rather than retain a minimized profile.
+        expect(perfil).toBeUndefined();
+        const [subject] = await db
+          .select()
+          .from(subjects)
+          .where(eq(subjects.operationId, confirmacao.operacaoId));
+        expect(subject).toMatchObject({
+          phase: "removed",
+          liveProfileId: null,
+          retainedUntil: null,
         });
+        expect(subject?.completedAt).toBeInstanceOf(Date);
         expect(
           await db.select().from(versions).where(eq(versions.profileId, alvo.perfil.id)),
         ).toHaveLength(0);
