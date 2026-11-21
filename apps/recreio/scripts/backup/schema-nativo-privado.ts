@@ -14,7 +14,9 @@ export class FalhaDoSchemaPrivado extends Error {
       | "CABECALHO"
       | "LEITURA"
       | "ALTERADO"
-      | "RESUMO" = "OUTRO",
+      | "RESUMO"
+      | "IDENTIDADE"
+      | "TAMANHO" = "OUTRO",
   ) {
     super(`recreio.private_schema.${codigo}`);
   }
@@ -188,13 +190,10 @@ export async function criarFerramentasNativasDeSchema(copia: postgres.Sql, orige
       );
       if (existe?.existe !== false) throw new FalhaDoSchemaPrivado("DESTINO");
       const r = await resumo(admitida.arquivo);
-      if (
-        r.stat.dev !== admitida.dev ||
-        r.stat.ino !== admitida.ino ||
-        r.sha256 !== prova.sha256 ||
-        r.bytes !== prova.bytes
-      )
-        throw new FalhaDoSchemaPrivado("ARQUIVO", "RESUMO");
+      if (r.stat.dev !== admitida.dev || r.stat.ino !== admitida.ino)
+        throw new FalhaDoSchemaPrivado("ARQUIVO", "IDENTIDADE");
+      if (r.bytes !== prova.bytes) throw new FalhaDoSchemaPrivado("ARQUIVO", "TAMANHO");
+      if (r.sha256 !== prova.sha256) throw new FalhaDoSchemaPrivado("ARQUIVO", "RESUMO");
       // The opaque token admits only our unchanged native one-schema dump.
       // pg_restore -n excludes entries without a namespace, including CREATE
       // SCHEMA. Restore this already scoped archive so its root is created in

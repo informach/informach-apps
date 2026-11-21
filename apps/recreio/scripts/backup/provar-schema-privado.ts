@@ -3,7 +3,7 @@ import { comArquivosPrivadosDoBackup } from "./arquivos-privados";
 import { FalhaDaFerramentaNativa } from "./ferramentas-nativas";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
-import { exigir } from "./provas-arquivos";
+import { exigir, resumoDoArquivo } from "./provas-arquivos";
 import {
   type ArquivoDeSchemaPrivado,
   FalhaDoSchemaPrivado,
@@ -36,6 +36,11 @@ export async function provarEstagioNativoPrivado(
   return comArquivosPrivadosDoBackup(async ({ dump }) => {
     etapa = "DUMP";
     const prova = await serializarSchemaRecreioPrivado(fonte, origem, dump);
+    const conferirBytes = async () => {
+      const r = await resumoDoArquivo(dump);
+      exigir(r.bytes === prova.bytes && r.sha256 === prova.sha256, `SCHEMA_ESTAGIO_${etapa}`);
+    };
+    await conferirBytes();
     conferirInventarios(antes, await inventario(fonte));
     conferirInventarios(globais, await inventario(atual));
     async function recusar(fn: () => Promise<unknown>, codigo: FalhaDoSchemaPrivado["codigo"]) {
@@ -53,18 +58,20 @@ export async function provarEstagioNativoPrivado(
     await recusar(() => destino.importar({ ...prova }), "EXPIRADO");
     etapa = "CORRUPCAO";
     const byte = Buffer.alloc(1);
-    await dump.read(byte, 0, 1, 0);
+    exigir((await dump.read(byte, 0, 1, 0)).bytesRead === 1, `SCHEMA_ESTAGIO_${etapa}`);
     const original = byte[0];
     exigir(original !== undefined, `SCHEMA_ESTAGIO_${etapa}`);
     byte[0] = original ^ 0xff;
-    await dump.write(byte, 0, 1, 0);
+    exigir((await dump.write(byte, 0, 1, 0)).bytesWritten === 1, `SCHEMA_ESTAGIO_${etapa}`);
     try {
       await recusar(() => destino.importar(prova), "ARQUIVO");
     } finally {
       byte[0] = original;
-      await dump.write(byte, 0, 1, 0);
+      exigir((await dump.write(byte, 0, 1, 0)).bytesWritten === 1, `SCHEMA_ESTAGIO_${etapa}`);
       byte.fill(0);
     }
+    etapa = "REPARO";
+    await conferirBytes();
     conferirInventarios(globais, await inventario(atual));
 
     // The harness owns a max:1 SQL pool. A manually bounded transaction keeps
