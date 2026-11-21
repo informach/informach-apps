@@ -40,6 +40,22 @@ não ampliar o executor de retirada para ignorar essas duas barreiras.
 
 ## Verificação e fronteira
 
+O primeiro incremento de composição financeira está em implementação:
+uma filha financeira privada é separada da filha de efeitos pessoais, tem
+pagante/operação fixos e expira com a fábrica pai. Os repositórios financeiros
+usam o banco da coordenação; a fila normal conserva sua leitura ociosa sem
+abrir S3/Stripe. O mutex global por DATABASE_URL não entra na cópia privada,
+que já possui exclusão da fábrica/filha. Nenhum booleano de um chamador
+habilita esse escopo. Ainda faltam a prova positiva em cluster físico privado,
+a observação atual quando havia confirmação antiga e a ligação ao recibo
+terminal. A admissão de efeitos para encerrar conta continua recusada.
+
+Conservar os recibos financeiros originais: confirmado no arquivo é fato
+histórico, não observação atual do provedor. A composição não pode importar
+chaves de Stripe/identidade para o recuperador técnico do arquivo. A possível
+reutilização do hash do recibo da execução para evidência financeira ainda
+precisa de desenho/verificação; não há nova migration ou ativação implícita.
+
 Somente GitHub Actions executa tipos, testes, builds, jornadas e clusters.
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.

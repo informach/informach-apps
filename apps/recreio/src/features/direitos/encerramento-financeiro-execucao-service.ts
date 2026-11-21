@@ -5,8 +5,12 @@ import type {
 } from "@informach/billing/providers/stripe-recreio-closure-inventory";
 import { RecreioRenewalReviewError } from "@informach/billing/providers/stripe-recreio-renewals";
 import type { StripeMode } from "@informach/config";
-import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
 import { AppError, assertAllowed } from "@/lib/errors";
+import {
+  comCicloFinanceiroDaCoordenacao,
+  exigirFinanceiroPrivado,
+  reconferirFinanceiroPrivado,
+} from "./coordenacao-repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
 import {
   concluirFinanceiroDoEncerramentoLocked,
@@ -44,11 +48,12 @@ function motivo(error: unknown): MotivoFinanceiroDoEncerramento | null {
 /** One financial receipt per pass. The durable consent, not a browser login,
  * authorizes reduction. No provider call inside a row transaction; a fresh
  * ledger preflight and the complete local source are checked again afterward. */
-export function criarProcessadorFinanceiroDoEncerramento(deps: {
+type DependenciasFinanceiras = {
   livroId: string;
   obterCoordenacao: () => Promise<CoordenacaoDeEfeitos>;
   obterRuntime: () => RuntimeFinanceiroDoEncerramento;
-}) {
+};
+export function criarProcessadorFinanceiroDoEncerramento(deps: DependenciasFinanceiras) {
   return async () => {
     if (!(await haFinanceiroDoEncerramentoDevido(deps.livroId)))
       return { situacao: "ociosa" as const };
@@ -60,45 +65,66 @@ export function criarProcessadorFinanceiroDoEncerramento(deps: {
       "DIREITOS_LIVRO",
       "Livro fora da composição financeira.",
     );
-    const trabalho = await reservarFinanceiroDoEncerramento(config);
-    if (!trabalho) return { situacao: "ociosa" as const };
-    return comCicloDeCobranca(trabalho.contaId, async () => {
-      try {
-        const tentativa = await iniciarFinanceiroDoEncerramentoLocked(trabalho, config);
-        const budget = { deadlineMs: Date.now() + 90_000 };
-        let observacao: RecreioClosureInventory | null = null;
-        if (tentativa.origem.cliente) {
-          const runtime = deps.obterRuntime();
-          if (runtime.modo !== tentativa.modo)
-            throw new RecreioRenewalReviewError("namespace_mismatch");
-          observacao = await runtime.inventario.inspect(
-            escopoDoInventarioDoEncerramento(tentativa, budget.deadlineMs),
-          );
-        }
-        assertAllowed(
-          Date.now() < budget.deadlineMs,
-          "DIREITOS_INTEGRIDADE",
-          "A leitura financeira excedeu seu prazo.",
-        );
-        const atual = await deps.obterCoordenacao().catch(() => {
-          throw new FinanceiroDoEncerramentoIndisponivel("ledger_unavailable");
-        });
-        return await concluirFinanceiroDoEncerramentoLocked(tentativa, atual, observacao);
-      } catch (error) {
-        if (error instanceof AppError && error.code === "DIREITOS_POSSE")
-          return { situacao: "posse_perdida" as const, operacaoId: trabalho.operacaoId };
-        const reason =
-          error instanceof FinanceiroDoEncerramentoIndisponivel ? error.reasonCode : motivo(error);
-        if (reason === null || reason === "technical_failure")
-          throw new FinanceiroDoEncerramentoIndisponivel("technical_failure");
-        try {
-          return await registrarFalhaFinanceiraDoEncerramentoLocked(trabalho, config, reason);
-        } catch (failure) {
-          if (failure instanceof AppError && failure.code === "DIREITOS_POSSE")
-            return { situacao: "posse_perdida" as const, operacaoId: trabalho.operacaoId };
-          throw new FinanceiroDoEncerramentoIndisponivel(reason);
-        }
-      }
+    return processarFinanceiro(config, deps);
+  };
+}
+
+/** Explicit private entry: no global idle query, source URL or lock pool.
+ * This child cannot erase profiles or authorize publication of recovered data. */
+export function criarProcessadorFinanceiroRecuperado(
+  config: CoordenacaoDeEfeitos,
+  obterRuntime: () => RuntimeFinanceiroDoEncerramento,
+) {
+  exigirFinanceiroPrivado(config);
+  return async () => {
+    await reconferirFinanceiroPrivado(config);
+    return processarFinanceiro(config, {
+      livroId: config.assinatura.livroId,
+      obterCoordenacao: () => reconferirFinanceiroPrivado(config),
+      obterRuntime,
     });
   };
+}
+
+async function processarFinanceiro(config: CoordenacaoDeEfeitos, deps: DependenciasFinanceiras) {
+  const trabalho = await reservarFinanceiroDoEncerramento(config);
+  if (!trabalho) return { situacao: "ociosa" as const };
+  return comCicloFinanceiroDaCoordenacao(config, trabalho.contaId, async () => {
+    try {
+      const tentativa = await iniciarFinanceiroDoEncerramentoLocked(trabalho, config);
+      const budget = { deadlineMs: Date.now() + 90_000 };
+      let observacao: RecreioClosureInventory | null = null;
+      if (tentativa.origem.cliente) {
+        const runtime = deps.obterRuntime();
+        if (runtime.modo !== tentativa.modo)
+          throw new RecreioRenewalReviewError("namespace_mismatch");
+        observacao = await runtime.inventario.inspect(
+          escopoDoInventarioDoEncerramento(tentativa, budget.deadlineMs),
+        );
+      }
+      assertAllowed(
+        Date.now() < budget.deadlineMs,
+        "DIREITOS_INTEGRIDADE",
+        "A leitura financeira excedeu seu prazo.",
+      );
+      const atual = await deps.obterCoordenacao().catch(() => {
+        throw new FinanceiroDoEncerramentoIndisponivel("ledger_unavailable");
+      });
+      return await concluirFinanceiroDoEncerramentoLocked(tentativa, atual, observacao);
+    } catch (error) {
+      if (error instanceof AppError && error.code === "DIREITOS_POSSE")
+        return { situacao: "posse_perdida" as const, operacaoId: trabalho.operacaoId };
+      const reason =
+        error instanceof FinanceiroDoEncerramentoIndisponivel ? error.reasonCode : motivo(error);
+      if (reason === null || reason === "technical_failure")
+        throw new FinanceiroDoEncerramentoIndisponivel("technical_failure");
+      try {
+        return await registrarFalhaFinanceiraDoEncerramentoLocked(trabalho, config, reason);
+      } catch (failure) {
+        if (failure instanceof AppError && failure.code === "DIREITOS_POSSE")
+          return { situacao: "posse_perdida" as const, operacaoId: trabalho.operacaoId };
+        throw new FinanceiroDoEncerramentoIndisponivel(reason);
+      }
+    }
+  });
 }

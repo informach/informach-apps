@@ -13,6 +13,7 @@ import {
   recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
 import { z } from "zod";
+import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
 import { manifestoNoCatalogo } from "@/features/jogos/catalogo";
 import type { LeitorDeFotografiasPrivadas } from "@/features/posse/armazenamento";
 import {
@@ -60,6 +61,7 @@ type Privada = {
   publicacoes: ReadonlyMap<string, PublicacaoPendenteNoBackup>;
   finalizando?: boolean;
   operacaoId?: string;
+  financeiro?: { contaId: string };
   autoridades?: ReadonlyMap<string, AutoridadeNoBackup>;
   pai?: CoordenacaoDeEfeitos;
 };
@@ -225,6 +227,7 @@ export async function resolverLimitesDaCoordenacao(
 export function escopoDaCoordenacao(config: CoordenacaoDeEfeitos) {
   conferirCoordenacaoDeDireitos(config);
   const privado = contexto(config);
+  if (privado?.financeiro) return sql`false`;
   if (privado && !privado.operacaoId) return sql`false`;
   return privado
     ? sql`(${operations.id}=${privado.operacaoId}::uuid and ${operations.kind}='retirar_perfil' and
@@ -256,6 +259,11 @@ export async function conferirIntencaoDaCoordenacao(
   );
   const privado = contexto(config);
   if (privado) {
+    assertAllowed(
+      !privado.financeiro,
+      "DIREITOS_LIVRO",
+      "Escopo financeiro não autoriza efeitos pessoais.",
+    );
     assertAllowed(
       privado.operacaoId === op.id,
       "DIREITOS_INTEGRIDADE",
@@ -834,6 +842,146 @@ export async function comOperacaoPrivadaDeDireitos<T>(
     if (emitida) privadas.delete(emitida);
     filhasAtivas.delete(config);
   }
+}
+
+/** A financial child is deliberately disjoint from profile erasure. It only
+ * admits an original native closure authenticated while minting the parent;
+ * no browser login, recovery import or SQL-ready receipt is manufactured. */
+export async function comFinanceiroPrivadoDeEncerramento<T>(
+  config: CoordenacaoDeEfeitos,
+  operacaoId: string,
+  executar: (coordenacao: CoordenacaoDeEfeitos) => Promise<T>,
+) {
+  z.uuid().parse(operacaoId);
+  conferirCoordenacaoDeDireitos(config);
+  const privado = contexto(config);
+  assertAllowed(
+    privado && !privado.operacaoId && !privado.finalizando && !filhasAtivas.has(config),
+    "DIREITOS_LIVRO",
+    "A execução já tem operação privada ativa.",
+  );
+  filhasAtivas.add(config);
+  let emitida: CoordenacaoDeEfeitos | undefined;
+  try {
+    const contaId = await privado.banco.transaction(async (tx) => {
+      await tx.execute(sql`set local statement_timeout='5s'`);
+      await tx.execute(sql`set local lock_timeout='2s'`);
+      await tx.execute(sql`set local transaction_timeout='15s'`);
+      const [op] = await tx
+        .select()
+        .from(operations)
+        .where(eq(operations.id, operacaoId))
+        .for("share");
+      assertAllowed(
+        op &&
+          op.kind === "encerrar_conta" &&
+          op.preparationId !== null &&
+          op.recoverySourceId === null &&
+          ["admitted", "running", "completed"].includes(op.state) &&
+          config.prova.referencias.some(
+            (r) =>
+              r.operacaoId === op.id && r.revisao === op.revision && r.sha256 === op.intentSha256,
+          ),
+        "DIREITOS_INTEGRIDADE",
+        "Encerramento nativo histórico não admitido.",
+      );
+      const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
+      assertAllowed(
+        lida.execucao.id === privado.execucaoId &&
+          lida.plano.formato === "recreio-previa-encerramento-v2",
+        "DIREITOS_INTEGRIDADE",
+        "Fonte financeira fora da recuperação atual.",
+      );
+      return op.requesterUserId;
+    });
+    const filha = Object.freeze({ assinatura: config.assinatura, prova: config.prova });
+    emitida = filha;
+    emitidas.add(filha);
+    contexto(config);
+    privadas.set(filha, {
+      ...privado,
+      operacaoId,
+      financeiro: { contaId },
+      autoridades: undefined,
+      pai: config,
+    });
+    const resultado = await executar(filha);
+    await reconferirCoordenacaoDeDireitos(filha, privado.storage);
+    return resultado;
+  } finally {
+    if (emitida) privadas.delete(emitida);
+    filhasAtivas.delete(config);
+  }
+}
+
+function financeiroPrivado(config: CoordenacaoDeEfeitos) {
+  conferirCoordenacaoDeDireitos(config);
+  const privado = contexto(config);
+  assertAllowed(
+    privado?.financeiro && privado.operacaoId,
+    "DIREITOS_LIVRO",
+    "Escopo financeiro privado ausente.",
+  );
+  return privado;
+}
+export function exigirFinanceiroPrivado(config: CoordenacaoDeEfeitos) {
+  financeiroPrivado(config);
+}
+export function reconferirFinanceiroPrivado(config: CoordenacaoDeEfeitos) {
+  return reconferirCoordenacaoDeDireitos(config, financeiroPrivado(config).storage);
+}
+export function escopoFinanceiroDaCoordenacao(config: CoordenacaoDeEfeitos) {
+  conferirCoordenacaoDeDireitos(config);
+  const privado = contexto(config);
+  if (!privado) return isNull(operations.recoverySourceId);
+  if (!privado.financeiro || !privado.operacaoId) return sql`false`;
+  return sql`${operations.id}=${privado.operacaoId}::uuid and ${operations.kind}='encerrar_conta'
+    and ${operations.preparationId} is not null and ${operations.recoverySourceId} is null`;
+}
+export async function conferirIntencaoFinanceiraDaCoordenacao(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+  config: CoordenacaoDeEfeitos,
+) {
+  conferirCoordenacaoDeDireitos(config);
+  if (!contexto(config)) return conferirIntencaoDaCoordenacao(tx, op, config);
+  const privado = financeiroPrivado(config);
+  assertAllowed(
+    op.id === privado.operacaoId &&
+      op.requesterUserId === privado.financeiro?.contaId &&
+      op.kind === "encerrar_conta" &&
+      op.preparationId !== null &&
+      op.recoverySourceId === null &&
+      config.prova.referencias.some(
+        (r) => r.operacaoId === op.id && r.revisao === op.revision && r.sha256 === op.intentSha256,
+      ),
+    "DIREITOS_INTEGRIDADE",
+    "Encerramento fora do escopo financeiro privado.",
+  );
+  const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
+  assertAllowed(
+    lida.plano.formato === "recreio-previa-encerramento-v2",
+    "DIREITOS_INTEGRIDADE",
+    "Plano financeiro histórico inválido.",
+  );
+  return { plano: lida.plano, intencao: lida.intencao };
+}
+export function comCicloFinanceiroDaCoordenacao<T>(
+  config: CoordenacaoDeEfeitos,
+  contaId: string,
+  executar: () => Promise<T>,
+): Promise<T> {
+  conferirCoordenacaoDeDireitos(config);
+  if (!contexto(config)) return comCicloDeCobranca(contaId, executar);
+  const privado = financeiroPrivado(config);
+  assertAllowed(
+    privado.financeiro?.contaId === contaId,
+    "DIREITOS_INTEGRIDADE",
+    "Pagante fora da operação privada.",
+  );
+  // The private socket has one parent and one active child, held across this
+  // callback. Never open a second, implicit lock pool using DATABASE_URL.
+  return executar();
 }
 
 export function autoridadeDoPerfilCongelado(

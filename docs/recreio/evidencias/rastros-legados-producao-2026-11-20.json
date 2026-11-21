@@ -1,0 +1,51 @@
+{
+  "source": "18ec652dbc09bb8e92d86fcd4e91a83b08cfa75d",
+  "nativeGate": 44854370756,
+  "qualityGate": 44854374466,
+  "inspect": {
+    "deploymentId": "8fc4f1ff-84b9-4286-a0ae-53c847d5830a",
+    "at": "2026-11-21T02:15:38.324645827Z",
+    "formato": "recreio-world-traces-v1",
+    "modo": "inspect",
+    "source": "18ec652dbc09bb8e92d86fcd4e91a83b08cfa75d",
+    "ok": true,
+    "candidatos": 2,
+    "inseridos": 0
+  },
+  "apply": {
+    "deploymentId": "1e21b116-90d9-4b4b-b75e-3544db1e137a",
+    "at": "2026-11-21T02:18:47.658316140Z",
+    "formato": "recreio-world-traces-v1",
+    "modo": "apply",
+    "source": "18ec652dbc09bb8e92d86fcd4e91a83b08cfa75d",
+    "ok": true,
+    "candidatos": 2,
+    "inseridos": 2
+  },
+  "repeat": {
+    "deploymentId": "d95f91b7-f79a-4289-aa9f-0b8fe2c2d7a0",
+    "at": "2026-11-21T02:20:27.361249635Z",
+    "formato": "recreio-world-traces-v1",
+    "modo": "apply",
+    "source": "18ec652dbc09bb8e92d86fcd4e91a83b08cfa75d",
+    "ok": true,
+    "candidatos": 0,
+    "inseridos": 0
+  },
+  "postRead": {
+    "at": "2026-11-21T02:20:32.101642+00:00",
+    "worlds": 2,
+    "photographs": 10,
+    "profiles": 1,
+    "worldTraces": 2,
+    "historicalSessions": 7,
+    "missingSessionTrace": 0,
+    "reconciliationAuditEvents": 1,
+    "reconciledTraceCount": 2
+  },
+  "temporaryServiceDeleted": true,
+  "temporaryServiceAbsenceVerified": true,
+  "portalReadyStatus": 200,
+  "moradaReadyStatus": 200,
+  "rightsEnabled": false
+}

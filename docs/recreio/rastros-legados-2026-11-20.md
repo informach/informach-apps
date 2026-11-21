@@ -40,6 +40,15 @@ não somente SUCCESS do Railway. Em seguida, aplicar a mesma fonte no modo
 referências descobertas sem índice. Confirmar saúde/versão do portal e Morada;
 remover o executor temporário. Não fornecer credenciais reais ao GitHub.
 
-A conciliação produtiva ainda não foi executada. Esta adoção cobre a origem
-histórica persistida; não prova, sozinha, cobertura de todos os identificadores
-nos formatos antigos das fotografias ou encerramento integral de F7.
+A fonte 18ec652d passou o gate dedicado 44854370756 e qualidade 44854374466.
+O executor de inspeção confirmou dois candidatos e zero inserções às 02:15 UTC.
+A aplicação confirmou dois pares inseridos às 02:18:47 UTC, e uma repetição
+confirmou zero candidatos/inserções às 02:20:27 UTC. A consulta read-only
+posterior conferiu dois rastros, sete sessões cobertas, zero referências sem
+índice e um evento de auditoria com contagem dois. Os dois mundos, dez fotos
+e um perfil continuam presentes; portal e Morada responderam 200.
+
+Executor temporário removido, ausência conferida, sem volume destacado.
+[Recibo da operação](evidencias/rastros-legados-producao-2026-11-20.json).
+Esta adoção cobre a origem histórica persistida; não prova, sozinha, cobertura
+de todos os identificadores nos formatos antigos ou encerramento integral F7.

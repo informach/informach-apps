@@ -15,19 +15,54 @@ import {
 import Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
+import { comFinanceiroPrivadoDeEncerramento } from "@/features/direitos/coordenacao-repository";
 import {
   concluirFinanceiroDoEncerramentoLocked,
   escopoDoInventarioDoEncerramento,
   iniciarFinanceiroDoEncerramentoLocked,
   reservarFinanceiroDoEncerramento,
 } from "@/features/direitos/encerramento-financeiro-execucao-repository";
-import { criarProcessadorFinanceiroDoEncerramento } from "@/features/direitos/encerramento-financeiro-execucao-service";
+import {
+  criarProcessadorFinanceiroDoEncerramento,
+  criarProcessadorFinanceiroRecuperado,
+} from "@/features/direitos/encerramento-financeiro-execucao-service";
 import { eventosCom } from "./apoio";
 import { livroDoEncerramento, pagamentoParaEncerramento } from "./encerramento-financeiro-apoio";
 import { fixtureDoLivro } from "./livro-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
 describe("encerramento: coordenação financeira com PostgreSQL/S3/Stripe SDK reais", () => {
+  it("configuração comum ou cópia de cabeçalho congelado não cria escopo financeiro privado", async () => {
+    const a = await adultoDoTeste();
+    const livro = await livroDoEncerramento(a.autor, () => {
+      throw new Error("No private provider composition");
+    });
+    try {
+      const original = await livro.linha(),
+        comum = await livro.coordenar();
+      const runtime = () => {
+        throw new Error("No private provider composition");
+      };
+      expect(() => criarProcessadorFinanceiroRecuperado(comum, runtime)).toThrow();
+      const cabecalho = await livro.storage.congelarCabecalho(
+        await livro.storage.lerCabecalho(),
+        new Date().toISOString(),
+      );
+      const copiada = { ...comum, prova: { ...comum.prova, cabecalho } };
+      let executada = false;
+      expect(() => criarProcessadorFinanceiroRecuperado(copiada, runtime)).toThrow();
+      await expect(
+        comFinanceiroPrivadoDeEncerramento(copiada, livro.recibo.operacaoId, async () => {
+          executada = true;
+        }),
+      ).rejects.toMatchObject({ code: "DIREITOS_LIVRO" });
+      expect(executada).toBe(false);
+      expect(await livro.linha()).toEqual(original);
+    } finally {
+      await livro.fechar();
+    }
+  });
+
   it("fila ociosa não abre livro nem compõe Stripe", async () => {
     const livro = fixtureDoLivro();
     try {

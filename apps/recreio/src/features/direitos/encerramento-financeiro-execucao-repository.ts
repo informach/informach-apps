@@ -17,16 +17,18 @@ import {
   recreioAccountClosureFinances as finances,
   recreioRightsOperations as operations,
   recreioAccountParticipations as participations,
-  recreioRightsSubjects as subjects,
 } from "@informach/db/schema";
 import { VERSAO_DO_CANCELAMENTO_DA_RENOVACAO } from "@/features/cobranca/renovacao-constantes";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import {
+  bancoDaCoordenacao,
+  conferirCoordenacaoDeDireitos,
+  conferirIntencaoFinanceiraDaCoordenacao,
+  escopoFinanceiroDaCoordenacao,
+} from "./coordenacao-repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
 import { lerOrigemFinanceiraDoEncerramentoLocked } from "./encerramento-origem-financeira-repository";
-import { lerPreparacaoInterativaDaOperacao } from "./fonte-intencao-repository";
-import { conferirIntencaoNativa } from "./intencao-nativa";
-import { referenciasDeMundosDaOperacao } from "./intencao-repository";
 
 type Linha = typeof finances.$inferSelect;
 type Origem = Awaited<ReturnType<typeof lerOrigemFinanceiraDoEncerramentoLocked>>;
@@ -47,13 +49,7 @@ export type TentativaFinanceiraDoEncerramento = TrabalhoFinanceiroDoEncerramento
 export type MotivoFinanceiroDoEncerramento = RecreioRenewalReviewCode | "ledger_unavailable";
 
 function conferirLivro(config: CoordenacaoDeEfeitos) {
-  assertAllowed(
-    config.prova.cabecalho.documento.livroId === config.assinatura.livroId &&
-      config.prova.cabecalho.documento.estado === "aberto" &&
-      config.prova.cabecalho.chaveId === config.assinatura.chaveAtiva,
-    "DIREITOS_LIVRO",
-    "Livro indisponível para coordenação financeira.",
-  );
+  conferirCoordenacaoDeDireitos(config);
 }
 async function limites(tx: Transacao) {
   await tx.execute(sql`set local transaction_timeout='15s'`);
@@ -82,28 +78,40 @@ export async function haFinanceiroDoEncerramentoDevido(livroId: string) {
 }
 export function reservarFinanceiroDoEncerramento(config: CoordenacaoDeEfeitos) {
   conferirLivro(config);
-  return db.transaction(async (tx): Promise<TrabalhoFinanceiroDoEncerramento | null> => {
-    await limites(tx);
-    const [linha] = await tx
-      .select()
-      .from(finances)
-      .where(escopoDaFila(config.assinatura.livroId))
-      .orderBy(finances.nextAttemptAt, finances.operationId)
-      .limit(1)
-      .for("update", { skipLocked: true });
-    if (!linha) return null;
-    const token = randomUUID();
-    await tx
-      .update(finances)
-      .set({ leaseToken: token, leaseUntil: sql`${AGORA}+interval '3 minutes'`, updatedAt: AGORA })
-      .where(eq(finances.operationId, linha.operationId));
-    return {
-      [RESERVADA]: true,
-      operacaoId: linha.operationId,
-      contaId: linha.requesterUserId,
-      token,
-    };
-  });
+  return bancoDaCoordenacao(config).transaction(
+    async (tx): Promise<TrabalhoFinanceiroDoEncerramento | null> => {
+      await limites(tx);
+      const [linha] = await tx
+        .select()
+        .from(finances)
+        .where(
+          and(
+            escopoDaFila(config.assinatura.livroId),
+            sql`exists(select 1 from ${operations}
+          where ${operations.id}=${finances.operationId} and ${escopoFinanceiroDaCoordenacao(config)})`,
+          ),
+        )
+        .orderBy(finances.nextAttemptAt, finances.operationId)
+        .limit(1)
+        .for("update", { skipLocked: true });
+      if (!linha) return null;
+      const token = randomUUID();
+      await tx
+        .update(finances)
+        .set({
+          leaseToken: token,
+          leaseUntil: sql`${AGORA}+interval '3 minutes'`,
+          updatedAt: AGORA,
+        })
+        .where(eq(finances.operationId, linha.operationId));
+      return {
+        [RESERVADA]: true,
+        operacaoId: linha.operationId,
+        contaId: linha.requesterUserId,
+        token,
+      };
+    },
+  );
 }
 
 /** Caller holds the payer lifecycle before this transaction. Lock operation
@@ -126,7 +134,7 @@ async function comTrabalho<T>(
 ) {
   conferirLivro(config);
   assertAllowed(prova[RESERVADA], "DIREITOS_POSSE", "Trabalho financeiro não admitido.");
-  return db.transaction(async (tx) => {
+  return bancoDaCoordenacao(config).transaction(async (tx) => {
     await limites(tx);
     const [op] = await tx
       .select()
@@ -138,6 +146,7 @@ async function comTrabalho<T>(
           eq(operations.kind, "encerrar_conta"),
           eq(operations.ledgerId, config.assinatura.livroId),
           inArray(operations.state, ["admitted", "running"]),
+          escopoFinanceiroDaCoordenacao(config),
         ),
       )
       .for("update");
@@ -150,19 +159,7 @@ async function comTrabalho<T>(
       "DIREITOS_LIVRO",
       "Consentimento ausente do prefixo verificado.",
     );
-    const preparacao = await lerPreparacaoInterativaDaOperacao(tx, op);
-    const selecionados = await tx
-      .select({ id: subjects.profileReference })
-      .from(subjects)
-      .where(eq(subjects.operationId, op.id))
-      .orderBy(subjects.profileReference);
-    const { plano } = conferirIntencaoNativa(
-      op,
-      preparacao,
-      selecionados,
-      config.assinatura,
-      await referenciasDeMundosDaOperacao(tx, op.id),
-    );
+    const { plano } = await conferirIntencaoFinanceiraDaCoordenacao(tx, op, config);
     assertAllowed(
       plano.formato === "recreio-previa-encerramento-v2",
       "DIREITOS_INTEGRIDADE",

@@ -20,7 +20,9 @@ do backup respondeu 200; os três alvos externos passaram 44854004010.
 Mapas Sentry da nova fonte enviados e release conferida.
 Famílias/social/visitas/comercial novo/F7 continuam desligados. O levantamento
 real encontrou sete sessões históricas sem índice de privacidade dos mundos;
-a conciliação está em candidata e não foi executada no banco real.
+a conciliação 18ec652d criou os dois pares faltantes em produção. Repetição
+sem inserções, zero sessões sem índice, auditoria e limpeza conferidas.
+[Prova](recreio/rastros-legados-2026-11-20.md).
 Não confundir
 candidata ou tabela existente com implantação/ativação. Preview Sandbox
 comercial permanece disponível; não houve compra/estorno real nesta frente.
