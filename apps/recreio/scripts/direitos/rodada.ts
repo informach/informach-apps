@@ -10,6 +10,7 @@ import { resumoDaFilaDeDireitos } from "../../src/features/direitos/fila-reposit
 import { liberarProximoMundoDeDireitos } from "../../src/features/direitos/liberacao-mundo-repository";
 import type { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
+import { FalhaDoLivroDeDireitos } from "../../src/features/direitos/livro/contrato";
 import { conferirPrefixoDoLivro } from "../../src/features/direitos/livro/leitura";
 import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
 import { publicarProximoConsentimento } from "../../src/features/direitos/publicacao-repository";
@@ -30,6 +31,16 @@ type Config = {
  * Falhas independentes não impedem tentar as etapas seguintes; a rodada falha
  * ao final se qualquer erro ou revisão ocorrer, preservando os erros originais. */
 export async function processarRodadaDeDireitos(config: Config) {
+  const inicial = await resumoDaFilaDeDireitos(config.assinatura.livroId);
+  if (!inicial.publishing && !inicial.processing && !inicial.review && !inicial.purgeDue) {
+    // Nothing is authorized/due in SQL: observe custody once, without walking
+    // the whole historical book for each of the eleven idle stages. This is
+    // an availability check, not a deep history audit or an effect capability.
+    const head = await config.storage.lerCabecalho();
+    if (head.documento.estado !== "aberto" || head.chaveId !== config.assinatura.chaveAtiva)
+      throw new FalhaDoLivroDeDireitos("CONFIGURACAO");
+    return { formato: "recreio-direitos-rodada-v1" as const, etapas: [], ...inicial };
+  }
   const resultados: { etapa: string; situacao: string }[] = [],
     falhas: unknown[] = [];
   const efeito = async () => ({

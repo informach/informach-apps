@@ -11,6 +11,7 @@ export async function resumoDaFilaDeDireitos(livroId: string) {
     review: number;
     processingOverdue: number;
     retained: number;
+    purgeDue: number;
     purgeOverdue: number;
   }>(sql`select
     count(*) filter(where o.state='publishing')::int as publishing,
@@ -19,6 +20,9 @@ export async function resumoDaFilaDeDireitos(livroId: string) {
     count(*) filter(where o.state in ('publishing','admitted','running') and o.consented_at<clock_timestamp()-interval '30 minutes')::int as "processingOverdue",
     (select count(*)::int from recreio.rights_subjects s join recreio.rights_operations p on p.id=s.operation_id
       where p.ledger_id=${livroId}::uuid and s.phase='minimized' and s.retained_until>clock_timestamp()) as retained,
+    (select count(*)::int from recreio.rights_subjects s join recreio.rights_operations p on p.id=s.operation_id
+      where p.ledger_id=${livroId}::uuid and
+        ((s.phase='minimized' and s.retained_until<=clock_timestamp()) or s.phase='purging')) as "purgeDue",
     (select count(*)::int from recreio.rights_subjects s join recreio.rights_operations p on p.id=s.operation_id
       where p.ledger_id=${livroId}::uuid and
         ((s.phase='minimized' and s.retained_until<clock_timestamp()-interval '5 minutes') or

@@ -1,5 +1,15 @@
 # Custódia e inicialização explícita do livro de direitos
 
+**Executor ocioso, candidata de 21/11:** a fila distingue expurgo devido de
+retenção futura. Sem publicação, processamento, revisão ou expurgo devido, a
+rodada confere disponibilidade/MAC/chave atual do cabeçalho com um GET e não
+percorre onze vezes o histórico. Falha do destino ou livro congelado continuam
+falhando a execução; uma nova intenção concorrente fica na fila durável para a
+próxima rodada. Havendo trabalho, o percurso completo e suas conferências
+permanecem. Este caminho rápido não é auditoria integral do livro nem qualifica
+o desempenho do limite de cem mil entradas. Nenhum executor de direitos está
+implantado/ativado com base nessa candidata.
+
 O livro externo tem destino e chave MAC próprios, separados dos arquivos AES
 de backup e fotografias. Essa custódia não concede login, consentimento de
 família, cobrança ou publicação de uma recuperação. O fluxo público e o job

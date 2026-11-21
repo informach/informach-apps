@@ -160,6 +160,39 @@ async function cenario(fn: (f: ReturnType<typeof compor>) => Promise<void>) {
 }
 
 describe("minimização nativa sem reabrir autoridade", () => {
+  it("rodada ociosa confere custódia com um GET e recusa indisponibilidade/livro congelado", async () => {
+    const r = await runtime();
+    try {
+      const f = compor(r);
+      await f.storage.iniciarCabecalho(r.livro.assinatura.assinarCabecalho(r.livro.inicial));
+      const antes = r.http.pedidos.length;
+      expect(await f.rodada()).toMatchObject({
+        etapas: [],
+        publishing: 0,
+        processing: 0,
+        review: 0,
+        purgeDue: 0,
+      });
+      const pedidos = r.http.pedidos.slice(antes);
+      expect(pedidos).toHaveLength(1);
+      expect(pedidos[0]).toMatchObject({
+        metodo: "GET",
+        path: expect.stringMatching(/\/cabecalho\.json$/),
+      });
+      r.http.estado.negar = true;
+      await expect(f.rodada()).rejects.toMatchObject({ codigo: "CONFIGURACAO" });
+      r.http.estado.negar = false;
+      await f.storage.congelarCabecalho(await f.storage.lerCabecalho(), new Date().toISOString());
+      await expect(f.rodada()).rejects.toMatchObject({ codigo: "CONFIGURACAO" });
+      expect(
+        await db.select().from(operations).where(eq(operations.ledgerId, r.livro.livroId)),
+      ).toHaveLength(0);
+    } finally {
+      r.livro.encerrar();
+      await r.http.fechar();
+    }
+  });
+
   it("libera um mundo por passagem com sujeito ausente e reverte a liberação se a auditoria falhar", async () =>
     cenario(async (f) => {
       const a = await adulto(),
