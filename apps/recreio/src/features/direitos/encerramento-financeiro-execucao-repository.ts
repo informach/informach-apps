@@ -28,6 +28,7 @@ import {
   escopoFinanceiroDaCoordenacao,
 } from "./coordenacao-repository";
 import type { CoordenacaoDeEfeitos } from "./efeitos-repository";
+import { conferirNascimentoFinanceiroDoEncerramento } from "./encerramento-financeiro-nascimento-repository";
 import { lerOrigemFinanceiraDoEncerramentoLocked } from "./encerramento-origem-financeira-repository";
 
 type Linha = typeof finances.$inferSelect;
@@ -200,6 +201,7 @@ async function comTrabalho<T>(
       .from(finances)
       .where(eq(finances.operationId, op.id));
     const cliente = plano.financeiro.clientes[0];
+    await conferirNascimentoFinanceiroDoEncerramento(tx, op, linha);
     assertAllowed(
       relogio && linha.leaseUntil && linha.leaseUntil > relogio.agora,
       "DIREITOS_POSSE",
@@ -208,8 +210,7 @@ async function comTrabalho<T>(
     assertAllowed(
       linha.providerMode === plano.financeiro.modo &&
         linha.customerId === (cliente?.id ?? null) &&
-        linha.providerCustomerId === (cliente?.referenciaStripe ?? null) &&
-        linha.createdAt.getTime() === op.consentedAt.getTime(),
+        linha.providerCustomerId === (cliente?.referenciaStripe ?? null),
       "DIREITOS_INTEGRIDADE",
       "A fila financeira mudou de escopo.",
     );

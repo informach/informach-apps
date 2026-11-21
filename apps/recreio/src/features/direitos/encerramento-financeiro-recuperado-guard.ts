@@ -40,11 +40,14 @@ export async function conferirFinanceiroAtualRecuperadoLocked(
 ) {
   assertAllowed(
     op.kind === "encerrar_conta" &&
-      op.preparationId !== null &&
-      op.recoverySourceId === null &&
+      ((op.preparationId !== null && op.recoverySourceId === null) ||
+        (op.preparationId === null &&
+          op.recoverySourceId === op.id &&
+          plano.perfis.length === 0 &&
+          plano.mundos.length === 0)) &&
       plano.formato === "recreio-previa-encerramento-v2",
     "DIREITOS_INTEGRIDADE",
-    "Encerramento financeiro nativo original ausente.",
+    "Encerramento financeiro histórico fora do perfil qualificado.",
   );
   const [run] = await tx
     .select()

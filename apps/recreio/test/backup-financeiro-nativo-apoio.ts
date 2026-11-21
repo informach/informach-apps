@@ -65,6 +65,7 @@ export async function prepararFinanceiroNativoAnterior(
         atualizadoEm: new Date().toISOString(),
       }),
     );
+    let publicacaoPendenteId: string | undefined;
     async function admitir(
       entrada?: Pick<Awaited<ReturnType<typeof adultoDoTeste>>, "conta" | "autor">,
       comPin = false,
@@ -96,7 +97,13 @@ export async function prepararFinanceiroNativoAnterior(
       if (interromper)
         await interromperPublicacaoDeEncerramento({ assinatura, storage }, recibo.operacaoId);
       else {
-        const publicada = await publicarProximoConsentimento({ assinatura, storage });
+        let publicada = await publicarProximoConsentimento({ assinatura, storage });
+        if (
+          publicada.situacao === "admitida" &&
+          publicada.operacaoId === publicacaoPendenteId &&
+          publicada.operacaoId !== recibo.operacaoId
+        )
+          publicada = await publicarProximoConsentimento({ assinatura, storage });
         exigir(
           publicada.situacao === "admitida" && publicada.operacaoId === recibo.operacaoId,
           "CONSENTIMENTO_NATIVO_DIVERGENTE",
@@ -186,21 +193,28 @@ export async function prepararFinanceiroNativoAnterior(
     }
     const pendente = await admitir(familia, false, perfisSelecionados);
     const publicacaoPendente = await admitir(undefined, true, [], true);
-    await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
+    publicacaoPendenteId = publicacaoPendente.operacaoId;
+    const adultaPosterior = await adultoDoTeste();
+    await gravarPinNativo(adultaPosterior.autor, await gerarHashDoPin("482731"));
     return {
-      coordenadas: {
-        livroId,
-        operacaoId: pendente.operacaoId,
-        contaId: pendente.contaId,
-        perfisSelecionados,
-        mundo,
-        publicacaoPendente,
-        anterior,
-        provedor: { ...provedor, clienteStripeId },
-        chaves: {
-          "finance-old": antiga.toString("base64"),
-          "finance-next": proxima.toString("base64"),
-        },
+      async publicar() {
+        const posterior = await admitir(adultaPosterior);
+        await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
+        return {
+          livroId,
+          operacaoId: pendente.operacaoId,
+          contaId: pendente.contaId,
+          perfisSelecionados,
+          mundo,
+          publicacaoPendente,
+          posterior,
+          anterior,
+          provedor: { ...provedor, clienteStripeId },
+          chaves: {
+            "finance-old": antiga.toString("base64"),
+            "finance-next": proxima.toString("base64"),
+          },
+        };
       },
       encerrar() {
         assinatura.encerrar();

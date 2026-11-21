@@ -1,0 +1,21 @@
+{
+  "source": "aeda35c5246592ccfc8e1928eda12df6297915fb",
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44867642872",
+  "artifactSha256": "1365c9a78e96383e168c369517f79ac101d263e7922ea7ca0d5501c711dea2cc",
+  "cleanupConfirmed": true,
+  "coldRecovery": {
+    "nativeSelectedClosureWorldStewardPreserved": true,
+    "nativeSelectedClosureWorldOtherDataPreserved": true,
+    "nativeSelectedClosureWorldOriginalSchemaPreserved": true,
+    "nativeSelectedClosureWorldPhotosScrubbed": 2,
+    "nativeSelectedClosureWorldDiaryRecovered": true,
+    "nativeSelectedClosureWorldJournalCompacted": 1,
+    "nativeSelectedClosureWorldOtherWorldsUnchanged": true,
+    "ok": true,
+    "clusterCleanupConfirmed": true,
+    "localCleanupConfirmed": true,
+    "nativeClosureReplayReceiptVerified": true,
+    "nativeAccountClosureFullyReplayed": false
+  },
+  "productionActivated": false
+}

@@ -90,6 +90,19 @@ export async function verificarEncerramentoNativoRecuperado(
   config: CoordenacaoDeEfeitos,
   operacaoId: string,
 ) {
+  return verificarEncerramentoRecuperado(config, operacaoId, "native");
+}
+export async function verificarEncerramentoHistoricoRecuperado(
+  config: CoordenacaoDeEfeitos,
+  operacaoId: string,
+) {
+  return verificarEncerramentoRecuperado(config, operacaoId, "recovered");
+}
+async function verificarEncerramentoRecuperado(
+  config: CoordenacaoDeEfeitos,
+  operacaoId: string,
+  origem: "native" | "recovered",
+) {
   const dados = dadosDaCoordenacaoPrivada(config);
   return comOperacaoPrivadaDeDireitos(config, operacaoId, (filha) =>
     bancoDaCoordenacao(filha).transaction(async (tx) => {
@@ -102,8 +115,9 @@ export async function verificarEncerramentoNativoRecuperado(
       assertAllowed(
         op &&
           op.kind === "encerrar_conta" &&
-          op.preparationId !== null &&
-          op.recoverySourceId === null &&
+          (origem === "native"
+            ? op.preparationId !== null && op.recoverySourceId === null
+            : op.preparationId === null && op.recoverySourceId === op.id) &&
           op.state === "completed" &&
           op.completedAt !== null &&
           op.leaseToken === null &&
@@ -223,7 +237,7 @@ export async function verificarRetiradaRecuperada(
 export async function verificarReaplicacaoDeRetiradas(config: CoordenacaoDeEfeitos) {
   return verificarReaplicacao(config, "retiradas");
 }
-/** Extended replay receipt includes current native closure financial evidence.
+/** Extended replay receipt includes native and qualified recovered closures.
  * No identity reconciliation, provider settlement or traffic admission is
  * inferred from it. The withdrawal-only entry retains its original scope/hash. */
 export async function verificarReaplicacaoDeDireitos(config: CoordenacaoDeEfeitos) {
@@ -308,7 +322,7 @@ async function verificarReaplicacao<T extends "retiradas" | "direitos">(
         sha256: string;
       }>(sql`select count(*)::int as quantidade,
         encode(sha256(convert_to((jsonb_build_object('runId',${run.id}::text,'capture',${run.captureSha256}::text,
-          'fence',${run.frozenHeadSha256}::text,'source',${run.source}::text,'scope',${escopo === "retiradas" ? "withdrawals" : "native-rights-v2"}::text,
+          'fence',${run.frozenHeadSha256}::text,'source',${run.source}::text,'scope',${escopo === "retiradas" ? "withdrawals" : "historical-rights-v3"}::text,
           'evaluations',coalesce(jsonb_agg(jsonb_build_array(e.operation_id,e.ledger_id,e.requester_reference,
             e.kind,e.plan_sha256,e.origin,e.preparation_reference,e.recovery_source_reference,e.admitted_head_sha256,
             e.intent_sha256,e.ready_at,e.verified_at,encode(sha256(convert_to(e.world_map::text,'UTF8')),'hex'))

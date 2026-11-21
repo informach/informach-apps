@@ -52,10 +52,19 @@ export async function admitirEncerramentoNativoHistoricoRecuperado(
 ) {
   return admitirDecisaoHistoricaRecuperada(config, entrada, "encerrar_conta");
 }
+/** A separately materialized lost zero-player closure. Never creates its
+ * participation/financial preparation or pretends a native SQL consent exists. */
+export async function admitirEncerramentoHistoricoRecuperado(
+  config: CoordenacaoDeEfeitos,
+  entrada: string,
+) {
+  return admitirDecisaoHistoricaRecuperada(config, entrada, "encerrar_conta", "recovered");
+}
 async function admitirDecisaoHistoricaRecuperada(
   config: CoordenacaoDeEfeitos,
   entrada: string,
   tipo: "retirar_perfil" | "encerrar_conta",
+  origemEncerramento: "native" | "recovered" = "native",
 ) {
   const operacaoId = z.uuid().parse(entrada),
     privado = dadosDaCoordenacaoPrivada(config),
@@ -185,8 +194,12 @@ async function admitirDecisaoHistoricaRecuperada(
         assertAllowed(
           anterior &&
             anterior.kind === "encerrar_conta" &&
-            anterior.preparationId !== null &&
-            anterior.recoverySourceId === null &&
+            (origemEncerramento === "native"
+              ? anterior.preparationId !== null && anterior.recoverySourceId === null
+              : anterior.preparationId === null &&
+                anterior.recoverySourceId === anterior.id &&
+                plano.perfis.length === 0 &&
+                plano.mundos.length === 0) &&
             ["admitted", "running", "completed"].includes(anterior.state) &&
             plano.formato === "recreio-previa-encerramento-v2",
           "DIREITOS_INTEGRIDADE",

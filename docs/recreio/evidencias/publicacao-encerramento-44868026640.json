@@ -1,0 +1,22 @@
+{
+  "source": "a2ea497a2ca564379b295e676c65e97102264593",
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44868026640",
+  "artifactSha256": "18154d2fa5b1d6490558914bd54f23b3d0930d00b35fbd619687ca913b7ec9cf",
+  "cleanupConfirmed": true,
+  "coldRecovery": {
+    "nativeClosurePendingPublicationReconciled": true,
+    "nativeClosurePendingPublicationAuditRollback": true,
+    "nativeClosurePendingPublicationRetryIdempotent": true,
+    "nativeClosurePendingPublicationFinancialRetryVerified": true,
+    "nativeClosurePendingPublicationRequiresFinancialAssessment": true,
+    "nativeClosurePendingPublicationOriginalConsentPreserved": true,
+    "nativeClosurePendingPublicationOtherFinancesAndIdentityPreserved": true,
+    "nativeClosurePendingPublicationDataReplayVerified": true,
+    "ok": true,
+    "clusterCleanupConfirmed": true,
+    "localCleanupConfirmed": true,
+    "nativeClosureReplayReceiptVerified": true,
+    "nativeAccountClosureFullyReplayed": false
+  },
+  "productionActivated": false
+}

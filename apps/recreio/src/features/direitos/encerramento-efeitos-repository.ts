@@ -7,6 +7,7 @@ import {
 } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import { conferirNascimentoFinanceiroDoEncerramento } from "./encerramento-financeiro-nascimento-repository";
 import type { PlanoDeDireitos } from "./preparacao-contrato";
 
 /** Queue predicate only. The selected operation must still pass the signed
@@ -50,13 +51,14 @@ export async function conferirFinanceiroDosEfeitos(
     )
     .for("share");
   const cliente = plano.financeiro.clientes[0];
+  assertAllowed(linha, "DIREITOS_INTEGRIDADE", "A preparação financeira exige revisão.");
+  await conferirNascimentoFinanceiroDoEncerramento(tx, op, linha);
   assertAllowed(
     linha?.state === "confirmed" &&
       linha.policyVersion === "encerramento-financeiro-2026-11-19-v1" &&
       linha.providerMode === plano.financeiro.modo &&
       linha.customerId === (cliente?.id ?? null) &&
       linha.providerCustomerId === (cliente?.referenciaStripe ?? null) &&
-      linha.createdAt.getTime() === op.consentedAt.getTime() &&
       linha.observationSha256 !== null &&
       linha.observedAt !== null &&
       linha.confirmedAt !== null &&

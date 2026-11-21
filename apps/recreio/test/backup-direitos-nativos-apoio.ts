@@ -282,7 +282,7 @@ export async function prepararDireitosPosterioresACaptura(
       await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
       return {
         livroId,
-        financeiro: financeiro.coordenadas,
+        financeiro: await financeiro.publicar(),
         publicacaoPendente: {
           operacaoId: publicacaoPendente.operacaoId,
           perfilId: familiaPendente.perfil.id,

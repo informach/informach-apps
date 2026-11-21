@@ -59,8 +59,10 @@ gates, qualidade e cluster frio passaram. Encerramento com
 seleção sem mundo passou 44865074023; verificação individual/auditoria passou
 44865823657. O recibo terminal nativo passou 44867150449/1c425558, com
 qualidade, direitos e conciliação aprovados. Mundo compartilhado e publicação
-interrompida estão em candidata; decisão ausente, identidade atual e publicação
-seletiva continuam pendentes. [Execução](recreio/encerramento-recuperado-2026-11-20.md).
+interrompida passaram 44867642872/44868026640, com limpeza confirmada.
+Decisão posterior sem jogadores/cliente está em candidata; os demais casos
+ausentes, identidade atual e publicação seletiva continuam pendentes.
+[Execução](recreio/encerramento-recuperado-2026-11-20.md).
 
 **Operação em implementação:** coordenação, publicação, reconciliação e filas
 nativas qualificadas. f5b4116f passou qualidade/captura/cluster

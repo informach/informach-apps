@@ -238,6 +238,29 @@ o encerramento. Conserva datas/MAC/consentimento, demais financeiros e identidad
 O livro sintético passa a quatro decisões, 27 objetos de direitos/31 totais;
 nenhuma chave ou decisão de produção entra no workflow.
 
+a2ea497a passou qualidade 44868024165, direitos 44868029556, conciliação
+44868032029 e cluster frio 44868026640. A publicação interrompida, o rollback,
+as fases financeiras/dados e o recibo terminal de quatro decisões passaram;
+limpeza dos 31 objetos e clusters confirmada. A prova anterior do mundo
+compartilhado aeda35c5 passou 44867642872; o ajuste de tipo da fixture não
+alterou a autoridade nem os dados de produção.
+
+O candidato seguinte cobre consentimento realmente emitido depois da captura
+para uma conta já existente, sem jogadores/mundos e sem cliente Stripe.
+O banco restaurado não contém operação, prévia, participação ou financeiro
+dessa decisão; contém a identidade e seu PIN anteriores. A preparação privada
+autentica o prefixo e cria somente origem recuperada, barreira e fila financeira
+pendente. A fila nasce no relógio atual do banco, sem retroagir sua criação ao
+consentimento. A identidade e a prévia nativa não são criadas. Auditoria P7782
+deve reverter operação/barreira/fila juntas. Avaliação financeira atual e admissão
+de dados continuam separadas. Verificação nativa deve recusar essa origem;
+a verificação histórica tem entrada própria. O recibo ampliado usa domínio
+`historical-rights-v3`; a entrada antiga de retiradas mantém seu domínio.
+
+O livro sintético passa a cinco decisões, 30 objetos de direitos/34 totais.
+Este perfil não qualifica decisão ausente com jogadores, cliente Stripe ou
+mundo, nem elimina a conciliação global/financeira atual e a publicação seletiva.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

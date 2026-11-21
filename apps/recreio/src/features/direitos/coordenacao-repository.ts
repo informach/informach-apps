@@ -43,6 +43,7 @@ import type { criarArmazenamentoDoLivro } from "./livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { conferirPrefixoDoLivro } from "./livro/leitura";
 import { reaplicarPlanosConsentidos } from "./livro/reaplicacao-planos";
+import type { PlanoDeDireitos } from "./preparacao-contrato";
 
 export type CoordenacaoDeEfeitos = {
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
@@ -75,6 +76,22 @@ type PublicacaoPendenteNoBackup = {
   intencaoSha256: string;
   revisao: number;
 };
+function origemDeEncerramentoPrivadoPermitida(
+  op: typeof operations.$inferSelect,
+  plano: PlanoDeDireitos,
+) {
+  return (
+    plano.formato === "recreio-previa-encerramento-v2" &&
+    ((op.preparationId !== null && op.recoverySourceId === null) ||
+      (op.preparationId === null &&
+        op.recoverySourceId === op.id &&
+        plano.perfis.length === 0 &&
+        plano.mundos.length === 0 &&
+        plano.financeiro.clientes.length === 0 &&
+        plano.financeiro.comprasNaoEnviadas.length === 0 &&
+        plano.financeiro.trocasNaoEnviadas.length === 0))
+  );
+}
 function correspondePublicacaoPendente(
   op: typeof operations.$inferSelect,
   anterior: PublicacaoPendenteNoBackup,
@@ -780,9 +797,7 @@ export async function comOperacaoPrivadaDeDireitos<T>(
       conferirReciboDaAvaliacao(lida.avaliacao, op);
       if (op.kind === "encerrar_conta") {
         assertAllowed(
-          op.preparationId !== null &&
-            op.recoverySourceId === null &&
-            lida.plano.formato === "recreio-previa-encerramento-v2",
+          origemDeEncerramentoPrivadoPermitida(op, lida.plano),
           "DIREITOS_INTEGRIDADE",
           "Encerramento privado fora do perfil qualificado.",
         );
@@ -918,8 +933,8 @@ export async function comFinanceiroPrivadoDeEncerramento<T>(
       assertAllowed(
         op &&
           op.kind === "encerrar_conta" &&
-          op.preparationId !== null &&
-          op.recoverySourceId === null &&
+          ((op.preparationId !== null && op.recoverySourceId === null) ||
+            (op.preparationId === null && op.recoverySourceId === op.id)) &&
           ["admitted", "running", "completed"].includes(op.state) &&
           config.prova.referencias.some(
             (r) =>
@@ -931,7 +946,7 @@ export async function comFinanceiroPrivadoDeEncerramento<T>(
       const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
       assertAllowed(
         lida.execucao.id === privado.execucaoId &&
-          lida.plano.formato === "recreio-previa-encerramento-v2",
+          origemDeEncerramentoPrivadoPermitida(op, lida.plano),
         "DIREITOS_INTEGRIDADE",
         "Fonte financeira fora da recuperação atual.",
       );
@@ -993,7 +1008,8 @@ export function escopoFinanceiroDaCoordenacao(config: CoordenacaoDeEfeitos) {
   if (!privado) return isNull(operations.recoverySourceId);
   if (!privado.financeiro || !privado.operacaoId) return sql`false`;
   return sql`${operations.id}=${privado.operacaoId}::uuid and ${operations.kind}='encerrar_conta'
-    and ${operations.preparationId} is not null and ${operations.recoverySourceId} is null`;
+    and ((${operations.preparationId} is not null and ${operations.recoverySourceId} is null)
+      or (${operations.preparationId} is null and ${operations.recoverySourceId}=${operations.id}))`;
 }
 export async function conferirIntencaoFinanceiraDaCoordenacao(
   tx: Transacao,
@@ -1007,8 +1023,8 @@ export async function conferirIntencaoFinanceiraDaCoordenacao(
     op.id === privado.operacaoId &&
       op.requesterUserId === privado.financeiro?.contaId &&
       op.kind === "encerrar_conta" &&
-      op.preparationId !== null &&
-      op.recoverySourceId === null &&
+      ((op.preparationId !== null && op.recoverySourceId === null) ||
+        (op.preparationId === null && op.recoverySourceId === op.id)) &&
       config.prova.referencias.some(
         (r) => r.operacaoId === op.id && r.revisao === op.revision && r.sha256 === op.intentSha256,
       ),
@@ -1017,7 +1033,7 @@ export async function conferirIntencaoFinanceiraDaCoordenacao(
   );
   const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
   assertAllowed(
-    lida.plano.formato === "recreio-previa-encerramento-v2",
+    origemDeEncerramentoPrivadoPermitida(op, lida.plano),
     "DIREITOS_INTEGRIDADE",
     "Plano financeiro histórico inválido.",
   );

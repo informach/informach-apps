@@ -26,6 +26,7 @@ export const RetiradaNativaDeProvaSchema = z.strictObject({
       operacaoId: z.uuid(),
       contaId: z.string().min(1).max(256),
     }),
+    posterior: z.strictObject({ operacaoId: z.uuid(), contaId: z.string().min(1).max(256) }),
     provedor: z.strictObject({
       operacaoId: z.uuid(),
       contaId: z.string().min(1).max(256),
