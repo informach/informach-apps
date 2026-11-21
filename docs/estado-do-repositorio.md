@@ -12,6 +12,14 @@ pagante pode não jogar. Testes pesados somente no GitHub, testes humanos soment
 no final. Não repetir pedidos de hardware, transferência ou orçamento já adiados.
 [Critérios completos](recreio/fechamento-plataforma-2026-11-16.md).
 
+**Pausado por pedido do titular em 21/11.** Código e ponto de retomada em
+[registro da pausa](recreio/pausa-2026-11-21.md). Importação privada de 81 tabelas
+passou em 44891895090, sem publicação ou tráfego; executor de fotografias ainda
+falhou na negativa key-material em 44892777221, com limpeza. Não ativar nem
+anunciar conclusão. O registro distingue gates verdes, falhas e execuções a
+conferir; retomar somente após novo pedido.
+
+
 **Produção:** portal 00326e46, PostgreSQL 0244/245 recibos e 81 tabelas
 (migrador separado 2c2d021f em 21/11, com os 244 recibos anteriores e os
 204 originais preservados), Morada 644b3841,

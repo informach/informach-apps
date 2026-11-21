@@ -1,0 +1,16 @@
+{
+  "source": "0ab3fb654620807e0f5e803065500561a2344e4b",
+  "runId": "44892777221",
+  "status": "failed",
+  "syntheticDataOnly": true,
+  "productionDataTouched": false,
+  "productionCredentialsUsed": false,
+  "backupMetadataFixtures": true,
+  "actualBackupRecoveryProven": false,
+  "realGameServerReadVerified": false,
+  "cleanupConfirmed": true,
+  "failureStage": "key-material",
+  "artifactSha256": "6bd6ce9b6d3e7037f215b9d79e7182c2d95fe09ee80e47b820d5fab013ffe62e",
+  "qualificationPassed": false,
+  "exactRefusalFailureCauseClassified": false
+}

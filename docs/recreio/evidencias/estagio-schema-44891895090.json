@@ -1,0 +1,31 @@
+{
+  "source": "01799386696adb727353dd45a317697a2dae3a2c",
+  "runId": "44891895090",
+  "status": "passed",
+  "nativeRecoveryVerified": true,
+  "freshCluster": true,
+  "cleanupConfirmed": true,
+  "privateSchemaNativeDumpVerified": true,
+  "privateSchemaNativeImportVerified": true,
+  "privateSchemaImportedTables": 81,
+  "privateSchemaCurrentGlobalsPreserved": true,
+  "privateSchemaSourceNameRestored": true,
+  "privateSchemaCopyAndDestinationRefused": true,
+  "privateSchemaCorruptionRefused": true,
+  "privateSchemaImportRollbackVerified": true,
+  "privateSchemaScopeExpired": true,
+  "privateSchemaStageRemoved": true,
+  "privateSelectivePublicationProven": false,
+  "currentGlobalTrafficAuthorized": false,
+  "temporaryCapabilitiesRemaining": 0,
+  "temporaryCapabilitiesRevoked": true,
+  "artifactSha256": "6b3efca08a8d300f61f257d1fba2e5d9a177b0b7baba10410a19e81e9cebbd19",
+  "scope": "Synthetic cold recovery and native private schema staging, without production credentials or traffic admission",
+  "productionDataTouched": false,
+  "limitations": [
+    "No publication to the current shared production database",
+    "No traffic admission",
+    "No complete production recovery",
+    "No claim of paid post-capture closure coverage"
+  ]
+}
