@@ -46,7 +46,9 @@ function codigoSeguro(erro: unknown): CodigoDaRecuperacao {
     const restricao = classificarRestricaoDeRecuperacao(e);
     if (restricao) return restricao;
     if (e instanceof FalhaDoSchemaPrivado) {
-      const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(`SCHEMA_${e.codigo}`);
+      const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(
+        e.codigo === "ARQUIVO" ? `SCHEMA_ARQUIVO_${e.motivo}` : `SCHEMA_${e.codigo}`,
+      );
       if (r.success) return r.data;
     }
     if (e instanceof FalhaDaFerramentaNativa && e.codigo !== "FERRAMENTA_FALHOU") {

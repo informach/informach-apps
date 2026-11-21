@@ -5,7 +5,17 @@ import { ambienteNativo, ferramentaNativa } from "./ferramentas-nativas";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
 
 export class FalhaDoSchemaPrivado extends Error {
-  constructor(readonly codigo: "ESCOPO" | "ARQUIVO" | "DESTINO" | "EXPIRADO") {
+  constructor(
+    readonly codigo: "ESCOPO" | "ARQUIVO" | "DESTINO" | "EXPIRADO",
+    readonly motivo:
+      | "OUTRO"
+      | "METADADOS"
+      | "PRAZO"
+      | "CABECALHO"
+      | "LEITURA"
+      | "ALTERADO"
+      | "RESUMO" = "OUTRO",
+  ) {
     super(`recreio.private_schema.${codigo}`);
   }
 }
@@ -43,7 +53,7 @@ async function conferirArquivo(arquivo: FileHandle, vazio = false) {
     stat.size > BigInt(MAX_BYTES) ||
     (vazio && stat.size !== 0n)
   )
-    throw new FalhaDoSchemaPrivado("ARQUIVO");
+    throw new FalhaDoSchemaPrivado("ARQUIVO", "METADADOS");
   return stat;
 }
 async function resumo(arquivo: FileHandle) {
@@ -54,15 +64,16 @@ async function resumo(arquivo: FileHandle) {
   let posicao = 0;
   try {
     while (posicao < Number(stat.size)) {
-      if (performance.now() >= fim) throw new FalhaDoSchemaPrivado("ARQUIVO");
+      if (performance.now() >= fim) throw new FalhaDoSchemaPrivado("ARQUIVO", "PRAZO");
       const { bytesRead } = await arquivo.read(
         buffer,
         0,
         Math.min(buffer.length, Number(stat.size) - posicao),
         posicao,
       );
-      if (!bytesRead || (posicao === 0 && buffer.toString("ascii", 0, 5) !== "PGDMP"))
-        throw new FalhaDoSchemaPrivado("ARQUIVO");
+      if (!bytesRead) throw new FalhaDoSchemaPrivado("ARQUIVO", "LEITURA");
+      if (posicao === 0 && buffer.toString("ascii", 0, 5) !== "PGDMP")
+        throw new FalhaDoSchemaPrivado("ARQUIVO", "CABECALHO");
       hash.update(buffer.subarray(0, bytesRead));
       posicao += bytesRead;
     }
@@ -73,7 +84,7 @@ async function resumo(arquivo: FileHandle) {
       stat.size !== depois.size ||
       stat.mtimeNs !== depois.mtimeNs
     )
-      throw new FalhaDoSchemaPrivado("ARQUIVO");
+      throw new FalhaDoSchemaPrivado("ARQUIVO", "ALTERADO");
     return { stat: depois, sha256: hash.digest("hex"), bytes: posicao };
   } finally {
     buffer.fill(0);
@@ -183,7 +194,7 @@ export async function criarFerramentasNativasDeSchema(copia: postgres.Sql, orige
         r.sha256 !== prova.sha256 ||
         r.bytes !== prova.bytes
       )
-        throw new FalhaDoSchemaPrivado("ARQUIVO");
+        throw new FalhaDoSchemaPrivado("ARQUIVO", "RESUMO");
       // The opaque token admits only our unchanged native one-schema dump.
       // pg_restore -n excludes entries without a namespace, including CREATE
       // SCHEMA. Restore this already scoped archive so its root is created in
