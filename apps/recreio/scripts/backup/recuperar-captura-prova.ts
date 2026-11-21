@@ -31,6 +31,7 @@ import { provarRetiradaNativaPosterior } from "./provar-retirada-nativa";
 import { provarVinculosGlobaisAtuais } from "./provar-vinculos-globais";
 import { exigir, FalhaDaProva, limparDiretorioDeProva } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
+import { FalhaDoSchemaPrivado } from "./schema-nativo-privado";
 import { FalhaDosVinculosAtuais } from "./vinculos-globais";
 
 const variavel = (nome: string) => {
@@ -44,6 +45,14 @@ function codigoSeguro(erro: unknown): CodigoDaRecuperacao {
     const e = fila.shift();
     const restricao = classificarRestricaoDeRecuperacao(e);
     if (restricao) return restricao;
+    if (e instanceof FalhaDoSchemaPrivado) {
+      const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(`SCHEMA_${e.codigo}`);
+      if (r.success) return r.data;
+    }
+    if (e instanceof FalhaDaFerramentaNativa && e.codigo !== "FERRAMENTA_FALHOU") {
+      const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(e.codigo);
+      if (r.success) return r.data;
+    }
     if (e instanceof FalhaDaFerramentaNativa && e.codigo === "FERRAMENTA_FALHOU") {
       const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(`NATIVO_${e.motivo}`);
       if (r.success) return r.data;
