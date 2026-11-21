@@ -273,6 +273,7 @@ export const recreioRightsRecoveryFinances = recreio.table(
       ],
     }).onDelete("restrict"),
     index("recreio_recovery_finance_state").on(t.runId, t.state, t.operationId),
+    index("recreio_recovery_finance_requester").on(t.requesterReference, t.runId, t.operationId),
     check(
       "recreio_recovery_finance_scope",
       sql`${t.kind}='encerrar_conta' and ${t.providerMode} in ('dev','prod') and char_length(${t.requesterReference}) between 1 and 256 and ${t.attempts} between 1 and 2147483647`,
