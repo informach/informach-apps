@@ -8,6 +8,7 @@ import {
 } from "@informach/db/schema";
 import { canonico, criarMundo as simular } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
+import type { PerfilId } from "@informach/recreio";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { aceitarConvite, criarConvite, criarMundo } from "@/features/mundos/service";
 import { selecionarPerfil } from "@/features/perfis/service";
@@ -20,7 +21,7 @@ import { novoJogador } from "./apoio";
 export async function prepararMundoDoEncerramento(
   autor: AutorNativoRecente,
   email: string,
-  perfilId: Parameters<typeof selecionarPerfil>[1],
+  perfilId: PerfilId,
 ) {
   const outro = await novoJogador({ apelido: "Adulto B" });
   const referencia = {
@@ -46,7 +47,7 @@ export async function prepararMundoDoEncerramento(
   });
   const foto = simulacao.fotografar();
   const acesso = simulacao.estado.acessos.find((a) => a.perfilId === outro.perfil.id);
-  exigir(acesso?.permissoes.includes("gastar"), "ENCERRAMENTO_MUNDO_DIVERGENTE");
+  exigir(acesso && acesso.permissoes.includes("gastar"), "ENCERRAMENTO_MUNDO_DIVERGENTE");
   exigir(
     simulacao.aplicar({
       t: "conceder_acesso",
