@@ -13,6 +13,7 @@ import { avaliarFinanceiroConfirmadoRecuperado } from "../../src/features/direit
 import { liberarProximoMundoDeDireitos } from "../../src/features/direitos/liberacao-mundo-repository";
 import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
 import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
+import { verificarEncerramentoNativoRecuperado } from "../../src/features/direitos/verificacao-recuperada-repository";
 import { AppError } from "../../src/lib/errors";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { inventariarBackup } from "./inventario";
@@ -129,6 +130,20 @@ export async function provarEncerramentoSelecionadoRecuperado(
             "ENCERRAMENTO_SELECIONADO_DIVERGENTE",
           );
         });
+        const primeira = await verificarEncerramentoNativoRecuperado(pai, dado.operacaoId);
+        const lerAvaliacao = () =>
+          copia.unsafe(
+            `select to_jsonb(e) as avaliacao from recreio.rights_recovery_evaluations e where run_id=$1 and operation_id=$2`,
+            [config.execucaoId, dado.operacaoId],
+          );
+        const verificada = await lerAvaliacao();
+        const segunda = await verificarEncerramentoNativoRecuperado(pai, dado.operacaoId);
+        exigir(
+          !primeira.jaVerificada &&
+            segunda.jaVerificada &&
+            isDeepStrictEqual(verificada, await lerAvaliacao()),
+          "ENCERRAMENTO_SELECIONADO_DIVERGENTE",
+        );
       },
     }),
   );
@@ -173,6 +188,8 @@ export async function provarEncerramentoSelecionadoRecuperado(
   );
   exigir(depois?.valida, "ENCERRAMENTO_SELECIONADO_DIVERGENTE");
   return {
+    nativeSelectedClosureReadinessVerified: true,
+    nativeSelectedClosureVerificationIdempotent: true,
     nativeSelectedClosureReplayed: true,
     nativeSelectedClosureProfilesRetired: true,
     nativeSelectedClosureOpaqueDataRemoved: 6,

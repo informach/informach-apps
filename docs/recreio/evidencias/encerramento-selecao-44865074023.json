@@ -1,0 +1,33 @@
+{
+  "source": "7d085a957c5c377317512923cfbe51ff02bbf16f",
+  "githubRun": 44865074023,
+  "artifactSha256": "ed5521c003d116a1b1025fe4f5496289f2f1c2d438327fc9e370f51ae1dab0e7",
+  "status": "passed",
+  "syntheticObjects": 28,
+  "cleanupConfirmed": true,
+  "evidence": {
+    "clusterCleanupConfirmed": true,
+    "localCleanupConfirmed": true,
+    "nativeAccountClosureFullyReplayed": false,
+    "nativeZeroPlayerClosureReplayed": true,
+    "nativeZeroPlayerClosureGlobalRecordsPreserved": true,
+    "nativeZeroPlayerClosureOriginalConsentPreserved": true,
+    "nativeZeroPlayerClosureFinancialConfirmationPreserved": true,
+    "nativeZeroPlayerClosureOwnPinRemoved": true,
+    "nativeZeroPlayerClosureOtherAccountPreserved": true,
+    "nativeZeroPlayerClosureRetryIdempotent": true,
+    "nativeZeroPlayerClosureNoNewConsent": true,
+    "nativeZeroPlayerClosureDataScopeExpired": true,
+    "nativeSelectedClosureReplayed": true,
+    "nativeSelectedClosureProfilesRetired": true,
+    "nativeSelectedClosureOpaqueDataRemoved": 6,
+    "nativeSelectedClosureResponsibilityRemoved": true,
+    "nativeSelectedClosureOtherProfilesPreserved": true,
+    "nativeSelectedClosureGlobalRecordsPreserved": true,
+    "nativeSelectedClosureOriginalConsentPreserved": true,
+    "nativeSelectedClosureFinancialConfirmationPreserved": true,
+    "nativeSelectedClosureRetryIdempotent": true,
+    "nativeSelectedClosureNoNewConsent": true,
+    "productionDataTouched": false
+  }
+}

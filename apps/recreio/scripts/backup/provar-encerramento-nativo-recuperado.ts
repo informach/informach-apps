@@ -10,6 +10,7 @@ import { concluirProximoEncerramento } from "../../src/features/direitos/encerra
 import { AppError } from "../../src/lib/errors";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { inventariarBackup } from "./inventario";
+import { provarVerificacaoDeEncerramento } from "./provar-verificacao-encerramento";
 import { exigir } from "./provas-arquivos";
 import type { RetiradaNativaDeProva } from "./retirada-nativa-prova-contrato";
 
@@ -64,6 +65,7 @@ export async function provarEncerramentoNativoRecuperado(
   );
   exigir(origem.length === 1 && antes?.valida, "ENCERRAMENTO_NATIVO_DIVERGENTE");
   let concluida: CoordenacaoDeEfeitos | undefined;
+  let verificacao: Awaited<ReturnType<typeof provarVerificacaoDeEncerramento>> | undefined;
   await comConexaoPrivadaDeDireitos(copia, (banco) =>
     comCoordenacaoPrivadaDeDireitos({
       ...config,
@@ -129,10 +131,11 @@ export async function provarEncerramentoNativoRecuperado(
             "ENCERRAMENTO_NATIVO_DIVERGENTE",
           );
         });
+        verificacao = await provarVerificacaoDeEncerramento(pai, copia, alvo.operacaoId);
       },
     }),
   );
-  exigir(concluida, "ENCERRAMENTO_NATIVO_DIVERGENTE");
+  exigir(concluida && verificacao, "ENCERRAMENTO_NATIVO_DIVERGENTE");
   let expirada = false;
   try {
     await concluirProximoEncerramento(concluida);
@@ -178,6 +181,7 @@ export async function provarEncerramentoNativoRecuperado(
   );
   exigir(depois?.valida, "ENCERRAMENTO_NATIVO_DIVERGENTE");
   return {
+    ...verificacao,
     nativeZeroPlayerClosureReplayed: true,
     nativeZeroPlayerClosureGlobalRecordsPreserved: true,
     nativeZeroPlayerClosureOriginalConsentPreserved: true,

@@ -22,7 +22,10 @@ import {
   conferirIntencaoDaCoordenacao,
   escopoDaCoordenacao,
 } from "./coordenacao-repository";
-import { retirarLoteDaContaEncerrada } from "./encerramento-conta-lotes-repository";
+import {
+  conferirDadosDaContaEncerrada,
+  retirarLoteDaContaEncerrada,
+} from "./encerramento-conta-lotes-repository";
 import {
   conferirFinanceiroDosEfeitos,
   escopoFinanceiroDosEfeitos,
@@ -136,6 +139,7 @@ export async function concluirProximoEncerramento(config: CoordenacaoDeEfeitos) 
           quantidade: lote.count,
         };
       }
+      await conferirDadosDaContaEncerrada(tx, conta);
       const [instante] = await tx
         .select({ agora: sql<Date>`${AGORA}`.mapWith(participations.updatedAt) })
         .from(participations)

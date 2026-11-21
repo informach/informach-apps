@@ -4,8 +4,10 @@ import { and, eq, sql } from "@informach/db";
 import {
   recreioRightsRecoveryEvaluations as evaluations,
   recreioRightsOperations as operations,
+  recreioAccountParticipations as participations,
   recreioRightsRecoveryRuns as runs,
   recreioRightsSubjects as subjects,
+  users,
 } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
@@ -20,11 +22,111 @@ import {
   conferirIntencaoDaCoordenacao,
   dadosDaCoordenacaoPrivada,
 } from "./coordenacao-repository";
+import { conferirDadosDaContaEncerrada } from "./encerramento-conta-lotes-repository";
 
 async function limitar(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
   await tx.execute(sql`set local lock_timeout='2s'`);
   await tx.execute(sql`set local transaction_timeout='15s'`);
+}
+
+/** Verifies a completed original native closure, not an interactive consent.
+ * Current finance is checked by the scoped data factory and again by the
+ * intention guard. This never admits traffic or rewrites completion dates. */
+export async function verificarEncerramentoNativoRecuperado(
+  config: CoordenacaoDeEfeitos,
+  operacaoId: string,
+) {
+  const dados = dadosDaCoordenacaoPrivada(config);
+  return comOperacaoPrivadaDeDireitos(config, operacaoId, (filha) =>
+    bancoDaCoordenacao(filha).transaction(async (tx) => {
+      await limitar(tx);
+      const [op] = await tx
+        .select()
+        .from(operations)
+        .where(eq(operations.id, operacaoId))
+        .for("update");
+      assertAllowed(
+        op &&
+          op.kind === "encerrar_conta" &&
+          op.preparationId !== null &&
+          op.recoverySourceId === null &&
+          op.state === "completed" &&
+          op.completedAt !== null &&
+          op.leaseToken === null &&
+          op.leaseUntil === null,
+        "DIREITOS_DEPENDENCIA",
+        "O encerramento histórico ainda precisa terminar.",
+      );
+      await conferirIntencaoDaCoordenacao(tx, op, filha);
+      const alvos = await tx
+        .select()
+        .from(subjects)
+        .where(eq(subjects.operationId, op.id))
+        .orderBy(subjects.profileReference)
+        .for("share");
+      await conferirConclusaoDosPerfis(tx, op, alvos);
+      const [restante] =
+        await tx.execute(sql`select 1 from recreio.rights_subjects s where s.operation_id=${op.id}::uuid and (
+      exists(select 1 from recreio.profile_data_keys k where k.profile_id=s.profile_reference) or
+      exists(select 1 from recreio.profile_data_versions v where v.profile_id=s.profile_reference) or
+      exists(select 1 from recreio.profile_achievements a where a.profile_id=s.profile_reference)) limit 1`);
+      assertAllowed(
+        !restante,
+        "DIREITOS_INTEGRIDADE",
+        "Persistem dados pessoais da seleção encerrada.",
+      );
+      const [conta] = await tx
+        .select({ id: users.id, email: users.email })
+        .from(users)
+        .where(eq(users.id, op.requesterUserId));
+      const [participacao] = await tx
+        .select()
+        .from(participations)
+        .where(
+          and(eq(participations.userId, op.requesterUserId), eq(participations.operationId, op.id)),
+        )
+        .for("share");
+      assertAllowed(
+        conta &&
+          participacao?.state === "closed" &&
+          participacao.revision === 3 &&
+          participacao.closedAt?.getTime() === op.completedAt.getTime(),
+        "DIREITOS_INTEGRIDADE",
+        "A participação não confirma o encerramento histórico.",
+      );
+      await conferirDadosDaContaEncerrada(tx, conta);
+      const [avaliacao] = await tx
+        .select()
+        .from(evaluations)
+        .where(and(eq(evaluations.runId, dados.execucaoId), eq(evaluations.operationId, op.id)))
+        .for("update");
+      assertAllowed(avaliacao, "DIREITOS_INTEGRIDADE", "Avaliação do encerramento ausente.");
+      conferirReciboDaAvaliacao(avaliacao, op);
+      if (avaliacao.state === "verified")
+        return { situacao: "verificada" as const, operacaoId, jaVerificada: true };
+      const [verificada] = await tx
+        .update(evaluations)
+        .set({ state: "verified", verifiedAt: AGORA })
+        .where(
+          and(
+            eq(evaluations.runId, dados.execucaoId),
+            eq(evaluations.operationId, op.id),
+            eq(evaluations.state, "ready"),
+          ),
+        )
+        .returning({ id: evaluations.operationId });
+      assertAllowed(verificada, "DIREITOS_INTEGRIDADE", "A avaliação mudou antes da verificação.");
+      await logAuditEventStrict(
+        "recreio.rights_recovery_operation_verified",
+        null,
+        { app: "recreio", runId: dados.execucaoId, operationId: op.id, kind: op.kind },
+        { writer: tx },
+      );
+      conferirCoordenacaoDeDireitos(filha);
+      return { situacao: "verificada" as const, operacaoId, jaVerificada: false };
+    }),
+  );
 }
 
 /** Verification of one actual completed withdrawal, including its native

@@ -182,6 +182,22 @@ demais perfis, mundos, registros globais e a confirmação/consentimento origina
 Decisões ausentes/publishing, mundos no encerramento e recibo terminal seguem
 em aberto; não habilitar tráfego ou produção a partir dessa candidata.
 
+7d085a95 passou cluster frio 44865074023: seleção nativa adulto/menor, seis
+registros opacos removidos, responsabilidade retirada, demais perfis/mundos e
+registros globais preservados, confirmação/consentimento e repetição conferidos;
+28 objetos e clusters removidos. [Recibo](evidencias/encerramento-selecao-44865074023.json).
+69e9f45e passou qualidade 44864608778, direitos 44864616267 e conciliação
+44864622841; o ajuste 7d085a95 alterou somente o apelido da fixture para
+respeitar o limite de 20 caracteres. O primeiro cluster 44864603105 parou
+nesse dado sintético inválido, antes da captura, e não qualifica a reaplicação.
+
+A verificação de encerramentos nativos acrescenta pós-condição somente de
+leitura dos lotes pessoais, participação fechada, dados opacos ausentes,
+conclusão dos sujeitos e financeiro atual. Só depois avança a avaliação por
+execução, com auditoria estrita e repetição que preserva a primeira data.
+Uma falha real P7778 na auditoria deve reverter esse avanço. Isso ainda não é
+recibo terminal do livro, rotação, identidade atual ou admissão de tráfego.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou
