@@ -32,6 +32,8 @@ Este plano não declara publicação implementada ou tráfego recuperado liberad
    nativo do schema renomeado, sem reescrever SQL ou importar globais históricos.
    Conferir dependências de entrada externas, versão/migrations e integridade.
    Importar estágio somente depois das provas, preservando o schema anterior.
+   Reaplicar somente o novo delta autenticado de auditoria da recuperação, com
+   idempotência e comparação exata; nunca substituir a auditoria atual pelo arquivo.
 6. Parar/drenar as versões antigas, renovar credenciais próprias, invalidar
    somente o namespace Redis do Recreio, reler os fatos atuais sob a transação
    de publicação e trocar o schema atomicamente. Falha precisa conservar o
@@ -50,7 +52,10 @@ referências por destino. Aceita os cinco alvos reais da candidata 0244:
 nunca autorização para ampliar a consulta. Não lê tokens, IP, corpo de sessão,
 metadados livres de cobrança ou email para emitir o retrato.
 
-A prova candidata usa um terceiro cluster Unix descartável como destino atual,
+A conferência passou em [44878766228](https://github.com/informach/informach-apps/actions/runs/44878766228), com os 43 objetos removidos e os três clusters encerrados.
+[Recibo agregado](evidencias/vinculos-globais-44878766228.json).
+
+A prova usa um terceiro cluster Unix descartável como destino atual,
 com perda sintética apenas do schema Recreio. A preparação da fixture altera
 bloqueio/estado financeiro atuais e exercita cliente atribuído a outro app e
 identidade ausente. Cada chamada da conferência compara inventários antes/depois

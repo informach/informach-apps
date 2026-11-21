@@ -1,0 +1,14 @@
+{
+  "formato": "recreio-direitos-build-v1",
+  "source": "344017f4cf0e1940856c3c8567e876cea713d054",
+  "run": "44879864859",
+  "bundleSha256": "d593d730eb8e81e9e04cd5ef3dd8cc1ff4f4fe66a8f9f27851f576fbfb5aa2d5",
+  "offWithoutCredentialsVerified": true,
+  "incompleteConfigRefused": true,
+  "argumentsRefused": true,
+  "nativeProcessingProven": false,
+  "productionCredentialsUsed": false,
+  "productionDataTouched": false,
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44879864859",
+  "artifactSha256": "eb87cd5025ffc2ae4f279cbd8d7ec32ccb722ca84f9de2431c9a0de6b4d0ad5f"
+}

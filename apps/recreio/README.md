@@ -18,7 +18,7 @@ Para testar a entrada: crie a conta em `/entrar`, confirme com o código de seis
 
 ## Liberar os jogos para uma conta
 
-A cobrança ainda não existe: quem joga é quem a equipe liberou. Os dois scripts só precisam de `DATABASE_URL` e gravam a concessão junto com o evento de auditoria.
+Em produção, o alfa fechado concede acesso pela equipe e as novas vendas permanecem desligadas. A cobrança nativa está em homologação separada. Os dois scripts só precisam de `DATABASE_URL` e gravam a concessão junto com o evento de auditoria.
 
 ```bash
 pnpm --filter @informach/recreio-app conceder --email pessoa@exemplo.com --tier individual --dias 30 --motivo alfa_equipe

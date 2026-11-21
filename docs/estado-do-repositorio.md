@@ -71,7 +71,7 @@ privado para contrato pago passou no cluster frio 44876187749, com treze GETs,
 um POST fechado e limpeza dos 43 objetos. A conciliação com rollback do despertar
 financeiro P7784 passou 44876193105. A imagem completa com resumo operacional
 passou 44876190424 (duas cópias físicas privadas 245→245); não está implantada.
-Conferência somente de leitura com os globais atuais está em candidata;
+Conferência somente de leitura com os globais atuais passou 44878766228;
 [publicação seletiva](recreio/publicacao-seletiva-2026-11-21.md) continua pendente.
 [Execução](recreio/encerramento-recuperado-2026-11-20.md).
 
@@ -720,3 +720,14 @@ não significa publicar instalador. O consumidor será integrado ao staging loca
 
 
 Compasso — continuidade de 09/11, 23h39: Missão passou à identidade obrigatória pela migração gerada 0113, com histórico nativo preservado e remoção de app autorizada também para participações arquivadas. Tipos passaram; repetição compartilhada/integração completa em execução. Navegador Missão, Dia/Agenda/Cozya, finanças/privacidade e corte operacional permanecem em andamento. Evidências e ressalvas no [registro da frente](propostas/assinatura-web-2026-11-09/implementacao.md).
+
+### Executor de direitos e segunda captura — 21/11
+
+A imagem restrita de F7 passou build/fronteira/modo off em 44879864859,
+qualidade em 44879864726 e direitos em 44879867208. Execução ativa com SQL/S3
+é a próxima candidata; não há worker F7 implantado nem efeitos ativos provados
+por esse build. A segunda captura real terminou em 07:14:58Z. Duas cópias
+privadas do arquivo 716897a1 passaram 244→245, com recibos anteriores intactos,
+sete GETs e sem credencial do banco original. Clusters e serviço temporários
+foram removidos. Isso não comprova publicação seletiva nem duas recuperações
+completas. [Recibo](recreio/evidencias/upgrade-privado-producao-2026-11-21.json).

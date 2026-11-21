@@ -1,0 +1,33 @@
+{
+  "restoreCompleted": true,
+  "restoreDeployment": "705664b7-b45a-4fe8-879f-76df4a646864",
+  "restoreCompletedAt": "2026-11-21T07:39:16.019508342Z",
+  "restoreRounds": [
+    {
+      "sourceReceipts": 244,
+      "targetReceipts": 245,
+      "migrationsApplied": 1,
+      "originalReceiptsPreserved": true,
+      "clusterRemoved": true
+    },
+    {
+      "sourceReceipts": 244,
+      "targetReceipts": 245,
+      "migrationsApplied": 1,
+      "originalReceiptsPreserved": true,
+      "clusterRemoved": true
+    }
+  ],
+  "restoreServiceRemoved": true,
+  "restoreServiceAbsenceVerified": true,
+  "sourceDatabaseCredentialsPresent": false,
+  "trafficAuthorized": false,
+  "captureId": "716897a1-7663-43b1-b247-3c3c4d323f61",
+  "archiveSource": "5fe5710e28d44d3f04fe1485ba261284c56cdccd",
+  "restoreSource": "2967cf32c2cfa2aca2770286327131a78d6184fd",
+  "backupCapturedAt": "2026-11-21T07:14:58.599581004Z",
+  "backupClientOnlySelectedCaptureRead": true,
+  "backupReadRequests": 7,
+  "authoritiesNormalizedForTraffic": false,
+  "completeRecoveryProven": false
+}
