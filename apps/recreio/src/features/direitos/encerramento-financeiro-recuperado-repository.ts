@@ -18,7 +18,7 @@ import {
 } from "@informach/db/schema";
 import { z } from "zod";
 import { assertAllowed } from "@/lib/errors";
-import { AGORA, type Transacao } from "@/lib/repository";
+import type { Transacao } from "@/lib/repository";
 import {
   type CoordenacaoDeEfeitos,
   conferirIntencaoFinanceiraDaCoordenacao,
@@ -38,6 +38,19 @@ async function limites(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
   await tx.execute(sql`set local lock_timeout='2s'`);
   await tx.execute(sql`set local transaction_timeout='15s'`);
+}
+/** Preserve PostgreSQL microseconds. Reusing volatile clock_timestamp() in
+ * separate columns can put attempted_at before created_at in the same INSERT. */
+async function instanteDoBanco(tx: Transacao) {
+  const [relogio] = await tx.execute<{ agora: string }>(
+    sql`select clock_timestamp()::text as agora`,
+  );
+  assertAllowed(
+    relogio && typeof relogio.agora === "string",
+    "DIREITOS_INTEGRIDADE",
+    "Relógio financeiro indisponível.",
+  );
+  return sql`${relogio.agora}::timestamptz`;
 }
 async function conferirExecucao(tx: Transacao, config: CoordenacaoDeEfeitos) {
   const privado = dadosFinanceirosDaCoordenacaoPrivada(config);
@@ -171,6 +184,7 @@ export function iniciarAvaliacaoFinanceiraRecuperada(
     );
     const numero = (anterior?.attempts ?? 0) + 1,
       token = randomUUID();
+    const instante = await instanteDoBanco(tx);
     const nova = {
       runId: privado.execucaoId,
       operationId: estado.op.id,
@@ -189,12 +203,12 @@ export function iniciarAvaliacaoFinanceiraRecuperada(
       receiptSha256: null,
       reviewCode: null,
       observedAt: null,
-      attemptedAt: AGORA,
-      updatedAt: AGORA,
+      attemptedAt: instante,
+      updatedAt: instante,
     };
     await tx
       .insert(assessments)
-      .values({ ...nova, createdAt: AGORA })
+      .values({ ...nova, createdAt: instante })
       .onConflictDoUpdate({ target: [assessments.runId, assessments.operationId], set: nova });
     await logAuditEventStrict(
       "recreio.rights_recovery_finance_started",
@@ -336,6 +350,7 @@ export function concluirAvaliacaoFinanceiraRecuperada(
         "DIREITOS_INTEGRIDADE",
         "Observação fora da origem sem cliente.",
       );
+    const instante = await instanteDoBanco(tx);
     const [linha] = await tx
       .update(assessments)
       .set({
@@ -343,8 +358,8 @@ export function concluirAvaliacaoFinanceiraRecuperada(
         result: recibo.resultado,
         observationSha256: recibo.observacaoAtualSha256,
         receiptSha256: recibo.sha256,
-        observedAt: AGORA,
-        updatedAt: AGORA,
+        observedAt: instante,
+        updatedAt: instante,
       })
       .where(escopoTentativa(prova, config))
       .returning({ id: assessments.operationId });
@@ -375,9 +390,10 @@ export function registrarFalhaDaAvaliacaoFinanceiraRecuperada(
   return privado.banco.transaction(async (tx) => {
     await limites(tx);
     await conferirExecucao(tx, config);
+    const instante = await instanteDoBanco(tx);
     const [linha] = await tx
       .update(assessments)
-      .set({ state: "review", reviewCode: motivo, updatedAt: AGORA })
+      .set({ state: "review", reviewCode: motivo, updatedAt: instante })
       .where(escopoTentativa(prova, config))
       .returning({ id: assessments.operationId });
     assertAllowed(linha, "DIREITOS_POSSE", "Outra avaliação financeira retomou esta tentativa.");

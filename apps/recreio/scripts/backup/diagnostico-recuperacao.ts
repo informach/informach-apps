@@ -117,6 +117,10 @@ export const FalhaDaRecuperacaoSchema = z.strictObject({
     "SQL_RECOVERY_REFERENCE",
     "SQL_RECOVERY_PLAN",
     "SQL_RECOVERY_WORLDS",
+    "SQL_RECOVERY_FINANCE_SCOPE",
+    "SQL_RECOVERY_FINANCE_HASHES",
+    "SQL_RECOVERY_FINANCE_STATE",
+    "SQL_RECOVERY_FINANCE_TIMES",
     "SQL_23503",
     "SQL_23001",
     "SQL_55P03",
@@ -146,6 +150,14 @@ export function classificarRestricaoDeRecuperacao(erro: unknown): CodigoDaRecupe
   )
     return undefined;
   switch (erro.constraint_name) {
+    case "recreio_recovery_finance_scope":
+      return "SQL_RECOVERY_FINANCE_SCOPE";
+    case "recreio_recovery_finance_hashes":
+      return "SQL_RECOVERY_FINANCE_HASHES";
+    case "recreio_recovery_finance_state":
+      return "SQL_RECOVERY_FINANCE_STATE";
+    case "recreio_recovery_finance_times":
+      return "SQL_RECOVERY_FINANCE_TIMES";
     case "recreio_rights_recovery_hashes":
       return "SQL_RECOVERY_HASHES";
     case "recreio_rights_recovery_keys":
