@@ -20,5 +20,9 @@ dos dados sintéticos e das seis credenciais já limitadas à homologação. O
 inicializador sem banco usa a mesma política; a restauração offline mantém sua
 capacidade própria, sem herdar credenciais ou acesso ao banco original.
 
-A prova verde ainda precisa passar qualidade, imagem ativa, CLI completa de
-backup e jornada integrada. Nada desta candidata foi ativado em produção.
+Na fonte c632fe91, passaram qualidade 44887683603, imagem ativa 44887686108 e
+CLI completa de backup 44887688433. A jornada integrada 44887690975 falhou na
+nova etapa de importação de schema privado; o diagnóstico 44888800618 isolou
+SCHEMA_ARQUIVO, com limpeza confirmada. Não atribuir essa falha à fronteira de
+ambiente nem chamar a recuperação de concluída. Nada desta candidata foi
+ativado em produção.

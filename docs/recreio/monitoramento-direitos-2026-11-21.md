@@ -30,3 +30,15 @@ Ainda é necessário qualificar esta candidata no GitHub, implantar a composiç�
 operacional restrita, observar heartbeat e fila e só então ativar a quarta sonda.
 A aceitação de um direito individual não depende de a fila de outra conta estar
 saudável. Não foi solicitado novo orçamento de uptime ao Sentry.
+
+## Evidência remota da primeira candidata
+
+Fonte 2d460817: qualidade 44888952548, imagem nativa 44888955514,
+Worker 44888958553 e navegador 44888961366. A imagem passou oito execuções
+nativas, incluindo rota real sem execução, rodada saudável, livro alheio falho,
+cabeçalho congelado e falha do livro configurado; armazenamento e SQL sintéticos
+foram limpos. [Recibo derivado](evidencias/monitor-direitos-44888955514.json).
+Os quatro gates passaram, sem implantação produtiva. A exigência de monitor na
+ativação é incremento posterior 4f9410ce: qualidade 44889448135 e jornada nativa
+44889450605 também passaram. Falta qualificar a integração final e observar a
+composição operacional real antes de ativar o consentimento.

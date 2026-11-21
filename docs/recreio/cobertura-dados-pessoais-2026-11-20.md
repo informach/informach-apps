@@ -1,6 +1,6 @@
 # Inventário da cobertura pessoal do Recreio
 
-Base produtiva: 0243, 244 recibos, 80 tabelas `recreio`; candidata 0244 acrescenta a 81ª tabela, `rights_recovery_finances`. Revisão em 21/11/2026. Não é declaração de exportação integral, parecer jurídico ou implantação.
+Base produtiva conferida em 21/11: 0244, 245 recibos, 81 tabelas `recreio`, incluindo `rights_recovery_finances`. [Aplicação e preservação dos prefixos](evidencias/schema-producao-0244-2026-11-21.json). Revisão em 21/11/2026. Não é declaração de exportação integral, parecer jurídico ou implantação.
 
 Esta matriz confere a presença das fontes e registra lacunas. Revisão campo a campo, retenções e prova dos últimos incrementos continuam necessárias. UUIDs históricos permanecem dados pessoais; não são anônimos. Encerrar o Recreio não apaga a identidade global ou os fatos financeiros.
 

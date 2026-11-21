@@ -1,0 +1,33 @@
+{
+  "source": "2d460817254dccd52968d36af141db9ba9f766ba",
+  "runId": "44888955514",
+  "status": "passed",
+  "syntheticDataOnly": true,
+  "productionDataTouched": false,
+  "productionCredentialsUsed": false,
+  "trafficAuthorized": false,
+  "nativeEffectsProven": true,
+  "nativeHealthProbeVerified": true,
+  "otherLedgerFailureDoesNotMaskOrPoisonProbe": true,
+  "nativeIdleProcessingVerified": true,
+  "freshHeaderReads": 2,
+  "idleWrites": 0,
+  "nativeConsentProfileWithdrawalVerified": true,
+  "nativeAccountClosureWithoutCustomerVerified": true,
+  "globalIdentitiesPreserved": true,
+  "nativeAccountClosureGlobalIdentityPreserved": true,
+  "nativeCompletionAuditVerified": true,
+  "nativeAccountClosureAuditVerified": true,
+  "financialProviderCredentialsPresent": false,
+  "nativeJobOutcomesVerified": true,
+  "nativeJobCount": 8,
+  "anonymousReadDenied": true,
+  "cleanupConfirmed": true,
+  "artifactSha256": "2e12181e6b02bb0bf3c17bfc0d563176db26c67cbfb6bba2b01994d4d0232d1b",
+  "scope": "native rights image and actual HTTP route with synthetic PostgreSQL and authorized qualification bucket",
+  "limitations": [
+    "Not deployed to production",
+    "No paid contract closure proven by this image",
+    "No complete recovery or selective publication proven"
+  ]
+}

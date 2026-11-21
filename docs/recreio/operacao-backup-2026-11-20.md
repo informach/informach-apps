@@ -497,3 +497,13 @@ extrapolar preços ou chamar essa expectativa de cadência já comprovada. Porta
 foi reimplantado na mesma fonte 00326e46, deploy 63213705; backup está em
 079f8a2d/2967cf32. Saúde/prontidão/backup em 200 após a implantação. A última
 captura confirmada continua sendo 716897a1; primeira execução nova pendente.
+
+
+### Primeiro disparo da agenda horária
+
+A revisão 079f8a2d/2967cf32 iniciou o contêiner às 09:17:51 UTC de 21/11,
+após o horário nominal de 09:14. Log nativo e consulta somente de leitura a
+ops.job_runs às 09:22 confirmaram sucesso às 09:17:52, capturaCriada=false e
+zero pendências de retenção. A rodada respeitou a captura real de 07:14;
+não se reduziu o intervalo para produzir evidência. A nova cadência positiva,
+intervalo observado entre capturas e custo adicional continuam por medir.
