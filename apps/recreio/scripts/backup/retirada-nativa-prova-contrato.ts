@@ -11,6 +11,16 @@ export const RetiradaNativaDeProvaSchema = z.strictObject({
     operacaoId: z.uuid(),
     contaId: z.string().min(1).max(256),
     perfisSelecionados: z.array(z.uuid()).length(2),
+    mundo: z.strictObject({
+      mundoId: z.uuid(),
+      retiradoId: z.uuid(),
+      preservadoId: z.uuid(),
+      diarioFinal: z.number().int().min(1).max(1000),
+      tickFinal: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+      versao: z.number().int().min(1).max(3),
+      familiasSha256: z.string().regex(/^[a-f0-9]{64}$/),
+      acessoSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    }),
     anterior: z.strictObject({ operacaoId: z.uuid(), contaId: z.string().min(1).max(256) }),
     provedor: z.strictObject({
       operacaoId: z.uuid(),

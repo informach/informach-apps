@@ -20,6 +20,7 @@ import { gravarPinNativo } from "@/features/protecao/repository";
 import { gerarHashDoPin } from "@/features/protecao/segredos";
 import { criarInventarioFinanceiroDeProva } from "../scripts/backup/inventario-financeiro-prova";
 import { exigir } from "../scripts/backup/provas-arquivos";
+import { prepararMundoDoEncerramento } from "./backup-encerramento-mundo-apoio";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { familiaSocial } from "./social-apoio";
 import { adultoDoTeste } from "./teste-apoio";
@@ -144,6 +145,11 @@ export async function prepararFinanceiroNativoAnterior(
       avatar: "sol",
     });
     const perfisSelecionados = [familia.perfil.id, proprio.perfil.id].sort();
+    const mundo = await prepararMundoDoEncerramento(
+      familia.autor,
+      familia.conta.email,
+      proprio.perfil.id,
+    );
     for (const profileId of perfisSelecionados) {
       const [key] = await db
         .insert(keys)
@@ -180,6 +186,7 @@ export async function prepararFinanceiroNativoAnterior(
         operacaoId: pendente.operacaoId,
         contaId: pendente.contaId,
         perfisSelecionados,
+        mundo,
         anterior,
         provedor: { ...provedor, clienteStripeId },
         chaves: {

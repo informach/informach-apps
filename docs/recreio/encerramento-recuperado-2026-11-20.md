@@ -211,6 +211,15 @@ O escopo fecha depois da confirmação e conserva tráfego não autorizado.
 Este perfil ainda não cobre encerramento com mundo, decisão ausente/publishing,
 identidade atual ou publicação seletiva; não declara recuperação integral.
 
+A ampliação seguinte prepara antes da captura um mundo de outro adulto,
+com convite e aceite nativos para o adulto da conta a encerrar. O menor
+continua fora do Morada. Foto PostgreSQL e diário do simulador são sintéticos;
+a autoridade, o consentimento e a seleção vêm dos serviços reais. A prova
+exige recuperar o diário, retirar identificadores das duas fotos, compactar
+os fatos e conservar responsável, outro membro, famílias, permissão alterada
+no diário, versão do formato e todas as linhas dos demais mundos. Está em
+qualificação remota; não acrescenta integração do Morada D3–D8 nem tráfego.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

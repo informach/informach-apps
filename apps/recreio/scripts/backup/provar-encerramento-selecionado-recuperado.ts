@@ -17,11 +17,12 @@ import { verificarEncerramentoNativoRecuperado } from "../../src/features/direit
 import { AppError } from "../../src/lib/errors";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { inventariarBackup } from "./inventario";
+import { prepararProvaDoMundoEncerrado } from "./provar-encerramento-mundo";
 import { exigir } from "./provas-arquivos";
 import type { RetiradaNativaDeProva } from "./retirada-nativa-prova-contrato";
 
 /** Actual native adult/minor selection, responsibilities and opaque data in
- * the restored cluster. No world is selected in this case. Original consent
+ * the restored cluster and a shared adult world. Original consent
  * and financial confirmation survive; this is not full traffic recovery. */
 export async function provarEncerramentoSelecionadoRecuperado(
   copia: postgres.Sql,
@@ -54,6 +55,7 @@ export async function provarEncerramentoSelecionadoRecuperado(
     );
   const origem = await lerOrigem(),
     outros = await lerOutros();
+  const mundo = await prepararProvaDoMundoEncerrado(copia, config.storage, dado.mundo);
   const inventarioAntes = await copia.begin(
     "isolation level repeatable read read only",
     inventariarBackup,
@@ -67,7 +69,7 @@ export async function provarEncerramentoSelecionadoRecuperado(
     and (select count(*) from recreio.profile_data_keys k where k.profile_id in ($3::uuid,$4::uuid))=2
     and (select count(*) from recreio.profile_data_versions v where v.profile_id in ($3::uuid,$4::uuid))=2
     and (select count(*) from recreio.profile_achievements a where a.profile_id in ($3::uuid,$4::uuid))=2
-    and not exists(select 1 from recreio.rights_worlds w where w.operation_id=o.id) as valida
+    and (select count(*) from recreio.rights_worlds w where w.operation_id=o.id)=1 as valida
     from recreio.rights_operations o join recreio.account_closure_finances f on f.operation_id=o.id join recreio.account_participations p on p.operation_id=o.id where o.id=$1::uuid`,
     parametros,
   );
@@ -102,7 +104,9 @@ export async function provarEncerramentoSelecionadoRecuperado(
         );
         await comOperacaoPrivadaDeDireitos(pai, dado.operacaoId, async (filha) => {
           for (let n = 0; n < 24; n++) {
+            await mundo.recuperar(filha);
             await concluirProximaDrenagem(filha);
+            await mundo.fotografar(filha);
             const dados = await retirarProximosDadosPessoais(filha);
             if (dados.situacao === "dados_removidos") removidas += dados.quantidade;
             await minimizarProximoPerfil(filha);
@@ -156,18 +160,7 @@ export async function provarEncerramentoSelecionadoRecuperado(
     inventariarBackup,
   );
   const preservadas = (i: typeof inventarioAntes) =>
-    i.tabelas.filter(
-      (t) =>
-        t.schema !== "audit" &&
-        (t.schema !== "recreio" ||
-          [
-            "spaces",
-            "space_snapshots",
-            "space_journal",
-            "space_members",
-            "profile_world_traces",
-          ].includes(t.nome)),
-    );
+    i.tabelas.filter((t) => t.schema !== "audit" && t.schema !== "recreio");
   exigir(
     isDeepStrictEqual(preservadas(inventarioAntes), preservadas(inventarioDepois)) &&
       isDeepStrictEqual(inventarioAntes.globais, inventarioDepois.globais) &&
@@ -188,6 +181,7 @@ export async function provarEncerramentoSelecionadoRecuperado(
   );
   exigir(depois?.valida, "ENCERRAMENTO_SELECIONADO_DIVERGENTE");
   return {
+    ...(await mundo.conferir()),
     nativeSelectedClosureReadinessVerified: true,
     nativeSelectedClosureVerificationIdempotent: true,
     nativeSelectedClosureReplayed: true,
