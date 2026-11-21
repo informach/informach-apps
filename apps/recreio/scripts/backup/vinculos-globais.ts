@@ -103,7 +103,7 @@ async function referencias(tx: Consulta) {
     const linhas = await tx.unsafe<{ id: string }[]>(
       `select distinct ${identificador(coluna)}::text collate "C" as id
       from ${identificador(schema)}.${identificador(nome)}
-      where id::text in(select jsonb_array_elements_text($1::jsonb)) order by 1`,
+      where id::text in(select jsonb_array_elements_text($1::text::jsonb)) order by 1`,
       [JSON.stringify(referencias)],
     );
     const conjunto = ids.get(alvo);
@@ -118,7 +118,7 @@ async function referencias(tx: Consulta) {
   const vinculos = await tx.unsafe<{ id: string; app: string; tipo: string; conta: string }[]>(
     `select
     id::text,app,subject_type as tipo,subject_id as conta from billing.customers
-    where id::text in(select jsonb_array_elements_text($1::jsonb)) order by id::text collate "C"`,
+    where id::text in(select jsonb_array_elements_text($1::text::jsonb)) order by id::text collate "C"`,
     [JSON.stringify(clientes)],
   );
   const contas = ids.get("core.users");
@@ -166,7 +166,7 @@ async function ler(tx: Consulta, alvo: Destino, ids: readonly string[]): Promise
   return tx.unsafe<Linha[]>(
     `select id::text,(${p.vinculo})::text as vinculo,(${p.estado})::text as estado
     from ${identificador(schema)}.${identificador(tabela)} t
-    where id::text in(select jsonb_array_elements_text($1::jsonb)) order by id::text collate "C"`,
+    where id::text in(select jsonb_array_elements_text($1::text::jsonb)) order by id::text collate "C"`,
     [JSON.stringify(ids)],
   );
 }
@@ -227,7 +227,7 @@ export async function conferirVinculosGlobaisAtuais(restaurado: postgres.Sql, at
       `select id::text,
       jsonb_build_array(id,provider,provider_customer_id,subject_type,subject_id,app)::text as vinculo
       from billing.customers where app='recreio' and subject_type='user'
-      and subject_id in(select jsonb_array_elements_text($1::jsonb)) order by id::text collate "C" limit ${LIMITE + 1}`,
+      and subject_id in(select jsonb_array_elements_text($1::text::jsonb)) order by id::text collate "C" limit ${LIMITE + 1}`,
       [JSON.stringify(contas)],
     );
     if (clientesAtuais.length > LIMITE) throw new FalhaDosVinculosAtuais("PERFIL_NAO_SUPORTADO");
