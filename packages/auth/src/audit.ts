@@ -177,6 +177,7 @@ export type AuditEventType =
   | "recreio.rights_profile_data_removed"
   | "recreio.rights_profile_minimized"
   | "recreio.rights_references_purged"
+  | "recreio.world_traces_reconciled"
   | "recreio.rights_profile_removed"
   | "recreio.rights_world_drained"
   | "recreio.rights_world_recovered"

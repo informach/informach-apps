@@ -1,0 +1,44 @@
+{
+  "source": "00326e4641f165cb52934805cc8d6e65b5b11d96",
+  "deploymentId": "38156f7d-ee47-4ab6-9d9b-6d05118db161",
+  "qualityRun": 44852570415,
+  "functionalRun": 44851031051,
+  "functionalGatesPassed": 15,
+  "functionalQualityFixtureFailuresCorrected": true,
+  "backupMonitorSqlRun": 44851054282,
+  "externalRun": 44854004010,
+  "externalResults": [
+    {
+      "servico": "recreio-backup",
+      "instante": "2026-11-21T02:06:34.435Z",
+      "ok": true,
+      "codigo": "PRONTO",
+      "duracaoMs": 280,
+      "tentativas": 1
+    },
+    {
+      "servico": "morada-server",
+      "instante": "2026-11-21T02:06:34.457Z",
+      "ok": true,
+      "codigo": "PRONTO",
+      "duracaoMs": 303,
+      "tentativas": 1
+    },
+    {
+      "servico": "recreio",
+      "instante": "2026-11-21T02:06:34.470Z",
+      "ok": true,
+      "codigo": "PRONTO",
+      "duracaoMs": 355,
+      "tentativas": 1
+    }
+  ],
+  "sourcemapsUploadedAt": "2026-11-21T02:00:48.497516424Z",
+  "sentryRelease": "00326e4641f165cb52934805cc8d6e65b5b11d96",
+  "backupArchiveCredentialsInPortal": false,
+  "newSalesEnabled": false,
+  "rightsEnabled": false,
+  "familyEnabled": false,
+  "socialEnabled": false,
+  "visitsEnabled": false
+}

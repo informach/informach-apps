@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "node scripts/isolated.mjs integration",
+    "test:world-traces": "node scripts/isolated.mjs world-traces",
     "test:backup-capture": "node scripts/isolated.mjs backup-capture",
     "test:trial-setup": "node scripts/isolated.mjs trial-setup",
     "test:trial-experiment": "node scripts/isolated.mjs trial-experiment",

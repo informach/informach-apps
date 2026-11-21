@@ -27,6 +27,7 @@ const mode = process.argv[2];
 if (
   ![
     "integration",
+    "world-traces",
     "backup-capture",
     "backup-operational",
     "trial-setup",
@@ -47,10 +48,11 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, backup-capture, backup-operational, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-account-closure, e2e-capacidade, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, world-traces, backup-capture, backup-operational, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-account-closure, e2e-capacidade, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const backupCapture = mode === "backup-capture";
+const worldTraces = mode === "world-traces";
 const backupOperational = mode === "backup-operational";
 if (
   backupOperational &&
@@ -455,21 +457,23 @@ try {
         "vitest",
         "run",
         "--config",
-        backupOperational
-          ? "vitest.backup-operational.config.ts"
-          : backupCapture
-            ? "vitest.backup-capture.config.ts"
-            : commercialReconciliation
-              ? "vitest.commercial-reconciliation.config.ts"
-              : commercialCheckout
-                ? "vitest.commercial-checkout.config.ts"
-                : commercialSetup
-                  ? "vitest.commercial-setup.config.ts"
-                  : trialExperiment
-                    ? "vitest.trial-experiment.config.ts"
-                    : trialSetup
-                      ? "vitest.trial-setup.config.ts"
-                      : "vitest.integration.config.ts",
+        worldTraces
+          ? "vitest.world-traces.config.ts"
+          : backupOperational
+            ? "vitest.backup-operational.config.ts"
+            : backupCapture
+              ? "vitest.backup-capture.config.ts"
+              : commercialReconciliation
+                ? "vitest.commercial-reconciliation.config.ts"
+                : commercialCheckout
+                  ? "vitest.commercial-checkout.config.ts"
+                  : commercialSetup
+                    ? "vitest.commercial-setup.config.ts"
+                    : trialExperiment
+                      ? "vitest.trial-experiment.config.ts"
+                      : trialSetup
+                        ? "vitest.trial-setup.config.ts"
+                        : "vitest.integration.config.ts",
         ...process.argv.slice(3),
       ],
       app,

@@ -450,7 +450,7 @@ transformação real de fotos ou fechamento F8.
 
 A candidata e o PostgreSQL produtivo têm 244 recibos/0243 e 80 fontes. A
 migração separada de 20/11 preservou os 204 recibos anteriores, os dois mundos
-e as dez fotografias. Portal d014bd90 continua saudável; preview 01eb6833
+e as dez fotografias. Portal 00326e46 continua saudável; preview 01eb6833
 tem portal nativo v2 e saúde/prontidão conferidas.
 A prova completa das CLIs em 5fe5710e passou no GitHub 44837783170:
 captura/cadência reais no bucket de homologação, banco review indisponível,

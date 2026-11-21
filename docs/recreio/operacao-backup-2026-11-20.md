@@ -440,5 +440,18 @@ conforme o [recibo do provedor](evidencias/custo-executor-backup-2026-11-20.json
 O serviço temporário já removido não aparece no detalhamento; não assumir custo
 zero para a recuperação ou armazenamento sem discriminação. Valores iniciais
 podem ter atraso e não são projeção mensal, fatura ou custo integral de F8.
-Monitoração nova, ciclo/RPO observado e recuperação operacional completa
-continuam pendentes até suas respectivas evidências.
+A candidata corrigida 00326e46 passou qualidade em 44852570415. Os outros
+quinze gates de 44851031051 e o SQL de 44851054282 passaram; as diferenças
+entre as fontes são somente os dois testes de configuração/seleção corrigidos
+e documentação. Publicada em `38156f7d-ee47-4ab6-9d9b-6d05118db161`, com
+TLS obrigatório, credenciais de arquivo ausentes do portal e modos novos off.
+Saúde, prontidão e `/api/backup/health` responderam 200 às 02:05 UTC.
+Os três alvos externos passaram 44854004010, com 280–355 ms observados.
+Os mapas de código foram enviados ao Sentry e a release exata foi conferida.
+[Recibo da promoção](evidencias/monitor-backup-producao-2026-11-20.json).
+
+A variável de repositório `RECREIO_MONITOR_BACKUP=on` está ativa. O workflow
+atualizado foi executado pela candidata qualificada; a agenda padrão do GitHub
+ainda depende da integração dessa fonte à main. Não anunciar recorrência nova
+do GitHub antes dessa integração e de uma execução agendada observada.
+Ciclo/RPO observado e recuperação operacional completa continuam pendentes.
