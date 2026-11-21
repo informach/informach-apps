@@ -20,6 +20,7 @@ import { AppError } from "../../src/lib/errors";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { provarEncerramentoNativoRecuperado } from "./provar-encerramento-nativo-recuperado";
+import { provarEncerramentoSelecionadoRecuperado } from "./provar-encerramento-selecionado-recuperado";
 import { provarInventarioFinanceiroRecuperado } from "./provar-inventario-financeiro-recuperado";
 import { exigir } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
@@ -256,7 +257,13 @@ export async function provarFinanceiroRecuperado(config: {
       { ...comum, execucaoId: importacao.execucaoId },
       dado,
     );
+    const selecionado = await provarEncerramentoSelecionadoRecuperado(
+      copia,
+      { ...comum, execucaoId: importacao.execucaoId },
+      dado,
+    );
     return {
+      ...selecionado,
       ...encerramento,
       ...inventario,
       nativeClosureFinancialPrivateConnectionVerified: true,

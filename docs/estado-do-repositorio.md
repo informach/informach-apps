@@ -1,6 +1,6 @@
 # Estado do trabalho no repositório
 
-Atualizado em 20/11/2026. Índice de continuidade; regras permanentes no
+Atualizado em 21/11/2026. Índice de continuidade; regras permanentes no
 [AGENTS.md](../AGENTS.md). Resultados e configuração ficam nos registros
 específicos. Conservar as frentes concorrentes ao atualizar este índice.
 
@@ -18,6 +18,10 @@ alfa fechado. Preview 01eb6833/0243 com portal nativo v2, saúde/prontidão 200.
 Backup cifrado real/restauração independente/cron conferidos. A sonda separada
 do backup respondeu 200; os três alvos externos passaram 44854004010.
 Mapas Sentry da nova fonte enviados e release conferida.
+Cloudflare passou duas execuções agendadas com portal/jogo/backup em 21/11;
+GitHub também passou uma execução agendada com os três alvos (44860322589).
+[Monitor](recreio/sonda-cloudflare.md). A ficha pública `/jogos/morada`
+respondeu 200 em 21/11, mantendo classificação em análise e convite adulto.
 Famílias/social/visitas/comercial novo/F7 continuam desligados. O levantamento
 real encontrou sete sessões históricas sem índice de privacidade dos mundos;
 a conciliação 18ec652d criou os dois pares faltantes em produção. Repetição
@@ -38,6 +42,22 @@ Schema 0243 adotado intacto, 244 recibos/80 tabelas. CI compartilhado desta
 fonte **44824438593** passou; a33e94b7 passou o CI completo
 44815248297 e a base 91dcdf7a passou 44802000813.
 [Frente e provas](recreio/reaplicacao-nativa-2026-11-20.md).
+
+**Recuperação financeira candidata:** 0244 gerada/adotada intacta em
+44861054095, 245 recibos/81 tabelas; não aplicada em produção/preview.
+42d0ecf9 passou qualidade 44862812450 e cluster frio 44862809669: 17
+tentativas, recibo anterior preservado, SDK/HTTP fechado, rejeição de evidência
+mutada/copiada e fonte divergente, datas vencidas/futuras, selo substituído,
+auditoria atômica e recorte próprio. 28 objetos e clusters removidos.
+Conciliação/direitos da base 2c2d021f passaram 44861342217/44861339988;
+seu CI compartilhado 44861344652 segue em execução. A integração de rastros
+18ec652d passou o CI compartilhado 44854378495.
+f5f1ba5f prepara a reaplicação nativa de conta sem jogadores: PIN próprio,
+participação e preservação dos demais; candidata 44863335099, qualidade
+44863337321, direitos 44863339620 e conciliação 44863342008. Os dois últimos
+gates, qualidade e cluster frio passaram. Encerramento com
+seleção, decisão ausente/publishing, recibo terminal, identidade atual e
+publicação seletiva continuam pendentes. [Execução](recreio/encerramento-recuperado-2026-11-20.md).
 
 **Operação em implementação:** coordenação, publicação, reconciliação e filas
 nativas qualificadas. f5b4116f passou qualidade/captura/cluster

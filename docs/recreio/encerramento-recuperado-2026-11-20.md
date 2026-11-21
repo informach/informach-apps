@@ -166,6 +166,22 @@ PIN, concluir a participação, repetir sem mudar datas e preservar o outro
 adulto/tabelas fora da seleção. Não admite encerramento ausente/publishing,
 seleção de jogadores ou tráfego; o recibo integral continua false.
 
+f5f1ba5f passou qualidade 44863337321, direitos 44863339620, conciliação
+44863342008 e cluster frio 44863335099. A conta sem jogadores teve PIN
+removido e participação encerrada, com consentimento, confirmação financeira,
+outra conta, identidades/tabelas globais e repetição preservados. Limpeza dos
+28 objetos e clusters conferida. Este perfil não conclui os demais casos.
+
+A candidata seguinte inclui seleção nativa de adulto próprio e menor sob
+responsabilidade aceita. Os dois perfis e seis registros de dados opacos são
+criados antes do consentimento/captura; não há mundo nesse cenário. Após a
+retomada financeira, nova avaliação atual e admissão própria de dados são
+obrigatórias. O mesmo executor de retirada deve minimizar os dois perfis,
+retirar conteúdo/responsabilidade e concluir somente sua conta, preservando
+demais perfis, mundos, registros globais e a confirmação/consentimento originais.
+Decisões ausentes/publishing, mundos no encerramento e recibo terminal seguem
+em aberto; não habilitar tráfego ou produção a partir dessa candidata.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

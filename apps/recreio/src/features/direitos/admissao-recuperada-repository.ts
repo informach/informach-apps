@@ -43,9 +43,9 @@ export async function admitirRetiradaHistoricaRecuperada(
 ) {
   return admitirDecisaoHistoricaRecuperada(config, entrada, "retirar_perfil");
 }
-/** Initial closure profile: original native admission and no player selection.
- * A fresh per-run financial receipt is required before data readiness. Missing
- * native consent, interrupted publication and profile erasure stay refused. */
+/** Original native admission and selection. A fresh per-run financial receipt
+ * is required before data readiness. Missing
+ * native consent and interrupted publication stay refused. */
 export async function admitirEncerramentoNativoHistoricoRecuperado(
   config: CoordenacaoDeEfeitos,
   entrada: string,
@@ -188,8 +188,7 @@ async function admitirDecisaoHistoricaRecuperada(
             anterior.preparationId !== null &&
             anterior.recoverySourceId === null &&
             ["admitted", "running", "completed"].includes(anterior.state) &&
-            plano.formato === "recreio-previa-encerramento-v2" &&
-            plano.perfis.length === 0,
+            plano.formato === "recreio-previa-encerramento-v2",
           "DIREITOS_INTEGRIDADE",
           "Encerramento privado fora do perfil nativo qualificado.",
         );

@@ -1,6 +1,11 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@informach/db";
-import { customers } from "@informach/db/schema";
+import {
+  recreioProfileAchievements as achievements,
+  customers,
+  recreioProfileDataKeys as keys,
+  recreioProfileDataVersions as versions,
+} from "@informach/db/schema";
 import { criarProcessadorFinanceiroDoEncerramento } from "@/features/direitos/encerramento-financeiro-execucao-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
@@ -10,16 +15,19 @@ import { PedidoDePreparacaoDeDireitosSchema } from "@/features/direitos/preparac
 import { prepararEncerramentoNoBanco } from "@/features/direitos/preparacao-repository";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { consentirEncerramentoNoBanco } from "@/features/direitos/retirada-consentimento-repository";
+import { criarPerfilProprio } from "@/features/perfis/service";
 import { gravarPinNativo } from "@/features/protecao/repository";
 import { gerarHashDoPin } from "@/features/protecao/segredos";
 import { criarInventarioFinanceiroDeProva } from "../scripts/backup/inventario-financeiro-prova";
 import { exigir } from "../scripts/backup/provas-arquivos";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
+import { familiaSocial } from "./social-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
-/** Native synthetic payer without a player or customer. Its pending financial
- * row is captured; the private worker must resume it without a global pool.
- * This is not a live payment, provider inventory or permission to erase data. */
+/** Native synthetic closures: historical no-customer and closed-HTTP customer
+ * confirmations, plus a pending adult/minor selection with opaque data.
+ * Consent/authority are real native domain operations; no live payment or
+ * provider credential is used and the worker receives no global pool. */
 export async function prepararFinanceiroNativoAnterior(
   bucket: Awaited<ReturnType<typeof criarBucketDaMontagem>>,
 ) {
@@ -55,7 +63,11 @@ export async function prepararFinanceiroNativoAnterior(
         atualizadoEm: new Date().toISOString(),
       }),
     );
-    async function admitir(entrada?: Awaited<ReturnType<typeof adultoDoTeste>>, comPin = false) {
+    async function admitir(
+      entrada?: Pick<Awaited<ReturnType<typeof adultoDoTeste>>, "conta" | "autor">,
+      comPin = false,
+      perfis: readonly string[] = [],
+    ) {
       const adulto = entrada ?? (await adultoDoTeste());
       if (comPin) await gravarPinNativo(adulto.autor, await gerarHashDoPin("482731"));
       const previa = await prepararEncerramentoNoBanco(
@@ -63,7 +75,7 @@ export async function prepararFinanceiroNativoAnterior(
         PedidoDePreparacaoDeDireitosSchema.parse({
           pedidoId: randomUUID(),
           tipo: "encerrar_conta",
-          perfis: [],
+          perfis: [...perfis].sort(),
         }),
         "dev",
       );
@@ -126,13 +138,48 @@ export async function prepararFinanceiroNativoAnterior(
     } finally {
       await http.encerrar();
     }
-    const pendente = await admitir();
+    const familia = await familiaSocial(15);
+    const proprio = await criarPerfilProprio(familia.autor, {
+      apelido: "Adulto da recuperação",
+      avatar: "sol",
+    });
+    const perfisSelecionados = [familia.perfil.id, proprio.perfil.id].sort();
+    for (const profileId of perfisSelecionados) {
+      const [key] = await db
+        .insert(keys)
+        .values({ profileId, gameId: "historico-privado", key: "progresso", revision: 1 })
+        .returning();
+      exigir(key, "DADOS_NATIVOS_AUSENTES");
+      const bytes = Buffer.from(`Dados sintéticos da seleção ${profileId}`);
+      try {
+        await db.insert(versions).values({
+          dataId: key.id,
+          profileId,
+          gameId: key.gameId,
+          baseRevision: 0,
+          revision: 1,
+          kind: "accepted",
+          bytes,
+          digest: createHash("sha256").update(bytes).digest("hex"),
+        });
+        await db.insert(achievements).values({
+          profileId,
+          gameId: key.gameId,
+          achievementId: "primeiro",
+          keyHash: createHash("sha256").update(profileId).digest("hex"),
+        });
+      } finally {
+        bytes.fill(0);
+      }
+    }
+    const pendente = await admitir(familia, false, perfisSelecionados);
     await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
     return {
       coordenadas: {
         livroId,
         operacaoId: pendente.operacaoId,
         contaId: pendente.contaId,
+        perfisSelecionados,
         anterior,
         provedor: { ...provedor, clienteStripeId },
         chaves: {

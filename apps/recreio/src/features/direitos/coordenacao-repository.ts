@@ -301,9 +301,7 @@ export async function conferirIntencaoDaCoordenacao(
     );
     if (op.kind === "encerrar_conta") {
       assertAllowed(
-        privado.financeiroAvaliado &&
-          lida.plano.formato === "recreio-previa-encerramento-v2" &&
-          lida.plano.perfis.length === 0,
+        privado.financeiroAvaliado && lida.plano.formato === "recreio-previa-encerramento-v2",
         "DIREITOS_INTEGRIDADE",
         "Encerramento privado fora do perfil qualificado.",
       );
@@ -784,8 +782,7 @@ export async function comOperacaoPrivadaDeDireitos<T>(
         assertAllowed(
           op.preparationId !== null &&
             op.recoverySourceId === null &&
-            lida.plano.formato === "recreio-previa-encerramento-v2" &&
-            lida.plano.perfis.length === 0,
+            lida.plano.formato === "recreio-previa-encerramento-v2",
           "DIREITOS_INTEGRIDADE",
           "Encerramento privado fora do perfil qualificado.",
         );

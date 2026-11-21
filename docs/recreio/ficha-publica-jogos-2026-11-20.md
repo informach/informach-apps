@@ -1,5 +1,12 @@
 # Ficha pública dos jogos
 
+Atualização operacional de 21/11, 03h56 UTC: `/jogos/morada` respondeu 200,
+com Morada, classificação em análise, convite e CSP presentes. A saúde do
+mesmo host confirmou portal 00326e46/deploy 38156f7d. A fonte pública foi
+incluída nessa promoção já verificada; os registros abaixo preservam os
+gates/limites anteriores à implantação. Esta leitura HTTP não substitui as
+jornadas integradas finais ou habilita entrada/venda.
+
 Candidata de 20/11; ainda sem gate ou implantação.
 
 O catálogo central `@informach/config/jogos` passa a exigir editorial nos jogos
