@@ -9,6 +9,7 @@ import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamen
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
 import { executarImagemDeDireitos } from "./rights-cli-apoio";
+import { prepararRetiradaParaImagem } from "./rights-native-apoio";
 
 function required(key: string) {
   const value = process.env[key];
@@ -107,15 +108,15 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
   async function list(ownedPrefix: string) {
     if (![prefix, missingPrefix].includes(ownedPrefix)) throw new Error("RIGHTS_IMAGE_PREFIX");
     const result = await cliente.send(
-      new ListObjectsV2Command({ Bucket: bucket, Prefix: ownedPrefix, MaxKeys: 10 }),
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: ownedPrefix, MaxKeys: 12 }),
     );
-    if (result.IsTruncated || (result.Contents?.length ?? 0) > 3)
+    if (result.IsTruncated || (result.Contents?.length ?? 0) > 11)
       throw new Error("RIGHTS_IMAGE_INVENTORY");
     return (result.Contents ?? [])
       .map((o) => {
         if (
           !o.Key?.startsWith(ownedPrefix) ||
-          !/^(?:cabecalho\.json|historico\/[0-9]{16}-[a-f0-9]{64}\.json)$/.test(
+          !/^(?:cabecalho\.json|historico\/[0-9]{16}-[a-f0-9]{64}\.json|planos\/[a-f0-9]{64}\.json|intencoes\/[a-f0-9-]{36}-[0-9]{1,16}\.json)$/.test(
             o.Key.slice(ownedPrefix.length),
           )
         )
@@ -156,6 +157,39 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     report.nativeIdleProcessingVerified = true;
     report.freshHeaderReads = 2;
     report.idleWrites = 0;
+    phase = "native_effect";
+    const withdrawal = await prepararRetiradaParaImagem({
+      assinatura,
+      storage,
+      fonte: required("GITHUB_SHA"),
+    });
+    let effectRounds = 0;
+    for (; effectRounds < 6; ) {
+      const rows = await executarImagemDeDireitos(env);
+      expect(rows).toHaveLength(1);
+      const result = z
+        .object({
+          formato: z.literal("recreio-direitos-rodada-v1"),
+          etapas: z.array(z.object({ etapa: z.string(), situacao: z.string() })).length(11),
+          review: z.literal(0),
+          limpezaConfirmada: z.literal(true),
+          leiturasLivro: z.number().int().positive(),
+          escritasLivro: z.number().int().nonnegative(),
+        })
+        .parse(rows[0]);
+      expect(result.etapas.every((e) => !["revisao", "falhou"].includes(e.situacao))).toBe(true);
+      effectRounds++;
+      if ((await withdrawal.estado())?.state === "completed") break;
+    }
+    await withdrawal.verificar();
+    expect((await storage.lerCabecalho()).documento.entradas).toBe(1);
+    report.nativeEffectsProven = true;
+    report.nativeConsentProfileWithdrawalVerified = true;
+    report.otherProfileAndProgressPreserved = true;
+    report.globalIdentitiesPreserved = true;
+    report.nativeCompletionAuditVerified = true;
+    report.nativeEffectRounds = effectRounds;
+    const beforeFreeze = await list(prefix);
     phase = "missing";
     const missing = await executarImagemDeDireitos(
       { ...env, RECREIO_RIGHTS_LEDGER_ID: missingId },
@@ -171,7 +205,7 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
       new Date().toISOString(),
     );
     const frozenInventory = await list(prefix);
-    expect(frozenInventory).toHaveLength(3);
+    expect(frozenInventory).toHaveLength(beforeFreeze.length + 1);
     const refused = await executarImagemDeDireitos(env, 1);
     expect(refused).toHaveLength(1);
     Falha.parse(refused[0]);
@@ -186,8 +220,12 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     }>(sql`
       select ok,finished_at is not null as finished,summary from ops.job_runs
       where app='recreio' and job='direitos' order by started_at,id`);
-    expect(runs).toHaveLength(4);
-    expect(runs.map((r) => r.ok)).toEqual([true, true, false, false]);
+    expect(runs).toHaveLength(4 + effectRounds);
+    expect(runs.map((r) => r.ok)).toEqual([
+      ...Array.from({ length: 2 + effectRounds }, () => true),
+      false,
+      false,
+    ]);
     expect(runs.every((r) => r.finished)).toBe(true);
     for (const run of runs.slice(0, 2))
       expect(run.summary).toMatchObject({

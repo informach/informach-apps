@@ -1,0 +1,21 @@
+{
+  "source": "ea1de467cd1372837fe41910f7d46dc5ef0387b7",
+  "runId": "44881504991",
+  "status": "passed",
+  "syntheticDataOnly": true,
+  "productionDataTouched": false,
+  "productionCredentialsUsed": false,
+  "trafficAuthorized": false,
+  "nativeEffectsProven": false,
+  "cleanupConfirmed": true,
+  "nativeIdleProcessingVerified": true,
+  "freshHeaderReads": 2,
+  "idleWrites": 0,
+  "absentBookRefusedWithoutBootstrap": true,
+  "frozenBookRefusedWithoutWrites": true,
+  "nativeJobOutcomesVerified": true,
+  "nativeJobCount": 4,
+  "anonymousReadDenied": true,
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44881504991",
+  "artifactSha256": "c25afe9ee74c32d8975eb48bd75b5cb14738a9e7c3905c0cee9dd4a3e49b9792"
+}

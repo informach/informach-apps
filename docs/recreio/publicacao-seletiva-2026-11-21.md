@@ -24,7 +24,9 @@ Este plano não declara publicação implementada ou tráfego recuperado liberad
    ausente não pode ser recriada para satisfazer a FK de `personal_exports`:
    aplicar o efeito de descarte correspondente no banco privado, conservando
    auditoria e os direitos permanentes. A conferência candidata apenas informa
-   a dependência; não executa esse descarte nem admite tráfego.
+   a dependência; não admite tráfego. A candidata seguinte descarta somente
+   recibos de download já revogados e sem corpo/referência no banco privado,
+   após a normalização de capacidades. Prova atômica/idempotente em andamento.
 4. Concluir conciliação atual de todos os pagantes/contratos e permissões, com
    evidência própria. O retrato de vínculos é descritivo; não é confirmação do
    Stripe, prova de pagamento, retomada de consentimento ou autorização de dados.
