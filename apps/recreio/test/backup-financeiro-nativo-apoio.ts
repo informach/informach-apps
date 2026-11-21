@@ -1,11 +1,6 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "@informach/db";
-import {
-  recreioProfileAchievements as achievements,
-  customers,
-  recreioProfileDataKeys as keys,
-  recreioProfileDataVersions as versions,
-} from "@informach/db/schema";
+import { customers } from "@informach/db/schema";
 import { criarProcessadorFinanceiroDoEncerramento } from "@/features/direitos/encerramento-financeiro-execucao-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
@@ -15,15 +10,13 @@ import { PedidoDePreparacaoDeDireitosSchema } from "@/features/direitos/preparac
 import { prepararEncerramentoNoBanco } from "@/features/direitos/preparacao-repository";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { consentirEncerramentoNoBanco } from "@/features/direitos/retirada-consentimento-repository";
-import { criarPerfilProprio } from "@/features/perfis/service";
 import { gravarPinNativo } from "@/features/protecao/repository";
 import { gerarHashDoPin } from "@/features/protecao/segredos";
 import { criarInventarioFinanceiroDeProva } from "../scripts/backup/inventario-financeiro-prova";
 import { exigir } from "../scripts/backup/provas-arquivos";
-import { prepararMundoDoEncerramento } from "./backup-encerramento-mundo-apoio";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { interromperPublicacaoDeEncerramento } from "./backup-publicacao-encerramento-apoio";
-import { familiaSocial } from "./social-apoio";
+import { prepararSelecaoDoEncerramento } from "./backup-selecao-encerramento-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
 /** Native synthetic closures: historical no-customer and closed-HTTP customer
@@ -152,53 +145,21 @@ export async function prepararFinanceiroNativoAnterior(
     } finally {
       await http.encerrar();
     }
-    const familia = await familiaSocial(15);
-    const proprio = await criarPerfilProprio(familia.autor, {
-      apelido: "Adulto A",
-      avatar: "sol",
-    });
-    const perfisSelecionados = [familia.perfil.id, proprio.perfil.id].sort();
-    const mundo = await prepararMundoDoEncerramento(
-      familia.autor,
-      familia.conta.email,
-      proprio.perfil.id,
-    );
-    for (const profileId of perfisSelecionados) {
-      const [key] = await db
-        .insert(keys)
-        .values({ profileId, gameId: "historico-privado", key: "progresso", revision: 1 })
-        .returning();
-      exigir(key, "DADOS_NATIVOS_AUSENTES");
-      const bytes = Buffer.from(`Dados sintéticos da seleção ${profileId}`);
-      try {
-        await db.insert(versions).values({
-          dataId: key.id,
-          profileId,
-          gameId: key.gameId,
-          baseRevision: 0,
-          revision: 1,
-          kind: "accepted",
-          bytes,
-          digest: createHash("sha256").update(bytes).digest("hex"),
-        });
-        await db.insert(achievements).values({
-          profileId,
-          gameId: key.gameId,
-          achievementId: "primeiro",
-          keyHash: createHash("sha256").update(profileId).digest("hex"),
-        });
-      } finally {
-        bytes.fill(0);
-      }
-    }
+    const { familia, perfisSelecionados, mundo } = await prepararSelecaoDoEncerramento();
     const pendente = await admitir(familia, false, perfisSelecionados);
     const publicacaoPendente = await admitir(undefined, true, [], true);
     publicacaoPendenteId = publicacaoPendente.operacaoId;
     const adultaPosterior = await adultoDoTeste();
     await gravarPinNativo(adultaPosterior.autor, await gerarHashDoPin("482731"));
+    const selecaoPosterior = await prepararSelecaoDoEncerramento();
     return {
       async publicar() {
         const posterior = await admitir(adultaPosterior);
+        const reciboSelecionado = await admitir(
+          selecaoPosterior.familia,
+          false,
+          selecaoPosterior.perfisSelecionados,
+        );
         await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
         return {
           livroId,
@@ -208,6 +169,11 @@ export async function prepararFinanceiroNativoAnterior(
           mundo,
           publicacaoPendente,
           posterior,
+          posteriorComSelecao: {
+            ...reciboSelecionado,
+            perfisSelecionados: selecaoPosterior.perfisSelecionados,
+            mundo: selecaoPosterior.mundo,
+          },
           anterior,
           provedor: { ...provedor, clienteStripeId },
           chaves: {

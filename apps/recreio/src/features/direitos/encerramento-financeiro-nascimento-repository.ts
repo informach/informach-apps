@@ -6,6 +6,23 @@ import type {
 } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import type { PlanoDeDireitos } from "./preparacao-contrato";
+
+/** One qualified provenance policy for financial/data factories and guards. */
+export function origemDeEncerramentoPrivadoPermitida(
+  op: typeof operations.$inferSelect,
+  plano: PlanoDeDireitos,
+) {
+  return (
+    plano.formato === "recreio-previa-encerramento-v2" &&
+    ((op.preparationId !== null && op.recoverySourceId === null) ||
+      (op.preparationId === null &&
+        op.recoverySourceId === op.id &&
+        plano.financeiro.clientes.length === 0 &&
+        plano.financeiro.comprasNaoEnviadas.length === 0 &&
+        plano.financeiro.trocasNaoEnviadas.length === 0))
+  );
+}
 
 /** Native financial preparation shares the actual consent timestamp. A lost
  * operation may instead receive a NEW pending row on recovery: that birth is

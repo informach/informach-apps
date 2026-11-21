@@ -1,6 +1,9 @@
 import { isDeepStrictEqual } from "node:util";
 import type postgres from "postgres";
-import { admitirEncerramentoNativoHistoricoRecuperado } from "../../src/features/direitos/admissao-recuperada-repository";
+import {
+  admitirEncerramentoHistoricoRecuperado,
+  admitirEncerramentoNativoHistoricoRecuperado,
+} from "../../src/features/direitos/admissao-recuperada-repository";
 import {
   comCoordenacaoPrivadaDeDireitos,
   comFinanceiroPrivadoDeEncerramento,
@@ -13,7 +16,10 @@ import { avaliarFinanceiroConfirmadoRecuperado } from "../../src/features/direit
 import { liberarProximoMundoDeDireitos } from "../../src/features/direitos/liberacao-mundo-repository";
 import { minimizarProximoPerfil } from "../../src/features/direitos/minimizacao-repository";
 import { expurgarProximaReferencia } from "../../src/features/direitos/referencias-retidas-repository";
-import { verificarEncerramentoNativoRecuperado } from "../../src/features/direitos/verificacao-recuperada-repository";
+import {
+  verificarEncerramentoHistoricoRecuperado,
+  verificarEncerramentoNativoRecuperado,
+} from "../../src/features/direitos/verificacao-recuperada-repository";
 import { AppError } from "../../src/lib/errors";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { inventariarBackup } from "./inventario";
@@ -27,19 +33,31 @@ import type { RetiradaNativaDeProva } from "./retirada-nativa-prova-contrato";
 export async function provarEncerramentoSelecionadoRecuperado(
   copia: postgres.Sql,
   config: Omit<Parameters<typeof comCoordenacaoPrivadaDeDireitos>[0], "banco" | "executar">,
-  dado: RetiradaNativaDeProva["financeiro"],
+  dado: Pick<
+    RetiradaNativaDeProva["financeiro"],
+    "operacaoId" | "contaId" | "perfisSelecionados" | "mundo"
+  >,
+  origemDaDecisao: "native" | "recovered" = "native",
 ) {
+  const admitir =
+    origemDaDecisao === "native"
+      ? admitirEncerramentoNativoHistoricoRecuperado
+      : admitirEncerramentoHistoricoRecuperado;
+  const verificar =
+    origemDaDecisao === "native"
+      ? verificarEncerramentoNativoRecuperado
+      : verificarEncerramentoHistoricoRecuperado;
   const [p0, p1] = [...dado.perfisSelecionados].sort();
   exigir(
     p0 && p1 && p0 !== p1 && !process.env.DATABASE_URL && !process.env.STRIPE_SECRET_KEY,
     "ENCERRAMENTO_SELECIONADO_DIVERGENTE",
   );
-  const parametros = [dado.operacaoId, dado.contaId, p0, p1];
+  const parametros = [dado.operacaoId, dado.contaId, p0, p1, origemDaDecisao];
   const lerOrigem = () =>
     copia.unsafe(
       `select to_jsonb(o)-array['state','completed_at','attempts','next_attempt_at','updated_at','lease_token','lease_until'] as operacao,to_jsonb(p) as preparacao,to_jsonb(f) as financeiro,
     (select count(*) from audit.events where actor_id=$2 and event_type='recreio.rights_consented') as consentimentos
-    from recreio.rights_operations o join recreio.rights_preparations p on p.id=o.preparation_id join recreio.account_closure_finances f on f.operation_id=o.id
+    from recreio.rights_operations o left join recreio.rights_preparations p on p.id=o.preparation_id join recreio.account_closure_finances f on f.operation_id=o.id
     where o.id=$1::uuid and o.requester_user_id=$2`,
       [dado.operacaoId, dado.contaId],
     );
@@ -63,6 +81,7 @@ export async function provarEncerramentoSelecionadoRecuperado(
   const [antes] = await copia.unsafe<{ valida: boolean }[]>(
     `select
     o.state='admitted' and f.state='confirmed' and f.result='no_customer' and p.state='closing' and p.revision=2
+    and (($5='native' and o.preparation_id is not null and o.recovery_source_id is null) or ($5='recovered' and o.preparation_id is null and o.recovery_source_id=o.id and f.created_at>o.consented_at))
     and (select count(*) from recreio.rights_subjects s where s.operation_id=o.id and s.profile_reference in ($3::uuid,$4::uuid) and s.phase='selected')=2
     and (select count(*) from recreio.profiles r where r.id in ($3::uuid,$4::uuid) and r.kind='adult' and r.user_id=$2)=1
     and (select count(*) from recreio.profiles r join recreio.guardian_links g on g.profile_id=r.id where r.id in ($3::uuid,$4::uuid) and r.kind='minor' and g.guardian_user_id=$2)=1
@@ -98,8 +117,8 @@ export async function provarEncerramentoSelecionadoRecuperado(
         }
         exigir(semAdmissao, "ENCERRAMENTO_SELECIONADO_DIVERGENTE");
         exigir(
-          (await admitirEncerramentoNativoHistoricoRecuperado(pai, dado.operacaoId)).situacao ===
-            "existente_nativa",
+          (await admitir(pai, dado.operacaoId)).situacao ===
+            (origemDaDecisao === "native" ? "existente_nativa" : "existente"),
           "ENCERRAMENTO_SELECIONADO_DIVERGENTE",
         );
         await comOperacaoPrivadaDeDireitos(pai, dado.operacaoId, async (filha) => {
@@ -134,14 +153,14 @@ export async function provarEncerramentoSelecionadoRecuperado(
             "ENCERRAMENTO_SELECIONADO_DIVERGENTE",
           );
         });
-        const primeira = await verificarEncerramentoNativoRecuperado(pai, dado.operacaoId);
+        const primeira = await verificar(pai, dado.operacaoId);
         const lerAvaliacao = () =>
           copia.unsafe(
             `select to_jsonb(e) as avaliacao from recreio.rights_recovery_evaluations e where run_id=$1 and operation_id=$2`,
             [config.execucaoId, dado.operacaoId],
           );
         const verificada = await lerAvaliacao();
-        const segunda = await verificarEncerramentoNativoRecuperado(pai, dado.operacaoId);
+        const segunda = await verificar(pai, dado.operacaoId);
         exigir(
           !primeira.jaVerificada &&
             segunda.jaVerificada &&
@@ -169,6 +188,7 @@ export async function provarEncerramentoSelecionadoRecuperado(
   );
   const [depois] = await copia.unsafe<{ valida: boolean }[]>(
     `select o.state='completed' and o.completed_at is not null and p.state='closed' and p.revision=3 and p.closed_at=o.completed_at
+    and (($5='native' and o.preparation_id is not null and o.recovery_source_id is null) or ($5='recovered' and o.preparation_id is null and o.recovery_source_id=o.id))
     and not exists(select 1 from recreio.rights_subjects s where s.operation_id=o.id and s.phase not in ('minimized','removed'))
     and not exists(select 1 from recreio.profiles r where r.id in ($3::uuid,$4::uuid) and (r.user_id is not null or r.group_id is not null or r.coverage_enabled or r.nickname<>'Perfil retirado' or r.avatar<>'padrao' or r.rights_operation_id is distinct from o.id))
     and not exists(select 1 from recreio.profile_data_keys k where k.profile_id in ($3::uuid,$4::uuid))

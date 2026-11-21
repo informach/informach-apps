@@ -60,3 +60,16 @@ atribuição documentada por recurso e custos externos da operação definitiva.
 A carga remota 1/2/4/8 é evidência de protocolo; não transforma esta amostra
 ociosa em capacidade Railway. Agenda/custódia de backup, RPO/RTO e atendimento
 continuam sujeitos aos demais aceites do fechamento.
+
+## Releitura de 21/11
+
+Às 05:03 UTC, a mesma consulta oficial retornou USD 0,433733 acumulados para
+portal, manutenção e executor de backup exclusivos do Recreio. Somando a
+referência Morada, USD 0,887916. Os componentes foram somados e comparados
+com os totais de cada serviço; [recibo](evidencias/custo-acumulado-railway-2026-11-21.json).
+Não se recalculou razão por atividade com denominador de outra janela. O
+executor de backup ainda apresenta USD 0,000023155278, sem memória discriminada;
+isso não comprova memória gratuita nem custo integral da restauração. Custos
+dos serviços de recuperação removidos e dos objetos não vieram discriminados.
+O bucket de arquivos continua com dois objetos/19.496.587 bytes. Rateio causal
+e preços mensais não foram presumidos a partir desses dados.

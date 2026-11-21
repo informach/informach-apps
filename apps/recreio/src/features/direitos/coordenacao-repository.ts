@@ -29,6 +29,7 @@ import {
   conferirPublicacaoNativaNaAvaliacao,
   conferirReciboDaAvaliacao,
 } from "./avaliacao-recuperada-repository";
+import { origemDeEncerramentoPrivadoPermitida } from "./encerramento-financeiro-nascimento-repository";
 import {
   conferirFinanceiroAtualRecuperadoLocked,
   type SeloFinanceiroRecuperado,
@@ -43,7 +44,6 @@ import type { criarArmazenamentoDoLivro } from "./livro/armazenamento";
 import type { criarAssinaturaDoLivro } from "./livro/assinatura";
 import { conferirPrefixoDoLivro } from "./livro/leitura";
 import { reaplicarPlanosConsentidos } from "./livro/reaplicacao-planos";
-import type { PlanoDeDireitos } from "./preparacao-contrato";
 
 export type CoordenacaoDeEfeitos = {
   assinatura: ReturnType<typeof criarAssinaturaDoLivro>;
@@ -76,22 +76,6 @@ type PublicacaoPendenteNoBackup = {
   intencaoSha256: string;
   revisao: number;
 };
-function origemDeEncerramentoPrivadoPermitida(
-  op: typeof operations.$inferSelect,
-  plano: PlanoDeDireitos,
-) {
-  return (
-    plano.formato === "recreio-previa-encerramento-v2" &&
-    ((op.preparationId !== null && op.recoverySourceId === null) ||
-      (op.preparationId === null &&
-        op.recoverySourceId === op.id &&
-        plano.perfis.length === 0 &&
-        plano.mundos.length === 0 &&
-        plano.financeiro.clientes.length === 0 &&
-        plano.financeiro.comprasNaoEnviadas.length === 0 &&
-        plano.financeiro.trocasNaoEnviadas.length === 0))
-  );
-}
 function correspondePublicacaoPendente(
   op: typeof operations.$inferSelect,
   anterior: PublicacaoPendenteNoBackup,

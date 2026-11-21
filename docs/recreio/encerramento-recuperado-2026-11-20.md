@@ -261,6 +261,23 @@ O livro sintético passa a cinco decisões, 30 objetos de direitos/34 totais.
 Este perfil não qualifica decisão ausente com jogadores, cliente Stripe ou
 mundo, nem elimina a conciliação global/financeira atual e a publicação seletiva.
 
+9f44950f passou qualidade 44868793013, direitos 44868798804, conciliação
+44868802128 e cluster frio 44868795994. Consentimento posterior sem jogadores,
+origem recuperada, fila sem retroagir a data, rollback P7782, recusa da entrada
+nativa e recibo terminal passaram. Limpeza dos 34 objetos e clusters conferida.
+[Recibo](evidencias/encerramento-ausente-44868795994.json).
+
+A ampliação em candidata inclui outra seleção adulto/menor e mundo de terceiro,
+todos criados antes da captura, com consentimento somente depois. A preparação
+recuperada confere cadastros/responsabilidades e o mapa integral, congela a
+seleção e conserva a avaliação sem prontidão até o financeiro atual. Uma falha
+P7783 deve reverter perfis, mundo, sujeitos, barreira e fila juntos. A prova
+também acrescenta uma referência a mundo fora do plano e simula a necessidade
+de resolver a responsabilidade do mundo: ambas devem exigir revisão, sem
+inventar aceite. Cliente Stripe e pendências de compra/troca ainda são recusados.
+O livro passa a seis decisões, 33 objetos de direitos/37 totais. Os resultados
+anteriores continuam vinculados às fontes e aos perfis efetivamente testados.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

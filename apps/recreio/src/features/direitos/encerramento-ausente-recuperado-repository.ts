@@ -1,14 +1,18 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import { logAuditEventStrict } from "@informach/auth/audit";
-import { and, eq, sql } from "@informach/db";
+import { and, eq, inArray, sql } from "@informach/db";
 import {
   recreioRightsRecoveryEvaluations as evaluations,
   recreioAccountClosureFinances as finances,
+  recreioGuardianLinks as guardians,
   recreioRightsOperations as operations,
   recreioAccountParticipations as participations,
+  recreioProfiles as profiles,
   recreioRightsRecoveryRuns as runs,
   recreioRightsRecoverySources as sources,
+  recreioSpaces as spaces,
+  recreioRightsSubjects as subjects,
   users,
 } from "@informach/db/schema";
 import { ContaIdSchema } from "@informach/recreio";
@@ -24,12 +28,17 @@ import {
 } from "./coordenacao-repository";
 import { conferirNascimentoFinanceiroDoEncerramento } from "./encerramento-financeiro-nascimento-repository";
 import { lerOrigemFinanceiraDoEncerramentoLocked } from "./encerramento-origem-financeira-repository";
+import { conferirMapaHistoricoDeMundos } from "./fonte-intencao-repository";
 import { resumoDoRegistro } from "./livro/assinatura";
 import { conferirEscopoDoPlanoExterno } from "./livro/plano-externo";
 import { lerPlanoDeDireitos } from "./plano-persistido";
+import {
+  congelarSelecaoDeDireitos,
+  inspecionarDrenagemDaSelecao,
+} from "./selecao-congelamento-repository";
 
 /** Lost operation, authenticated consent: initial qualified profile is an
- * existing account with zero players/worlds and no Stripe customer. Does not
+ * existing account and no Stripe customer. Does not
  * create identity/native preparation, backdate finance, mark data readiness,
  * or infer the absence of current global/provider changes. */
 export async function prepararEncerramentoAusenteRecuperado(
@@ -108,15 +117,13 @@ export async function prepararEncerramentoAusenteRecuperado(
       conferirEscopoDoPlanoExterno(i, plano);
       assertAllowed(
         plano.formato === "recreio-previa-encerramento-v2" &&
-          plano.perfis.length === 0 &&
-          plano.mundos.length === 0 &&
-          avaliacao.worldMap.length === 0 &&
           plano.financeiro.clientes.length === 0 &&
           plano.financeiro.comprasNaoEnviadas.length === 0 &&
           plano.financeiro.trocasNaoEnviadas.length === 0,
         "DIREITOS_DEPENDENCIA",
         "O encerramento ausente exige conciliação fora deste perfil.",
       );
+      const mapa = await conferirMapaHistoricoDeMundos(tx, plano, avaliacao.worldMap);
       await serializarContaNativa(tx, ContaIdSchema.parse(i.contaId));
       const [conta] = await tx
         .select({ id: users.id })
@@ -173,14 +180,84 @@ export async function prepararEncerramentoAusenteRecuperado(
         "DIREITOS_DEPENDENCIA",
         "A participação do backup exige conciliação.",
       );
+      const ids = plano.perfis.map((p) => p.id),
+        idsMundos = mapa.filter((m) => m.mundoVivoId !== null).map((m) => m.mundoReferencia);
+      const perfisSql = sql`array[${sql.join(
+        ids.map((p) => sql`${p}::uuid`),
+        sql`, `,
+      )}]::uuid[]`;
+      const mundosSql = sql`array[${sql.join(
+        plano.mundos.map((m) => sql`${m.id}::uuid`),
+        sql`, `,
+      )}]::uuid[]`;
       const [perfil] = await tx.execute(
-        sql`select 1 from recreio.profiles p where p.user_id=${i.contaId} or exists(select 1 from recreio.guardian_links g where g.profile_id=p.id and g.guardian_user_id=${i.contaId}) limit 1`,
+        sql`select 1 from recreio.profiles p where not(p.id=any(${perfisSql})) and (p.user_id=${i.contaId} or exists(select 1 from recreio.guardian_links g where g.profile_id=p.id and g.guardian_user_id=${i.contaId})) limit 1`,
       );
       assertAllowed(
         !perfil,
         "DIREITOS_DEPENDENCIA",
         "O backup contém perfis pessoais fora da seleção histórica.",
       );
+      const [extra] = await tx.execute(
+        sql`select 1 from recreio.spaces w where not(w.id=any(${mundosSql})) and (w.steward_profile_id=any(${perfisSql}) or w.created_by_profile_id=any(${perfisSql}) or exists(select 1 from recreio.space_members m where m.space_id=w.id and m.profile_id=any(${perfisSql})) or exists(select 1 from recreio.profile_world_traces t where t.space_id=w.id and t.profile_id=any(${perfisSql}))) limit 1`,
+      );
+      assertAllowed(
+        !extra,
+        "DIREITOS_DEPENDENCIA",
+        "O backup contém mundo pessoal fora da seleção histórica.",
+      );
+      const mundos = idsMundos.length
+        ? await tx
+            .select()
+            .from(spaces)
+            .where(inArray(spaces.id, idsMundos))
+            .orderBy(spaces.id)
+            .for("update")
+        : [];
+      const alvos = ids.length
+        ? await tx
+            .select()
+            .from(profiles)
+            .where(inArray(profiles.id, ids))
+            .orderBy(profiles.id)
+            .for("update")
+        : [];
+      const vinculos = ids.length
+        ? await tx
+            .select()
+            .from(guardians)
+            .where(inArray(guardians.profileId, ids))
+            .orderBy(guardians.profileId)
+            .for("share")
+        : [];
+      assertAllowed(
+        alvos.every(
+          (p) =>
+            p.rightsOperationId === null &&
+            plano.perfis.some(
+              (s) =>
+                s.id === p.id &&
+                s.tipo === p.kind &&
+                p.policyVersion <= s.versao &&
+                (p.kind === "adult"
+                  ? p.userId === i.contaId
+                  : vinculos.some(
+                      (g) =>
+                        g.profileId === p.id &&
+                        g.id === s.responsabilidadeId &&
+                        g.guardianUserId === i.contaId,
+                    )),
+            ),
+        ),
+        "DIREITOS_DEPENDENCIA",
+        "O cadastro do backup exige conciliação antes da retirada.",
+      );
+      assertAllowed(
+        mundos.every((m) => !ids.some((p) => p === m.stewardProfileId)),
+        "DIREITOS_DEPENDENCIA",
+        "A responsabilidade pelo mundo exige conciliação e aceite próprios.",
+      );
+      const drenando = await inspecionarDrenagemDaSelecao(tx, ids, mundos);
       const origem = await lerOrigemFinanceiraDoEncerramentoLocked(tx, plano);
       assertAllowed(
         !origem.cliente && !origem.checkout && origem.assinaturas.length === 0,
@@ -214,6 +291,22 @@ export async function prepararEncerramentoAusenteRecuperado(
         })
         .returning();
       assertAllowed(op, "DIREITOS_INTEGRIDADE", "Admissão histórica indisponível.");
+      await congelarSelecaoDeDireitos(tx, { operacaoId: id, plano, alvos, mundos, drenando });
+      const ausentes = plano.perfis.filter((s) => !alvos.some((p) => p.id === s.id));
+      if (ausentes.length)
+        await tx.insert(subjects).values(
+          ausentes.map((s) => ({
+            operationId: id,
+            profileReference: s.id,
+            liveProfileId: null,
+            policyVersion: s.versao,
+            guardianReference: s.responsabilidadeId,
+            phase: "removed" as const,
+            minimizedAt: AGORA,
+            completedAt: AGORA,
+            retentionPolicyVersion: "perfil-2026-11-19" as const,
+          })),
+        );
       const [relogio] = await tx.execute<{ agora: string }>(
         sql`select clock_timestamp()::text as agora`,
       );
@@ -275,10 +368,10 @@ export async function prepararEncerramentoAusenteRecuperado(
           app: "recreio",
           operationId: id,
           kind: i.tipo,
-          profileCount: 0,
-          worldCount: 0,
-          absentProfileCount: 0,
-          absentWorldCount: 0,
+          profileCount: ids.length,
+          worldCount: mapa.length,
+          absentProfileCount: ausentes.length,
+          absentWorldCount: mapa.filter((m) => m.mundoVivoId === null).length,
         },
         { writer: tx },
       );

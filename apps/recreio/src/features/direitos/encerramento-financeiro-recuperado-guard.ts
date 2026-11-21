@@ -11,6 +11,7 @@ import {
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { conferirFinanceiroDosEfeitos } from "./encerramento-efeitos-repository";
+import { origemDeEncerramentoPrivadoPermitida } from "./encerramento-financeiro-nascimento-repository";
 import { lerOrigemFinanceiraDoEncerramentoLocked } from "./encerramento-origem-financeira-repository";
 import type { PlanoDeDireitos } from "./preparacao-contrato";
 
@@ -40,11 +41,7 @@ export async function conferirFinanceiroAtualRecuperadoLocked(
 ) {
   assertAllowed(
     op.kind === "encerrar_conta" &&
-      ((op.preparationId !== null && op.recoverySourceId === null) ||
-        (op.preparationId === null &&
-          op.recoverySourceId === op.id &&
-          plano.perfis.length === 0 &&
-          plano.mundos.length === 0)) &&
+      origemDeEncerramentoPrivadoPermitida(op, plano) &&
       plano.formato === "recreio-previa-encerramento-v2",
     "DIREITOS_INTEGRIDADE",
     "Encerramento financeiro histórico fora do perfil qualificado.",

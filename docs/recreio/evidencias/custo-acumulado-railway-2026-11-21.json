@@ -1,0 +1,60 @@
+{
+  "format": "recreio-measured-cost-v1",
+  "collectedAt": "2026-11-21T05:03:20.677788+00:00",
+  "source": "Railway CLI 5.62.1 usage projects current",
+  "billingPeriod": {
+    "end": "2026-12-09T10:40:03+00:00",
+    "start": "2026-11-09T10:40:03+00:00"
+  },
+  "currency": "USD",
+  "rawSha256": "d3edb693f5dc2fd5e78d207c6964f69c32289c8a46ef0733f4a1d014312f7245",
+  "services": [
+    {
+      "role": "morada_reference",
+      "serviceId": "b294fe7c-b96b-4ca5-bfa5-191a7d574f08",
+      "cpuDollars": 0.006666671527777778,
+      "memoryDollars": 0.4444722564424692,
+      "egressDollars": 0.0009459909500000001,
+      "volumeDollars": 0.0020984840289612647,
+      "backupDollars": 0,
+      "totalDollars": 0.4541834029492082
+    },
+    {
+      "role": "portal",
+      "serviceId": "fd21f44e-43d9-4ac0-a125-7a379df8d486",
+      "cpuDollars": 0.007228979760802469,
+      "memoryDollars": 0.42315353179654325,
+      "egressDollars": 0.0033255828000000004,
+      "volumeDollars": 0,
+      "backupDollars": 0,
+      "totalDollars": 0.4337080943573457
+    },
+    {
+      "role": "backup",
+      "serviceId": "ad5d43d0-616c-4618-9f12-915b8b971d8c",
+      "cpuDollars": 2.315527777777778e-5,
+      "memoryDollars": 0,
+      "egressDollars": 0,
+      "volumeDollars": 0,
+      "backupDollars": 0,
+      "totalDollars": 2.315527777777778e-5
+    },
+    {
+      "role": "maintenance",
+      "serviceId": "3f5f0383-dc4f-4bb8-b127-cfcd1de8de78",
+      "cpuDollars": 1.460108024691358e-6,
+      "memoryDollars": 0,
+      "egressDollars": 0,
+      "volumeDollars": 0,
+      "backupDollars": 0,
+      "totalDollars": 1.460108024691358e-6
+    }
+  ],
+  "recreioExclusiveTotalDollars": 0.43373270974314815,
+  "withMoradaReferenceTotalDollars": 0.8879161126923564,
+  "causalSharedAllocationMeasured": false,
+  "storageCostDiscriminated": false,
+  "deletedRecoveryServiceCostDiscriminated": false,
+  "invoiceSettled": false,
+  "monthlyProjection": false
+}

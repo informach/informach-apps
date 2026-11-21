@@ -52,7 +52,7 @@ export async function admitirEncerramentoNativoHistoricoRecuperado(
 ) {
   return admitirDecisaoHistoricaRecuperada(config, entrada, "encerrar_conta");
 }
-/** A separately materialized lost zero-player closure. Never creates its
+/** A separately materialized lost closure. Never creates its
  * participation/financial preparation or pretends a native SQL consent exists. */
 export async function admitirEncerramentoHistoricoRecuperado(
   config: CoordenacaoDeEfeitos,
@@ -196,10 +196,7 @@ async function admitirDecisaoHistoricaRecuperada(
             anterior.kind === "encerrar_conta" &&
             (origemEncerramento === "native"
               ? anterior.preparationId !== null && anterior.recoverySourceId === null
-              : anterior.preparationId === null &&
-                anterior.recoverySourceId === anterior.id &&
-                plano.perfis.length === 0 &&
-                plano.mundos.length === 0) &&
+              : anterior.preparationId === null && anterior.recoverySourceId === anterior.id) &&
             ["admitted", "running", "completed"].includes(anterior.state) &&
             plano.formato === "recreio-previa-encerramento-v2",
           "DIREITOS_INTEGRIDADE",
