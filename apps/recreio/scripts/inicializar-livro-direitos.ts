@@ -51,6 +51,8 @@ async function main() {
       requestChecksumCalculation: "WHEN_REQUIRED",
       responseChecksumValidation: "WHEN_REQUIRED",
     });
+    let leiturasDeObjeto = 0,
+      tentativasDeEscrita = 0;
     cliente.middlewareStack.add(
       (next, contexto) => async (args) => {
         const input = z.object({ Bucket: z.string(), Key: z.string() }).parse(args.input);
@@ -67,6 +69,8 @@ async function main() {
           )
         )
           throw new Error("Initialization request outside fixed book");
+        if (contexto.commandName === "GetObjectCommand") leiturasDeObjeto++;
+        if (contexto.commandName === "PutObjectCommand") tentativasDeEscrita++;
         return next(args);
       },
       { step: "initialize", name: "recreioExplicitLedgerInitialization" },
@@ -95,6 +99,10 @@ async function main() {
         estado: head?.documento.estado ?? null,
         epoca: head?.documento.epoca ?? null,
         entradas: head?.documento.entradas ?? null,
+        cabecalhoSha256: head?.sha256 ?? null,
+        cabecalhoAtualizadoEm: head?.documento.atualizadoEm ?? null,
+        leiturasDeObjeto,
+        tentativasDeEscrita,
         efeitosPessoaisAplicados: false,
         trafegoAutorizado: false,
       }),
