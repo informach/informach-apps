@@ -22,6 +22,7 @@ import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { provarEncerramentoNativoRecuperado } from "./provar-encerramento-nativo-recuperado";
 import { provarEncerramentoSelecionadoRecuperado } from "./provar-encerramento-selecionado-recuperado";
 import { provarInventarioFinanceiroRecuperado } from "./provar-inventario-financeiro-recuperado";
+import { provarReciboDosDireitosNativos } from "./provar-recibo-direitos-nativos";
 import { exigir } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
 
@@ -262,7 +263,13 @@ export async function provarFinanceiroRecuperado(config: {
       { ...comum, execucaoId: importacao.execucaoId },
       dado,
     );
+    const recibo = await provarReciboDosDireitosNativos(
+      copia,
+      { ...comum, execucaoId: importacao.execucaoId },
+      dado,
+    );
     return {
+      ...recibo,
       ...selecionado,
       ...encerramento,
       ...inventario,

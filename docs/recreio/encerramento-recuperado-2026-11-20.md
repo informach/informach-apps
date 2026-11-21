@@ -198,6 +198,19 @@ execução, com auditoria estrita e repetição que preserva a primeira data.
 Uma falha real P7778 na auditoria deve reverter esse avanço. Isso ainda não é
 recibo terminal do livro, rotação, identidade atual ou admissão de tráfego.
 
+623905dd passou qualidade 44865826161, direitos 44865828905, conciliação
+44865831361 e cluster frio 44865823657: avaliações individuais verificadas,
+primeira data preservada e rollback real P7778, com limpeza dos 28 objetos.
+
+O próximo candidato conclui as três decisões nativas desse livro sintético
+e verifica seu recibo terminal ampliado. A entrada antiga continua restrita
+a retiradas; a nova inclui financeiro atual e pós-condições dos encerramentos.
+Uma execução incompleta deve recusar a confirmação. Falha real P7779 na
+auditoria deve reverter estado e recibo antes de uma repetição válida.
+O escopo fecha depois da confirmação e conserva tráfego não autorizado.
+Este perfil ainda não cobre encerramento com mundo, decisão ausente/publishing,
+identidade atual ou publicação seletiva; não declara recuperação integral.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

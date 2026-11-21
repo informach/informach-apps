@@ -18,16 +18,69 @@ import {
   type CoordenacaoDeEfeitos,
   comOperacaoPrivadaDeDireitos,
   comVerificacaoFinalPrivada,
+  conferirAdmissaoPersistidaDaCoordenacao,
   conferirCoordenacaoDeDireitos,
   conferirIntencaoDaCoordenacao,
   dadosDaCoordenacaoPrivada,
 } from "./coordenacao-repository";
 import { conferirDadosDaContaEncerrada } from "./encerramento-conta-lotes-repository";
+import { conferirFinanceiroAtualRecuperadoLocked } from "./encerramento-financeiro-recuperado-guard";
 
 async function limitar(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
   await tx.execute(sql`set local lock_timeout='2s'`);
   await tx.execute(sql`set local transaction_timeout='15s'`);
+}
+async function conferirEncerramentoConcluidoLocked(
+  tx: Transacao,
+  op: typeof operations.$inferSelect,
+) {
+  assertAllowed(
+    op.kind === "encerrar_conta" &&
+      op.state === "completed" &&
+      op.completedAt !== null &&
+      op.leaseToken === null &&
+      op.leaseUntil === null,
+    "DIREITOS_DEPENDENCIA",
+    "O encerramento histórico ainda precisa terminar.",
+  );
+  const alvos = await tx
+    .select()
+    .from(subjects)
+    .where(eq(subjects.operationId, op.id))
+    .orderBy(subjects.profileReference)
+    .for("share");
+  await conferirConclusaoDosPerfis(tx, op, alvos);
+  const [restante] =
+    await tx.execute(sql`select 1 from recreio.rights_subjects s where s.operation_id=${op.id}::uuid and (
+    exists(select 1 from recreio.profile_data_keys k where k.profile_id=s.profile_reference) or
+    exists(select 1 from recreio.profile_data_versions v where v.profile_id=s.profile_reference) or
+    exists(select 1 from recreio.profile_achievements a where a.profile_id=s.profile_reference)) limit 1`);
+  assertAllowed(
+    !restante,
+    "DIREITOS_INTEGRIDADE",
+    "Persistem dados pessoais da seleção encerrada.",
+  );
+  const [conta] = await tx
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(eq(users.id, op.requesterUserId));
+  const [participacao] = await tx
+    .select()
+    .from(participations)
+    .where(
+      and(eq(participations.userId, op.requesterUserId), eq(participations.operationId, op.id)),
+    )
+    .for("share");
+  assertAllowed(
+    conta &&
+      participacao?.state === "closed" &&
+      participacao.revision === 3 &&
+      participacao.closedAt?.getTime() === op.completedAt.getTime(),
+    "DIREITOS_INTEGRIDADE",
+    "A participação não confirma o encerramento histórico.",
+  );
+  await conferirDadosDaContaEncerrada(tx, conta);
 }
 
 /** Verifies a completed original native closure, not an interactive consent.
@@ -59,43 +112,7 @@ export async function verificarEncerramentoNativoRecuperado(
         "O encerramento histórico ainda precisa terminar.",
       );
       await conferirIntencaoDaCoordenacao(tx, op, filha);
-      const alvos = await tx
-        .select()
-        .from(subjects)
-        .where(eq(subjects.operationId, op.id))
-        .orderBy(subjects.profileReference)
-        .for("share");
-      await conferirConclusaoDosPerfis(tx, op, alvos);
-      const [restante] =
-        await tx.execute(sql`select 1 from recreio.rights_subjects s where s.operation_id=${op.id}::uuid and (
-      exists(select 1 from recreio.profile_data_keys k where k.profile_id=s.profile_reference) or
-      exists(select 1 from recreio.profile_data_versions v where v.profile_id=s.profile_reference) or
-      exists(select 1 from recreio.profile_achievements a where a.profile_id=s.profile_reference)) limit 1`);
-      assertAllowed(
-        !restante,
-        "DIREITOS_INTEGRIDADE",
-        "Persistem dados pessoais da seleção encerrada.",
-      );
-      const [conta] = await tx
-        .select({ id: users.id, email: users.email })
-        .from(users)
-        .where(eq(users.id, op.requesterUserId));
-      const [participacao] = await tx
-        .select()
-        .from(participations)
-        .where(
-          and(eq(participations.userId, op.requesterUserId), eq(participations.operationId, op.id)),
-        )
-        .for("share");
-      assertAllowed(
-        conta &&
-          participacao?.state === "closed" &&
-          participacao.revision === 3 &&
-          participacao.closedAt?.getTime() === op.completedAt.getTime(),
-        "DIREITOS_INTEGRIDADE",
-        "A participação não confirma o encerramento histórico.",
-      );
-      await conferirDadosDaContaEncerrada(tx, conta);
+      await conferirEncerramentoConcluidoLocked(tx, op);
       const [avaliacao] = await tx
         .select()
         .from(evaluations)
@@ -204,6 +221,18 @@ export async function verificarRetiradaRecuperada(
  * traffic, settle finance, normalize current identities, rotate credentials or
  * declare the complete production recovery verified. */
 export async function verificarReaplicacaoDeRetiradas(config: CoordenacaoDeEfeitos) {
+  return verificarReaplicacao(config, "retiradas");
+}
+/** Extended replay receipt includes current native closure financial evidence.
+ * No identity reconciliation, provider settlement or traffic admission is
+ * inferred from it. The withdrawal-only entry retains its original scope/hash. */
+export async function verificarReaplicacaoDeDireitos(config: CoordenacaoDeEfeitos) {
+  return verificarReaplicacao(config, "direitos");
+}
+async function verificarReaplicacao<T extends "retiradas" | "direitos">(
+  config: CoordenacaoDeEfeitos,
+  escopo: T,
+) {
   return comVerificacaoFinalPrivada(config, async (dados) => {
     const head = await dados.storage.lerCabecalho(dados.signal);
     assertAllowed(
@@ -229,9 +258,13 @@ export async function verificarReaplicacaoDeRetiradas(config: CoordenacaoDeEfeit
         select o.id from recreio.rights_operations o join recreio.rights_recovery_evaluations e
           on e.operation_id=o.id where e.run_id=${run.id}::uuid order by o.id for update of o
         ) locked`);
+      const tipoNaoPermitido =
+        escopo === "retiradas"
+          ? sql`e.kind<>'retirar_perfil'`
+          : sql`e.kind not in ('retirar_perfil','encerrar_conta')`;
       const [pendente] = await tx.execute(sql`select 1 from recreio.rights_recovery_evaluations e
         left join recreio.rights_operations o on o.id=e.operation_id
-        where e.run_id=${run.id}::uuid and (e.kind<>'retirar_perfil' or e.state<>'verified' or
+        where e.run_id=${run.id}::uuid and ((${tipoNaoPermitido}) or e.state<>'verified' or
           e.verified_at is null or o.id is null or o.kind<>e.kind or o.ledger_id<>e.ledger_id or
           o.requester_user_id<>e.requester_reference or o.plan_sha256<>e.plan_sha256 or
           o.state<>'completed' or o.completed_at is null or o.lease_token is not null or o.lease_until is not null or
@@ -247,16 +280,39 @@ export async function verificarReaplicacaoDeRetiradas(config: CoordenacaoDeEfeit
         "DIREITOS_DEPENDENCIA",
         "Ainda existem decisões ou retenções pendentes.",
       );
+      if (escopo === "direitos") {
+        const encerramentos = await tx
+          .select({ op: operations })
+          .from(operations)
+          .innerJoin(evaluations, eq(evaluations.operationId, operations.id))
+          .where(and(eq(evaluations.runId, run.id), eq(operations.kind, "encerrar_conta")))
+          .orderBy(operations.id);
+        for (const { op } of encerramentos) {
+          const lida = await conferirAdmissaoPersistidaDaCoordenacao(tx, config, op);
+          conferirReciboDaAvaliacao(lida.avaliacao, op);
+          await conferirFinanceiroAtualRecuperadoLocked(tx, op, lida.plano, {
+            execucaoId: run.id,
+            cercaSha256: dados.cerca,
+          });
+          await conferirEncerramentoConcluidoLocked(tx, op);
+        }
+      }
+      const financeiro =
+        escopo === "direitos"
+          ? sql`||jsonb_build_object('finances',coalesce((select jsonb_agg(jsonb_build_array(f.operation_id,f.requester_reference,f.plan_sha256,f.provider_mode,
+        f.attempts,f.attempt_token,f.source_sha256,f.historical_confirmation_sha256,f.result,f.observation_sha256,f.receipt_sha256,f.attempted_at,f.observed_at) order by f.operation_id)
+        from recreio.rights_recovery_finances f where f.run_id=${run.id}::uuid),'[]'::jsonb))`
+          : sql``;
       const [resumo] = await tx.execute<{
         quantidade: number;
         sha256: string;
       }>(sql`select count(*)::int as quantidade,
-        encode(sha256(convert_to(jsonb_build_object('runId',${run.id}::text,'capture',${run.captureSha256}::text,
-          'fence',${run.frozenHeadSha256}::text,'source',${run.source}::text,'scope','withdrawals',
+        encode(sha256(convert_to((jsonb_build_object('runId',${run.id}::text,'capture',${run.captureSha256}::text,
+          'fence',${run.frozenHeadSha256}::text,'source',${run.source}::text,'scope',${escopo === "retiradas" ? "withdrawals" : "native-rights-v2"}::text,
           'evaluations',coalesce(jsonb_agg(jsonb_build_array(e.operation_id,e.ledger_id,e.requester_reference,
             e.kind,e.plan_sha256,e.origin,e.preparation_reference,e.recovery_source_reference,e.admitted_head_sha256,
             e.intent_sha256,e.ready_at,e.verified_at,encode(sha256(convert_to(e.world_map::text,'UTF8')),'hex'))
-            order by e.operation_id),'[]'::jsonb))::text,'UTF8')),'hex') as sha256
+            order by e.operation_id),'[]'::jsonb)) ${financeiro})::text,'UTF8')),'hex') as sha256
         from recreio.rights_recovery_evaluations e where e.run_id=${run.id}::uuid`);
       assertAllowed(
         resumo &&
@@ -280,7 +336,7 @@ export async function verificarReaplicacaoDeRetiradas(config: CoordenacaoDeEfeit
         execucaoId: run.id,
         reciboSha256: resumo.sha256,
         operacoesVerificadas: resumo.quantidade,
-        escopo: "retiradas" as const,
+        escopo,
         trafegoAutorizado: false as const,
       };
     });
