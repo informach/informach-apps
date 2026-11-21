@@ -140,7 +140,7 @@ export async function prepararFinanceiroNativoAnterior(
     }
     const familia = await familiaSocial(15);
     const proprio = await criarPerfilProprio(familia.autor, {
-      apelido: "Adulto da recuperação",
+      apelido: "Adulto A",
       avatar: "sol",
     });
     const perfisSelecionados = [familia.perfil.id, proprio.perfil.id].sort();
