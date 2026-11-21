@@ -49,30 +49,7 @@ async function agoraDoBanco(tx: Transacao, paganteId: string, modo: StripeMode) 
   return linha.agora;
 }
 
-/** Caller holds the financial lifecycle and has admitted this exact payer/group.
- * No provider call. Checkout admission and this durable scheduling are atomic.
- */
-export async function agendarConciliacaoDaCompra(
-  tx: Transacao,
-  entrada: {
-    paganteId: string;
-    grupoId: string;
-    modo: StripeMode;
-  },
-) {
-  await tx
-    .insert(jobs)
-    .values({
-      payerUserId: entrada.paganteId,
-      groupId: entrada.grupoId,
-      providerMode: entrada.modo,
-    })
-    .onConflictDoUpdate({
-      target: [jobs.payerUserId, jobs.providerMode],
-      set: { nextAttemptAt: AGORA, updatedAt: AGORA },
-      setWhere: eq(jobs.groupId, entrada.grupoId),
-    });
-}
+export { agendarConciliacaoDaCompra } from "./conciliacao-agendamento-repository";
 
 /** One lease at a time: a worker does not reserve a batch it cannot process.
  * SKIP LOCKED and the due index leave other payers available to other workers.

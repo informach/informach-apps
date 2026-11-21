@@ -331,3 +331,9 @@ avaliação financeira atual, efeitos de conta e verificação individual. Não
 qualifica pagamento real nem encerramento ausente com contrato. O livro passa
 a 39 objetos de direitos/43 totais; as coordenadas estritamente tipadas da prova
 CI têm limite de 8 KiB. Publicação seletiva e identidade atual seguem pendentes.
+
+O build de 5b37b993 em 44875155270 recusou importar a composição de login pelo
+agendamento da conciliação, antes de executar a captura. O agendamento foi
+separado como escrita puramente transacional, mantendo a API dos consumidores
+normais. O executor privado importa só essa parte; a fronteira que recusa
+Better Auth no recuperador permanece obrigatória.

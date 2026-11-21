@@ -29,7 +29,7 @@ import {
 } from "@/features/grupo/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
-import { agendarConciliacaoDaCompra } from "./conciliacao-fila-repository";
+import { agendarConciliacaoDaCompra } from "./conciliacao-agendamento-repository";
 
 type Linha = typeof cancellations.$inferSelect;
 const RESERVADA = Symbol("recreio.renewal.reserved");
