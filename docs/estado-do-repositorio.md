@@ -12,8 +12,9 @@ pagante pode não jogar. Testes pesados somente no GitHub, testes humanos soment
 no final. Não repetir pedidos de hardware, transferência ou orçamento já adiados.
 [Critérios completos](recreio/fechamento-plataforma-2026-11-16.md).
 
-**Produção:** portal 00326e46, PostgreSQL 0243/244 recibos (migração separada
-01eb6833 em 20/11, com os 204 recibos originais preservados), Morada 644b3841,
+**Produção:** portal 00326e46, PostgreSQL 0244/245 recibos e 81 tabelas
+(migrador separado 2c2d021f em 21/11, com os 244 recibos anteriores e os
+204 originais preservados), Morada 644b3841,
 alfa fechado. Preview 01eb6833/0243 com portal nativo v2, saúde/prontidão 200.
 Backup cifrado real/restauração independente/cron conferidos. A sonda separada
 do backup respondeu 200; os três alvos externos passaram 44854004010.
@@ -44,7 +45,8 @@ fonte **44824438593** passou; a33e94b7 passou o CI completo
 [Frente e provas](recreio/reaplicacao-nativa-2026-11-20.md).
 
 **Recuperação financeira candidata:** 0244 gerada/adotada intacta em
-44861054095, 245 recibos/81 tabelas; não aplicada em produção/preview.
+44861054095, 245 recibos/81 tabelas; aplicada separadamente em produção em 21/11
+após duas cópias reais 244→245. Preview permanece 0243/244.
 42d0ecf9 passou qualidade 44862812450 e cluster frio 44862809669: 17
 tentativas, recibo anterior preservado, SDK/HTTP fechado, rejeição de evidência
 mutada/copiada e fonte divergente, datas vencidas/futuras, selo substituído,
@@ -725,9 +727,20 @@ Compasso — continuidade de 09/11, 23h39: Missão passou à identidade obrigat�
 
 A imagem restrita de F7 passou build/fronteira/modo off em 44879864859,
 qualidade em 44879864726 e direitos em 44879867208. Execução ativa com SQL/S3
-é a próxima candidata; não há worker F7 implantado nem efeitos ativos provados
-por esse build. A segunda captura real terminou em 07:14:58Z. Duas cópias
+passou 44881504991 em modo ocioso, com duas leituras atuais, falhas ausente/congelado
+e recibos SQL conferidos. Não há worker F7 implantado nem retirada por essa imagem
+provada por esse gate. A segunda captura real terminou em 07:14:58Z. Duas cópias
 privadas do arquivo 716897a1 passaram 244→245, com recibos anteriores intactos,
 sete GETs e sem credencial do banco original. Clusters e serviço temporários
 foram removidos. Isso não comprova publicação seletiva nem duas recuperações
 completas. [Recibo](recreio/evidencias/upgrade-privado-producao-2026-11-21.json).
+
+A base 8fa83d1c passou o CI compartilhado 44874372262 e os 17 gates 44874372281,
+qualidade e conciliação. Foi integrada em origin/main após a migração isolada
+0244 e inventário dos serviços ligados à main; portal/Morada continuam fixados.
+A candidata dc4ce6be passou 44881843636 e qualidade 44881846030: sessão atual
+ausente não foi recriada, um recibo antigo de download foi descartado no banco
+privado, com rollback, repetição e preservação dos demais dados. O executor de
+retirada por imagem ainda exige corrigir/qualificar a fixture em candidata;
+44882140544 falhou antes de comprovar os efeitos, com limpeza confirmada.
+[Schema real](recreio/evidencias/schema-producao-0244-2026-11-21.json).

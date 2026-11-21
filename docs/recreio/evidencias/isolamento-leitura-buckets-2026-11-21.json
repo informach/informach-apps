@@ -1,0 +1,55 @@
+{
+  "observedAt": "2026-11-21T07:55:18.183398+00:00",
+  "readOnly": true,
+  "bodyRead": false,
+  "secretsPrinted": false,
+  "results": [
+    {
+      "credentialScope": "backup",
+      "target": "backup",
+      "httpStatus": 200,
+      "method": "HEAD"
+    },
+    {
+      "credentialScope": "rights",
+      "target": "rights",
+      "httpStatus": 200,
+      "method": "HEAD"
+    },
+    {
+      "credentialScope": "objects",
+      "target": "objects",
+      "httpStatus": 200,
+      "method": "HEAD"
+    },
+    {
+      "credentialScope": "backup",
+      "target": "rights",
+      "httpStatus": 403,
+      "method": "HEAD"
+    },
+    {
+      "credentialScope": "rights",
+      "target": "backup",
+      "httpStatus": 403,
+      "method": "HEAD"
+    },
+    {
+      "credentialScope": "objects",
+      "target": "backup",
+      "httpStatus": 403,
+      "method": "HEAD"
+    },
+    {
+      "credentialScope": "objects",
+      "target": "rights",
+      "httpStatus": 403,
+      "method": "HEAD"
+    }
+  ],
+  "crossBucketReadIsolationVerified": true,
+  "allObjectReadDirectionsProven": false,
+  "crossBucketWriteIsolationProven": false,
+  "testedObjectReadDenialDirections": 4,
+  "scope": "HEAD positivo nos tres destinos; quatro direcoes cruzadas para objetos conhecidos de backup e direitos; objetos de fotografia ainda nao existem no bucket"
+}

@@ -1,0 +1,31 @@
+{
+  "source": "2c2d021f88ce588db8d4bd32986bd74bbb099f00",
+  "deployment": "2f450c89-6fee-400a-a656-d213260651c0",
+  "observedAt": "2026-11-21 07:58:16.327651+00",
+  "sslVerified": true,
+  "receiptsBefore": 244,
+  "receiptsAfter": 245,
+  "tablesBefore": 80,
+  "tablesAfter": 81,
+  "original204ReceiptPrefix": {
+    "count": 204,
+    "sha256": "4479fd58e5fd335261d2e90b08a7f32446729ceee165985965e6aa074737a66b"
+  },
+  "original244ReceiptPrefix": {
+    "count": 244,
+    "sha256": "353eb27e8e795dfc8845a9a43684c76b4b3f6dab0ffcc42729141186d7fb33fb"
+  },
+  "alphaCountsBeforeAndAfter": {
+    "groups": 2,
+    "profiles": 1,
+    "worlds": 2,
+    "photos": 10
+  },
+  "originalReceiptPrefixesPreserved": true,
+  "alphaCountsPreserved": true,
+  "familiesActivated": false,
+  "rightsActivated": false,
+  "salesActivated": false,
+  "backupRestorationEvidence": "upgrade-privado-producao-2026-11-21.json",
+  "generatedSqlSha256": "6ff445b0d15d56bacf7a5291360aea4bfc39f586c471e7544f0285b072683aa0"
+}

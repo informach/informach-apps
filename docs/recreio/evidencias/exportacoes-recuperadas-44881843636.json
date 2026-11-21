@@ -1,0 +1,20 @@
+{
+  "source": "dc4ce6bea4fe5fbae498f16b38cadf84be6a10b3",
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44881843636",
+  "artifactSha256": "7fbc7f48333448e56f2de22a0a2e47ea416332ac432edebd464193b07984e5aa",
+  "cleanupConfirmed": true,
+  "cleanedObjects": 43,
+  "productionDataTouched": false,
+  "currentGlobalBindingReadOnlyVerified": true,
+  "currentGlobalIdentityChangesObserved": true,
+  "currentGlobalFinancialChangesRequireReconciliation": true,
+  "currentGlobalForeignCustomerRefused": true,
+  "currentGlobalMissingIdentityRefused": true,
+  "currentGlobalIdentityNotManufactured": true,
+  "currentGlobalSourceAndOtherDomainsPreserved": true,
+  "currentGlobalMissingSessionNotRecreated": true,
+  "currentGlobalStaleExportsDiscarded": 1,
+  "currentGlobalExportDiscardRollbackVerified": true,
+  "currentGlobalExportDiscardIdempotenceVerified": true,
+  "currentGlobalTrafficAuthorized": false
+}

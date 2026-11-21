@@ -29,6 +29,7 @@ export class FalhaDaFixtureDaImagem extends Error {
 function classificar(error: unknown): string {
   if (!(error instanceof Error)) return "UNKNOWN";
   if (error.name === "AssertionError") return "ASSERTION";
+  if (error.name === "ZodError") return "VALIDATION";
   if (
     "code" in error &&
     typeof error.code === "string" &&
@@ -82,7 +83,7 @@ export async function prepararRetiradaParaImagem(config: {
       };
       etapa = "profile";
       const { perfil } = await criarPerfilProprio(autor, {
-        apelido: "Pessoa sintetica da imagem",
+        apelido: "Pessoa da imagem",
         avatar: "padrao",
       });
       etapa = "data_key";
