@@ -35,3 +35,15 @@ sem ativar serviços. Gates desta implementação ainda pendentes.
 Não fecha finanças, identidade atual, custódia produtiva, retomada/publicação
 seletiva ou as duas recuperações completas F7. Produção mantém 204 recibos;
 o backup manual pré-migração foi recusado pelo limite de cópias do provedor.
+
+
+## Primeira rodada
+
+1faf0746 passou direitos 44841033151 e captura nativa 44841036341. O cluster
+externo 44840684459 confirmou os cinco resultados da publicação pendente,
+restauração fria e limpeza, mas a rodada inteira falhou na contagem final
+de objetos da fixture, ainda fixada em nove para dois consentimentos. O
+terceiro consentimento acrescenta intenção/plano/histórico; a conferência
+passa a exigir exatamente doze objetos de direitos, preservando os quatro
+objetos de foto/arquivo e os três prefixos. Nenhuma regra produtiva foi
+relaxada; repetir a rodada completa antes de qualificá-la.
