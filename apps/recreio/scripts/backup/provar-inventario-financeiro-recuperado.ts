@@ -115,7 +115,17 @@ export async function provarInventarioFinanceiroRecuperado(
         try {
           await conferir();
         } catch (erro) {
-          if (!z.object({ code: z.literal("P7777") }).safeParse(erro).success) throw erro;
+          let atual: unknown = erro,
+            reconhecida = false;
+          for (let n = 0; n < 8; n++) {
+            if (z.object({ code: z.literal("P7777") }).safeParse(atual).success) {
+              reconhecida = true;
+              break;
+            }
+            if (!(atual instanceof Error) || !atual.cause) break;
+            atual = atual.cause;
+          }
+          if (!reconhecida) throw erro;
           recusada = true;
         }
         exigir(recusada, "RECIBO_FINANCEIRO_ATUAL_DIVERGENTE");

@@ -2,8 +2,10 @@ import { type FileHandle, mkdtemp, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
+import { RecreioRenewalReviewError } from "@informach/billing/providers/stripe-recreio-renewals";
 import postgres from "postgres";
 import { z } from "zod";
+import { AppError } from "../../src/lib/errors";
 
 import { criarCifradorDeArquivos } from "./arquivo-cifrado";
 import { criarArquivoComposto } from "./arquivo-composto";
@@ -40,6 +42,12 @@ function codigoSeguro(erro: unknown): CodigoDaRecuperacao {
     const restricao = classificarRestricaoDeRecuperacao(e);
     if (restricao) return restricao;
     if (e instanceof z.ZodError) return "CONFIGURACAO_INVALIDA";
+    if (e instanceof AppError || e instanceof RecreioRenewalReviewError) {
+      const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(
+        `${e instanceof AppError ? "APP" : "PROVIDER"}_${e.code}`,
+      );
+      if (r.success) return r.data;
+    }
     if (e instanceof FalhaDeInventario) return `INVENTARIO_${e.codigo}`;
     if (e instanceof FalhaDaProva) {
       const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(`PROVA_${e.codigo}`);
@@ -409,6 +417,7 @@ async function main() {
           inventario: fria.publicacao.inventario,
         });
         await normalizarCapacidadesRestauradas(copia);
+        etapa = "FINANCEIRO_NATIVO";
         financeiro = await provarFinanceiroRecuperado({
           copia,
           cliente: clienteFinanceiro,
@@ -416,6 +425,7 @@ async function main() {
           capturaSha256: fria.publicacao.composto.sha256,
           entrada: retiradaNativa.financeiro,
         });
+        etapa = "RETIRADA_NATIVA";
         retirada = await provarRetiradaNativaPosterior({
           copia,
           cliente: clienteDireitos,
