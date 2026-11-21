@@ -1,6 +1,16 @@
 name: Recreio - inicializacao operacional do livro
 on:
   workflow_dispatch:
+  push:
+    branches: ["verify/ledger-custody-*"]
+    paths:
+      - ".github/workflows/recreio-livro.yml"
+      - "infrastructure/railway/recreio-livro.Dockerfile"
+      - "apps/recreio/scripts/inicializar-livro-direitos.ts"
+      - "apps/recreio/scripts/conferir-fronteira-livro.mjs"
+      - "apps/recreio/src/features/direitos/livro/**"
+      - "apps/recreio/src/lib/rights-environment.ts"
+      - "pnpm-lock.yaml"
 permissions:
   contents: read
 concurrency:
