@@ -56,23 +56,6 @@ export async function provarEstagioNativoPrivado(
     etapa = "COPIA";
     await recusar(() => origem.importar(prova), "DESTINO");
     await recusar(() => destino.importar({ ...prova }), "EXPIRADO");
-    etapa = "CORRUPCAO";
-    const byte = Buffer.alloc(1);
-    exigir((await dump.read(byte, 0, 1, 0)).bytesRead === 1, `SCHEMA_ESTAGIO_${etapa}`);
-    const original = byte[0];
-    exigir(original !== undefined, `SCHEMA_ESTAGIO_${etapa}`);
-    byte[0] = original ^ 0xff;
-    exigir((await dump.write(byte, 0, 1, 0)).bytesWritten === 1, `SCHEMA_ESTAGIO_${etapa}`);
-    try {
-      await recusar(() => destino.importar(prova), "ARQUIVO");
-    } finally {
-      byte[0] = original;
-      exigir((await dump.write(byte, 0, 1, 0)).bytesWritten === 1, `SCHEMA_ESTAGIO_${etapa}`);
-      byte.fill(0);
-    }
-    etapa = "REPARO";
-    await conferirBytes();
-    conferirInventarios(globais, await inventario(atual));
 
     // The harness owns a max:1 SQL pool. A manually bounded transaction keeps
     // a real conflicting lock while pg_restore uses its independent socket.
@@ -182,6 +165,21 @@ export async function provarEstagioNativoPrivado(
     if (!resultado.ok) throw resultado.erro;
     conferirInventarios(globais, await inventario(atual));
     conferirInventarios(antes, await inventario(fonte));
+    // Destructive tampering belongs last. An admitted native archive is
+    // immutable; repairing and reusing a changed file is not a capability.
+    etapa = "CORRUPCAO";
+    const byte = Buffer.alloc(1);
+    try {
+      exigir((await dump.read(byte, 0, 1, 0)).bytesRead === 1, `SCHEMA_ESTAGIO_${etapa}`);
+      const original = byte[0];
+      exigir(original !== undefined, `SCHEMA_ESTAGIO_${etapa}`);
+      byte[0] = original ^ 0xff;
+      exigir((await dump.write(byte, 0, 1, 0)).bytesWritten === 1, `SCHEMA_ESTAGIO_${etapa}`);
+      await recusar(() => destino.importar(prova), "ARQUIVO");
+    } finally {
+      byte.fill(0);
+    }
+    conferirInventarios(globais, await inventario(atual));
     etapa = "EXPIRACAO";
     origem.encerrar();
     await recusar(() => destino.importar(prova), "EXPIRADO");

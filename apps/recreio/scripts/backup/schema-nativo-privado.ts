@@ -35,6 +35,8 @@ const provas = new WeakMap<
     arquivo: FileHandle;
     dev: bigint;
     ino: bigint;
+    mtime: bigint;
+    ctime: bigint;
     source: string;
     ativo: () => boolean;
     vence: number;
@@ -171,6 +173,8 @@ export async function criarFerramentasNativasDeSchema(copia: postgres.Sql, orige
         arquivo,
         dev: r.stat.dev,
         ino: r.stat.ino,
+        mtime: r.stat.mtimeNs,
+        ctime: r.stat.ctimeNs,
         source: identidade,
         ativo: () => ativo,
         vence: performance.now() + 120000,
@@ -192,6 +196,8 @@ export async function criarFerramentasNativasDeSchema(copia: postgres.Sql, orige
       const r = await resumo(admitida.arquivo);
       if (r.stat.dev !== admitida.dev || r.stat.ino !== admitida.ino)
         throw new FalhaDoSchemaPrivado("ARQUIVO", "IDENTIDADE");
+      if (r.stat.mtimeNs !== admitida.mtime || r.stat.ctimeNs !== admitida.ctime)
+        throw new FalhaDoSchemaPrivado("ARQUIVO", "ALTERADO");
       if (r.bytes !== prova.bytes) throw new FalhaDoSchemaPrivado("ARQUIVO", "TAMANHO");
       if (r.sha256 !== prova.sha256) throw new FalhaDoSchemaPrivado("ARQUIVO", "RESUMO");
       // The opaque token admits only our unchanged native one-schema dump.
