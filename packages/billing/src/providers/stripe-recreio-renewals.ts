@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import Stripe from "stripe";
 import { BillingError } from "../errors";
 import type { PaymentReadBudget } from "../payment-facts";
@@ -16,6 +17,49 @@ export type RecreioRenewalObservation = {
   stopsAt: Date | null;
   sha256: string;
 };
+type VerifiedObservation = Readonly<{
+  outcome: RecreioRenewalObservation["outcome"];
+  stopsAtMs: number | null;
+  sha256: string;
+}>;
+const verified = new WeakMap<
+  RecreioRenewalObservation,
+  { scope: string; expiresAt: number; snapshot: VerifiedObservation }
+>();
+function scopeKey(input: RecreioRenewalScope, mode: "dev" | "prod") {
+  return JSON.stringify([
+    mode,
+    input.intentId,
+    input.customerId,
+    input.subscriptionId,
+    input.origin.authorizationId,
+    input.origin.productId,
+    input.origin.payerId,
+  ]);
+}
+
+/** Only observations emitted in this process by the SDK adapter can confirm a
+ * receipt. The returned primitives remain safe across subsequent awaits, even
+ * if a caller changes the Date carried by the public observation. */
+export function assertRecreioRenewalObservation(
+  observation: RecreioRenewalObservation,
+  input: RecreioRenewalScope,
+  mode: "dev" | "prod",
+): VerifiedObservation {
+  const proof = verified.get(observation);
+  if (
+    !proof ||
+    performance.now() >= proof.expiresAt ||
+    proof.scope !== scopeKey(input, mode) ||
+    observation.outcome !== proof.snapshot.outcome ||
+    observation.sha256 !== proof.snapshot.sha256 ||
+    (observation.stopsAt === null
+      ? proof.snapshot.stopsAtMs !== null
+      : Date.prototype.getTime.call(observation.stopsAt) !== proof.snapshot.stopsAtMs)
+  )
+    review("invalid_evidence");
+  return proof.snapshot;
+}
 export type RecreioRenewalReviewCode =
   | "provider_unavailable"
   | "scope_changed"
@@ -49,8 +93,9 @@ export function createStripeRecreioRenewals(config: {
   client?: Stripe;
   now?: () => Date;
 }): RecreioRenewalProvider {
+  const mode = config.mode;
   if (
-    !new RegExp(`^(?:sk|rk)_${config.mode === "prod" ? "live" : "test"}_[A-Za-z0-9_]+$`).test(
+    !new RegExp(`^(?:sk|rk)_${mode === "prod" ? "live" : "test"}_[A-Za-z0-9_]+$`).test(
       config.secretKey,
     )
   )
@@ -75,7 +120,9 @@ export function createStripeRecreioRenewals(config: {
       ) ||
       !opaque(input.customerId, "cus") ||
       !opaque(input.subscriptionId, "sub") ||
-      !Object.values(input.origin).every((value) => /^[A-Za-z0-9_-]{1,128}$/.test(value))
+      !Object.values(input.origin).every(
+        (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value),
+      )
     )
       review("invalid_evidence");
     options(input);
@@ -83,7 +130,7 @@ export function createStripeRecreioRenewals(config: {
   async function read(input: RecreioRenewalScope) {
     const customer = await stripe.customers.retrieve(input.customerId, {}, options(input));
     if (customer.deleted) review("foreign_contract");
-    if (customer.livemode !== (config.mode === "prod")) review("namespace_mismatch");
+    if (customer.livemode !== (mode === "prod")) review("namespace_mismatch");
     if (
       customer.id !== input.customerId ||
       customer.metadata.subject_type !== "user" ||
@@ -91,7 +138,7 @@ export function createStripeRecreioRenewals(config: {
     )
       review("foreign_contract");
     const sub = await stripe.subscriptions.retrieve(input.subscriptionId, {}, options(input));
-    if (sub.livemode !== (config.mode === "prod")) review("namespace_mismatch");
+    if (sub.livemode !== (mode === "prod")) review("namespace_mismatch");
     if (
       sub.id !== input.subscriptionId ||
       resourceId(sub.customer) !== input.customerId ||
@@ -103,7 +150,8 @@ export function createStripeRecreioRenewals(config: {
       review("foreign_contract");
     return sub;
   }
-  function observe(input: RecreioRenewalScope, sub: Stripe.Subscription) {
+  function observe(input: RecreioRenewalScope, sub: Stripe.Subscription, expiresAt: number) {
+    if (performance.now() >= expiresAt) review("provider_unavailable");
     const terminal = sub.status === "canceled" || sub.status === "incomplete_expired";
     let stopsAt: Date | null = null;
     let price: string | null = null;
@@ -148,7 +196,7 @@ export function createStripeRecreioRenewals(config: {
       .update(
         JSON.stringify({
           format: "recreio-renewal-observation-v1",
-          mode: config.mode,
+          mode,
           intentId: input.intentId,
           customerId: input.customerId,
           subscriptionId: input.subscriptionId,
@@ -161,20 +209,43 @@ export function createStripeRecreioRenewals(config: {
         }),
       )
       .digest("hex");
-    return { outcome, stopsAt, sha256 } satisfies RecreioRenewalObservation;
+    const observation: RecreioRenewalObservation = Object.freeze({ outcome, stopsAt, sha256 });
+    verified.set(observation, {
+      scope: scopeKey(input, mode),
+      expiresAt,
+      snapshot: Object.freeze({ outcome, stopsAtMs: stopsAt?.getTime() ?? null, sha256 }),
+    });
+    return observation;
   }
   return {
-    async stop(input) {
+    async stop(supplied) {
       try {
+        const wallNow = Date.now();
+        const deadlineMs = Math.min(
+          supplied.budget?.deadlineMs ?? wallNow + 90_000,
+          wallNow + 90_000,
+        );
+        const expiresAt = performance.now() + deadlineMs - wallNow;
+        const input: RecreioRenewalScope = Object.freeze({
+          intentId: supplied.intentId,
+          customerId: supplied.customerId,
+          subscriptionId: supplied.subscriptionId,
+          origin: Object.freeze({
+            authorizationId: supplied.origin.authorizationId,
+            productId: supplied.origin.productId,
+            payerId: supplied.origin.payerId,
+          }),
+          budget: Object.freeze({ deadlineMs }),
+        });
         validate(input);
-        const existing = observe(input, await read(input));
+        const existing = observe(input, await read(input), expiresAt);
         if (existing) return existing;
         await stripe.subscriptions.update(
           input.subscriptionId,
           { cancel_at_period_end: true },
           { ...options(input), idempotencyKey: recreioRenewalKey(input.intentId) },
         );
-        const observed = observe(input, await read(input));
+        const observed = observe(input, await read(input), expiresAt);
         if (!observed) review("invalid_evidence");
         return observed;
       } catch (error) {

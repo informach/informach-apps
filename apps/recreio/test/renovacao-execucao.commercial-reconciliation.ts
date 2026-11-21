@@ -277,6 +277,37 @@ describe("cancelamento: tentativa durável e confirmação com PostgreSQL/SDK re
     expect(f.posts).toHaveLength(0);
   });
 
+  it("recusa cópia e data alterada da resposta real sem confirmar o recibo", async () => {
+    const f = await fixture();
+    const trabalho = await reservarCancelamentoDaRenovacao("dev");
+    if (!trabalho || trabalho.id !== f.pedido.pedidoId)
+      throw new Error("Synthetic work not reserved");
+    await comCicloDeCobranca(trabalho.paganteId, async () => {
+      const tentativa = await iniciarCancelamentoDaRenovacaoLocked(trabalho);
+      const provider = createStripeRecreioRenewals({
+        secretKey: "rk_test_closed_native",
+        mode: "dev",
+        client: f.stripe,
+      });
+      const resposta = await provider.stop(tentativa.entrada);
+      await expect(
+        confirmarCancelamentoDaRenovacaoLocked(tentativa, structuredClone(resposta)),
+      ).rejects.toMatchObject({ code: "invalid_evidence" });
+      if (!resposta.stopsAt) throw new Error("Missing observed stop");
+      resposta.stopsAt.setTime(resposta.stopsAt.getTime() + 60_000);
+      await expect(
+        confirmarCancelamentoDaRenovacaoLocked(tentativa, resposta),
+      ).rejects.toMatchObject({ code: "invalid_evidence" });
+      expect(await f.linha()).toMatchObject({ state: "attempted", confirmedAt: null });
+      await confirmarCancelamentoDaRenovacaoLocked(
+        tentativa,
+        await provider.stop(tentativa.entrada),
+      );
+    });
+    expect(await f.linha()).toMatchObject({ state: "confirmed", providerResult: "scheduled" });
+    expect(f.posts).toEqual(["cancel_at_period_end=true"]);
+  });
+
   it("reserva retomada impede confirmação pelo executor antigo", async () => {
     const f = await fixture();
     const trabalho = await reservarCancelamentoDaRenovacao("dev");

@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  assertRecreioRenewalObservation,
   type RecreioRenewalProvider,
   type RecreioRenewalReviewCode,
   RecreioRenewalReviewError,
@@ -61,6 +62,7 @@ export function criarProcessadorDeCancelamentoDaRenovacao(deps: {
               "COBRANCA",
               "A conferência excedeu o prazo.",
             );
+            assertRecreioRenewalObservation(observacao, tentativa.entrada, trabalho.modo);
             await confirmarCancelamentoDaRenovacaoLocked(tentativa, observacao);
             resultado.confirmadas++;
           } catch (error) {

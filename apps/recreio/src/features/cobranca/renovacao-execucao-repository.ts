@@ -1,10 +1,11 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
-import type {
-  RecreioRenewalObservation,
-  RecreioRenewalReviewCode,
-  RecreioRenewalScope,
+import {
+  assertRecreioRenewalObservation,
+  type RecreioRenewalObservation,
+  type RecreioRenewalReviewCode,
+  type RecreioRenewalScope,
 } from "@informach/billing/providers/stripe-recreio-renewals";
 import { readRecreioOwnedSubscription } from "@informach/billing/recreio-account-closure";
 import type { StripeMode } from "@informach/config";
@@ -212,13 +213,22 @@ export function confirmarCancelamentoDaRenovacaoLocked(
   return comTrabalho(prova, async (tx, linha, agora) => {
     conferirTentativa(prova, linha);
     await conferirOrigem(tx, linha);
+    const resultado = assertRecreioRenewalObservation(
+      observacao,
+      {
+        intentId: linha.id,
+        customerId: linha.providerCustomerId,
+        subscriptionId: linha.providerSubscriptionId,
+        origin: {
+          authorizationId: linha.purchaseId,
+          productId: linha.originProductId,
+          payerId: linha.payerUserId,
+        },
+      },
+      linha.providerMode,
+    );
     assertAllowed(
-      /^[a-f0-9]{64}$/.test(observacao.sha256) &&
-        ((observacao.outcome === "terminal" && observacao.stopsAt === null) ||
-          (observacao.outcome === "scheduled" &&
-            observacao.stopsAt instanceof Date &&
-            Number.isFinite(observacao.stopsAt.getTime()) &&
-            observacao.stopsAt > agora)),
+      resultado.stopsAtMs === null || resultado.stopsAtMs > agora.getTime(),
       "ORIGEM_FINANCEIRA",
       "A interrupção da renovação ainda não foi comprovada.",
     );
@@ -226,9 +236,9 @@ export function confirmarCancelamentoDaRenovacaoLocked(
       .update(cancellations)
       .set({
         state: "confirmed",
-        providerResult: observacao.outcome,
-        providerStopAt: observacao.stopsAt,
-        observationSha256: observacao.sha256,
+        providerResult: resultado.outcome,
+        providerStopAt: resultado.stopsAtMs === null ? null : new Date(resultado.stopsAtMs),
+        observationSha256: resultado.sha256,
         observedAt: agora,
         confirmedAt: agora,
         leaseToken: null,

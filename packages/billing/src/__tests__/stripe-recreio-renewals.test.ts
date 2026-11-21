@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 import {
+  assertRecreioRenewalObservation,
   createStripeRecreioRenewals,
   type RecreioRenewalScope,
   recreioRenewalKey,
@@ -69,10 +70,9 @@ function fixture() {
       key: request.headers.get("idempotency-key"),
     });
     let body: unknown;
-    if (request.method === "GET" && path === `/v1/customers/${input.customerId}`) body = customer;
-    else if (request.method === "GET" && path === `/v1/subscriptions/${input.subscriptionId}`)
-      body = sub;
-    else if (request.method === "POST" && path === `/v1/subscriptions/${input.subscriptionId}`) {
+    if (request.method === "GET" && path === `/v1/customers/${customer.id}`) body = customer;
+    else if (request.method === "GET" && path === `/v1/subscriptions/${sub.id}`) body = sub;
+    else if (request.method === "POST" && path === `/v1/subscriptions/${sub.id}`) {
       if (apply) sub.cancel_at_period_end = true;
       afterPost?.();
       if (lose) {
@@ -114,6 +114,77 @@ function fixture() {
 }
 
 describe("Recreio renewal stop over the real Stripe SDK", () => {
+  it("admits only the original SDK observation and its exact financial scope/mode", async () => {
+    const f = fixture();
+    const observation = await f.provider.stop(f.input);
+    const snapshot = assertRecreioRenewalObservation(observation, f.input, "dev");
+    expect(snapshot).toEqual({
+      outcome: "scheduled",
+      stopsAtMs: Date.parse("2026-11-20T12:00:00Z"),
+      sha256: observation.sha256,
+    });
+    expect(Object.isFrozen(observation)).toBe(true);
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    for (const copy of [{ ...observation }, structuredClone(observation)]) {
+      expect(() => assertRecreioRenewalObservation(copy, f.input, "dev")).toThrowError(
+        expect.objectContaining({ code: "invalid_evidence" }),
+      );
+    }
+    expect(() => assertRecreioRenewalObservation(observation, f.input, "prod")).toThrowError(
+      expect.objectContaining({ code: "invalid_evidence" }),
+    );
+    const scopes: RecreioRenewalScope[] = [
+      { ...f.input, intentId: "66c96a2c-cf1c-40eb-8dda-0376915be73b" },
+      { ...f.input, customerId: "cus_other_customer" },
+      { ...f.input, subscriptionId: "sub_other_contract" },
+      ...["authorizationId", "productId", "payerId"].map((field) => ({
+        ...f.input,
+        origin: { ...f.input.origin, [field]: "other_origin" },
+      })),
+    ];
+    for (const scope of scopes) {
+      expect(() => assertRecreioRenewalObservation(observation, scope, "dev")).toThrowError(
+        expect.objectContaining({ code: "invalid_evidence" }),
+      );
+    }
+    if (!observation.stopsAt) throw new Error("Missing observed stop");
+    observation.stopsAt.setTime(0);
+    expect(() => assertRecreioRenewalObservation(observation, f.input, "dev")).toThrowError(
+      expect.objectContaining({ code: "invalid_evidence" }),
+    );
+    expect(snapshot.stopsAtMs).toBe(Date.parse("2026-11-20T12:00:00Z"));
+  });
+
+  it("bounds evidence lifetime by the original budget without trusting a later extension", async () => {
+    const f = fixture();
+    const deadlineMs = Date.now() + 1000;
+    f.input.budget = { deadlineMs };
+    const observation = await f.provider.stop(f.input);
+    assertRecreioRenewalObservation(observation, f.input, "dev");
+    f.input.budget.deadlineMs += 90_000;
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, deadlineMs - Date.now()) + 30));
+    expect(() => assertRecreioRenewalObservation(observation, f.input, "dev")).toThrowError(
+      expect.objectContaining({ code: "invalid_evidence" }),
+    );
+  });
+
+  it("keeps the admitted scope during HTTP even if its caller mutates the original input", async () => {
+    const f = fixture();
+    const original = structuredClone(f.input);
+    f.afterPost(() => {
+      f.input.customerId = "cus_changed_customer";
+      f.input.subscriptionId = "sub_changed_contract";
+      f.input.origin.payerId = "another_payer";
+    });
+    const observation = await f.provider.stop(f.input);
+    expect(assertRecreioRenewalObservation(observation, original, "dev").outcome).toBe("scheduled");
+    expect(() => assertRecreioRenewalObservation(observation, f.input, "dev")).toThrowError(
+      expect.objectContaining({ code: "invalid_evidence" }),
+    );
+    expect(f.calls.at(-1)?.path).toBe("/v1/subscriptions/sub_native_contract");
+    expect(f.calls.filter((call) => call.method === "POST")).toHaveLength(1);
+  });
+
   it("only schedules renewal stop and verifies customer/origin again after the POST", async () => {
     const f = fixture();
     const result = await f.provider.stop(f.input);

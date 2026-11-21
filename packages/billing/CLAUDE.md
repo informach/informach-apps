@@ -4,6 +4,14 @@
 
 ## Recreio: dados pessoais financeiros em candidata (19/11/2026)
 
+O adapter `providers/stripe-recreio-renewals` emite observações locais vinculadas
+por identidade ao SDK, modo, pedido, cliente, contrato e compra de origem. A
+confirmação chama `assertRecreioRenewalObservation` e usa seu retrato de valores
+primitivos. Cópias, datas alteradas, outro escopo e respostas vencidas são
+recusados; o orçamento original limita a validade a no máximo 90 segundos,
+inclusive durante I/O. Essa prova não substitui o recibo nativo, a reserva nem
+a releitura transacional da origem pelo consumidor. Só o Recreio usa esse adapter.
+
 O subpath de encerramento também fornece `readRecreioOwnedSubscription`: somente
 identidade financeira e período locais do próprio cliente Recreio, para admitir
 o pedido nativo de cancelamento. A consulta não decide acesso nem comprova estado
