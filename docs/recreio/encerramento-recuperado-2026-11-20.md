@@ -56,6 +56,24 @@ chaves de Stripe/identidade para o recuperador técnico do arquivo. A possível
 reutilização do hash do recibo da execução para evidência financeira ainda
 precisa de desenho/verificação; não há nova migration ou ativação implícita.
 
+A correção de tipos 9bee2416 passou qualidade 44857493251, direitos
+44857496346 e regressão de cluster frio 44857500015. O financeiro normal
+passou 44857078509; o ajuste posterior foi somente de inferência do contrato.
+Esses gates preservam o caminho já qualificado e não comprovam a entrada nova
+na cópia privada.
+
+A próxima prova cria, antes da captura, outro livro exclusivo de homologação
+com encerramento nativo de um adulto sem jogador/cliente. Na segunda cópia
+física já restaurada e normalizada, o worker sem URL/chaves de origem deve
+retomar somente sua etapa financeira pendente, repetir sem alterar recibo e
+recusar raiz/cópia/filha vencida, outro pagante e efeitos pessoais. Origem,
+preparação, consentimento e identidades devem continuar idênticos. O novo
+livro acrescenta exatamente cinco objetos de teste (plano, intenção, dois
+cabeçalhos históricos e cabeça), todos sob prefixo próprio e com limpeza.
+O recibo exige campos positivos específicos e conserva
+`nativeAccountClosureFullyReplayed=false`. Não é inventário real de cobrança,
+reavaliação de confirmação anterior ou encerramento integral recuperado.
+
 Somente GitHub Actions executa tipos, testes, builds, jornadas e clusters.
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.

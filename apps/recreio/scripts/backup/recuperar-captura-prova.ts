@@ -22,6 +22,7 @@ import { normalizarCapacidadesRestauradas } from "./normalizar-capacidades";
 import { FalhaDaNormalizacao, normalizarFotografiasRestauradas } from "./normalizar-fotografias";
 import { provarCapacidadesRecuperadas } from "./provar-capacidades-recuperadas";
 import { provarCarregamentoDoControle } from "./provar-carregamento-controle";
+import { provarFinanceiroRecuperado } from "./provar-financeiro-recuperado";
 import { provarFontesHistoricasRecuperadas } from "./provar-fontes-historicas";
 import { provarRetiradaNativaPosterior } from "./provar-retirada-nativa";
 import { exigir, FalhaDaProva, limparDiretorioDeProva } from "./provas-arquivos";
@@ -139,7 +140,8 @@ async function main() {
     responseChecksumValidation: "WHEN_REQUIRED",
   } satisfies S3ClientConfig;
   const cliente = new S3Client(configS3),
-    clienteDireitos = new S3Client(configS3);
+    clienteDireitos = new S3Client(configS3),
+    clienteFinanceiro = new S3Client(configS3);
   const textoDireitos = variavel("RECREIO_BACKUP_PROBE_NATIVE_RIGHTS");
   delete process.env.RECREIO_BACKUP_PROBE_NATIVE_RIGHTS;
   exigir(textoDireitos.length <= 4096, "CONFIGURACAO_INVALIDA");
@@ -396,6 +398,7 @@ async function main() {
       clusterLimpo = prova.temporariosRemovidos;
       etapa = "RETIRADA_NATIVA";
       let retirada: Awaited<ReturnType<typeof provarRetiradaNativaPosterior>> | undefined;
+      let financeiro: Awaited<ReturnType<typeof provarFinanceiroRecuperado>> | undefined;
       // Reopen the authenticated dump in a separate fresh cluster. Never undo
       // an erasure to make the metadata/idempotence proof above appear intact.
       const segunda = await comBancoRestaurado({ dump, inventario }, async (copia) => {
@@ -406,6 +409,13 @@ async function main() {
           inventario: fria.publicacao.inventario,
         });
         await normalizarCapacidadesRestauradas(copia);
+        financeiro = await provarFinanceiroRecuperado({
+          copia,
+          cliente: clienteFinanceiro,
+          bucket,
+          capturaSha256: fria.publicacao.composto.sha256,
+          entrada: retiradaNativa.financeiro,
+        });
         retirada = await provarRetiradaNativaPosterior({
           copia,
           cliente: clienteDireitos,
@@ -414,7 +424,10 @@ async function main() {
           entrada: retiradaNativa,
         });
       });
-      exigir(retirada && segunda.temporariosRemovidos, "RETIRADA_NATIVA_NAO_CONCLUIDA");
+      exigir(
+        financeiro && retirada && segunda.temporariosRemovidos,
+        "RETIRADA_NATIVA_NAO_CONCLUIDA",
+      );
       clusterLimpo = clusterLimpo && segunda.temporariosRemovidos;
       exigir(leituras >= 3, "LEITURAS_DO_BACKUP_INCOMPLETAS");
       resultado = {
@@ -448,6 +461,7 @@ async function main() {
         ...capacidades,
         ...fontesHistoricas,
         ...retirada,
+        ...financeiro,
         nativePostCaptureSecondClusterCleaned: true,
         authoritiesNormalizedForTraffic: false,
         productionDataTouched: false,
@@ -471,6 +485,7 @@ async function main() {
     indice.encerrar();
     cliente.destroy();
     clienteDireitos.destroy();
+    clienteFinanceiro.destroy();
   }
   if (falha || !resultado || !removidos || !clusterLimpo)
     console.log(

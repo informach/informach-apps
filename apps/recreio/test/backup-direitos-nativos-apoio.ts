@@ -20,6 +20,7 @@ import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { prepararPedidoDeDireitos } from "@/features/direitos/service";
 import { exigir, FalhaDaProva } from "../scripts/backup/provas-arquivos";
+import { prepararFinanceiroNativoAnterior } from "./backup-financeiro-nativo-apoio";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { familiaSocial } from "./social-apoio";
 
@@ -268,6 +269,7 @@ export async function prepararDireitosPosterioresACaptura(
     .where(eq(operations.id, anterior.operacaoId));
   const publicacaoPendente = await consentir(familiaPendente, true);
   publicacaoPendenteId = publicacaoPendente.operacaoId;
+  const financeiro = await prepararFinanceiroNativoAnterior(bucket);
   return {
     fotografia: {
       bytes: gzipSync(JSON.stringify(foto)),
@@ -280,6 +282,7 @@ export async function prepararDireitosPosterioresACaptura(
       await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
       return {
         livroId,
+        financeiro: financeiro.coordenadas,
         publicacaoPendente: {
           operacaoId: publicacaoPendente.operacaoId,
           perfilId: familiaPendente.perfil.id,
@@ -306,6 +309,7 @@ export async function prepararDireitosPosterioresACaptura(
       };
     },
     encerrar() {
+      financeiro.encerrar();
       assinatura.encerrar();
       antiga.fill(0);
       proxima.fill(0);

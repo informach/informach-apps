@@ -172,7 +172,7 @@ export async function criarBucketDaMontagem() {
   async function admitirPrefixo(tipo: "fotografia" | "backup" | "direitos", id: string) {
     exigir(z.uuid().safeParse(id).success, "CONTEXTO_INVALIDO");
     const prefixo = `recreio/v1/${tipo}/${id}/`;
-    exigir(prefixos.size < 3 && !prefixos.has(prefixo), "PREFIXO_JA_ADMITIDO");
+    exigir(prefixos.size < 4 && !prefixos.has(prefixo), "PREFIXO_JA_ADMITIDO");
     prefixos.add(prefixo);
     const lista = await cliente.send(
       new ListObjectsV2Command({ Bucket: destino.bucketName, Prefix: prefixo, MaxKeys: 2 }),
@@ -274,8 +274,8 @@ export async function criarBucketDaMontagem() {
     exigir(
       [...chaves].filter((k) => !k.startsWith("recreio/v1/direitos/")).length === 4 &&
         [...chaves].filter((k) => k.startsWith("recreio/v1/direitos/")).length ===
-          (comDireitos ? 12 : 0) &&
-        prefixos.size === (comDireitos ? 3 : 2),
+          (comDireitos ? 17 : 0) &&
+        prefixos.size === (comDireitos ? 4 : 2),
       "INVENTARIO_DA_PROVA_DIVERGENTE",
     );
     if (externa) {
