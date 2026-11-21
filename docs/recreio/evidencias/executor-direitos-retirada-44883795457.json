@@ -21,10 +21,7 @@
   "nativeJobOutcomesVerified": true,
   "nativeJobCount": 6,
   "anonymousReadDenied": true,
-  "nativeRoundStates": [
-    "running",
-    "completed"
-  ],
+  "nativeRoundStates": ["running", "completed"],
   "workflow": "https://github.com/informach/informach-apps/actions/runs/44883795457",
   "artifactSha256": "b2a84cc82ae632a4f3b69ac5de25c65b963936f5e843d175135ce76b2ce9b540"
 }

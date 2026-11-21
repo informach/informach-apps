@@ -184,6 +184,10 @@ export async function criarFerramentasNativasDeSchema(copia: postgres.Sql, orige
         r.bytes !== prova.bytes
       )
         throw new FalhaDoSchemaPrivado("ARQUIVO");
+      // The opaque token admits only our unchanged native one-schema dump.
+      // pg_restore -n excludes entries without a namespace, including CREATE
+      // SCHEMA. Restore this already scoped archive so its root is created in
+      // the same transaction as its tables/data/constraints; no --clean/-C.
       await ferramentaNativa(
         "pg_restore",
         [
@@ -192,8 +196,6 @@ export async function criarFerramentasNativasDeSchema(copia: postgres.Sql, orige
           "--no-owner",
           "--no-privileges",
           "--no-password",
-          "--schema",
-          prova.schema,
           "--dbname",
           database,
           "/proc/self/fd/0",

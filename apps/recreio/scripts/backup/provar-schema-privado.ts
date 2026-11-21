@@ -76,16 +76,23 @@ export async function provarEstagioNativoPrivado(
     let rollback = false;
     const cancelamento = new AbortController();
     let importacao: Promise<unknown> | undefined;
+    let terminou = false;
     try {
       await atual.unsafe("set local transaction_timeout='15000ms'");
       await atual.unsafe("lock table core.users in access exclusive mode");
       importacao = destino.importar(prova, cancelamento.signal).then(
-        () => ({ ok: true as const }),
-        (erro: unknown) => ({ ok: false as const, erro }),
+        () => {
+          terminou = true;
+          return { ok: true as const };
+        },
+        (erro: unknown) => {
+          terminou = true;
+          return { ok: false as const, erro };
+        },
       );
       const fim = performance.now() + 5000;
       let cancelou = false;
-      while (performance.now() < fim && !cancelou) {
+      while (performance.now() < fim && !cancelou && !terminou) {
         await atual.unsafe("select pg_stat_clear_snapshot()");
         const alvos = await atual.unsafe<
           { pid: number }[]
