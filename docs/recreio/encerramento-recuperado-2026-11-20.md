@@ -129,6 +129,24 @@ A prova amplia para 14 tentativas, falha real de auditoria, origem alterada
 durante I/O e recorte pessoal sem referências privadas. Ainda não concede
 efeitos pessoais, não encerra a conta e não publica a recuperação.
 
+2c2d021f passou qualidade 44861335275, direitos 44861339988 e conciliação
+44861342217. O primeiro cluster frio 44861337798 recusou a rodada durante a
+prova financeira: a exceção PostgreSQL injetada é encapsulada pelo Drizzle.
+e5f59de3 percorre somente a cadeia de causas para reconhecer o código exato
+P7777 e acrescenta classificadores estáticos/etapa financeira ao diagnóstico;
+nenhuma mensagem SQL ou dado privado entra no recibo. Qualidade 44861822403
+passou; cluster frio 44861819511 continua em verificação.
+
+O incremento de proteção confere a identidade imutável da observação do SDK
+depois das esperas e dentro da transação final, com prazo ligado à tentativa.
+A prova altera a evidência no primeiro GET do livro após o SDK devolver seu
+resultado, sem temporizadores, e exige recusa/estado de revisão. A conferência
+de uma avaliação atual também verifica origem, confirmação histórica, prazo
+de cinco minutos pelo relógio do banco e tentativa/recibo fixos. A prova passa
+a 17 tentativas e testa datas vencidas/futuras com rollback, revisão posterior
+e recibo substituído. Esse guard ainda não emite filha de dados: admissão e
+efeitos de encerramento permanecem fechados até sua qualificação e integração.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

@@ -4,7 +4,6 @@ import { isDeepStrictEqual } from "node:util";
 import {
   assertRecreioClosureInventory,
   type RecreioClosureInventory,
-  type RecreioClosureInventoryScope,
 } from "@informach/billing/providers/stripe-recreio-closure-inventory";
 import { RecreioRenewalReviewError } from "@informach/billing/providers/stripe-recreio-renewals";
 import { AppError, assertAllowed } from "@/lib/errors";
@@ -18,8 +17,10 @@ import type { RuntimeFinanceiroDoEncerramento } from "./encerramento-financeiro-
 import {
   concluirAvaliacaoFinanceiraRecuperada,
   encerrarTentativaFinanceiraRecuperada,
+  escopoDoInventarioFinanceiroRecuperado,
   iniciarAvaliacaoFinanceiraRecuperada,
   lerFinanceiroConfirmadoRecuperado,
+  prazoDaAvaliacaoFinanceiraRecuperada,
   registrarFalhaDaAvaliacaoFinanceiraRecuperada,
 } from "./encerramento-financeiro-recuperado-repository";
 import { FalhaDoLivroDeDireitos } from "./livro/contrato";
@@ -39,27 +40,13 @@ export async function avaliarFinanceiroConfirmadoRecuperado(
     const antes = await lerFinanceiroConfirmadoRecuperado(config);
     const tentativa = await iniciarAvaliacaoFinanceiraRecuperada(config, antes);
     try {
-      const deadlineMs = Date.now() + 90000;
+      const deadlineMs = prazoDaAvaliacaoFinanceiraRecuperada(tentativa, config);
       let observacao: RecreioClosureInventory | null = null;
       if (antes.origem.cliente) {
         const runtime = obterRuntime();
         if (runtime.modo !== antes.financeiro.providerMode)
           throw new RecreioRenewalReviewError("namespace_mismatch");
-        const scope: RecreioClosureInventoryScope = {
-          operationId: antes.op.id,
-          customerId: antes.origem.cliente.providerCustomerId,
-          payerId: antes.op.requesterUserId,
-          purchases: antes.origem.compras.map((p) => ({
-            authorizationId: p.id,
-            productId: p.produto,
-          })),
-          contracts: antes.origem.assinaturas.map(({ contrato, comum }) => ({
-            subscriptionId: comum.providerSubscriptionId,
-            authorizationId: contrato.purchaseId,
-            productId: contrato.originProductId,
-          })),
-          budget: { deadlineMs },
-        };
+        const scope = escopoDoInventarioFinanceiroRecuperado(antes, deadlineMs);
         observacao = await runtime.inventario.inspect(scope);
         assertRecreioClosureInventory(observacao, scope, runtime.modo);
       }
@@ -71,6 +58,11 @@ export async function avaliarFinanceiroConfirmadoRecuperado(
         "A origem financeira mudou durante a avaliação atual.",
       );
       if (observacao) {
+        assertRecreioClosureInventory(
+          observacao,
+          escopoDoInventarioFinanceiroRecuperado(depois, deadlineMs),
+          depois.financeiro.providerMode,
+        );
         if (
           observacao.checkouts.some((c) => !c.settled) ||
           depois.renovacoes.some((r) => r.state !== "confirmed")
@@ -117,10 +109,15 @@ export async function avaliarFinanceiroConfirmadoRecuperado(
       };
       dadosFinanceirosDaCoordenacaoPrivada(config);
       return Object.freeze(
-        await concluirAvaliacaoFinanceiraRecuperada(tentativa, config, {
-          ...recibo,
-          sha256: createHash("sha256").update(JSON.stringify(recibo)).digest("hex"),
-        }),
+        await concluirAvaliacaoFinanceiraRecuperada(
+          tentativa,
+          config,
+          {
+            ...recibo,
+            sha256: createHash("sha256").update(JSON.stringify(recibo)).digest("hex"),
+          },
+          observacao,
+        ),
       );
     } catch (erro) {
       const motivo =

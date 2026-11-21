@@ -204,7 +204,12 @@ export async function provarFinanceiroRecuperado(config: {
               "CONSENTIMENTO_NATIVO_DIVERGENTE",
             );
           });
-          inventario = await provarInventarioFinanceiroRecuperado(pai, copia, dado.provedor);
+          inventario = await provarInventarioFinanceiroRecuperado(
+            pai,
+            copia,
+            dado.provedor,
+            config.cliente,
+          );
           const encerrada = anterior;
           exigir(encerrada, "CAPACIDADE_PRIVADA_DIVERGENTE");
           await negada(() => criarProcessadorFinanceiroRecuperado(encerrada, runtime));

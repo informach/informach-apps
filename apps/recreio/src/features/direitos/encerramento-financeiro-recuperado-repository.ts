@@ -2,6 +2,11 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { logAuditEventStrict } from "@informach/auth/audit";
+import {
+  assertRecreioClosureInventory,
+  type RecreioClosureInventory,
+  type RecreioClosureInventoryScope,
+} from "@informach/billing/providers/stripe-recreio-closure-inventory";
 import { and, eq, inArray, sql } from "@informach/db";
 import {
   recreioRightsRecoveryFinances as assessments,
@@ -20,6 +25,10 @@ import {
   dadosFinanceirosDaCoordenacaoPrivada,
 } from "./coordenacao-repository";
 import { conferirFinanceiroDosEfeitos } from "./encerramento-efeitos-repository";
+import {
+  resumirConfirmacaoFinanceiraRecuperada,
+  resumirOrigemFinanceiraRecuperada,
+} from "./encerramento-financeiro-recuperado-guard";
 import { lerOrigemFinanceiraDoEncerramentoLocked } from "./encerramento-origem-financeira-repository";
 
 /** Fresh local assessment of a historically confirmed closure. No historical
@@ -126,11 +135,11 @@ export function lerFinanceiroConfirmadoRecuperado(config: CoordenacaoDeEfeitos) 
 }
 const hash = (valor: unknown) => createHash("sha256").update(JSON.stringify(valor)).digest("hex");
 const origemAtual = (estado: Estado) =>
-  hash({ origem: estado.origem.sha256, renovacoes: estado.renovacoes });
+  resumirOrigemFinanceiraRecuperada(estado.origem.sha256, estado.renovacoes);
 type Tentativa = Readonly<{ token: string }>;
 const tentativas = new WeakMap<
   Tentativa,
-  { config: CoordenacaoDeEfeitos; estado: Estado; numero: number }
+  { config: CoordenacaoDeEfeitos; estado: Estado; numero: number; deadlineMs: number }
 >();
 export function iniciarAvaliacaoFinanceiraRecuperada(
   config: CoordenacaoDeEfeitos,
@@ -174,7 +183,7 @@ export function iniciarAvaliacaoFinanceiraRecuperada(
       attempts: numero,
       attemptToken: token,
       sourceSha256: origemAtual(estado),
-      historicalConfirmationSha256: hash(estado.financeiro),
+      historicalConfirmationSha256: resumirConfirmacaoFinanceiraRecuperada(estado.financeiro),
       result: null,
       observationSha256: null,
       receiptSha256: null,
@@ -199,7 +208,7 @@ export function iniciarAvaliacaoFinanceiraRecuperada(
       { writer: tx },
     );
     const prova = Object.freeze({ token });
-    tentativas.set(prova, { config, estado, numero });
+    tentativas.set(prova, { config, estado, numero, deadlineMs: Date.now() + 90000 });
     return prova;
   });
 }
@@ -213,6 +222,34 @@ function exigirTentativa(prova: Tentativa, config: CoordenacaoDeEfeitos) {
   dadosFinanceirosDaCoordenacaoPrivada(config);
   return tentativa;
 }
+export function prazoDaAvaliacaoFinanceiraRecuperada(
+  prova: Tentativa,
+  config: CoordenacaoDeEfeitos,
+) {
+  return exigirTentativa(prova, config).deadlineMs;
+}
+export function escopoDoInventarioFinanceiroRecuperado(
+  estado: Estado,
+  deadlineMs: number,
+): RecreioClosureInventoryScope {
+  assertAllowed(
+    estado.origem.cliente,
+    "DIREITOS_INTEGRIDADE",
+    "Cliente da avaliação financeira ausente.",
+  );
+  return {
+    operationId: estado.op.id,
+    customerId: estado.origem.cliente.providerCustomerId,
+    payerId: estado.op.requesterUserId,
+    purchases: estado.origem.compras.map((p) => ({ authorizationId: p.id, productId: p.produto })),
+    contracts: estado.origem.assinaturas.map(({ contrato, comum }) => ({
+      subscriptionId: comum.providerSubscriptionId,
+      authorizationId: contrato.purchaseId,
+      productId: contrato.originProductId,
+    })),
+    budget: { deadlineMs },
+  };
+}
 function escopoTentativa(prova: Tentativa, config: CoordenacaoDeEfeitos) {
   const tentativa = exigirTentativa(prova, config),
     privado = dadosFinanceirosDaCoordenacaoPrivada(config);
@@ -223,7 +260,10 @@ function escopoTentativa(prova: Tentativa, config: CoordenacaoDeEfeitos) {
     eq(assessments.attemptToken, prova.token),
     eq(assessments.attempts, tentativa.numero),
     eq(assessments.sourceSha256, origemAtual(tentativa.estado)),
-    eq(assessments.historicalConfirmationSha256, hash(tentativa.estado.financeiro)),
+    eq(
+      assessments.historicalConfirmationSha256,
+      resumirConfirmacaoFinanceiraRecuperada(tentativa.estado.financeiro),
+    ),
   );
 }
 const ReciboFinanceiroRecuperadoSchema = z.strictObject({
@@ -247,6 +287,7 @@ export function concluirAvaliacaoFinanceiraRecuperada(
   prova: Tentativa,
   config: CoordenacaoDeEfeitos,
   entrada: unknown,
+  observacao: RecreioClosureInventory | null,
 ) {
   const recibo = ReciboFinanceiroRecuperadoSchema.parse(entrada);
   const { sha256, ...documento } = recibo;
@@ -259,7 +300,8 @@ export function concluirAvaliacaoFinanceiraRecuperada(
   return comEstado(config, async (tx, estado) => {
     const privado = dadosFinanceirosDaCoordenacaoPrivada(config);
     assertAllowed(
-      isDeepStrictEqual(estado, tentativa.estado) &&
+      Date.now() < tentativa.deadlineMs &&
+        isDeepStrictEqual(estado, tentativa.estado) &&
         recibo.execucaoId === privado.execucaoId &&
         recibo.operacaoId === estado.op.id &&
         recibo.cercaSha256 === privado.cerca &&
@@ -276,6 +318,24 @@ export function concluirAvaliacaoFinanceiraRecuperada(
       "DIREITOS_INTEGRIDADE",
       "O recibo financeiro atual mudou de origem.",
     );
+    if (estado.origem.cliente) {
+      assertAllowed(observacao, "DIREITOS_INTEGRIDADE", "Inventário atual do provedor ausente.");
+      assertRecreioClosureInventory(
+        observacao,
+        escopoDoInventarioFinanceiroRecuperado(estado, 0),
+        estado.financeiro.providerMode,
+      );
+      assertAllowed(
+        observacao.sha256 === recibo.observacaoAtualSha256,
+        "DIREITOS_INTEGRIDADE",
+        "O inventário atual mudou antes do recibo.",
+      );
+    } else
+      assertAllowed(
+        observacao === null,
+        "DIREITOS_INTEGRIDADE",
+        "Observação fora da origem sem cliente.",
+      );
     const [linha] = await tx
       .update(assessments)
       .set({
