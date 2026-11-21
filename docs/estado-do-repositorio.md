@@ -744,3 +744,14 @@ privado, com rollback, repetição e preservação dos demais dados. O executor 
 retirada por imagem ainda exige corrigir/qualificar a fixture em candidata;
 44882140544 falhou antes de comprovar os efeitos, com limpeza confirmada.
 [Schema real](recreio/evidencias/schema-producao-0244-2026-11-21.json).
+
+Em 44883795457/76d36331, a imagem completa de F7 executou consentimento nativo,
+retirada de progresso e remoção física sem retenção em duas rodadas. O perfil
+controle e as identidades globais permaneceram intactos, auditoria terminal única,
+falta/congelamento recusados e limpeza confirmada. Qualidade 44883797727 passou.
+Encerramento de conta sem jogadores/cliente é a candidata seguinte. Estágio nativo
+privado c4f0b13e passou qualidade 44883898228, mas a prova fria 44883895571 falhou
+em uma conferência do estágio; diagnóstico está sendo detalhado. Não foi publicado
+schema em produção. Backup operacional foi atualizado separadamente para 2967cf32,
+com cron/custódia/limites preservados; deploy 8f7ee78c é sucesso, sem rodada nativa
+nova observada até agora. A última captura positiva continua sendo 716897a1.

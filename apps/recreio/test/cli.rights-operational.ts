@@ -9,6 +9,7 @@ import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamen
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
 import { executarImagemDeDireitos } from "./rights-cli-apoio";
+import { prepararEncerramentoParaImagem } from "./rights-closure-native-apoio";
 import { FalhaDaFixtureDaImagem, prepararRetiradaParaImagem } from "./rights-native-apoio";
 
 function required(key: string) {
@@ -29,6 +30,14 @@ const Rodada = z.strictObject({
   leiturasLivro: z.literal(1),
   escritasLivro: z.literal(0),
   limpezaConfirmada: z.literal(true),
+});
+const RodadaComEfeitos = z.object({
+  formato: z.literal("recreio-direitos-rodada-v1"),
+  etapas: z.array(z.object({ etapa: z.string(), situacao: z.string() })).length(11),
+  review: z.literal(0),
+  limpezaConfirmada: z.literal(true),
+  leiturasLivro: z.number().int().positive(),
+  escritasLivro: z.number().int().nonnegative(),
 });
 const Falha = z.strictObject({
   formato: z.literal("recreio-direitos-rodada-v1"),
@@ -173,16 +182,7 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
       phase = "native_round";
       const rows = await executarImagemDeDireitos(env);
       expect(rows).toHaveLength(1);
-      const result = z
-        .object({
-          formato: z.literal("recreio-direitos-rodada-v1"),
-          etapas: z.array(z.object({ etapa: z.string(), situacao: z.string() })).length(11),
-          review: z.literal(0),
-          limpezaConfirmada: z.literal(true),
-          leiturasLivro: z.number().int().positive(),
-          escritasLivro: z.number().int().nonnegative(),
-        })
-        .parse(rows[0]);
+      const result = RodadaComEfeitos.parse(rows[0]);
       expect(result.etapas.every((e) => !["revisao", "falhou"].includes(e.situacao))).toBe(true);
       effectRounds++;
       const state = (await withdrawal.estado())?.state ?? null;
@@ -198,6 +198,39 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     report.globalIdentitiesPreserved = true;
     report.nativeCompletionAuditVerified = true;
     report.nativeEffectRounds = effectRounds;
+    phase = "closure_preparation";
+    const closure = await prepararEncerramentoParaImagem({
+      assinatura,
+      storage,
+      fonte: required("GITHUB_SHA"),
+    });
+    let closureRounds = 0;
+    const closureObserved: {
+      etapas: { etapa: string; situacao: string }[];
+      state: string | null;
+    }[] = [];
+    report.nativeClosureRounds = closureObserved;
+    for (; closureRounds < 6; ) {
+      phase = "closure_round";
+      const rows = await executarImagemDeDireitos(env);
+      expect(rows).toHaveLength(1);
+      const result = RodadaComEfeitos.parse(rows[0]);
+      expect(result.etapas.every((e) => !["revisao", "falhou"].includes(e.situacao))).toBe(true);
+      closureRounds++;
+      const state = (await closure.estado())?.state ?? null;
+      closureObserved.push({ etapas: result.etapas, state });
+      if (state === "completed") break;
+    }
+    phase = "closure_verification";
+    await closure.verificar();
+    await withdrawal.verificar();
+    expect((await storage.lerCabecalho()).documento.entradas).toBe(2);
+    report.nativeAccountClosureWithoutCustomerVerified = true;
+    report.nativeAccountClosureGlobalIdentityPreserved = true;
+    report.nativeAccountClosureOwnPinRemoved = true;
+    report.nativeAccountClosureAuditVerified = true;
+    report.financialProviderCredentialsPresent = false;
+    report.nativeAccountClosureEffectRounds = closureRounds;
     const beforeFreeze = await list(prefix);
     phase = "missing";
     const missing = await executarImagemDeDireitos(
@@ -229,9 +262,9 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     }>(sql`
       select ok,finished_at is not null as finished,summary from ops.job_runs
       where app='recreio' and job='direitos' order by started_at,id`);
-    expect(runs).toHaveLength(4 + effectRounds);
+    expect(runs).toHaveLength(4 + effectRounds + closureRounds);
     expect(runs.map((r) => r.ok)).toEqual([
-      ...Array.from({ length: 2 + effectRounds }, () => true),
+      ...Array.from({ length: 2 + effectRounds + closureRounds }, () => true),
       false,
       false,
     ]);
