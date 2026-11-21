@@ -278,6 +278,14 @@ inventar aceite. Cliente Stripe e pendências de compra/troca ainda são recusad
 O livro passa a seis decisões, 33 objetos de direitos/37 totais. Os resultados
 anteriores continuam vinculados às fontes e aos perfis efetivamente testados.
 
+998a9aaf passou qualidade 44870020818, direitos 44870026283, conciliação
+44870029267 e cluster frio 44870023436. A seleção posterior com seis registros
+opacos, duas fotos, diário e mundo compartilhado passou, incluindo rollback
+P7783, mundo extra recusado e responsabilidade que exige revisão. Os 37 objetos
+e clusters foram removidos. [Recibo](evidencias/encerramento-ausente-selecao-44870023436.json).
+O gate integral da composição 45d246c2 está em 44872287047; não confundir
+essa execução com promoção à main ou implantação do portal.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

@@ -42,7 +42,34 @@ valores. O serviço de inicialização recebe só referências ao namespace do l
 nunca herda credenciais do arquivo ou do banco. Executar uma vez, reler, repetir
 e conferir leitura anônima negada. Remover o serviço temporário depois do recibo.
 
-Essa preparação está em qualificação. Não configurar o portal/worker para
+Não configurar o portal/worker para
 consentir ou processar direitos com base no simples nascimento do livro. Ainda
 exigir recuperação completa, conciliação atual, publicação seletiva, retenção,
 monitoramento e gates do [fechamento](fechamento-plataforma-2026-11-16.md).
+
+## Custódia real — 21/11
+
+Bucket `a4570f3e-434f-4664-abba-322f790c2576`, nome S3
+`recreio-direitos-producao-kzwh2c`, região sjc. Livro
+`21cca46b-6522-4954-aa77-4b47de323193`, chave identificada como
+`direitos-prod-20261121-1`. Esses identificadores não contêm o material MAC.
+O custodiador `recreio-custodia-operacional` conserva 32 valores: os vinte
+anteriores foram comparados como intactos e os doze novos coincidiram com a
+cópia DPAPI separada do usuário. Não houve chave de produção no GitHub.
+
+30512567 passou 44870680267: tipos, 66 testes, Docker, fronteira e recusa
+implícita. O bundle de produção teve o mesmo SHA do GitHub. O serviço
+temporário criou e releu o livro às 05:32 UTC, sem banco/login/Stripe, rede
+pública, volume ou cron. 45d246c2 passou 44871671554 e sua execução real às
+05:41 UTC confirmou livro existente: **um GET, zero tentativas de PUT**,
+mesmo estado aberto/época zero/zero decisões e data original 05:32:42.758 UTC.
+O checksum e os dois hashes de build estão no
+[recibo operacional](evidencias/custodia-livro-producao-2026-11-21.json).
+
+O provedor confirmou dois objetos/1.012 bytes. GET anônimo do cabeçalho real
+e listagem anônima retornaram 403. O serviço temporário foi removido e sua
+ausência conferida; custodiador e bucket permanecem. Portal conserva modos
+de direitos/consentimento/encerramento/exportação ausentes com default off,
+e cobrança off. Não houve consentimento, efeito pessoal, rotação ou publicação
+de recuperação. Retenção/agenda/monitoramento do livro e recuperação completa
+continuam pendentes; este recibo qualifica somente a custódia/inicialização.

@@ -61,9 +61,17 @@ seleção sem mundo passou 44865074023; verificação individual/auditoria passo
 qualidade, direitos e conciliação aprovados. Mundo compartilhado e publicação
 interrompida passaram 44867642872/44868026640, com limpeza confirmada.
 Decisão posterior sem jogadores/cliente passou 44868795994/9f44950f.
-Seleção posterior com mundo está em candidata; cliente Stripe ausente no
-arquivo, identidade atual e publicação seletiva continuam pendentes.
+Seleção posterior com mundo passou 44870023436/998a9aaf, com negativas de
+escopo/responsabilidade e limpeza. Decisão ausente com cliente Stripe,
+identidade atual e publicação seletiva continuam pendentes. A composição
+45d246c2 está no gate integral 44872287047.
 [Execução](recreio/encerramento-recuperado-2026-11-20.md).
+
+**Custódia do livro:** destino separado e MAC próprio preparados no Railway,
+32 valores comparados, com os vinte anteriores intactos e cópia DPAPI separada.
+Inicialização 30512567/repetição 45d246c2 conferidas: dois objetos/1.012 bytes,
+leitura anônima 403, repetição um GET/zero PUT. Serviço temporário removido;
+nenhum fluxo de direitos foi ativado. [Recibo e fronteira](recreio/custodia-livro-2026-11-21.md).
 
 **Operação em implementação:** coordenação, publicação, reconciliação e filas
 nativas qualificadas. f5b4116f passou qualidade/captura/cluster
