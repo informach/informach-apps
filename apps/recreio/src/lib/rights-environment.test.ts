@@ -23,6 +23,27 @@ describe("configuração operacional de direitos", () => {
     expect(ler({})).toBeNull();
     expect(ler({ RECREIO_RIGHTS_MODE: "off", RECREIO_RIGHTS_KEYRING: "inválido" })).toBeNull();
   });
+  it("recusa custódia de homologação em um serviço Railway de produção", () => {
+    expect(() =>
+      ler({
+        ...variaveis(),
+        CI: "true",
+        GITHUB_ACTIONS: "true",
+        RAILWAY_PROJECT_ID: "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+        RAILWAY_ENVIRONMENT_ID: "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+        RAILWAY_SERVICE_ID: randomUUID(),
+      }),
+    ).toThrow(/^Invalid RECREIO_RIGHTS configuration$/);
+  });
+  it("recusa custódia de produção fora do processo produtivo autorizado", () => {
+    expect(() =>
+      ler({
+        ...variaveis(),
+        RECREIO_RIGHTS_SCOPE: "production",
+        RECREIO_RIGHTS_BUCKET: "recreio-direitos",
+      }),
+    ).toThrow(/^Invalid RECREIO_RIGHTS configuration$/);
+  });
   it("carrega chaves próprias e separa qualificação de produção", () => {
     const v = variaveis(),
       config = ler(v);
