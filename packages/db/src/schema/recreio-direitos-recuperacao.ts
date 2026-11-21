@@ -209,3 +209,93 @@ export const recreioRightsRecoveryEvaluations = recreio.table(
     ];
   },
 );
+
+/** Current financial assessment belongs to one recovery run, never replaces
+ * the original account-closure financial confirmation. A new attempt clears
+ * positive evidence before provider I/O; only its own token may finish it.
+ * This receipt alone grants neither data effects nor recovered traffic. */
+export const recreioRightsRecoveryFinances = recreio.table(
+  "rights_recovery_finances",
+  {
+    runId: uuid("run_id").notNull(),
+    operationId: uuid("operation_id").notNull(),
+    ledgerId: uuid("ledger_id").notNull(),
+    requesterReference: text("requester_reference").notNull(),
+    kind: text("kind").$type<"encerrar_conta">().notNull().default("encerrar_conta"),
+    planSha256: text("plan_sha256").notNull(),
+    providerMode: text("provider_mode").$type<"dev" | "prod">().notNull(),
+    state: text("state").$type<"attempted" | "current" | "review">().notNull(),
+    attempts: integer("attempts").notNull(),
+    attemptToken: uuid("attempt_token").notNull(),
+    sourceSha256: text("source_sha256").notNull(),
+    historicalConfirmationSha256: text("historical_confirmation_sha256").notNull(),
+    result: text("result").$type<"provider_inventory" | "no_customer">(),
+    observationSha256: text("observation_sha256"),
+    receiptSha256: text("receipt_sha256"),
+    reviewCode: text("review_code").$type<
+      | "provider_unavailable"
+      | "scope_changed"
+      | "foreign_contract"
+      | "namespace_mismatch"
+      | "invalid_evidence"
+      | "ledger_unavailable"
+      | "technical_failure"
+    >(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.runId, t.operationId] }),
+    foreignKey({
+      name: "recreio_recovery_finance_evaluation",
+      columns: [t.runId, t.operationId],
+      foreignColumns: [
+        recreioRightsRecoveryEvaluations.runId,
+        recreioRightsRecoveryEvaluations.operationId,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "recreio_recovery_finance_run",
+      columns: [t.runId, t.ledgerId],
+      foreignColumns: [recreioRightsRecoveryRuns.id, recreioRightsRecoveryRuns.ledgerId],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "recreio_recovery_finance_source",
+      columns: [t.operationId, t.requesterReference, t.planSha256, t.kind, t.ledgerId],
+      foreignColumns: [
+        recreioRightsRecoverySources.operationId,
+        recreioRightsRecoverySources.requesterReference,
+        recreioRightsRecoverySources.planSha256,
+        recreioRightsRecoverySources.kind,
+        recreioRightsRecoverySources.ledgerId,
+      ],
+    }).onDelete("restrict"),
+    index("recreio_recovery_finance_state").on(t.runId, t.state, t.operationId),
+    check(
+      "recreio_recovery_finance_scope",
+      sql`${t.kind}='encerrar_conta' and ${t.providerMode} in ('dev','prod') and char_length(${t.requesterReference}) between 1 and 256 and ${t.attempts} between 1 and 2147483647`,
+    ),
+    check(
+      "recreio_recovery_finance_hashes",
+      sql`${t.planSha256} ~ '^[a-f0-9]{64}$' and ${t.sourceSha256} ~ '^[a-f0-9]{64}$' and ${t.historicalConfirmationSha256} ~ '^[a-f0-9]{64}$' and (${t.observationSha256} is null or ${t.observationSha256} ~ '^[a-f0-9]{64}$') and (${t.receiptSha256} is null or ${t.receiptSha256} ~ '^[a-f0-9]{64}$')`,
+    ),
+    check(
+      "recreio_recovery_finance_state",
+      sql`((
+      ${t.state}='attempted' and ${t.result} is null and ${t.observationSha256} is null and ${t.receiptSha256} is null and ${t.observedAt} is null and ${t.reviewCode} is null
+    ) or (
+      ${t.state}='current' and ${t.receiptSha256} is not null and ${t.observedAt} is not null and ${t.reviewCode} is null and
+      ((${t.result}='provider_inventory' and ${t.observationSha256} is not null) or (${t.result}='no_customer' and ${t.observationSha256} is null))
+    ) or (
+      ${t.state}='review' and ${t.result} is null and ${t.observationSha256} is null and ${t.receiptSha256} is null and ${t.observedAt} is null and
+      ${t.reviewCode} in ('provider_unavailable','scope_changed','foreign_contract','namespace_mismatch','invalid_evidence','ledger_unavailable','technical_failure')
+    )) is true`,
+    ),
+    check(
+      "recreio_recovery_finance_times",
+      sql`isfinite(${t.createdAt}) and isfinite(${t.attemptedAt}) and isfinite(${t.updatedAt}) and ${t.attemptedAt}>=${t.createdAt} and ${t.updatedAt}>=${t.attemptedAt} and (${t.observedAt} is null or (isfinite(${t.observedAt}) and ${t.observedAt}>=${t.attemptedAt} and ${t.observedAt}<=${t.updatedAt}))`,
+    ),
+  ],
+);
