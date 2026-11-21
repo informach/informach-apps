@@ -92,8 +92,8 @@ produção nem encerra conciliação financeira, auditoria nova ou permissões a
 
 ### Correção do filtro de importação
 
-A prova vermelha 44884841683 parou no cancelamento porque a importação já havia
-falhado antes de alcançar a trava. No PostgreSQL 18, `pg_restore -n` exclui entradas
+A prova vermelha 44884841683 não encontrou o backend esperado na trava. A análise
+do código identificou uma seleção incompleta: no PostgreSQL 18, `pg_restore -n` exclui entradas
 sem namespace, incluindo a definição do próprio schema. A seleção continua sendo
 feita por `pg_dump --schema` na origem privada. A importação agora consome esse
 arquivo nativo já limitado, autenticado por SHA/handle e capacidade intransferível,
@@ -102,3 +102,9 @@ criação do schema participa da mesma transação das tabelas/dados/constraints
 A próxima prova exige importação positiva, rollback por cancelamento do backend
 e preservação dos globais; ainda não é publicação de produção.
 [Fonte PostgreSQL 18](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/bin/pg_dump/pg_backup_archiver.c#L3187).
+
+A confirmação da correção continua pendente: 44885663509 também parou na
+observação do cancelamento. A candidata seguinte identifica o backend pelo
+banco privado e pelo schema gerado presente no DDL, e propaga falhas nativas
+com categorias constantes. Não imprime stderr, COPY, identidades ou conexão.
+O processo observado continua limitado ao cluster Unix descartável próprio.

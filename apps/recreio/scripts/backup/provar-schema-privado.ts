@@ -94,11 +94,12 @@ export async function provarEstagioNativoPrivado(
       let cancelou = false;
       while (performance.now() < fim && !cancelou && !terminou) {
         await atual.unsafe("select pg_stat_clear_snapshot()");
-        const alvos = await atual.unsafe<
-          { pid: number }[]
-        >(`select pid from pg_catalog.pg_stat_activity
-          where datname=current_database() and usename=current_user and pid<>pg_backend_pid()
-            and application_name='recreio-schema-privado' and wait_event_type='Lock'`);
+        const alvos = await atual.unsafe<{ pid: number }[]>(
+          `select pid from pg_catalog.pg_stat_activity
+          where datname=current_database() and pid<>pg_backend_pid() and backend_type='client backend'
+            and wait_event_type='Lock' and position($1 in query)>0`,
+          [prova.schema],
+        );
         exigir(alvos.length <= 1, `SCHEMA_ESTAGIO_${etapa}`);
         if (alvos[0]) {
           const [r] = await atual.unsafe<{ cancelado: boolean }[]>(
@@ -107,6 +108,10 @@ export async function provarEstagioNativoPrivado(
           );
           cancelou = r?.cancelado === true;
         } else await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      if (!cancelou && terminou) {
+        const encerrada = await importacao;
+        if (encerrada && typeof encerrada === "object" && "erro" in encerrada) throw encerrada.erro;
       }
       exigir(cancelou, `SCHEMA_ESTAGIO_${etapa}`);
       const r = await importacao;

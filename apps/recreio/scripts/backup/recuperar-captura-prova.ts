@@ -17,6 +17,7 @@ import {
   type EtapaDaRecuperacao,
   FalhaDaRecuperacaoSchema,
 } from "./diagnostico-recuperacao";
+import { FalhaDaFerramentaNativa } from "./ferramentas-nativas";
 import { criarIndiceDeRecuperacao } from "./indice-recuperacao";
 import { criarArmazenamentoDoIndiceS3 } from "./indice-s3";
 import { conferirInventarios, FalhaDeInventario, inventariarBackup } from "./inventario";
@@ -43,6 +44,10 @@ function codigoSeguro(erro: unknown): CodigoDaRecuperacao {
     const e = fila.shift();
     const restricao = classificarRestricaoDeRecuperacao(e);
     if (restricao) return restricao;
+    if (e instanceof FalhaDaFerramentaNativa && e.codigo === "FERRAMENTA_FALHOU") {
+      const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(`NATIVO_${e.motivo}`);
+      if (r.success) return r.data;
+    }
     if (e instanceof FalhaDosVinculosAtuais) return "PROVA_VINCULOS_GLOBAIS_DIVERGENTES";
     if (e instanceof z.ZodError) return "CONFIGURACAO_INVALIDA";
     if (e instanceof AppError || e instanceof RecreioRenewalReviewError) {
