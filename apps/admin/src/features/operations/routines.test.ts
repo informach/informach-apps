@@ -127,7 +127,16 @@ describe("situação das rotinas", () => {
       "auth-cleanup",
     ])
       expect(active.some((row) => row.job === job)).toBe(true);
-    expect(active.find((row) => row.app === "recreio")?.pausedNote).toBeTruthy();
+    expect(
+      active.find((row) => row.app === "recreio" && row.job === "manutencao")?.pausedNote,
+    ).toBeTruthy();
+    const backup = active.find((row) => row.app === "recreio" && row.job === "backup");
+    expect(backup).toMatchObject({
+      intervalMinutes: 360,
+      lateAfterMinutes: 420,
+      maxRuntimeMinutes: 15,
+    });
+    expect(backup?.pausedNote).toBeUndefined();
     expect(active.find((row) => row.app === "conta")?.pausedNote).toBeUndefined();
     expect(routinesForDeployment(false)).toBe(ROUTINES);
   });

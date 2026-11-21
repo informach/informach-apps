@@ -1,0 +1,27 @@
+{
+  "readAt": "2026-11-21T01:37:39.214050+00:00",
+  "source": "Railway CLI 5.62.1 usage projects --period current",
+  "sourceSha256": "e63053b070f06f3a53fa4020512c296b0f7e6e771957344359106ef722b2f7be",
+  "billingPeriod": {
+    "end": "2026-12-09T10:40:03+00:00",
+    "start": "2026-11-09T10:40:03+00:00"
+  },
+  "currency": "USD",
+  "periodClosed": false,
+  "type": "metered_accumulated_usage_not_invoice",
+  "services": [
+    {
+      "backupDollars": -0.0,
+      "cpuDollars": 2.315527777777778e-5,
+      "egressDollars": 0.0,
+      "id": "ad5d43d0-616c-4618-9f12-915b8b971d8c",
+      "memoryDollars": 0.0,
+      "name": "recreio-backup-operacional",
+      "totalDollars": 2.315527777777778e-5,
+      "volumeDollars": -0.0
+    }
+  ],
+  "deletedRecoveryServicePresent": true,
+  "objectStorageChargeDiscriminated": false,
+  "completeRecoveryCostMeasured": false
+}

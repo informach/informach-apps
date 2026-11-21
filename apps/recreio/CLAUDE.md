@@ -448,16 +448,23 @@ transformação real de fotos ou fechamento F8.
 
 ## Estado operacional conferido em 20/11
 
-A candidata tem 244 recibos/0243 e 80 fontes; produção permanece em 204/0203.
+A candidata e o PostgreSQL produtivo têm 244 recibos/0243 e 80 fontes. A
+migração separada de 20/11 preservou os 204 recibos anteriores, os dois mundos
+e as dez fotografias. Portal d014bd90 continua saudável; preview 01eb6833
+tem portal nativo v2 e saúde/prontidão conferidas.
 A prova completa das CLIs em 5fe5710e passou no GitHub 44837783170:
 captura/cadência reais no bucket de homologação, banco review indisponível,
 objeto sintético original removido, recuperação somente pelo arquivo em dois
 clusters privados e limpeza confirmada. Qualidade/captura/cluster passaram
 44837795416/44837787315/44837791237. A recuperação técnica não publica tráfego
 nem fecha finanças/identidades atuais. Credenciais reais nunca vão ao GitHub.
-O CI compartilhado ac5ae7d1 passou 44824438593. Ensaio real preservou recibos
-históricos e atualizou apenas uma cópia privada de 204 para 244. Nenhuma nova
-entrada de backup, cron ou recurso comercial está ativa em produção.
+O CI compartilhado ac5ae7d1 passou 44824438593. A primeira captura cifrada
+produtiva, 1613df70, foi publicada e restaurada em dois clusters privados sem
+URL do banco de origem; arquivos/clusters/serviço temporário foram removidos.
+O cron teve uma execução real conferida às 01:35 UTC e ficou fixado em
+`14 1,7,13,19 * * *` UTC. A observação ainda não cobre um ciclo de seis horas.
+Monitor novo, recuperação com finanças/identidades atuais e recursos comerciais
+continuam sem ativação/prova completas. Credencial dos dumps fica fora do portal.
 [Operação e pendências](../../docs/recreio/operacao-backup-2026-11-20.md).
 
 

@@ -1,0 +1,19 @@
+{
+  "observedAt": "2026-11-21T01:35:35.437301585Z",
+  "deploymentId": "64c73ce6-a711-4c81-a1e2-1fe8ae6f27bd",
+  "serviceId": "ad5d43d0-616c-4618-9f12-915b8b971d8c",
+  "scheduleVerified": "14 1,7,13,19 * * *",
+  "formato": "recreio-backup-rodada-v1",
+  "modo": "native",
+  "ok": true,
+  "source": "5fe5710e28d44d3f04fe1485ba261284c56cdccd",
+  "observadas": 0,
+  "abandonadas": 0,
+  "publicadas": 0,
+  "retiradas": 0,
+  "reservasLiberadas": 0,
+  "retencoesPendentes": 0,
+  "capturaCriada": false,
+  "limpezaConfirmada": true,
+  "fullSixHourCycleObserved": false
+}

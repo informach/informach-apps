@@ -427,5 +427,18 @@ Próximo incremento, com gates somente no GitHub:
 4. Registrar cadência observada, consumo e prova de falha/recuperação do
    monitor. A leitura SQL não substitui o ensaio periódico do objeto externo.
 
-Monitoração nova, agenda definitiva, custos/RPO observados e recuperação
-operacional completa continuam pendentes até suas respectivas evidências.
+O cron inicial concluiu às 01:35:36 UTC; log nativo e `ops.job_runs` confirmam
+sucesso/limpeza, sem captura duplicada. A agenda definitiva foi relida ativa
+em `449a9706-1a26-4c69-bb08-cf66881db8c9`, fonte 5fe5710e, sem patch pendente.
+Isso prova o disparo agendado; o ciclo posterior de seis horas ainda precisa
+ser observado. A sonda nova passou os testes de transporte em 44851031040 e
+o banco descartável em 44851054282. All/qualidade da candidata 4a1780c5
+continuam em execução; endpoint e novo alvo ainda não foram ativados.
+
+O custo acumulado atribuído ao executor às 01:37 UTC foi USD 0,000023155278,
+conforme o [recibo do provedor](evidencias/custo-executor-backup-2026-11-20.json).
+O serviço temporário já removido não aparece no detalhamento; não assumir custo
+zero para a recuperação ou armazenamento sem discriminação. Valores iniciais
+podem ter atraso e não são projeção mensal, fatura ou custo integral de F8.
+Monitoração nova, ciclo/RPO observado e recuperação operacional completa
+continuam pendentes até suas respectivas evidências.
