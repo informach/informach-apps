@@ -455,3 +455,18 @@ atualizado foi executado pela candidata qualificada; a agenda padrão do GitHub
 ainda depende da integração dessa fonte à main. Não anunciar recorrência nova
 do GitHub antes dessa integração e de uma execução agendada observada.
 Ciclo/RPO observado e recuperação operacional completa continuam pendentes.
+
+## Resumo da execução nativa — candidata de 21/11
+
+O `recordJobRun` compartilhado conserva somente números/booleanos no primeiro
+nível. A CLI entregava o envelope da exclusão mútua, com o resultado aninhado,
+produzindo `{}` em `ops.job_runs.summary`. A correção devolve os contadores e
+`capturaCriada` dentro do callback registrado; IDs de arquivo e outros textos
+continuam omitidos. Não altera a cadência, as credenciais, os limites nem o
+tratamento de erros. O ensaio da imagem exata agora exige duas linhas concluídas,
+captura positiva e repetição negativa, contagens numéricas e ausência de ID.
+
+Esta candidata usa o schema 0244/245 recibos, ainda não aplicado em produção.
+O executor produtivo 5fe5710e e sua próxima agenda permanecem preservados até
+a qualificação e a implantação compatível. Duas cópias físicas privadas da CLI
+não equivalem às duas recuperações completas com direitos/identidade atuais.

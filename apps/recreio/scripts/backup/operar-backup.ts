@@ -145,8 +145,8 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDoBack
       },
     });
     const publicacao = { destino, cifrador, composto, indice, indices, transporte };
-    const valor = await recordJobRun({ app: "recreio", job: "backup" }, () =>
-      comExecucaoExclusivaDoBackup(
+    const valor = await recordJobRun({ app: "recreio", job: "backup" }, async () => {
+      const exclusiva = await comExecucaoExclusivaDoBackup(
         { conexao: config.conexao, tempoLimiteMs: config.tempoLimiteMs },
         async (execucao) => {
           fase = "fila";
@@ -195,12 +195,15 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDoBack
             reservasLiberadas: base.reservasLiberadas + captura.reservasLiberadas,
           };
         },
-      ),
-    );
-    resultado = {
-      ok: true,
-      valor: valor.situacao === "ocupada" ? { ocupada: true, capturaCriada: false } : valor.valor,
-    };
+      );
+      // The shared recorder intentionally retains only top-level counters and
+      // booleans. Unwrap here so the native backup has an operational summary;
+      // keep archive IDs and all other text outside ops.job_runs.
+      return exclusiva.situacao === "ocupada"
+        ? { ocupada: true, capturaCriada: false }
+        : exclusiva.valor;
+    });
+    resultado = { ok: true, valor };
   } catch (erro) {
     resultado = { ok: false, erro, fase };
   }

@@ -215,6 +215,10 @@ it("uses the exact image to capture/cadence, lose source capabilities and restor
       RECREIO_OBJECTS_KEYS: JSON.stringify({ "foto-v1": fotoKey.toString("base64") }),
     };
     phase = "capture";
+    const [marco] = await db.execute<{ instante: string }>(
+      sql`select clock_timestamp()::text as instante`,
+    );
+    if (!marco) throw new Error("OPERATIONAL_CLOCK_MISSING");
     const captured = CaptureResult.parse((await executarImagemDeBackup(captureEnv)).at(-1));
     expect(captured.capturaCriada).toBe(true);
     if (!captured.capturaId) throw new Error("CAPTURE_RECEIPT_MISSING");
@@ -232,6 +236,21 @@ it("uses the exact image to capture/cadence, lose source capabilities and restor
       sql`select count(*)::int as n from recreio.backup_captures where encryption_key_id=${archiveId}`,
     );
     expect(count?.n).toBe(1);
+    const rodadas = await db.execute<{ summary: Record<string, number | boolean> }>(sql`
+      select summary from ops.job_runs where app='recreio' and job='backup'
+      and started_at>=${marco.instante}::timestamptz and ok and finished_at is not null
+      order by started_at,id`);
+    expect(rodadas).toHaveLength(2);
+    expect(rodadas.map((r) => r.summary.capturaCriada)).toEqual([true, false]);
+    for (const rodada of rodadas) {
+      expect(rodada.summary.observadas).toEqual(expect.any(Number));
+      expect(rodada.summary.retencoesPendentes).toEqual(expect.any(Number));
+      expect(rodada.summary).not.toHaveProperty("capturaId");
+      expect(
+        Object.values(rodada.summary).every((v) => ["number", "boolean"].includes(typeof v)),
+      ).toBe(true);
+    }
+    report.nativeJobSummariesVerified = true;
     report.cadenceVerified = true;
     phase = "source_loss";
     await cliente.send(new DeleteObjectCommand({ Bucket: bucket, Key: photoPath }));
@@ -260,7 +279,7 @@ it("uses the exact image to capture/cadence, lose source capabilities and restor
     expect(recovered.resultado.capturaId).toBe(id);
     expect(
       recovered.resultado.rodadas.every(
-        (v) => v.recibosAntes === 244 && v.recibosDepois === 244 && v.migrationsAplicadas === 0,
+        (v) => v.recibosAntes === 245 && v.recibosDepois === 245 && v.migrationsAplicadas === 0,
       ),
     ).toBe(true);
     report.recovery = recovered;

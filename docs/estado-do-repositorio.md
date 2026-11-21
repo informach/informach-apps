@@ -84,20 +84,21 @@ limite GET por captura têm provas de tipos/captura/cluster; CLI completa passou
 44837783170/5fe5710e: origem indisponível, duas cópias privadas e limpeza
 confirmadas; qualidade/captura/cluster 44837795416/44837787315/44837791237.
 [Plano e provas](recreio/operacao-backup-2026-11-20.md).
-Faltam custódia/credenciais reais, agenda/alertas,
-publicação seletiva do Recreio com identidade/finanças atuais e aceites
-operacionais/comerciais finais. Nenhuma entrada operacional nova está ativa.
-Dois buckets produtivos e serviço vazio de custódia foram preparados, com
-vinte variáveis persistidas conferidas; sem captura/agenda/deploy. Executor permanente confirmou modo off no Railway, sem credenciais/cron ou
-acesso público. Backup manual pré-migração recusado pelo limite de dez cópias
-do volume, sem apagar backups antigos. Publicação histórica com confirmação
-SQL perdida passou cluster externo 44841477078, qualidade 44841480696 e
-captura 44841484383, preservando as provas anteriores e sem novo aceite.
+Custódia de arquivo/fotos e livro estão persistidas e conferidas no Railway.
+O executor de backup 5fe5710e está ativo, cron UTC `14 1,7,13,19 * * *`, intervalo
+mínimo de cinco horas, retenção de 28 dias e destino privado. A captura real
+1613df70 foi publicada em 21/11 às 01h14 UTC. Duas restaurações técnicas do mesmo
+arquivo, sem credenciais da origem, passaram; não são as duas recuperações
+completas. Ainda faltam identidade/finanças atuais, publicação seletiva e aceites
+operacionais/comerciais finais. A próxima captura positiva agendada precisa
+ser observada. O resumo de execução vazio tem correção candidata, sem mudar
+a cadência. Os dois backups manuais antigos foram excluídos com autorização
+expressa, permitindo a cópia pré-migração atual; os demais foram preservados.
+Publicação histórica com confirmação SQL perdida passou cluster externo
+44841477078, qualidade 44841480696 e captura 44841484383.
 [Contrato e evidências](recreio/publicacao-historica-2026-11-20.md).
-Homologação tem backup de volume atual e TLS 1.3 comprovado; schema permanece
-em 224. O ensaio antigo recusou ausência de mundos, sem atualizar a origem.
-A correção permite backup da plataforma antes do primeiro mundo, com contagens
-explícitas e provas remotas novas, sem flag de dispensa. [Contrato e estado](recreio/backup-sem-mundos-2026-11-20.md).
+Homologação tem backup de volume e TLS 1.3 comprovados, schema 0243/244 recibos;
+o cenário sem mundo passou e foi implantado. [Contrato e estado](recreio/backup-sem-mundos-2026-11-20.md).
 
 **Provas reais recentes:** ensaio de 20/11 às 20h52 UTC restaurou conteúdo,
 estrutura e globais idênticos; serviço/temporários removidos, origem intacta,
