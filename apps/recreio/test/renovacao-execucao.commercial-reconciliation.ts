@@ -258,6 +258,25 @@ describe("cancelamento: tentativa durável e confirmação com PostgreSQL/SDK re
     expect(f.financeiro.assinatura.cancel_at_period_end).toBe(false);
   });
 
+  it("não confirma uma observação fabricada mesmo com reserva e tentativa próprias", async () => {
+    const f = await fixture();
+    const trabalho = await reservarCancelamentoDaRenovacao("dev");
+    if (!trabalho || trabalho.id !== f.pedido.pedidoId)
+      throw new Error("Synthetic work not reserved");
+    await comCicloDeCobranca(trabalho.paganteId, async () => {
+      const tentativa = await iniciarCancelamentoDaRenovacaoLocked(trabalho);
+      await expect(
+        confirmarCancelamentoDaRenovacaoLocked(tentativa, {
+          outcome: "terminal",
+          stopsAt: null,
+          sha256: "f".repeat(64),
+        }),
+      ).rejects.toMatchObject({ code: "invalid_evidence" });
+    });
+    expect(await f.linha()).toMatchObject({ state: "attempted", confirmedAt: null });
+    expect(f.posts).toHaveLength(0);
+  });
+
   it("reserva retomada impede confirmação pelo executor antigo", async () => {
     const f = await fixture();
     const trabalho = await reservarCancelamentoDaRenovacao("dev");
