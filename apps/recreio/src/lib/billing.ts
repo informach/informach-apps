@@ -7,7 +7,6 @@ import {
 } from "@informach/billing/payment-facts";
 import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
-import { createStripeRecreioClosureInventory } from "@informach/billing/providers/stripe-recreio-closure-inventory";
 import { createStripeRecreioRenewals } from "@informach/billing/providers/stripe-recreio-renewals";
 import { createStripeRecreioUpgrades } from "@informach/billing/providers/stripe-recreio-upgrades";
 import { db } from "@informach/db";
@@ -23,6 +22,10 @@ import type { RuntimeDeEnvioDoAumento } from "@/features/cobranca/troca-aumento-
 import type { RuntimeDeEnvioDaTroca } from "@/features/cobranca/troca-execucao-runtime";
 import type { RuntimeDoWebhook } from "@/features/cobranca/webhook-service";
 import type { RuntimeFinanceiroDoEncerramento } from "@/features/direitos/encerramento-financeiro-execucao-service";
+import {
+  conferirConfiguracaoFinanceiraDoEncerramento,
+  criarRuntimeFinanceiroDoEncerramento,
+} from "@/features/direitos/financeiro-runtime";
 import { envioComercialDisponivel, segredoStripeCompativel } from "./commercial-mode";
 import { env } from "./env";
 import { assertAllowed } from "./errors";
@@ -32,22 +35,9 @@ let runtime: RuntimeDeCompra | undefined;
 let renovacoes: RuntimeDoCancelamentoDaRenovacao | undefined;
 let inventarioDoEncerramento: RuntimeFinanceiroDoEncerramento | undefined;
 export function getRuntimeFinanceiroDoEncerramento(): RuntimeFinanceiroDoEncerramento {
-  assertAllowed(
-    env.RECREIO_PORTAL_RENEWAL_MODE === "native" && env.RECREIO_RENEWAL_JOBS_MODE === "on",
-    "INDISPONIVEL",
-    "A coordenação do encerramento financeiro ainda não está disponível.",
-  );
+  conferirConfiguracaoFinanceiraDoEncerramento(env);
   if (inventarioDoEncerramento) return inventarioDoEncerramento;
-  const chave = env.STRIPE_SECRET_KEY;
-  assertAllowed(
-    chave && segredoStripeCompativel(env.STRIPE_MODE, chave),
-    "INDISPONIVEL",
-    "A coordenação financeira ainda não está configurada.",
-  );
-  inventarioDoEncerramento = {
-    modo: env.STRIPE_MODE,
-    inventario: createStripeRecreioClosureInventory({ secretKey: chave, mode: env.STRIPE_MODE }),
-  };
+  inventarioDoEncerramento = criarRuntimeFinanceiroDoEncerramento(env);
   return inventarioDoEncerramento;
 }
 /** No sale catalog, webhook or portal dependency to stop an existing renewal. */

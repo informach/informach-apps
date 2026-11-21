@@ -1,0 +1,64 @@
+name: Recreio - executor restrito de direitos
+on:
+  workflow_dispatch:
+  push:
+    branches: ["verify/rights-worker-*"]
+permissions:
+  contents: read
+concurrency:
+  group: recreio-direitos-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app typecheck
+      - run: pnpm --filter @informach/recreio-app test -- src/features/direitos/financeiro-runtime.test.ts src/lib/rights-environment.test.ts src/lib/object-environment.test.ts
+      - name: Construir executor sem login, email ou servidor web
+        run: docker build -f infrastructure/railway/recreio-direitos.Dockerfile -t recreio-direitos:qualification .
+      - name: Conferir modo desligado sem rede ou credenciais
+        shell: bash
+        run: |
+          output=$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges recreio-direitos:qualification)
+          EXPECTED_OUTPUT="$output" node -e 'const x=JSON.parse(process.env.EXPECTED_OUTPUT); if(x.formato!=="recreio-direitos-rodada-v1" || x.modo!=="off" || Object.keys(x).length!==2) process.exit(1)'
+          test "$(docker inspect --format '{{.Config.User}}' recreio-direitos:qualification)" = node
+      - name: Recusar modo ativo incompleto e argumentos arbitrarios
+        shell: bash
+        run: |
+          for scenario in config argument; do
+            set +e
+            if [ "$scenario" = config ]; then
+              output=$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges -e RECREIO_RIGHTS_MODE=process recreio-direitos:qualification 2>&1)
+            else
+              output=$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges recreio-direitos:qualification unexpected 2>&1)
+            fi
+            result=$?
+            set -e
+            test "$result" -eq 1
+            EXPECTED_OUTPUT="$output" node -e 'const x=JSON.parse(process.env.EXPECTED_OUTPUT); if(x.formato!=="recreio-direitos-rodada-v1" || x.erro!=="DIREITOS_PROCESSAMENTO_FALHOU" || Object.keys(x).length!==2) process.exit(1)'
+          done
+      - name: Guardar bundle e recibo da candidata
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/recreio-direitos"
+          id=$(docker create recreio-direitos:qualification)
+          trap 'docker rm "$id" >/dev/null' EXIT
+          docker cp "$id:/opt/recreio/processar-direitos.cjs" "$RUNNER_TEMP/recreio-direitos/processar-direitos.cjs"
+          sha256sum "$RUNNER_TEMP/recreio-direitos/processar-direitos.cjs" > "$RUNNER_TEMP/recreio-direitos/SHA256SUMS"
+          ARTIFACT_DIR="$RUNNER_TEMP/recreio-direitos" node --input-type=module -e 'import {readFile,writeFile} from "node:fs/promises";import {createHash} from "node:crypto";const p=process.env.ARTIFACT_DIR;const sha=createHash("sha256").update(await readFile(`${p}/processar-direitos.cjs`)).digest("hex");await writeFile(`${p}/recibo.json`,JSON.stringify({formato:"recreio-direitos-build-v1",source:process.env.GITHUB_SHA,run:process.env.GITHUB_RUN_ID,bundleSha256:sha,offWithoutCredentialsVerified:true,incompleteConfigRefused:true,argumentsRefused:true,nativeProcessingProven:false,productionCredentialsUsed:false,productionDataTouched:false})+"\n")'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recreio-direitos-${{ github.run_id }}
+          path: ${{ runner.temp }}/recreio-direitos
+          retention-days: 7

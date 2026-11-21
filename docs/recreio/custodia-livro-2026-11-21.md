@@ -1,5 +1,15 @@
 # Custódia e inicialização explícita do livro de direitos
 
+**Imagem do executor, em candidata:** `recreio-direitos.Dockerfile` leva somente
+o bundle servidor revisado e executa como `node`. A composição financeira
+restrita e o leitor de fotos têm recursos próprios; o processo aguarda o fim do
+pool/S3/codecs e sinaliza falha de encerramento. Não depende da composição de
+login, envio de email, catálogo de venda ou servidor web. O workflow separado
+qualifica tipos, configuração, fronteira, modo off sem rede/credenciais e
+recusa de argumentos/configuração incompleta. Ainda faltam prova operacional
+ativa, credenciais mínimas, agenda, observação e implantação. A construção da
+imagem não ativa direitos nem altera a custódia real.
+
 **Executor ocioso, candidata de 21/11:** a fila distingue expurgo devido de
 retenção futura. Sem publicação, processamento, revisão ou expurgo devido, a
 rodada confere disponibilidade/MAC/chave atual do cabeçalho com um GET e não

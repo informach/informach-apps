@@ -22,18 +22,21 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDosDir
     { criarAssinaturaDoLivro },
     { criarArmazenamentoDoLivro },
     { processarRodadaDeDireitos },
-    { leitorDeFotografias },
-    { recordJobRun },
-    { getRuntimeFinanceiroDoEncerramento },
+    { configuracaoDosObjetosDoProcesso },
+    { criarLeitorDeFotografiasDoProcesso },
+    { db, checkSchemaReadiness, recordJobRun },
+    { criarRuntimeFinanceiroDoEncerramento },
   ] = await Promise.all([
     import("@aws-sdk/client-s3"),
     import("../src/features/direitos/livro/assinatura"),
     import("../src/features/direitos/livro/armazenamento"),
     import("./direitos/rodada"),
-    import("../src/features/objetos/runtime"),
+    import("../src/lib/object-environment"),
+    import("../src/features/objetos/runtime-factory"),
     import("@informach/db"),
-    import("../src/lib/billing"),
+    import("../src/features/direitos/financeiro-runtime"),
   ]);
+  const databaseClient = db.$client;
   const cliente = new S3Client({
     endpoint: config.endpoint,
     region: config.region,
@@ -44,7 +47,12 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDosDir
     responseChecksumValidation: "WHEN_REQUIRED",
   });
   let assinatura: ReturnType<typeof criarAssinaturaDoLivro> | undefined;
+  let fotografias: ReturnType<typeof criarLeitorDeFotografiasDoProcesso> | undefined;
+  let financeiro: ReturnType<typeof criarRuntimeFinanceiroDoEncerramento> | undefined;
+  let resultado: Awaited<ReturnType<typeof processarRodadaDeDireitos>> | undefined;
+  let falha: { erro: unknown } | undefined;
   try {
+    if (!(await checkSchemaReadiness()).ok) throw new Error("RIGHTS_SCHEMA_NOT_READY");
     assinatura = criarAssinaturaDoLivro(config);
     // O codec possui sua própria cópia derivada; os buffers de entrada já
     // podem ser apagados. Segredos nunca fazem parte da saída ou do erro.
@@ -55,33 +63,40 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDosDir
       assinatura,
       tempoLimiteMs: 10_000,
     });
+    fotografias = criarLeitorDeFotografiasDoProcesso(configuracaoDosObjetosDoProcesso(process.env));
     const coordenacao = {
       assinatura,
       storage,
-      leitor: leitorDeFotografias(),
+      leitor: fotografias.leitor,
       politica: { retirarTextosDaFundacao: true },
-      obterFinanceiro: getRuntimeFinanceiroDoEncerramento,
+      obterFinanceiro: () => (financeiro ??= criarRuntimeFinanceiroDoEncerramento(process.env)),
     };
-    const resultado = await recordJobRun({ app: "recreio", job: "direitos" }, () =>
+    resultado = await recordJobRun({ app: "recreio", job: "direitos" }, () =>
       processarRodadaDeDireitos(coordenacao),
     );
-    console.log(JSON.stringify(resultado));
-  } finally {
-    for (const key of config.chaves.values()) key.fill(0);
-    assinatura?.encerrar();
-    cliente.destroy();
+  } catch (erro) {
+    falha = { erro };
   }
+  const encerramentos = await Promise.allSettled([
+    databaseClient.end({ timeout: 5 }),
+    Promise.resolve().then(() => fotografias?.encerrar()),
+    Promise.resolve().then(() => assinatura?.encerrar()),
+    Promise.resolve().then(() => cliente.destroy()),
+  ]);
+  const erros = encerramentos.flatMap((r) => (r.status === "rejected" ? [r.reason] : []));
+  if (falha || erros.length)
+    throw new AggregateError([...erros, ...(falha ? [falha.erro] : [])], "Rights process failed");
+  if (!resultado) throw new Error("Missing rights process result");
+  console.log(JSON.stringify({ ...resultado, limpezaConfirmada: true }));
 }
-main()
-  .then(() => process.exit(0))
-  .catch(() => {
-    // Drizzle/S3 podem anexar parâmetros, bytes, endpoint e credenciais ao erro.
-    // A fronteira operacional publica só o código fixo; exit != 0 é falha do job.
-    console.error(
-      JSON.stringify({
-        formato: "recreio-direitos-rodada-v1",
-        erro: "DIREITOS_PROCESSAMENTO_FALHOU",
-      }),
-    );
-    process.exit(1);
-  });
+main().catch(() => {
+  // Drizzle/S3 podem anexar parâmetros, bytes, endpoint e credenciais ao erro.
+  // A fronteira operacional publica só o código fixo; exit != 0 é falha do job.
+  console.error(
+    JSON.stringify({
+      formato: "recreio-direitos-rodada-v1",
+      erro: "DIREITOS_PROCESSAMENTO_FALHOU",
+    }),
+  );
+  process.exitCode = 1;
+});
