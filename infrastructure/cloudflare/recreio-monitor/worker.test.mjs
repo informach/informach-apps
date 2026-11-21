@@ -19,6 +19,7 @@ async function cenario(opcoes, conferir) {
   const eventos = [];
   let pedidos = 0;
   let morada = 0;
+  let backup = 0;
   const servidor = createServer(async (pedido, resposta) => {
     pedidos++;
     resposta.setHeader("content-type", "application/json");
@@ -32,8 +33,11 @@ async function cenario(opcoes, conferir) {
       return;
     }
     const ehMorada = pedido.url === "/morada-server";
+    const ehBackup = pedido.url === "/recreio-backup";
     if (ehMorada) morada++;
-    resposta.statusCode = ehMorada && opcoes.indisponivel ? 503 : 200;
+    if (ehBackup) backup++;
+    resposta.statusCode =
+      (ehMorada && opcoes.indisponivel) || (ehBackup && opcoes.backupIndisponivel) ? 503 : 200;
     resposta.end(
       JSON.stringify({
         status: resposta.statusCode === 200 ? "ready" : "unavailable",
@@ -76,7 +80,9 @@ async function cenario(opcoes, conferir) {
                   ? url.pathname
                   : url.hostname.startsWith("morada-server.")
                     ? "/morada-server"
-                    : "/recreio";
+                    : url.pathname === "/api/backup/health"
+                      ? "/recreio-backup"
+                      : "/recreio";
                 assert.ok(
                   [
                     "recreio.informach.com.br",
@@ -98,7 +104,7 @@ async function cenario(opcoes, conferir) {
     });
     const worker = await mf.getWorker();
     const resultado = await worker.scheduled({ cron: "*/5 * * * *", scheduledTime: new Date() });
-    await conferir({ resultado, eventos, pedidos, morada });
+    await conferir({ resultado, eventos, pedidos, morada, backup });
     assert.equal((await mf.dispatchFetch("http://monitor.test/")).status, 404);
   } finally {
     if (mf) await mf.dispose();
@@ -113,6 +119,35 @@ test("cron real verifica ambos sem criar eventos quando estão prontos", async (
     assert.equal(pedidos, 2);
     assert.equal(eventos.length, 0);
   });
+});
+
+test("cron real inclui backup habilitado e não cria eventos saudáveis", async () => {
+  await cenario(
+    { bindings: { RECREIO_MONITOR_BACKUP: "on" } },
+    async ({ resultado, eventos, pedidos, backup }) => {
+      assert.equal(resultado.outcome, "ok");
+      assert.equal(pedidos, 3);
+      assert.equal(backup, 1);
+      assert.equal(eventos.length, 0);
+    },
+  );
+});
+
+test("backup indisponível envia alerta próprio mesmo com portal e jogo prontos", async () => {
+  await cenario(
+    { backupIndisponivel: true, bindings: { RECREIO_MONITOR_BACKUP: "on" } },
+    async ({ resultado, eventos, pedidos, backup, morada }) => {
+      assert.equal(resultado.outcome, "exception");
+      assert.equal(pedidos, 6);
+      assert.equal(backup, 3);
+      assert.equal(morada, 1);
+      assert.equal(eventos.length, 1);
+      assert.equal(eventos[0].level, "error");
+      assert.equal(eventos[0].tags.servico, "recreio-backup");
+      assert.equal(eventos[0].tags.codigo, "HTTP");
+      assert.doesNotMatch(JSON.stringify(eventos), /conteudo-privado|naoRegistrar|cookie|email/);
+    },
+  );
 });
 
 test("prova do transporte chega a ambos com campos sanitizados", async () => {
