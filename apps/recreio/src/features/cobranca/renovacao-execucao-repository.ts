@@ -26,7 +26,7 @@ import { lerOrigemFinanceiraDoEncerramentoLocked } from "@/features/direitos/enc
 import {
   admitirGrupoDaConciliacao,
   ComposicaoDoGrupoMudou,
-} from "@/features/grupo/autoridade-repository";
+} from "@/features/grupo/composicao-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
 import { agendarConciliacaoDaCompra } from "./conciliacao-agendamento-repository";

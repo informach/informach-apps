@@ -38,6 +38,16 @@ export async function provarEncerramentoComContrato(
       [dado.operacaoId, dado.contaId],
     );
   const preservados = await lerPreservados();
+  const lerConsentimento = () =>
+    copia.unsafe(
+      `select o.authenticated_at,o.consented_at,
+    o.source,o.plan_sha256,o.intent_sha256,o.signed_intent,o.preparation_id,o.recovery_source_id,
+    to_jsonb(p) as preparacao from recreio.rights_operations o
+    join recreio.rights_preparations p on p.id=o.preparation_id where o.id=$1::uuid`,
+      [dado.operacaoId],
+    );
+  const consentimento = await lerConsentimento();
+  exigir(consentimento.length === 1, "CONTRATO_NATIVO_DIVERGENTE");
   const [origem] = await copia.unsafe<{ valida: boolean }[]>(
     `select
     o.kind='encerrar_conta' and o.preparation_id is not null and o.recovery_source_id is null
@@ -162,7 +172,11 @@ export async function provarEncerramentoComContrato(
     );
     exigir(expirada, "CONTRATO_NATIVO_DIVERGENTE");
     await recusada(expirada, "DIREITOS_LIVRO");
-    exigir(isDeepStrictEqual(preservados, await lerPreservados()), "CONTRATO_NATIVO_DIVERGENTE");
+    exigir(
+      isDeepStrictEqual(preservados, await lerPreservados()) &&
+        isDeepStrictEqual(consentimento, await lerConsentimento()),
+      "CONTRATO_NATIVO_DIVERGENTE",
+    );
     const trafego = http.conferir();
     return {
       paidContractClosureReplayed: true,
