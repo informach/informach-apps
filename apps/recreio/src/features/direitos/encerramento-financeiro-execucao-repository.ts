@@ -125,7 +125,7 @@ async function comTrabalho<T>(
     contexto: {
       op: typeof operations.$inferSelect;
       plano: Extract<
-        ReturnType<typeof conferirIntencaoNativa>["plano"],
+        Awaited<ReturnType<typeof conferirIntencaoFinanceiraDaCoordenacao>>["plano"],
         { formato: "recreio-previa-encerramento-v2" }
       >;
       agora: Date;
