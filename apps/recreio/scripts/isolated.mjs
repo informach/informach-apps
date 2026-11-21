@@ -316,6 +316,8 @@ if (jornadaDoEncerramento) {
       "Native closure browser proof requires its explicit GitHub/homologation boundary",
     );
   Object.assign(childEnv, {
+    RECREIO_RIGHTS_MONITOR_MODE: "on",
+    RECREIO_RIGHTS_MONITOR_MAX_AGE_SECONDS: "900",
     RECREIO_RIGHTS_SCOPE: "qualification",
     RECREIO_RIGHTS_LEDGER_ID: randomUUID(),
     RECREIO_RIGHTS_BUCKET: process.env.RECREIO_S3_TEST_BUCKET,

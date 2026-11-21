@@ -57,6 +57,8 @@ describe("deployment environment", () => {
       ...prices,
       RECREIO_ACCOUNT_CLOSURE_MODE: "native",
       RECREIO_RIGHTS_CONSENT_MODE: "native",
+      RECREIO_RIGHTS_MONITOR_MODE: "on",
+      RECREIO_RIGHTS_MONITOR_MAX_AGE_SECONDS: "900",
       RECREIO_RIGHTS_MODE: "process",
       RECREIO_RIGHTS_SCOPE: "qualification",
       RECREIO_RIGHTS_LEDGER_ID: randomUUID(),
@@ -80,6 +82,8 @@ describe("deployment environment", () => {
     expect(validateEnvironment(native).RECREIO_ACCOUNT_CLOSURE_MODE).toBe("native");
     for (const extra of [
       { RECREIO_RIGHTS_CONSENT_MODE: "off" },
+      { RECREIO_RIGHTS_MONITOR_MODE: "off" },
+      { RECREIO_RIGHTS_MONITOR_MAX_AGE_SECONDS: undefined },
       { RECREIO_RIGHTS_MODE: "off" },
       { RECREIO_PORTAL_RENEWAL_MODE: "legacy" },
       { RECREIO_RENEWAL_JOBS_MODE: "off" },

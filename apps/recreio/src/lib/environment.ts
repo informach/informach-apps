@@ -8,6 +8,7 @@ import {
 } from "./commercial-mode";
 import { configuracaoDosObjetos, objectEnvironmentSchema } from "./object-environment";
 import { configuracaoDosDireitosDoProcesso } from "./rights-environment";
+import { configuracaoDoMonitorDeDireitos } from "./rights-monitor-environment";
 
 export function isStripeTestSecret(value: unknown): value is string {
   return segredoStripeCompativel("dev", value);
@@ -173,6 +174,13 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
     );
   const value = parsed.data;
   configuracaoDosObjetos(value);
+  if (input.RECREIO_RIGHTS_CONSENT_MODE === "native") {
+    if (!configuracaoDoMonitorDeDireitos(input))
+      throw new Error("Native rights consent requires operational monitoring");
+    const direitos = configuracaoDosDireitosDoProcesso(input);
+    if (!direitos) throw new Error("Invalid native rights custody");
+    for (const key of direitos.chaves.values()) key.fill(0);
+  }
   if (value.RECREIO_ACCOUNT_CLOSURE_MODE === "native") {
     if (
       input.RECREIO_RIGHTS_CONSENT_MODE !== "native" ||
@@ -185,9 +193,6 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
       throw new Error(
         "Invalid account closure environment: rights, native portal and financial jobs are required",
       );
-    const direitos = configuracaoDosDireitosDoProcesso(input);
-    if (!direitos) throw new Error("Invalid account closure rights custody");
-    for (const key of direitos.chaves.values()) key.fill(0);
   }
   if (value.RECREIO_PORTAL_RENEWAL_MODE === "native" && value.RECREIO_RENEWAL_JOBS_MODE !== "on")
     throw new Error("Native renewal management requires RECREIO_RENEWAL_JOBS_MODE=on");

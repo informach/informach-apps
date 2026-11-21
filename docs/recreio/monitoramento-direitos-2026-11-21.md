@@ -23,6 +23,9 @@ e falha do livro configurado. O Worker tem prova de cron, repetição e transpor
 para a nova sonda no runtime remoto. A configuração externa permanece off até a
 implantação e observação do executor real; não há ativação por este documento.
 
+A ativação do consentimento nativo exige custódia e monitor configurados; a
+validação não consulta a saúde da fila para aceitar um pedido individual.
+
 Ainda é necessário qualificar esta candidata no GitHub, implantar a composição
 operacional restrita, observar heartbeat e fila e só então ativar a quarta sonda.
 A aceitação de um direito individual não depende de a fila de outra conta estar
