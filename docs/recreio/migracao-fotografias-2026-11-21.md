@@ -27,3 +27,28 @@ parado, tentativa atual e auditoria atômica. Falta compor sua execução limita
 
 Não foi criado serviço, alterado modo produtivo ou migrado qualquer byte por
 este plano. As dez fotografias produtivas continuam no PostgreSQL.
+
+
+## Composição candidata
+
+O executável `migrar:fotografias` e a imagem recreio-fotografias nascem off.
+Process exige captura UUID, fonte do leitor, origem registrada e contexto
+físico correto. SQL recebe limites de statement, lock e transação pelo startup
+do pool exclusivo. A fila consulta somente metadados; não imprime mundos,
+conteúdo ou IDs pessoais. Revisão conhecida falha operacionalmente; mundos
+ativos ou com posse ainda aberta não entram no lote, mesmo após expiração.
+
+A rota `/api/objetos/configuracao` não abre fotos nem consulta banco/bucket.
+A prévia HTTP limita resposta, prazo e redirecionamento e compara fonte,
+escopo, bucket técnico e IDs de chaves. Igualdade dos IDs não demonstra igualdade
+dos bytes das chaves; a implantação deve conferir as referências de custódia e
+a leitura nativa real antes da migração. Não tratar essa rota como prova de
+restaurabilidade ou de acesso a um mundo.
+
+O sinal de cancelamento é relido após upload e dentro da confirmação SQL,
+inclusive após auditoria; expiração não publica ponteiro tardiamente. Envelope
+e PG conservados permitem repetir o mesmo envio. O teste nativo de admissão usa
+banco próprio descartável e recibos de publicação **sintéticos**, com prova de
+somente leitura, limite, destino, estado, prazo e posse. Não declara captura
+pg_dump/S3 ou migração em produção. A prova da imagem distingue construção/off
+de processamento real; esta última ainda precisa ser acrescentada e passar.

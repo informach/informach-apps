@@ -30,11 +30,20 @@ export async function conferirLeitorPublicado(
     )
       throw new Error();
     let tamanho = 0;
-    for await (const parte of resposta.body) {
-      tamanho += parte.byteLength;
-      if (tamanho > 2048) throw new Error();
-      partes.push(Buffer.from(parte));
+    const leitor = resposta.body.getReader();
+    try {
+      for (;;) {
+        const { value, done } = await leitor.read();
+        if (done) break;
+        tamanho += value.byteLength;
+        if (tamanho > 2048) throw new Error();
+        partes.push(Buffer.from(value));
+      }
+    } finally {
+      await leitor.cancel().catch(() => {});
+      leitor.releaseLock();
     }
+
     const atual = ConfiguracaoPublicaDoLeitorSchema.parse(
       JSON.parse(Buffer.concat(partes).toString("utf8")),
     );

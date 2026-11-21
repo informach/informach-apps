@@ -16,9 +16,18 @@ import { mundoDe } from "./jogo-apoio";
 export const sha = "a".repeat(64),
   cipher = "b".repeat(64),
   source = "c".repeat(40);
-export async function fixture(scope: "qualification" | "production" = "qualification", n = 0) {
+type PerfilDaFixture = {
+  foto?: { bucketId: string; bucketName: string; escopo: "qualification" | "production" };
+  createdAt?: Date;
+  capturedAt?: Date;
+};
+export async function fixture(
+  scope: "qualification" | "production" = "qualification",
+  n = 0,
+  perfil: PerfilDaFixture = {},
+) {
   const id = randomUUID(),
-    foto = { bucketId: randomUUID(), bucketName: "recreio-fotos", escopo: scope },
+    foto = perfil.foto ?? { bucketId: randomUUID(), bucketName: "recreio-fotos", escopo: scope },
     destino = { bucketId: randomUUID(), bucketName: "recreio-backups", escopo: scope };
   await db.insert(captures).values({
     id,
@@ -27,8 +36,8 @@ export async function fixture(scope: "qualification" | "production" = "qualifica
     bucketId: foto.bucketId,
     bucketName: foto.bucketName,
     state: "captured",
-    createdAt: new Date("2020-01-01T00:00:00Z"),
-    capturedAt: new Date("2020-01-02T00:00:00Z"),
+    createdAt: perfil.createdAt ?? new Date("2020-01-01T00:00:00Z"),
+    capturedAt: perfil.capturedAt ?? new Date("2020-01-02T00:00:00Z"),
     inventorySha256: sha,
     objectCount: n,
     objectBytes: n * 100,
@@ -90,8 +99,8 @@ export async function expirar(id: string) {
     sql`update recreio.backup_publications set created_at=created_at-interval '1 day',lease_until=clock_timestamp()-interval '1 second' where capture_id=${id}`,
   );
 }
-export async function pronta(n = 0) {
-  const f = await fixture("qualification", n),
+export async function pronta(n = 0, perfil: PerfilDaFixture = {}) {
+  const f = await fixture("qualification", n, perfil),
     t = await prepararPublicacao(f.config),
     v = await confirmarArquivoGuardado(t),
     bytes = await prepararIndiceDuravel(t, f.indice.assinar(v), f.indice);
