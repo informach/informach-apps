@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
+import { provarDescarteDeExportacoes } from "./provar-descarte-exportacoes";
 import { exigir } from "./provas-arquivos";
 import type { RetiradaNativaDeProva } from "./retirada-nativa-prova-contrato";
 import { conferirVinculosGlobaisAtuais, FalhaDosVinculosAtuais } from "./vinculos-globais";
@@ -35,7 +36,7 @@ export async function provarVinculosGlobaisAtuais(
   });
   const inventario = (sql: postgres.Sql) =>
     sql.begin("isolation level repeatable read read only", inventariarBackup);
-  const fonteAntes = await inventario(restaurado);
+  let fonteAntes = await inventario(restaurado);
   async function lerSemEscrever() {
     const antes = await inventario(atual);
     const resultado = await conferirVinculosGlobaisAtuais(restaurado, atual);
@@ -49,6 +50,33 @@ export async function provarVinculosGlobaisAtuais(
       original.exigeConciliacaoFinanceira &&
       original.clientesAtuais >= 1 &&
       (original.referencias["core.users"] ?? 0) > 0,
+    "VINCULOS_GLOBAIS_DIVERGENTES",
+  );
+  const sessoes = await restaurado.unsafe<{ id: string }[]>(
+    "select distinct auth_session_id as id from recreio.personal_exports order by auth_session_id",
+  );
+  exigir(sessoes.length > 0, "VINCULOS_GLOBAIS_DIVERGENTES");
+  for (const sessao of sessoes) {
+    const removidas = await atual.unsafe("delete from core.sessions where id=$1 returning id", [
+      sessao.id,
+    ]);
+    exigir(removidas.length === 1, "VINCULOS_GLOBAIS_DIVERGENTES");
+  }
+  const semSessao = await lerSemEscrever();
+  exigir(
+    semSessao.exigeLimpezaDeExportacoes && semSessao.sessoesAusentes === sessoes.length,
+    "VINCULOS_GLOBAIS_DIVERGENTES",
+  );
+  const globaisAntesDoDescarte = await inventario(atual);
+  const descarte = await provarDescarteDeExportacoes(restaurado);
+  conferirInventarios(globaisAntesDoDescarte, await inventario(atual));
+  fonteAntes = await inventario(restaurado);
+  const semExportacoes = await lerSemEscrever();
+  exigir(
+    !semExportacoes.exigeLimpezaDeExportacoes &&
+      semExportacoes.sessoesAusentes === 0 &&
+      (semExportacoes.referencias["core.sessions"] ?? 0) === 0 &&
+      !semExportacoes.trafegoAutorizado,
     "VINCULOS_GLOBAIS_DIVERGENTES",
   );
   await atual.begin(async (tx) => {
@@ -106,6 +134,10 @@ export async function provarVinculosGlobaisAtuais(
     currentGlobalMissingIdentityRefused: true,
     currentGlobalIdentityNotManufactured: true,
     currentGlobalSourceAndOtherDomainsPreserved: true,
+    currentGlobalMissingSessionNotRecreated: true,
+    currentGlobalStaleExportsDiscarded: descarte.discarded,
+    currentGlobalExportDiscardRollbackVerified: descarte.rollbackVerified,
+    currentGlobalExportDiscardIdempotenceVerified: descarte.idempotenceVerified,
     currentGlobalTrafficAuthorized: false,
   };
 }
