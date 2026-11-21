@@ -16,6 +16,14 @@
 
 Preferir sempre identificadores e estado transacional:
 
+`recreio.rights_recovery_finance_started` registra `app`, `runId`, `operationId`
+e `attemptCount`; `recreio.rights_recovery_finance_assessed` acrescenta somente
+`result`; `recreio.rights_recovery_finance_failed` usa os três IDs de escopo e
+`reasonCode` estático. Ator nulo, escrita estrita junto da tentativa/avaliação
+privada. Não incluir recibos/hashes, referências de cliente/provedor, respostas,
+erros livres ou dados pessoais. A avaliação atual não substitui confirmação
+financeira original nem concede retirada de dados ou tráfego recuperado.
+
 `recreio.rights_recovery_operation_verified` registra somente `app`, `runId`,
 `operationId` e `kind`; `recreio.rights_recovery_verified` registra `app`, `runId`,
 `operationCount` e `state`. Ator nulo identifica o coordenador técnico, nunca

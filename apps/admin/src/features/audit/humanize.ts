@@ -258,6 +258,15 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "recreio.world_traces_reconciled": () => [
     t("O índice de privacidade dos mundos do Recreio foi conciliado"),
   ],
+  "recreio.rights_recovery_finance_started": () => [
+    t("Iniciou a conferência financeira de uma recuperação do Recreio"),
+  ],
+  "recreio.rights_recovery_finance_assessed": () => [
+    t("Conferiu a situação financeira atual de uma recuperação do Recreio"),
+  ],
+  "recreio.rights_recovery_finance_failed": () => [
+    t("Uma recuperação do Recreio exige revisão financeira"),
+  ],
   // Bastidores
   "admin.user_viewed": (ctx) => withTarget("Abriu a ficha de ", ctx),
   "admin.sessions_revoked": (ctx) => {

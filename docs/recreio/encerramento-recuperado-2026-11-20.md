@@ -106,6 +106,29 @@ São 12 objetos nesse livro, 24 de direitos/28 totais, com remoção confirmada.
 Isso não é consulta ao Stripe real, fatura paga, estorno ou contestação homologada.
 Nenhuma nova capacidade de efeitos pessoais ou publicação acompanha a avaliação.
 
+Qualificação da avaliação descritiva: af2ecbea passou qualidade 44859912491,
+conciliação 44859917302 e cluster frio 44859914933 (25 objetos, limpeza e
+confirmação anterior preservadas). f3f42f7d passou qualidade 44860368960 e
+cluster frio 44860371146: 28 objetos, 26 GETs do SDK no servidor HTTP fechado,
+sete recusas específicas mais cópia de evidência, modo e corrida de origem;
+clientes/recibos originais e limpeza conferidos. Não usou Stripe real.
+
+Persistência candidata: 0244 foi gerada em 44861054095/5da96558 e adotada
+intacta, incluindo índice por solicitante/run/operação. Acrescenta somente
+`rights_recovery_finances`, três FKs restritivas e dois índices; sem DML.
+SHA SQL `6ff445b0d15d56bacf7a5291360aea4bfc39f586c471e7544f0285b072683aa0`.
+São 245 recibos/81 tabelas no candidato; produção permanece 0243/244/80.
+A primeira geração 44860591493 foi substituída antes de commit da migration
+para incluir o índice da cópia própria; não foi aplicada em nenhum serviço.
+
+Cada nova avaliação deve gravar tentativa antes do provedor e limpar o
+resultado positivo anterior. Só a mesma tentativa, conexão, fonte e recibo
+canônico podem confirmar o resultado atual; falha fica em revisão. Auditoria
+e recibo são atômicos e não alteram o consentimento/confirmação originais.
+A prova amplia para 14 tentativas, falha real de auditoria, origem alterada
+durante I/O e recorte pessoal sem referências privadas. Ainda não concede
+efeitos pessoais, não encerra a conta e não publica a recuperação.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

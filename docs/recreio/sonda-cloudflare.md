@@ -8,8 +8,10 @@ local; versão `1ea8f65d`. A API confirmou os dois segredos preservados, a flag
 de backup `on`, transporte de prova `false`, cron/CPU/plano mantidos e domínio
 desligado. Duas execuções reais, às 03h05 e 03h10 UTC, verificaram os três
 alvos com uma tentativa e sem exceções. [Evidência](evidencias/monitor-backup-cloudflare-2026-11-21.json).
-A agenda GitHub continua como alternativa; ainda falta observar uma execução
-agendada sua com os três alvos. Não houve falha provocada em produção nem
+A agenda GitHub também passou com os três alvos na execução agendada
+[44860322589](https://github.com/informach/informach-apps/actions/runs/44860322589),
+às 03h17 UTC (Recreio 292 ms, Morada 227 ms, backup 373 ms; uma tentativa).
+Não houve falha provocada em produção nem
 medição financeira adicional do Worker. O registro abaixo preserva a operação
 anterior com dois alvos.
 

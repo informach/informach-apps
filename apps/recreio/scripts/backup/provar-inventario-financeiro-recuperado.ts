@@ -1,9 +1,13 @@
 import { isDeepStrictEqual } from "node:util";
 import { RecreioRenewalReviewError } from "@informach/billing/providers/stripe-recreio-renewals";
 import type postgres from "postgres";
+import { z } from "zod";
+import { criarArquivoPessoal } from "../../src/features/direitos/captura-contrato";
+import { copiarFinanciamentoPessoalNaTransacao } from "../../src/features/direitos/captura-financiamento-repository";
 import {
   type CoordenacaoDeEfeitos,
   comFinanceiroPrivadoDeEncerramento,
+  dadosDaCoordenacaoPrivada,
 } from "../../src/features/direitos/coordenacao-repository";
 import { avaliarFinanceiroConfirmadoRecuperado } from "../../src/features/direitos/encerramento-financeiro-recuperado-service";
 import { criarInventarioFinanceiroDeProva } from "./inventario-financeiro-prova";
@@ -17,6 +21,41 @@ export async function provarInventarioFinanceiroRecuperado(
   copia: postgres.Sql,
   dado: RetiradaNativaDeProva["financeiro"]["provedor"],
 ) {
+  const privado = dadosDaCoordenacaoPrivada(pai);
+  async function estadoAtual(estado: "attempted" | "current" | "review", motivo?: string) {
+    const [r] = await copia.unsafe<
+      {
+        state: string;
+        attempts: number;
+        review_code: string | null;
+        receipt_sha256: string | null;
+        observed_at: Date | null;
+        result: string | null;
+        observation_sha256: string | null;
+      }[]
+    >(
+      `select state,attempts,review_code,receipt_sha256,observed_at,result,observation_sha256 from recreio.rights_recovery_finances where run_id=$1 and operation_id=$2 and requester_reference=$3`,
+      [privado.execucaoId, dado.operacaoId, dado.contaId],
+    );
+    exigir(
+      r &&
+        r.state === estado &&
+        (estado === "current"
+          ? r.receipt_sha256 !== null &&
+            /^[a-f0-9]{64}$/.test(r.receipt_sha256) &&
+            r.observed_at !== null &&
+            r.result === "provider_inventory" &&
+            r.observation_sha256 !== null &&
+            r.review_code === null
+          : r.receipt_sha256 === null &&
+            r.observed_at === null &&
+            r.result === null &&
+            r.observation_sha256 === null &&
+            r.review_code === (motivo ?? null)),
+      "RECIBO_FINANCEIRO_ATUAL_DIVERGENTE",
+    );
+    return r;
+  }
   const lerOriginais = () =>
     copia.unsafe(
       `select to_jsonb(o) as operacao,to_jsonb(p) as preparacao,to_jsonb(f) as financeiro,to_jsonb(c) as cliente
@@ -35,6 +74,7 @@ export async function provarInventarioFinanceiroRecuperado(
       const conferir = () => avaliarFinanceiroConfirmadoRecuperado(filha, runtime);
       const primeira = await conferir(),
         segunda = await conferir();
+      await estadoAtual("current");
       exigir(
         primeira.resultado === "provider_inventory" &&
           segunda.resultado === "provider_inventory" &&
@@ -56,6 +96,35 @@ export async function provarInventarioFinanceiroRecuperado(
           recusou = true;
         }
         exigir(recusou, "INVENTARIO_FORA_DO_ESCOPO");
+        await estadoAtual("review", code);
+      }
+      const [livre] = await copia.unsafe<{ livre: boolean }[]>(
+        `select to_regprocedure('audit.recusar_recibo_financeiro_privado()') is null and not exists(select 1 from pg_trigger where tgname='recusar_recibo_financeiro_privado') as livre`,
+      );
+      exigir(livre?.livre, "RECIBO_FINANCEIRO_ATUAL_DIVERGENTE");
+      await copia.begin(async (tx) => {
+        await tx.unsafe(
+          `create function audit.recusar_recibo_financeiro_privado() returns trigger language plpgsql as $$ begin if new.event_type='recreio.rights_recovery_finance_assessed' then raise exception using errcode='P7777',message='Synthetic financial receipt audit failure'; end if; return new; end $$`,
+        );
+        await tx.unsafe(
+          `create trigger recusar_recibo_financeiro_privado before insert on audit.events for each row execute function audit.recusar_recibo_financeiro_privado()`,
+        );
+      });
+      try {
+        let recusada = false;
+        try {
+          await conferir();
+        } catch (erro) {
+          if (!z.object({ code: z.literal("P7777") }).safeParse(erro).success) throw erro;
+          recusada = true;
+        }
+        exigir(recusada, "RECIBO_FINANCEIRO_ATUAL_DIVERGENTE");
+        await estadoAtual("review", "technical_failure");
+      } finally {
+        await copia.begin(async (tx) => {
+          await tx.unsafe(`drop trigger recusar_recibo_financeiro_privado on audit.events`);
+          await tx.unsafe(`drop function audit.recusar_recibo_financeiro_privado()`);
+        });
       }
       const cenarios = [
         ["indisponivel", "provider_unavailable"],
@@ -92,6 +161,7 @@ export async function provarInventarioFinanceiroRecuperado(
         "invalid_evidence",
       );
       http.aposInventario(async () => {
+        await estadoAtual("attempted");
         const alteradas = await copia.unsafe(
           `update billing.customers set provider_customer_id=$1 where app='recreio' and subject_type='user' and subject_id=$2 and provider_customer_id=$3 returning id`,
           [`${dado.clienteStripeId}_changed`, dado.contaId, dado.clienteStripeId],
@@ -109,7 +179,36 @@ export async function provarInventarioFinanceiroRecuperado(
       }
       const ultima = await conferir();
       exigir(ultima.resultado === "provider_inventory", "INVENTARIO_FORA_DO_ESCOPO");
+      exigir((await estadoAtual("current")).attempts === 14, "RECIBO_FINANCEIRO_ATUAL_DIVERGENTE");
     });
+    async function copiaFinanceira(contaId: string) {
+      const arquivo = criarArquivoPessoal();
+      try {
+        await privado.banco.transaction((tx) =>
+          copiarFinanciamentoPessoalNaTransacao(tx, contaId, arquivo, async () => new Date()),
+        );
+        const bytes = arquivo.concluir();
+        try {
+          return bytes.toString("utf8");
+        } finally {
+          bytes.fill(0);
+        }
+      } finally {
+        arquivo.encerrar();
+      }
+    }
+    const pessoal = await copiaFinanceira(dado.contaId),
+      outra = await copiaFinanceira("nonexistent_synthetic_financial_subject");
+    exigir(
+      pessoal.includes('"tipo":"avaliacao_financeira_recuperacao"') &&
+        pessoal.includes(dado.operacaoId) &&
+        !outra.includes(dado.operacaoId) &&
+        !/receiptSha256|sourceSha256|attemptToken|clienteStripeId|cabecalho|frozenHead/.test(
+          pessoal,
+        ) &&
+        !pessoal.includes(dado.clienteStripeId),
+      "RECIBO_FINANCEIRO_ATUAL_DIVERGENTE",
+    );
     exigir(isDeepStrictEqual(originais, await lerOriginais()), "CONSENTIMENTO_NATIVO_DIVERGENTE");
     return {
       nativeClosureFreshProviderSdkHttpVerified: true,
@@ -120,6 +219,11 @@ export async function provarInventarioFinanceiroRecuperado(
       nativeClosureFreshProviderSourceRaceRefused: true,
       nativeClosureProviderOriginalConfirmationUnchanged: true,
       nativeClosureProviderReadRequests: http.conferir(),
+      nativeClosureFinancialAttemptPersistedBeforeIo: true,
+      nativeClosureFinancialFailedAssessmentNotCurrent: true,
+      nativeClosureFinancialCurrentReceiptAuditAtomic: true,
+      nativeClosureFinancialAssessmentAttempts: 14,
+      nativeClosureFinancialPersonalCopyScoped: true,
       nativeClosureProviderRealStripeUsed: false,
     };
   } finally {

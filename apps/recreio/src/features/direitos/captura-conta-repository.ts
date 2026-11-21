@@ -80,6 +80,7 @@ export async function capturarDadosPessoaisDaConta(autor: AutorNativoRecente) {
             "origem_financiamento",
             "acao_propria_auditada",
             "fonte_recuperada",
+            "avaliacao_financeira_recuperacao",
           ],
           dadosDePerfisIncluidos: false,
           referenciasDeDecisoesPropriasIncluidas: true,

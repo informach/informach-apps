@@ -32,6 +32,17 @@ export async function copiarFinanciamentoPessoalNaTransacao(
 ) {
   const fontes: { tipo: string; consulta: (apos: Chave | null) => SQLWrapper }[] = [
     {
+      tipo: "avaliacao_financeira_recuperacao",
+      consulta: (apos) => sql`
+      select array[f.run_id::text,f.operation_id::text] as chave, jsonb_build_object(
+        'pedidoReferencia',f.operation_id,'estado',f.state,'resultado',f.result,
+        'quantidadeTentativas',f.attempts,'iniciadaEm',f.attempted_at,
+        'observadaEm',f.observed_at,'atualizadaEm',f.updated_at) as dados
+      from recreio.rights_recovery_finances f where f.requester_reference=${contaId}
+        ${apos ? sql`and (f.run_id,f.operation_id)>(${apos[0]}::uuid,${apos[1]}::uuid)` : sql``}
+      order by f.run_id,f.operation_id limit ${limites.pagina}`,
+    },
+    {
       tipo: "contrato_nativo",
       consulta: (apos) => sql`
       select array[c.subscription_id::text] as chave, jsonb_build_object(
