@@ -15,9 +15,11 @@ export async function executarEntregaDaFotografia(
   id: string,
   destino: DestinoDeFotografias,
   transporte: Pick<ReturnType<typeof criarArmazenamentoPrivadoS3>, "enviar" | "bucketName">,
+  signal?: AbortSignal,
 ) {
   if (transporte.bucketName !== destino.bucketName)
     throw new FalhaDaEntregaDaFotografia("DESTINO_DIVERGENTE");
+  signal?.throwIfAborted();
   const reserva = await reservarEntregaDaFotografia(id, destino);
   if (reserva.tipo !== "trabalho") return reserva.tipo;
   const trabalho = reserva.trabalho;
@@ -28,7 +30,8 @@ export async function executarEntregaDaFotografia(
     });
     if (JSON.stringify(confirmada) !== JSON.stringify(trabalho.referencia))
       throw new FalhaDoArmazenamentoPrivado("INTEGRIDADE");
-    if (await confirmarEntregaDaFotografia(trabalho)) return "concluida";
+    signal?.throwIfAborted();
+    if (await confirmarEntregaDaFotografia(trabalho, signal)) return "concluida";
     await registrarFalhaDaEntrega(trabalho, null);
     return "aguardando";
   } catch (erro) {

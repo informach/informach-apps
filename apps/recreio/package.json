@@ -35,7 +35,8 @@
     "restaurar-morada": "node --conditions=react-server --import tsx scripts/restaurar-morada.ts",
     "gerar-chave": "node scripts/gerar-chave.mjs",
     "test:backup-operational": "node scripts/isolated.mjs backup-operational",
-    "test:rights-operational": "node scripts/isolated.mjs rights-operational"
+    "test:rights-operational": "node scripts/isolated.mjs rights-operational",
+    "migrar:fotografias": "node --conditions=react-server --import tsx scripts/migrar-fotografias.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1172.0",

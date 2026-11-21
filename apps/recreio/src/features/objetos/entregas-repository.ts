@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { jogoPorId } from "@informach/config/jogos";
 import { and, db, eq, gt, isNull, sql } from "@informach/db";
 import {
@@ -256,8 +256,13 @@ function mesmaTentativa(registro: Registro, trabalho: TrabalhoDeEntrega) {
 
 /** Só o executor que acaba de reabrir o objeto inteiro pode chamar a confirmação.
  * Se mundo/lease/recibo mudaram durante I/O, pg permanece e nada é publicado. */
-export function confirmarEntregaDaFotografia(trabalho: TrabalhoDeEntrega): Promise<boolean> {
+export function confirmarEntregaDaFotografia(
+  trabalho: TrabalhoDeEntrega,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  signal?.throwIfAborted();
   return db.transaction(async (tx) => {
+    signal?.throwIfAborted();
     const registro = await travarEntrega(tx, trabalho.id),
       e = registro.entrega;
     if (
@@ -272,6 +277,7 @@ export function confirmarEntregaDaFotografia(trabalho: TrabalhoDeEntrega): Promi
       JSON.stringify(referencia) !== JSON.stringify(trabalho.referencia)
     )
       return false;
+    signal?.throwIfAborted();
     // Guardar primeiro o recibo, com prazo vivo no próprio UPDATE. Toda a
     // publicação se desfaz se fotografia ou auditoria não forem confirmadas.
     const [guardada] = await tx
@@ -319,6 +325,7 @@ export function confirmarEntregaDaFotografia(trabalho: TrabalhoDeEntrega): Promi
       },
       { writer: tx },
     );
+    signal?.throwIfAborted();
     return true;
   });
 }

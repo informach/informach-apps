@@ -1,5 +1,5 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { jogoPorId } from "@informach/config/jogos";
 import { and, db, eq, isNull, sql } from "@informach/db";
 import {

@@ -1,0 +1,64 @@
+name: Recreio - executor de fotografias
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "verify/object-migration-*"]
+    paths:
+      - ".github/workflows/recreio-fotografias.yml"
+      - "infrastructure/railway/recreio-fotografias.Dockerfile"
+      - "apps/recreio/scripts/migrar-fotografias.ts"
+      - "apps/recreio/scripts/conferir-fronteira-fotografias.mjs"
+      - "apps/recreio/src/features/objetos/**"
+      - "apps/recreio/src/lib/object-*.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-fotografias-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  registrar:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo 'Candidata registrada; executar workflow_dispatch para qualificar a imagem.'
+  imagem:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Construir imagem exata sem credenciais de provedores
+        run: docker build --file infrastructure/railway/recreio-fotografias.Dockerfile --tag recreio-fotografias:qualification .
+      - name: Provar off e recusa antes de carregar recursos
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 256m --cpus 1 --env RECREIO_OBJECTS_KEYS=invalid-private-value --env DATABASE_URL=invalid-private-value recreio-fotografias:qualification > "$RUNNER_TEMP/off.json"
+          node -e 'const fs=require("node:fs"),assert=require("node:assert/strict");assert.deepEqual(JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/off.json","utf8")),{formato:"recreio-migracao-fotografias-v1",modo:"off"})'
+          if docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 256m --cpus 1 --env RECREIO_OBJECTS_MIGRATION_MODE=process --env RECREIO_OBJECTS_KEYS=invalid-private-value --env DATABASE_URL=invalid-private-value recreio-fotografias:qualification > "$RUNNER_TEMP/refused.out" 2> "$RUNNER_TEMP/refused.json"; then
+            exit 1
+          fi
+          test ! -s "$RUNNER_TEMP/refused.out"
+          node -e 'const fs=require("node:fs"),assert=require("node:assert/strict");assert.deepEqual(JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/refused.json","utf8")),{formato:"recreio-migracao-fotografias-v1",erro:"MIGRACAO_FOTOGRAFIAS_FALHOU"})'
+      - name: Preservar bundle exato e integridade sem publicar serviço
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/worker"
+          container=$(docker create recreio-fotografias:qualification)
+          trap 'docker rm "$container" >/dev/null' EXIT
+          docker cp "$container:/opt/recreio/migrar-fotografias.cjs" "$RUNNER_TEMP/worker/migrar-fotografias.cjs"
+          cd "$RUNNER_TEMP/worker"
+          sha256sum migrar-fotografias.cjs > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recreio-fotografias-${{ github.run_id }}
+          path: ${{ runner.temp }}/worker/
+          retention-days: 14

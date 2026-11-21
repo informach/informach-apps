@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { logAuditEventStrict } from "@informach/auth";
+import { logAuditEventStrict } from "@informach/auth/audit";
 import { and, asc, db, eq, sql } from "@informach/db";
 import {
   recreioSnapshotObjectDeliveries as deliveries,

@@ -757,6 +757,55 @@ async function expirarTentativa(id: string) {
 }
 
 describe("executor nativo: tentativa durável, confirmação e publicação atômica", () => {
+  it("cancelamento após upload verificado conserva PG e permite replay da mesma entrega", async () =>
+    comEntrega(async (f) => {
+      const ctl = new AbortController();
+      const antes = await entregaGuardada(f.id);
+      await expect(
+        executarEntregaDaFotografia(
+          f.id,
+          f.destino,
+          {
+            bucketName: f.s3.storage.bucketName,
+            enviar: async (pedido) => {
+              const r = await f.s3.storage.enviar(pedido);
+              ctl.abort();
+              return r;
+            },
+          },
+          ctl.signal,
+        ),
+      ).rejects.toThrow();
+      const [pg] = await db
+        .select({
+          storage: snapshots.storage,
+          data: snapshots.data,
+          objectKey: snapshots.objectKey,
+        })
+        .from(snapshots)
+        .where(eq(snapshots.id, f.foto.id));
+      expect(pg).toEqual({ storage: "pg", data: f.bytes, objectKey: null });
+      const guardada = await entregaGuardada(f.id);
+      expect(guardada.state).toBe("prepared");
+      expect(guardada.envelope).toEqual(antes.envelope);
+      expect(guardada.objectKey).toBe(antes.objectKey);
+      expect(f.s3.pedidos.map((p) => p.metodo)).toEqual(["PUT", "GET"]);
+      expect(
+        (await eventosCom("spaceId", f.pedido.mundoId)).filter(
+          (e) => e.eventType === "recreio.snapshot_object_confirmed",
+        ),
+      ).toHaveLength(0);
+      await expirarTentativa(f.id);
+      await tornarEntregaDevida(f.id);
+      expect(await executarEntregaDaFotografia(f.id, f.destino, f.s3.storage)).toBe("concluida");
+      expect((await entregaGuardada(f.id)).objectKey).toBe(antes.objectKey);
+      expect(
+        (await eventosCom("spaceId", f.pedido.mundoId)).filter(
+          (e) => e.eventType === "recreio.snapshot_object_confirmed",
+        ),
+      ).toHaveLength(1);
+    }));
+
   it("rotação sem chave antiga exige revisão e não inicia PUT", async () =>
     comEntrega(async (f) => {
       const cifrador = criarCifradorDeObjetos({
