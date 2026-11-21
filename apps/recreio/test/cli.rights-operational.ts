@@ -9,7 +9,7 @@ import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamen
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
 import { executarImagemDeDireitos } from "./rights-cli-apoio";
-import { prepararRetiradaParaImagem } from "./rights-native-apoio";
+import { FalhaDaFixtureDaImagem, prepararRetiradaParaImagem } from "./rights-native-apoio";
 
 function required(key: string) {
   const value = process.env[key];
@@ -165,6 +165,7 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     });
     let effectRounds = 0;
     for (; effectRounds < 6; ) {
+      phase = "native_round";
       const rows = await executarImagemDeDireitos(env);
       expect(rows).toHaveLength(1);
       const result = z
@@ -181,6 +182,7 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
       effectRounds++;
       if ((await withdrawal.estado())?.state === "completed") break;
     }
+    phase = "native_verification";
     await withdrawal.verificar();
     expect((await storage.lerCabecalho()).documento.entradas).toBe(1);
     report.nativeEffectsProven = true;
@@ -247,6 +249,10 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     report.anonymousReadDenied = true;
     report.status = "passed";
   } catch (error) {
+    if (error instanceof FalhaDaFixtureDaImagem) {
+      report.nativeFailureStage = error.etapa;
+      report.nativeFailureCode = error.codigo;
+    }
     primary = error;
   }
   for (const owned of [prefix, missingPrefix]) {
