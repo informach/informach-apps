@@ -68,7 +68,7 @@ física já restaurada e normalizada, o worker sem URL/chaves de origem deve
 retomar somente sua etapa financeira pendente, repetir sem alterar recibo e
 recusar raiz/cópia/filha vencida, outro pagante e efeitos pessoais. Origem,
 preparação, consentimento e identidades devem continuar idênticos. O novo
-livro acrescenta exatamente cinco objetos de teste (plano, intenção, dois
+livro acrescenta exatamente seis objetos de teste (plano, intenção, três
 cabeçalhos históricos e cabeça), todos sob prefixo próprio e com limpeza.
 O recibo exige campos positivos específicos e conserva
 `nativeAccountClosureFullyReplayed=false`. Não é inventário real de cobrança,
