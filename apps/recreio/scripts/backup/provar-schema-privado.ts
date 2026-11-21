@@ -1,5 +1,6 @@
 import type postgres from "postgres";
 import { comArquivosPrivadosDoBackup } from "./arquivos-privados";
+import { type EtapaDaProvaDeSchema, informarEtapaDaProvaDeSchema } from "./diagnostico-schema";
 import { FalhaDaFerramentaNativa } from "./ferramentas-nativas";
 import { conferirInventarios, inventariarBackup } from "./inventario";
 import { exigirBancoPrivadoDeRecuperacao } from "./normalizar-fotografias";
@@ -20,7 +21,13 @@ export async function provarEstagioNativoPrivado(
   origem: FerramentasNativasDeSchema,
   destino: FerramentasNativasDeSchema,
 ) {
-  let etapa = "INICIO";
+  const inicio = performance.now();
+  let etapa: EtapaDaProvaDeSchema = "INICIO";
+  function avancar(atual: EtapaDaProvaDeSchema) {
+    etapa = atual;
+    informarEtapaDaProvaDeSchema(atual, inicio);
+  }
+  avancar("INICIO");
   await exigirBancoPrivadoDeRecuperacao(fonte);
   await exigirBancoPrivadoDeRecuperacao(atual);
   const inventario = (s: postgres.Sql) =>
@@ -34,7 +41,7 @@ export async function provarEstagioNativoPrivado(
   );
   exigir(raiz?.ausente, `SCHEMA_ESTAGIO_${etapa}`);
   return comArquivosPrivadosDoBackup(async ({ dump }) => {
-    etapa = "DUMP";
+    avancar("DUMP");
     const prova = await serializarSchemaRecreioPrivado(fonte, origem, dump);
     const conferirBytes = async () => {
       const r = await resumoDoArquivo(dump);
@@ -53,7 +60,7 @@ export async function provarEstagioNativoPrivado(
       }
       exigir(recusou, `SCHEMA_ESTAGIO_${etapa}`);
     }
-    etapa = "COPIA";
+    avancar("COPIA");
     await recusar(() => origem.importar(prova), "DESTINO");
     await recusar(() => destino.importar({ ...prova }), "EXPIRADO");
 
@@ -61,7 +68,7 @@ export async function provarEstagioNativoPrivado(
     // a real conflicting lock while pg_restore uses its independent socket.
     // Cancel only its observed native backend while it waits on the lock;
     // pg_restore resets server timeouts itself. The whole import must roll back.
-    etapa = "CANCELAMENTO";
+    avancar("CANCELAMENTO");
     await atual.unsafe("begin");
     let rollback = false;
     const cancelamento = new AbortController();
@@ -118,14 +125,14 @@ export async function provarEstagioNativoPrivado(
       await atual.unsafe("rollback");
       await importacao;
     }
-    etapa = "ROLLBACK";
+    avancar("ROLLBACK");
     exigir(rollback, `SCHEMA_ESTAGIO_${etapa}`);
     conferirInventarios(globais, await inventario(atual));
 
     let criado: string | undefined;
     let resultado: { ok: true } | { ok: false; erro: unknown };
     try {
-      etapa = "IMPORTACAO";
+      avancar("IMPORTACAO");
       const r = await destino.importar(prova);
       exigir(!r.trafegoAutorizado && r.sha256 === prova.sha256, `SCHEMA_ESTAGIO_${etapa}`);
       const [n] = await atual.unsafe<{ oid: string }[]>(
@@ -135,7 +142,7 @@ export async function provarEstagioNativoPrivado(
       exigir(n && /^[0-9]+$/.test(n.oid), `SCHEMA_ESTAGIO_${etapa}`);
       criado = n.oid;
       const depois = await inventario(atual);
-      etapa = "CONTEUDO";
+      avancar("CONTEUDO");
       const importadas = depois.tabelas
         .filter((t) => t.schema === prova.schema)
         .map((t) => ({ ...t, schema: "recreio" }));
@@ -145,7 +152,7 @@ export async function provarEstagioNativoPrivado(
           JSON.stringify(globais.tabelas),
         `SCHEMA_ESTAGIO_${etapa}`,
       );
-      etapa = "REPETICAO";
+      avancar("REPETICAO");
       const conferido = await inventario(atual);
       await recusar(() => destino.importar(prova), "DESTINO");
       conferirInventarios(conferido, await inventario(atual));
@@ -154,7 +161,7 @@ export async function provarEstagioNativoPrivado(
       resultado = { ok: false, erro };
     }
     try {
-      etapa = "LIMPEZA";
+      avancar("LIMPEZA");
       if (criado) await removerEstagio(atual, prova, criado);
     } catch (erro) {
       throw new AggregateError(
@@ -167,7 +174,7 @@ export async function provarEstagioNativoPrivado(
     conferirInventarios(antes, await inventario(fonte));
     // Destructive tampering belongs last. An admitted native archive is
     // immutable; repairing and reusing a changed file is not a capability.
-    etapa = "CORRUPCAO";
+    avancar("CORRUPCAO");
     const byte = Buffer.alloc(1);
     try {
       exigir((await dump.read(byte, 0, 1, 0)).bytesRead === 1, `SCHEMA_ESTAGIO_${etapa}`);
@@ -180,7 +187,7 @@ export async function provarEstagioNativoPrivado(
       byte.fill(0);
     }
     conferirInventarios(globais, await inventario(atual));
-    etapa = "EXPIRACAO";
+    avancar("EXPIRACAO");
     origem.encerrar();
     await recusar(() => destino.importar(prova), "EXPIRADO");
     return {

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { FalhaDaRecuperacaoSchema } from "../scripts/backup/diagnostico-recuperacao";
+import { separarProgressoDaProvaDeSchema } from "../scripts/backup/diagnostico-schema";
 import { exigir, FalhaDaProva } from "../scripts/backup/provas-arquivos";
 import {
   type RetiradaNativaDeProva,
@@ -377,7 +378,7 @@ export async function provarClusterFrio(
     filho.once("close", resolve);
   });
   filho.stdout.on("data", (b: Buffer) => {
-    if (saida.length + b.length > 16_384) {
+    if (saida.length + b.length > 32_768) {
       excesso = true;
       filho.kill("SIGTERM");
     } else saida += b.toString("utf8");
@@ -400,6 +401,12 @@ export async function provarClusterFrio(
     delete env.RECREIO_BACKUP_PROBE_MASTER_KEYS;
     delete env.RECREIO_BACKUP_PROBE_NATIVE_RIGHTS;
     for (const n of nomes) delete env[n];
+  }
+  let protocolo: ReturnType<typeof separarProgressoDaProvaDeSchema> | undefined;
+  try {
+    protocolo = separarProgressoDaProvaDeSchema(saida);
+  } catch {
+    erro = true;
   }
   // SIGTERM no cliente não prova que o container parou; reconciliar o nome
   // exclusivo criado por esta chamada antes de devolver ao chamador.
@@ -452,7 +459,7 @@ export async function provarClusterFrio(
     }
     let diagnostico: unknown;
     try {
-      diagnostico = JSON.parse(saida.trim());
+      diagnostico = protocolo?.final ? JSON.parse(protocolo.final) : undefined;
     } catch {
       diagnostico = undefined;
     }
@@ -463,13 +470,13 @@ export async function provarClusterFrio(
         : excesso
           ? "CLUSTER_FRIO_SAIDA_EXCEDIDA"
           : prazoExcedido
-            ? "CLUSTER_FRIO_PRAZO_EXCEDIDO"
+            ? `CLUSTER_FRIO_PRAZO_EXCEDIDO${protocolo?.ultima ? `_SCHEMA_${protocolo.ultima.etapa}` : ""}`
             : stderrRecebido
               ? "CLUSTER_FRIO_STDERR_RECEBIDO"
               : "CLUSTER_FRIO_PROTOCOLO_NAO_CONFIRMADO",
     );
   }
-  const recibo = Recibo.parse(JSON.parse(saida.trim()));
+  const recibo = Recibo.parse(JSON.parse(protocolo?.final ?? "null"));
   exigir(
     recibo.source === process.env.GITHUB_SHA &&
       recibo.runId === process.env.GITHUB_RUN_ID &&
