@@ -37,7 +37,8 @@
     "test:backup-operational": "node scripts/isolated.mjs backup-operational",
     "test:rights-operational": "node scripts/isolated.mjs rights-operational",
     "migrar:fotografias": "node --conditions=react-server --import tsx scripts/migrar-fotografias.ts",
-    "test:object-migration": "node scripts/isolated.mjs object-migration"
+    "test:object-migration": "node scripts/isolated.mjs object-migration",
+    "test:object-migration-operational": "node scripts/isolated.mjs object-migration-operational"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1172.0",

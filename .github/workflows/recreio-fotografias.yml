@@ -2,6 +2,11 @@ name: Recreio - executor de fotografias
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_bucket:
+        description: Bucket exclusivo autorizado; vazio qualifica apenas imagem off e admissão SQL
+        type: string
+        default: ""
   push:
     branches: [main, "verify/object-migration-*"]
     paths:
@@ -95,3 +100,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Provar admissão da fila em PostgreSQL descartável, sem credenciais externas
         run: pnpm --filter @informach/recreio-app test:object-migration
+      - name: Construir a imagem exata para processamento nativo sintético
+        if: inputs.expected_bucket != ''
+        run: docker build --file infrastructure/railway/recreio-fotografias.Dockerfile --tag recreio-fotografias:qualification .
+      - name: Provar processamento real no único bucket de homologação autorizado
+        if: inputs.expected_bucket != ''
+        env:
+          RECREIO_OBJECTS_MIGRATION_OPERATIONAL_PROBE: "1"
+          RECREIO_S3_EXPECTED_BUCKET: ${{ inputs.expected_bucket }}
+          RECREIO_S3_TEST_BUCKET: ${{ secrets.RECREIO_S3_TEST_BUCKET }}
+          RECREIO_S3_TEST_ENDPOINT: ${{ secrets.RECREIO_S3_TEST_ENDPOINT }}
+          RECREIO_S3_TEST_REGION: ${{ secrets.RECREIO_S3_TEST_REGION }}
+          RECREIO_S3_TEST_PATH_STYLE: ${{ secrets.RECREIO_S3_TEST_PATH_STYLE }}
+          RECREIO_S3_TEST_ACCESS_KEY: ${{ secrets.RECREIO_S3_TEST_ACCESS_KEY }}
+          RECREIO_S3_TEST_SECRET_KEY: ${{ secrets.RECREIO_S3_TEST_SECRET_KEY }}
+        run: |
+          test "$RECREIO_S3_EXPECTED_BUCKET" = "recreio-homologacao-c0xyqx"
+          test "$RECREIO_S3_TEST_BUCKET" = "$RECREIO_S3_EXPECTED_BUCKET"
+          pnpm --filter @informach/recreio-app test:object-migration-operational
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.expected_bucket != ''
+        with:
+          name: recreio-fotografias-operacional-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recreio-fotografias-operacional.json
+          retention-days: 14
