@@ -373,3 +373,15 @@ cópia manual atual falhou: `Plan limit of 10 backups per volume exceeded`.
 Os onze registros incluem três manuais e cópias agendadas. Não foi apagada
 nenhuma cópia antiga. Foi pedido ao titular decidir somente sobre os dois
 backups manuais de 13/09; migração continua pendente dessa cópia atual.
+
+
+A inspeção de 21/11 às 00h01 UTC (20/11 no Brasil) confirmou zero objetos/bytes
+no painel do provedor e recusa 403 de listagem anônima em ambos os buckets.
+Isso não testa a autorização das credenciais S3. O executor permanente
+`recreio-backup-operacional` (ad5d43d0-616c-4618-9f12-915b8b971d8c) foi
+preparado com a fonte qualificada 5fe5710e. Deploy 0978a420 passou e o log
+confirmou modo off às 00h04 UTC. Só recebe RECREIO_BACKUP_MODE; não recebeu
+credenciais do banco/buckets, domínio, proxy, volume ou cron. Portal, Morada
+e PostgreSQL conservaram os mesmos deploys; ambiente sem alterações staged.
+[Recibo restrito a metadados](evidencias/custodia-preparada-2026-11-20.json).
+Captura cifrada produtiva, recuperação independente e agenda seguem pendentes.

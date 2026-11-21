@@ -47,3 +47,17 @@ terceiro consentimento acrescenta intenção/plano/histórico; a conferência
 passa a exigir exatamente doze objetos de direitos, preservando os quatro
 objetos de foto/arquivo e os três prefixos. Nenhuma regra produtiva foi
 relaxada; repetir a rodada completa antes de qualificá-la.
+
+
+## Cluster frio e inventário qualificados
+
+4b852101 passou o cluster externo 44841477078 e a captura nativa 44841484383.
+Foram conferidos doze objetos de direitos (três intenções, três planos, cinco
+históricos e cabeçalho), quatro objetos de foto/arquivo, privacidade e limpeza.
+A recuperação confirmou a publicação pendente, rollback da auditoria, origem/
+datas, ausência de novo consentimento e preservação de terceiro. Os cenários
+anteriores de retirada posterior à captura e operação nativa parcialmente
+executada continuam exigidos, com verificação terminal das três operações.
+[Recibo e hash do artefato](evidencias/publicacao-pendente-cluster-frio-44841477078.json).
+Qualidade 44841480696 e os dezesseis gates 44840684445 passaram.
+Nenhuma dessas provas liquida financeiro ou autoriza tráfego/publicação.

@@ -1,0 +1,77 @@
+{
+  "observedAt": "2026-11-21T00:01:24.706Z",
+  "state": "prepared_not_activated",
+  "productionDataRead": false,
+  "productionDataChanged": false,
+  "custodyService": {
+    "id": "1b39b426-617b-45db-b437-11988d6c67aa",
+    "name": "recreio-custodia-operacional",
+    "persistedVariablesCompared": 20,
+    "exactMatch": true,
+    "separateBucketCredentialsAndKeys": true,
+    "sourceDatabaseCredentialsPresent": false,
+    "runtimePresent": false,
+    "publicDomainCount": 0,
+    "tcpProxyCount": 0,
+    "volumeCount": 0,
+    "independentRecoveryProven": false
+  },
+  "buckets": [
+    {
+      "bucketId": "d1112996-d9cc-42e5-8fe5-4587944e16d7",
+      "providerObjectCount": 0,
+      "providerStorageBytes": 0,
+      "anonymousListDenied": true,
+      "anonymousStatus": 403
+    },
+    {
+      "bucketId": "364e47df-0471-406e-8c04-aa05e1c7a657",
+      "providerObjectCount": 0,
+      "providerStorageBytes": 0,
+      "anonymousListDenied": true,
+      "anonymousStatus": 403
+    }
+  ],
+  "storageCredentialAuthorizationTested": false,
+  "backupService": {
+    "id": "ad5d43d0-616c-4618-9f12-915b8b971d8c",
+    "name": "recreio-backup-operacional",
+    "source": "5fe5710e28d44d3f04fe1485ba261284c56cdccd",
+    "deploymentId": "0978a420-3ffa-4723-b791-3e33340d8999",
+    "deploymentStatus": "SUCCESS",
+    "runtimeObservedAt": "2026-11-21T00:04:40.469328709Z",
+    "runtimeFormat": "recreio-backup-rodada-v1",
+    "runtimeMode": "off",
+    "customVariableNames": ["RECREIO_BACKUP_MODE"],
+    "sourceDatabaseCredentialsPresent": false,
+    "bucketCredentialsPresent": false,
+    "cronEnabled": false,
+    "publicDomainCount": 0,
+    "tcpProxyCount": 0,
+    "volumeCount": 0
+  },
+  "sourcePreflight": {
+    "observedAt": "2026-11-20T23:50:30.046249+00:00",
+    "postgres": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "sslEnabled": true,
+    "migrationReceipts": 204,
+    "readOnly": true
+  },
+  "preMigrationProviderBackup": {
+    "currentAttemptConfirmed": false,
+    "reason": "provider_plan_backup_limit_10",
+    "existingDailyBackupId": "17819320-23a8-49f6-939d-efd4391fa4b5",
+    "existingDailyCreatedAt": "2026-11-20T10:33:03.856Z",
+    "oldBackupsDeleted": false,
+    "migrationApplied": false
+  },
+  "productionDeploymentsPreserved": {
+    "portal": "affdf087-bef0-4c8c-9641-243b1dc5bbb7",
+    "morada": "3cd2cb8f-f160-4508-9f6e-c2d196235bb5",
+    "postgres": "fb29b55a-3555-4b70-9926-1f00235b053e"
+  },
+  "githubSecretsChanged": false,
+  "productionArchiveCaptured": false,
+  "productionRecoveryProven": false,
+  "trafficAuthorized": false
+}

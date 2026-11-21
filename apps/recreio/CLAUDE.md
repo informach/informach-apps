@@ -461,7 +461,8 @@ entrada de backup, cron ou recurso comercial está ativa em produção.
 [Operação e pendências](../../docs/recreio/operacao-backup-2026-11-20.md).
 
 
-Publicação histórica com confirmação SQL perdida está em implementação. Somente
+Publicação histórica com confirmação SQL perdida qualificada em
+4b852101/44841477078, com qualidade 44841480696 e captura 44841484383. Somente
 a admissão fixa com capacidade privada genuína pode reconciliar `publishing`
 nativo pertencente ao prefixo completo; conferir preparação/MAC/plano/mapa
 antes, conservar datas do aceite, confirmar SQL/avaliação/auditoria atomicamente
