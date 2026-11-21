@@ -13,6 +13,7 @@ import {
   conferirIntencaoDaCoordenacao,
 } from "../../src/features/direitos/coordenacao-repository";
 import { criarProcessadorFinanceiroRecuperado } from "../../src/features/direitos/encerramento-financeiro-execucao-service";
+import { avaliarFinanceiroConfirmadoRecuperado } from "../../src/features/direitos/encerramento-financeiro-recuperado-service";
 import { criarArmazenamentoDoLivro } from "../../src/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assinatura";
 import { AppError } from "../../src/lib/errors";
@@ -77,8 +78,8 @@ export async function provarFinanceiroRecuperado(config: {
       copia.unsafe(
         `select to_jsonb(o) as operacao,to_jsonb(p) as preparacao,
       (select jsonb_agg(to_jsonb(u) order by id) from core.users u) as identidades
-      from recreio.rights_operations o join recreio.rights_preparations p on p.id=o.preparation_id where o.id=$1`,
-        [dado.operacaoId],
+      from recreio.rights_operations o join recreio.rights_preparations p on p.id=o.preparation_id where o.id in ($1,$2) order by o.id`,
+        [dado.operacaoId, dado.anterior.operacaoId],
       );
     const lerFinanceiro = () =>
       copia.unsafe(
@@ -87,8 +88,14 @@ export async function provarFinanceiroRecuperado(config: {
       );
     const originais = await lerOriginais(),
       financeiroAntes = await lerFinanceiro();
+    const lerConfirmacaoAnterior = () =>
+      copia.unsafe(
+        `select to_jsonb(f) as financeiro from recreio.account_closure_finances f where operation_id=$1 and requester_user_id=$2 and state='confirmed' and result='no_customer'`,
+        [dado.anterior.operacaoId, dado.anterior.contaId],
+      );
+    const confirmacaoAnterior = await lerConfirmacaoAnterior();
     exigir(
-      originais.length === 1 && financeiroAntes.length === 1,
+      originais.length === 2 && financeiroAntes.length === 1 && confirmacaoAnterior.length === 1,
       "CONSENTIMENTO_NATIVO_DIVERGENTE",
     );
     const [pendente] = await copia.unsafe<{ valida: boolean }[]>(
@@ -117,7 +124,7 @@ export async function provarFinanceiroRecuperado(config: {
       tempoLimiteMs: 120000,
     };
     const importacao = await importarFontesHistoricasDeDireitos({ ...comum, copia });
-    exigir(importacao.fontesConferidas === 1, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(importacao.fontesConferidas === 2, "CONSENTIMENTO_NATIVO_DIVERGENTE");
     async function negada(
       executar: () => unknown | Promise<unknown>,
       codigo: "DIREITOS_LIVRO" | "DIREITOS_INTEGRIDADE" = "DIREITOS_LIVRO",
@@ -141,6 +148,7 @@ export async function provarFinanceiroRecuperado(config: {
         execucaoId: importacao.execucaoId,
         executar: async (pai) => {
           await negada(() => criarProcessadorFinanceiroRecuperado(pai, runtime));
+          await negada(() => avaliarFinanceiroConfirmadoRecuperado(pai, runtime));
           await negada(() =>
             comFinanceiroPrivadoDeEncerramento({ ...pai }, dado.operacaoId, async () => {
               throw new Error("Copied root admitted");
@@ -149,6 +157,10 @@ export async function provarFinanceiroRecuperado(config: {
           let anterior: CoordenacaoDeEfeitos | undefined;
           await comFinanceiroPrivadoDeEncerramento(pai, dado.operacaoId, async (filha) => {
             anterior = filha;
+            await negada(
+              () => avaliarFinanceiroConfirmadoRecuperado(filha, runtime),
+              "DIREITOS_INTEGRIDADE",
+            );
             await negada(() => criarProcessadorFinanceiroRecuperado({ ...filha }, runtime));
             await negada(
               () =>
@@ -175,6 +187,21 @@ export async function provarFinanceiroRecuperado(config: {
               "CONSENTIMENTO_NATIVO_DIVERGENTE",
             );
           });
+          await comFinanceiroPrivadoDeEncerramento(pai, dado.anterior.operacaoId, async (filha) => {
+            await negada(() => avaliarFinanceiroConfirmadoRecuperado({ ...filha }, runtime));
+            const primeira = await avaliarFinanceiroConfirmadoRecuperado(filha, runtime);
+            const segunda = await avaliarFinanceiroConfirmadoRecuperado(filha, runtime);
+            exigir(
+              primeira.operacaoId === dado.anterior.operacaoId &&
+                primeira.resultado === "no_customer" &&
+                primeira.execucaoId === importacao.execucaoId &&
+                segunda.operacaoId === primeira.operacaoId &&
+                primeira.cercaSha256 === segunda.cercaSha256 &&
+                /^[a-f0-9]{64}$/.test(primeira.sha256) &&
+                /^[a-f0-9]{64}$/.test(segunda.sha256),
+              "CONSENTIMENTO_NATIVO_DIVERGENTE",
+            );
+          });
           const encerrada = anterior;
           exigir(encerrada, "CAPACIDADE_PRIVADA_DIVERGENTE");
           await negada(() => criarProcessadorFinanceiroRecuperado(encerrada, runtime));
@@ -185,10 +212,21 @@ export async function provarFinanceiroRecuperado(config: {
               }),
             "DIREITOS_INTEGRIDADE",
           );
+          await negada(
+            () =>
+              comOperacaoPrivadaDeDireitos(pai, dado.anterior.operacaoId, async () => {
+                throw new Error("A descriptive financial assessment admitted erasure");
+              }),
+            "DIREITOS_INTEGRIDADE",
+          );
         },
       }),
     );
     exigir(isDeepStrictEqual(originais, await lerOriginais()), "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(
+      isDeepStrictEqual(confirmacaoAnterior, await lerConfirmacaoAnterior()),
+      "CONSENTIMENTO_NATIVO_DIVERGENTE",
+    );
     const [conferida] = await copia.unsafe<{ valida: boolean }[]>(
       `select
       f.state='confirmed' and f.result='no_customer' and f.attempts=1 and f.lease_token is null and f.lease_until is null
@@ -208,6 +246,10 @@ export async function provarFinanceiroRecuperado(config: {
       nativeClosureFinancialOriginalConsentPreserved: true,
       nativeClosureFinancialBookOnlyRead: true,
       nativeClosureFinancialReadRequests: leituras,
+      nativeClosureHistoricalConfirmationFreshlyAssessed: true,
+      nativeClosureHistoricalConfirmationUnchanged: true,
+      nativeClosureFreshAssessmentRequiresConfirmation: true,
+      nativeClosureFreshAssessmentIsNotDataAuthority: true,
       nativeAccountClosureFullyReplayed: false,
     };
   } finally {

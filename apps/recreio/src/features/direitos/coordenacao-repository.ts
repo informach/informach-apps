@@ -927,6 +927,20 @@ function financeiroPrivado(config: CoordenacaoDeEfeitos) {
 export function exigirFinanceiroPrivado(config: CoordenacaoDeEfeitos) {
   financeiroPrivado(config);
 }
+/** Technical financial scope only. These fields are not a data-effect capability. */
+export function dadosFinanceirosDaCoordenacaoPrivada(config: CoordenacaoDeEfeitos) {
+  const privado = financeiroPrivado(config);
+  const operacaoId = privado.operacaoId,
+    contaId = privado.financeiro?.contaId;
+  assertAllowed(operacaoId && contaId, "DIREITOS_LIVRO", "Escopo financeiro privado ausente.");
+  return {
+    banco: privado.banco,
+    execucaoId: privado.execucaoId,
+    cerca: privado.cerca,
+    operacaoId,
+    contaId,
+  };
+}
 export function reconferirFinanceiroPrivado(config: CoordenacaoDeEfeitos) {
   return reconferirCoordenacaoDeDireitos(config, financeiroPrivado(config).storage);
 }

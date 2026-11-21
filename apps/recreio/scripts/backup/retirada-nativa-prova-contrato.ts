@@ -10,6 +10,7 @@ export const RetiradaNativaDeProvaSchema = z.strictObject({
     livroId: z.uuid(),
     operacaoId: z.uuid(),
     contaId: z.string().min(1).max(256),
+    anterior: z.strictObject({ operacaoId: z.uuid(), contaId: z.string().min(1).max(256) }),
     chaves: z.strictObject({
       "finance-old": z.string().regex(/^[A-Za-z0-9+/]{43}=$/),
       "finance-next": z.string().regex(/^[A-Za-z0-9+/]{43}=$/),

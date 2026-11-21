@@ -75,6 +75,26 @@ O recibo exige campos positivos específicos e conserva
 reavaliação de confirmação anterior ou encerramento integral recuperado.
 
 Somente GitHub Actions executa tipos, testes, builds, jornadas e clusters.
+O candidato seguinte separa uma avaliação descritiva atual de confirmação
+histórica: lê a origem completa antes/depois do I/O na mesma conexão privada,
+confere a evidência real do adapter Stripe quando há cliente e conserva o
+recibo antigo inteiro. Recusa renovação/Checkout pendente, origem ou modo
+divergente e parada reativada/adiada. Não atualiza confirmação nem admite
+efeitos pessoais. O recibo descritivo ainda não está ligado ao recibo terminal.
+A fixture passa a ter dois adultos sem jogador/cliente no livro financeiro:
+um confirmado antes da captura e outro ainda pendente. São nove objetos
+nesse livro (duas intenções/planos, quatro cabeçalhos históricos e cabeça),
+21 objetos de direitos/25 totais, todos exclusivos e removidos ao final.
+O primeiro ensaio 44858908744 chegou ao fim da recuperação fria e confirmou
+as oito propriedades financeiras, mas falhou na expectativa do inventário:
+o histórico da geração zero também é armazenado. O artefato mostrou 22
+objetos/18 de direitos e limpeza confirmada. A correção ba8f5a4d passou
+44859406663: oito propriedades financeiras conferidas, 51 GETs exclusivos
+do livro, nenhuma credencial de banco de origem, 22 objetos/18 de direitos
+e limpeza dos objetos/clusters confirmada. Não tratar o primeiro ensaio como
+gate aprovado nem confundir esse caso pendente sem cliente com a avaliação
+atual de uma confirmação anterior. Qualidade 44858905869 também passou.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

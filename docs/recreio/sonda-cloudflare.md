@@ -1,5 +1,18 @@
 # Sonda independente no Workers
 
+**Atualização de 21/11:** o monitor agora inclui a sonda independente de saúde
+do backup. O gate [44859057436](https://github.com/informach/informach-apps/actions/runs/44859057436)
+conferiu os três alvos e a falha isolada de backup no runtime Miniflare, além
+de tipos/build/publicação seca. O bundle SHA `f36a3f63` foi publicado sem build
+local; versão `1ea8f65d`. A API confirmou os dois segredos preservados, a flag
+de backup `on`, transporte de prova `false`, cron/CPU/plano mantidos e domínio
+desligado. Duas execuções reais, às 03h05 e 03h10 UTC, verificaram os três
+alvos com uma tentativa e sem exceções. [Evidência](evidencias/monitor-backup-cloudflare-2026-11-21.json).
+A agenda GitHub continua como alternativa; ainda falta observar uma execução
+agendada sua com os três alvos. Não houve falha provocada em produção nem
+medição financeira adicional do Worker. O registro abaixo preserva a operação
+anterior com dois alvos.
+
 Publicado em 15/11/2026, 14h14 UTC. **Duas execuções automáticas aprovadas, ingestão comprovada e flag de prova desligada.** A execução manual da sonda GitHub e a ingestão Sentry passaram, mas sua agenda automática ainda não disparou na janela observada. O titular não pode ampliar a cota de uptime do Sentry. Usar a conta Workers já existente, sem trocar plano nem habilitar um produto de uptime.
 
 ## Escopo

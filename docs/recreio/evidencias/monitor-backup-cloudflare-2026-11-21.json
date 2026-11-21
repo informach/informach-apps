@@ -1,0 +1,49 @@
+{
+  "worker": "informach-recreio-monitor",
+  "source": "3474ad532010dc7739b77243b998659faf6c0ab5",
+  "githubRun": 44859057436,
+  "bundleSha256": "f36a3f6344ae663ebf94b19ee2e2f7a2cda2cdd77a368642c2f56ee899109660",
+  "version": "1ea8f65d-77cc-4c7e-8751-65ca4c4b9a18",
+  "deployment": "b0fae64c-10c6-46e1-99ad-a3f85e026e58",
+  "deployedAt": "2026-11-21T03:04:33.299364Z",
+  "cron": "*/5 * * * *",
+  "backupMonitor": "on",
+  "transportProof": false,
+  "existingSecretBindingsPreserved": true,
+  "workersDev": false,
+  "previewUrls": false,
+  "cpuLimitMs": 10,
+  "existingUsageModel": "standard",
+  "planChanged": false,
+  "compiledOnGithub": true,
+  "deployedWithoutLocalBuild": true,
+  "scheduledExecutions": [
+    {
+      "scheduledAt": "2026-11-21T03:05:21.311Z",
+      "outcome": "ok",
+      "cpuTimeMs": 2,
+      "wallTimeMs": 122,
+      "exceptions": 0,
+      "targets": [
+        { "service": "recreio", "ready": true, "attempts": 1, "durationMs": 85 },
+        { "service": "morada-server", "ready": true, "attempts": 1, "durationMs": 72 },
+        { "service": "recreio-backup", "ready": true, "attempts": 1, "durationMs": 120 }
+      ]
+    },
+    {
+      "scheduledAt": "2026-11-21T03:10:21.311Z",
+      "outcome": "ok",
+      "cpuTimeMs": 2,
+      "wallTimeMs": 424,
+      "exceptions": 0,
+      "targets": [
+        { "service": "recreio", "ready": true, "attempts": 1, "durationMs": 220 },
+        { "service": "morada-server", "ready": true, "attempts": 1, "durationMs": 427 },
+        { "service": "recreio-backup", "ready": true, "attempts": 1, "durationMs": 245 }
+      ]
+    }
+  ],
+  "productionFailureProvoked": false,
+  "additionalFinancialCostMeasured": false,
+  "completeRecoveryQualified": false
+}

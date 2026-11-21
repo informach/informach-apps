@@ -1,7 +1,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { criarProcessadorFinanceiroDoEncerramento } from "@/features/direitos/encerramento-financeiro-execucao-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
+import { conferirPrefixoDoLivro } from "@/features/direitos/livro/leitura";
 import { PedidoDePreparacaoDeDireitosSchema } from "@/features/direitos/preparacao-contrato";
 import { prepararEncerramentoNoBanco } from "@/features/direitos/preparacao-repository";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
@@ -25,7 +27,6 @@ export async function prepararFinanceiroNativoAnterior(
       chaves: new Map([["finance-old", antiga]]),
     });
   try {
-    const adulto = await adultoDoTeste();
     await bucket.admitirPrefixo("direitos", livroId);
     const storage = criarArmazenamentoDoLivro({
       cliente: bucket.cliente,
@@ -49,37 +50,55 @@ export async function prepararFinanceiroNativoAnterior(
         atualizadoEm: new Date().toISOString(),
       }),
     );
-    const previa = await prepararEncerramentoNoBanco(
-      adulto.autor,
-      PedidoDePreparacaoDeDireitosSchema.parse({
-        pedidoId: randomUUID(),
-        tipo: "encerrar_conta",
-        perfis: [],
+    async function admitir() {
+      const adulto = await adultoDoTeste();
+      const previa = await prepararEncerramentoNoBanco(
+        adulto.autor,
+        PedidoDePreparacaoDeDireitosSchema.parse({
+          pedidoId: randomUUID(),
+          tipo: "encerrar_conta",
+          perfis: [],
+        }),
+        "dev",
+      );
+      const recibo = await consentirEncerramentoNoBanco(
+        adulto.autor,
+        {
+          preparacaoId: previa.preparacaoId,
+          planoSha256: previa.planoSha256,
+          confirmoEncerramento: true,
+          confirmoRetiradaDosPerfis: true,
+          confirmoCancelamentoDaRenovacao: true,
+        },
+        { assinatura, fonte: process.env.GITHUB_SHA ?? "f".repeat(40), epoca: 0, modo: "dev" },
+      );
+      const publicada = await publicarProximoConsentimento({ assinatura, storage });
+      exigir(
+        publicada.situacao === "admitida" && publicada.operacaoId === recibo.operacaoId,
+        "CONSENTIMENTO_NATIVO_DIVERGENTE",
+      );
+      return { operacaoId: recibo.operacaoId, contaId: adulto.conta.id };
+    }
+    const anterior = await admitir();
+    const processar = criarProcessadorFinanceiroDoEncerramento({
+      livroId,
+      obterCoordenacao: async () => ({
+        assinatura,
+        prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 10, tempoLimiteMs: 15000 }),
       }),
-      "dev",
-    );
-    const recibo = await consentirEncerramentoNoBanco(
-      adulto.autor,
-      {
-        preparacaoId: previa.preparacaoId,
-        planoSha256: previa.planoSha256,
-        confirmoEncerramento: true,
-        confirmoRetiradaDosPerfis: true,
-        confirmoCancelamentoDaRenovacao: true,
+      obterRuntime: () => {
+        throw new Error("Synthetic no-customer closure must not compose Stripe");
       },
-      { assinatura, fonte: process.env.GITHUB_SHA ?? "f".repeat(40), epoca: 0, modo: "dev" },
-    );
-    const publicada = await publicarProximoConsentimento({ assinatura, storage });
-    exigir(
-      publicada.situacao === "admitida" && publicada.operacaoId === recibo.operacaoId,
-      "CONSENTIMENTO_NATIVO_DIVERGENTE",
-    );
+    });
+    exigir((await processar()).situacao === "confirmada", "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    const pendente = await admitir();
     await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
     return {
       coordenadas: {
         livroId,
-        operacaoId: recibo.operacaoId,
-        contaId: adulto.conta.id,
+        operacaoId: pendente.operacaoId,
+        contaId: pendente.contaId,
+        anterior,
         chaves: {
           "finance-old": antiga.toString("base64"),
           "finance-next": proxima.toString("base64"),
