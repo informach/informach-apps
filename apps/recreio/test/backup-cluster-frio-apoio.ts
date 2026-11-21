@@ -352,7 +352,9 @@ export async function provarClusterFrio(
   });
   let saida = "",
     erro = false,
-    excesso = false;
+    excesso = false,
+    stderrRecebido = false,
+    prazoExcedido = false;
   const fechado = new Promise<number | null>((resolve) => {
     filho.once("error", () => {
       erro = true;
@@ -367,9 +369,11 @@ export async function provarClusterFrio(
   });
   filho.stderr.on("data", () => {
     erro = true;
+    stderrRecebido = true;
   });
   const prazo = setTimeout(() => {
     erro = true;
+    prazoExcedido = true;
     filho.kill("SIGTERM");
   }, 150_000);
   prazo.unref();
@@ -441,7 +445,13 @@ export async function provarClusterFrio(
     throw new FalhaDaProva(
       falha.success
         ? `CLUSTER_FRIO_${falha.data.etapa}_${falha.data.codigo}`
-        : "CLUSTER_FRIO_NAO_CONFIRMADO",
+        : excesso
+          ? "CLUSTER_FRIO_SAIDA_EXCEDIDA"
+          : prazoExcedido
+            ? "CLUSTER_FRIO_PRAZO_EXCEDIDO"
+            : stderrRecebido
+              ? "CLUSTER_FRIO_STDERR_RECEBIDO"
+              : "CLUSTER_FRIO_PROTOCOLO_NAO_CONFIRMADO",
     );
   }
   const recibo = Recibo.parse(JSON.parse(saida.trim()));

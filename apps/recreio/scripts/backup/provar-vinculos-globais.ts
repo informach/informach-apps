@@ -26,7 +26,13 @@ export async function provarVinculosGlobaisAtuais(
   exigir(a.socket !== b.socket || a.banco !== b.banco, "VINCULOS_GLOBAIS_DIVERGENTES");
   // This role owns an ephemeral restore, already checked above. Never point
   // this fixture at a Railway/source database or drop a schema in the origin.
-  await atual.unsafe("drop schema recreio cascade");
+  await atual.begin(async (tx) => {
+    // PostgreSQL emits a multi-line NOTICE enumerating every dropped object.
+    // The worker has a single-JSON stdout protocol; keep warnings/errors and
+    // suppress only the expected informational notice of this fixture DDL.
+    await tx.unsafe("set local client_min_messages='warning'");
+    await tx.unsafe("drop schema recreio cascade");
+  });
   const inventario = (sql: postgres.Sql) =>
     sql.begin("isolation level repeatable read read only", inventariarBackup);
   const fonteAntes = await inventario(restaurado);
