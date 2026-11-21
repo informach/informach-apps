@@ -485,7 +485,7 @@ export async function comCoordenacaoPrivadaDeDireitos<T>(config: {
     for (const op of publicacoesPendentes) {
       const referencia = referenciasPorOperacao.get(op.id);
       if (
-        op.kind !== "retirar_perfil" ||
+        (op.kind !== "retirar_perfil" && op.kind !== "encerrar_conta") ||
         referencia?.revisao !== op.revision ||
         referencia.sha256 !== op.intentSha256
       )

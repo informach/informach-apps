@@ -22,6 +22,7 @@ import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
 import { provarEncerramentoNativoRecuperado } from "./provar-encerramento-nativo-recuperado";
 import { provarEncerramentoSelecionadoRecuperado } from "./provar-encerramento-selecionado-recuperado";
 import { provarInventarioFinanceiroRecuperado } from "./provar-inventario-financeiro-recuperado";
+import { provarPublicacaoDeEncerramento } from "./provar-publicacao-encerramento";
 import { provarReciboDosDireitosNativos } from "./provar-recibo-direitos-nativos";
 import { exigir } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
@@ -129,7 +130,7 @@ export async function provarFinanceiroRecuperado(config: {
       tempoLimiteMs: 120000,
     };
     const importacao = await importarFontesHistoricasDeDireitos({ ...comum, copia });
-    exigir(importacao.fontesConferidas === 3, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(importacao.fontesConferidas === 4, "CONSENTIMENTO_NATIVO_DIVERGENTE");
     let inventario: Awaited<ReturnType<typeof provarInventarioFinanceiroRecuperado>> | undefined;
     async function negada(
       executar: () => unknown | Promise<unknown>,
@@ -263,6 +264,11 @@ export async function provarFinanceiroRecuperado(config: {
       { ...comum, execucaoId: importacao.execucaoId },
       dado,
     );
+    const publicacao = await provarPublicacaoDeEncerramento(
+      copia,
+      { ...comum, execucaoId: importacao.execucaoId },
+      dado.publicacaoPendente,
+    );
     const recibo = await provarReciboDosDireitosNativos(
       copia,
       { ...comum, execucaoId: importacao.execucaoId },
@@ -270,6 +276,7 @@ export async function provarFinanceiroRecuperado(config: {
     );
     return {
       ...recibo,
+      ...publicacao,
       ...selecionado,
       ...encerramento,
       ...inventario,

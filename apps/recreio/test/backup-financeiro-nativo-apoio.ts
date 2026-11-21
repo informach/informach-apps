@@ -22,6 +22,7 @@ import { criarInventarioFinanceiroDeProva } from "../scripts/backup/inventario-f
 import { exigir } from "../scripts/backup/provas-arquivos";
 import { prepararMundoDoEncerramento } from "./backup-encerramento-mundo-apoio";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
+import { interromperPublicacaoDeEncerramento } from "./backup-publicacao-encerramento-apoio";
 import { familiaSocial } from "./social-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
@@ -68,6 +69,7 @@ export async function prepararFinanceiroNativoAnterior(
       entrada?: Pick<Awaited<ReturnType<typeof adultoDoTeste>>, "conta" | "autor">,
       comPin = false,
       perfis: readonly string[] = [],
+      interromper = false,
     ) {
       const adulto = entrada ?? (await adultoDoTeste());
       if (comPin) await gravarPinNativo(adulto.autor, await gerarHashDoPin("482731"));
@@ -91,11 +93,15 @@ export async function prepararFinanceiroNativoAnterior(
         },
         { assinatura, fonte: process.env.GITHUB_SHA ?? "f".repeat(40), epoca: 0, modo: "dev" },
       );
-      const publicada = await publicarProximoConsentimento({ assinatura, storage });
-      exigir(
-        publicada.situacao === "admitida" && publicada.operacaoId === recibo.operacaoId,
-        "CONSENTIMENTO_NATIVO_DIVERGENTE",
-      );
+      if (interromper)
+        await interromperPublicacaoDeEncerramento({ assinatura, storage }, recibo.operacaoId);
+      else {
+        const publicada = await publicarProximoConsentimento({ assinatura, storage });
+        exigir(
+          publicada.situacao === "admitida" && publicada.operacaoId === recibo.operacaoId,
+          "CONSENTIMENTO_NATIVO_DIVERGENTE",
+        );
+      }
       return { operacaoId: recibo.operacaoId, contaId: adulto.conta.id };
     }
     const anterior = await admitir(undefined, true);
@@ -179,6 +185,7 @@ export async function prepararFinanceiroNativoAnterior(
       }
     }
     const pendente = await admitir(familia, false, perfisSelecionados);
+    const publicacaoPendente = await admitir(undefined, true, [], true);
     await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
     return {
       coordenadas: {
@@ -187,6 +194,7 @@ export async function prepararFinanceiroNativoAnterior(
         contaId: pendente.contaId,
         perfisSelecionados,
         mundo,
+        publicacaoPendente,
         anterior,
         provedor: { ...provedor, clienteStripeId },
         chaves: {

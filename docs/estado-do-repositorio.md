@@ -50,14 +50,17 @@ tentativas, recibo anterior preservado, SDK/HTTP fechado, rejeição de evidênc
 mutada/copiada e fonte divergente, datas vencidas/futuras, selo substituído,
 auditoria atômica e recorte próprio. 28 objetos e clusters removidos.
 Conciliação/direitos da base 2c2d021f passaram 44861342217/44861339988;
-seu CI compartilhado 44861344652 segue em execução. A integração de rastros
+seu CI compartilhado 44861344652 passou. A integração de rastros
 18ec652d passou o CI compartilhado 44854378495.
 f5f1ba5f prepara a reaplicação nativa de conta sem jogadores: PIN próprio,
 participação e preservação dos demais; candidata 44863335099, qualidade
 44863337321, direitos 44863339620 e conciliação 44863342008. Os dois últimos
 gates, qualidade e cluster frio passaram. Encerramento com
-seleção, decisão ausente/publishing, recibo terminal, identidade atual e
-publicação seletiva continuam pendentes. [Execução](recreio/encerramento-recuperado-2026-11-20.md).
+seleção sem mundo passou 44865074023; verificação individual/auditoria passou
+44865823657. O recibo terminal nativo passou 44867150449/1c425558, com
+qualidade, direitos e conciliação aprovados. Mundo compartilhado e publicação
+interrompida estão em candidata; decisão ausente, identidade atual e publicação
+seletiva continuam pendentes. [Execução](recreio/encerramento-recuperado-2026-11-20.md).
 
 **Operação em implementação:** coordenação, publicação, reconciliação e filas
 nativas qualificadas. f5b4116f passou qualidade/captura/cluster

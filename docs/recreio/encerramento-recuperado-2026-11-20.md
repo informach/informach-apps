@@ -40,15 +40,15 @@ não ampliar o executor de retirada para ignorar essas duas barreiras.
 
 ## Verificação e fronteira
 
-O primeiro incremento de composição financeira está em implementação:
-uma filha financeira privada é separada da filha de efeitos pessoais, tem
+Uma filha financeira privada é separada da filha de efeitos pessoais, tem
 pagante/operação fixos e expira com a fábrica pai. Os repositórios financeiros
 usam o banco da coordenação; a fila normal conserva sua leitura ociosa sem
 abrir S3/Stripe. O mutex global por DATABASE_URL não entra na cópia privada,
 que já possui exclusão da fábrica/filha. Nenhum booleano de um chamador
-habilita esse escopo. Ainda faltam a prova positiva em cluster físico privado,
-a observação atual quando havia confirmação antiga e a ligação ao recibo
-terminal. A admissão de efeitos para encerrar conta continua recusada.
+habilita esse escopo. Os perfis nativos antes da captura, financeiro atual,
+seleção sem mundo e recibo terminal passaram nas provas abaixo. A candidata
+amplia para mundo compartilhado e publicação interrompida; decisão ausente
+e publicação seletiva ainda estão em implementação. Produção não foi ativada.
 
 Conservar os recibos financeiros originais: confirmado no arquivo é fato
 histórico, não observação atual do provedor. A composição não pode importar
@@ -219,6 +219,24 @@ exige recuperar o diário, retirar identificadores das duas fotos, compactar
 os fatos e conservar responsável, outro membro, famílias, permissão alterada
 no diário, versão do formato e todas as linhas dos demais mundos. Está em
 qualificação remota; não acrescenta integração do Morada D3–D8 nem tráfego.
+
+1c425558 passou qualidade 44867148085, direitos 44867152783, conciliação
+44867154915 e cluster frio 44867150449. O recibo terminal das três decisões
+nativas passou, incluindo recusa incompleta, rollback P7779, fechamento do
+escopo e preservação do financeiro/consentimento original. Limpeza confirmada.
+[Recibo](evidencias/recibo-encerramento-44867150449.json). O CI compartilhado
+da base 2c2d021f terminou com sucesso em 44861344652.
+
+O candidato de publicação interrompida confere a preparação nativa, os
+bytes/MAC e a presença no prefixo externo congelado antes de confirmar somente
+a publicação SQL. Não grava prontidão da avaliação nem altera o financeiro.
+A prova acrescenta uma quarta conta sem jogadores/PIN: o publicador real
+anexa a decisão, uma falha de auditoria reverte a confirmação antes da captura,
+e o recuperador deve repetir a confirmação com rollback real P7781. Depois
+executa a fila financeira original, avalia a situação atual e só então admite
+o encerramento. Conserva datas/MAC/consentimento, demais financeiros e identidade.
+O livro sintético passa a quatro decisões, 27 objetos de direitos/31 totais;
+nenhuma chave ou decisão de produção entra no workflow.
 
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.

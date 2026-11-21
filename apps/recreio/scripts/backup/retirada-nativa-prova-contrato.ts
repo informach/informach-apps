@@ -22,6 +22,10 @@ export const RetiradaNativaDeProvaSchema = z.strictObject({
       acessoSha256: z.string().regex(/^[a-f0-9]{64}$/),
     }),
     anterior: z.strictObject({ operacaoId: z.uuid(), contaId: z.string().min(1).max(256) }),
+    publicacaoPendente: z.strictObject({
+      operacaoId: z.uuid(),
+      contaId: z.string().min(1).max(256),
+    }),
     provedor: z.strictObject({
       operacaoId: z.uuid(),
       contaId: z.string().min(1).max(256),

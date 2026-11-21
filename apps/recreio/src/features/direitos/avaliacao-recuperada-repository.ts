@@ -80,7 +80,7 @@ async function conferirOrigemNaAvaliacao(
       op.ledgerEpoch <= fonte.execucao.frozenEpoch &&
       (estado === "publicacao"
         ? op.state === "publishing" &&
-          op.kind === "retirar_perfil" &&
+          (op.kind === "retirar_perfil" || op.kind === "encerrar_conta") &&
           op.preparationId !== null &&
           op.recoverySourceId === null &&
           op.admittedHeadSha256 === null &&

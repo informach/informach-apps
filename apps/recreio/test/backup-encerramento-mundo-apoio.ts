@@ -47,7 +47,8 @@ export async function prepararMundoDoEncerramento(
   });
   const foto = simulacao.fotografar();
   const acesso = simulacao.estado.acessos.find((a) => a.perfilId === outro.perfil.id);
-  exigir(acesso && acesso.permissoes.includes("gastar"), "ENCERRAMENTO_MUNDO_DIVERGENTE");
+  exigir(acesso, "ENCERRAMENTO_MUNDO_DIVERGENTE");
+  exigir(acesso.permissoes.includes("gastar"), "ENCERRAMENTO_MUNDO_DIVERGENTE");
   exigir(
     simulacao.aplicar({
       t: "conceder_acesso",
