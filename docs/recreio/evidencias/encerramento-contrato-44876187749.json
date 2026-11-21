@@ -1,0 +1,23 @@
+{
+  "source": "2967cf32c2cfa2aca2770286327131a78d6184fd",
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44876187749",
+  "artifactSha256": "9520eb8570a03322505c45e8524b56b2b7711f4747eed15657f2c7f16168e007",
+  "cleanupConfirmed": true,
+  "productionActivated": false,
+  "coldRecovery": {
+    "paidContractClosureReplayed": true,
+    "paidContractClosureSdkHttpVerified": true,
+    "paidContractClosurePrivateConnectionVerified": true,
+    "paidContractClosureScopeAndLifetimeVerified": true,
+    "paidContractClosureOriginalConsentPreserved": true,
+    "paidContractClosureWakeupAtomic": true,
+    "paidContractClosurePaidPeriodsAndOtherAccountsPreserved": true,
+    "paidContractClosureHttpReads": 13,
+    "paidContractClosureHttpWrites": 1,
+    "ok": true,
+    "clusterCleanupConfirmed": true,
+    "localCleanupConfirmed": true,
+    "nativeClosureReplayReceiptVerified": true,
+    "nativeAccountClosureFullyReplayed": false
+  }
+}

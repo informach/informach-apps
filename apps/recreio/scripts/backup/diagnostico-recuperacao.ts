@@ -19,6 +19,7 @@ export const FalhaDaRecuperacaoSchema = z.strictObject({
     "FONTES_HISTORICAS",
     "RETIRADA_NATIVA",
     "FINANCEIRO_NATIVO",
+    "VINCULOS_ATUAIS",
     "LIMPEZA",
   ]),
   codigo: z.enum([
@@ -34,6 +35,7 @@ export const FalhaDaRecuperacaoSchema = z.strictObject({
     "PROVA_ENCERRAMENTO_AUSENTE_SELECIONADO_DIVERGENTE",
     "PROVA_ENCERRAMENTO_AUSENTE_CLIENTE_DIVERGENTE",
     "PROVA_CONTRATO_NATIVO_DIVERGENTE",
+    "PROVA_VINCULOS_GLOBAIS_DIVERGENTES",
     "SQL_P7782",
     "SQL_P7783",
     "APP_DIREITOS_DEPENDENCIA",

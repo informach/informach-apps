@@ -470,3 +470,9 @@ Esta candidata usa o schema 0244/245 recibos, ainda não aplicado em produção.
 O executor produtivo 5fe5710e e sua próxima agenda permanecem preservados até
 a qualificação e a implantação compatível. Duas cópias físicas privadas da CLI
 não equivalem às duas recuperações completas com direitos/identidade atuais.
+
+A imagem de 2967cf32 passou 44876190424: resumo nativo não vazio, captura e
+cadência, origem indisponível, duas restaurações privadas 245→245 sem URL da
+origem, sete GETs e limpeza confirmada. [Recibo](evidencias/backup-resumo-44876190424.json).
+Continua candidata; a imagem produtiva 5fe5710e e o schema 0243 não foram
+alterados por esse gate.

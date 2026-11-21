@@ -1,0 +1,44 @@
+{
+  "source": "2967cf32c2cfa2aca2770286327131a78d6184fd",
+  "workflow": "https://github.com/informach/informach-apps/actions/runs/44876190424",
+  "artifactSha256": "6a883265af5988b7949fda67012e5b51ff813c99d3e0d2c183b56c2868590e70",
+  "cleanupConfirmed": true,
+  "productionActivated": false,
+  "status": "passed",
+  "syntheticDataOnly": true,
+  "productionDataTouched": false,
+  "captureVerified": true,
+  "nativeJobSummariesVerified": true,
+  "cadenceVerified": true,
+  "sourceDatabaseUnavailableVerified": true,
+  "sourceObjectAbsenceVerified": true,
+  "sourceDatabaseReenabled": true,
+  "trafficAuthorized": false,
+  "ownedObjectCount": 4,
+  "recovery": {
+    "sourceDatabaseCredentialsPresent": false,
+    "backupClientOnlySelectedCaptureRead": true,
+    "trafficAuthorized": false,
+    "backupReadRequests": 7,
+    "rodadas": [
+      {
+        "indice": 1,
+        "recibosAntes": 245,
+        "recibosDepois": 245,
+        "migrationsAplicadas": 0,
+        "recibosOriginaisPreservados": true,
+        "inventarioConferidoAntesDoUpgrade": true,
+        "clusterRemovido": true
+      },
+      {
+        "indice": 2,
+        "recibosAntes": 245,
+        "recibosDepois": 245,
+        "migrationsAplicadas": 0,
+        "recibosOriginaisPreservados": true,
+        "inventarioConferidoAntesDoUpgrade": true,
+        "clusterRemovido": true
+      }
+    ]
+  }
+}

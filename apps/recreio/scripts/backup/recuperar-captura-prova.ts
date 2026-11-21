@@ -27,8 +27,10 @@ import { provarCarregamentoDoControle } from "./provar-carregamento-controle";
 import { provarFinanceiroRecuperado } from "./provar-financeiro-recuperado";
 import { provarFontesHistoricasRecuperadas } from "./provar-fontes-historicas";
 import { provarRetiradaNativaPosterior } from "./provar-retirada-nativa";
+import { provarVinculosGlobaisAtuais } from "./provar-vinculos-globais";
 import { exigir, FalhaDaProva, limparDiretorioDeProva } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
+import { FalhaDosVinculosAtuais } from "./vinculos-globais";
 
 const variavel = (nome: string) => {
   const v = process.env[nome];
@@ -41,6 +43,7 @@ function codigoSeguro(erro: unknown): CodigoDaRecuperacao {
     const e = fila.shift();
     const restricao = classificarRestricaoDeRecuperacao(e);
     if (restricao) return restricao;
+    if (e instanceof FalhaDosVinculosAtuais) return "PROVA_VINCULOS_GLOBAIS_DIVERGENTES";
     if (e instanceof z.ZodError) return "CONFIGURACAO_INVALIDA";
     if (e instanceof AppError || e instanceof RecreioRenewalReviewError) {
       const r = FalhaDaRecuperacaoSchema.shape.codigo.safeParse(
@@ -409,6 +412,7 @@ async function main() {
       etapa = "RETIRADA_NATIVA";
       let retirada: Awaited<ReturnType<typeof provarRetiradaNativaPosterior>> | undefined;
       let financeiro: Awaited<ReturnType<typeof provarFinanceiroRecuperado>> | undefined;
+      let vinculosAtuais: Awaited<ReturnType<typeof provarVinculosGlobaisAtuais>> | undefined;
       // Reopen the authenticated dump in a separate fresh cluster. Never undo
       // an erasure to make the metadata/idempotence proof above appear intact.
       const segunda = await comBancoRestaurado({ dump, inventario }, async (copia) => {
@@ -435,9 +439,18 @@ async function main() {
           capturaSha256: fria.publicacao.composto.sha256,
           entrada: retiradaNativa,
         });
+        etapa = "VINCULOS_ATUAIS";
+        const terceiro = await comBancoRestaurado({ dump, inventario }, async (atual) => {
+          vinculosAtuais = await provarVinculosGlobaisAtuais(
+            copia,
+            atual,
+            retiradaNativa.financeiro,
+          );
+        });
+        exigir(terceiro.temporariosRemovidos && vinculosAtuais, "VINCULOS_GLOBAIS_DIVERGENTES");
       });
       exigir(
-        financeiro && retirada && segunda.temporariosRemovidos,
+        financeiro && retirada && vinculosAtuais && segunda.temporariosRemovidos,
         "RETIRADA_NATIVA_NAO_CONCLUIDA",
       );
       clusterLimpo = clusterLimpo && segunda.temporariosRemovidos;
@@ -474,6 +487,7 @@ async function main() {
         ...fontesHistoricas,
         ...retirada,
         ...financeiro,
+        ...vinculosAtuais,
         nativePostCaptureSecondClusterCleaned: true,
         authoritiesNormalizedForTraffic: false,
         productionDataTouched: false,

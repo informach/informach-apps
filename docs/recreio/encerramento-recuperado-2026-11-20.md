@@ -347,3 +347,11 @@ fechada já usados pela suíte comercial, somente no banco de origem da prova
 fria no GitHub. Não muda o ambiente do recuperador nem fornece chave real.
 A prova comercial também verifica rollback do despertar financeiro quando a
 auditoria P7784 falha depois da parada remota, sem antecipar a próxima tentativa.
+
+2967cf32 passou cluster frio 44876187749: oito decisões, treze leituras e uma
+única escrita HTTP fechada para o contrato pago, confirmação e avaliação atuais,
+efeitos/recibo e preservação de fatos/terceiros. Limpeza dos 43 objetos e clusters
+conferida. Conciliação com P7784 passou 44876193105; qualidade da decomposição
+6e572322 passou 44875795634, conciliação 44875793047. [Recibo](evidencias/encerramento-contrato-44876187749.json).
+O perfil seguinte confere vínculos com os globais atuais em somente leitura;
+[plano e fronteiras](publicacao-seletiva-2026-11-21.md). Não qualifica publicação.

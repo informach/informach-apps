@@ -67,8 +67,12 @@ contratos passou qualidade/direitos/conciliação e cluster frio 44872951624, co
 limpeza dos 40 objetos. 45d246c2 passou os 17 gates em 44872287047. 8fa83d1c
 corrige confirmação de renovação fabricada/copiada/mutada: regressão vermelha
 44873741020, conciliação verde 44874372112 e qualidade 44874374878. Executor
-privado para contrato pago está em implementação; identidade atual e publicação
-seletiva continuam pendentes.
+privado para contrato pago passou no cluster frio 44876187749, com treze GETs,
+um POST fechado e limpeza dos 43 objetos. A conciliação com rollback do despertar
+financeiro P7784 passou 44876193105. A imagem completa com resumo operacional
+passou 44876190424 (duas cópias físicas privadas 245→245); não está implantada.
+Conferência somente de leitura com os globais atuais está em candidata;
+[publicação seletiva](recreio/publicacao-seletiva-2026-11-21.md) continua pendente.
 [Execução](recreio/encerramento-recuperado-2026-11-20.md).
 
 **Custódia do livro:** destino separado e MAC próprio preparados no Railway,
