@@ -208,3 +208,18 @@ test("entrega envelope real sem contexto de família ou resposta HTTP e detecta 
     },
   );
 });
+
+test("direitos tem alvo próprio, opt-in e usa a ingestão já restrita do Recreio", () => {
+  assert.equal(alvosDoMonitor("on", "off").length, 3);
+  const alvos = alvosDoMonitor("on", "on");
+  assert.equal(alvos.length, 4);
+  assert.deepEqual(alvos[3], {
+    servico: "recreio-direitos",
+    url: "https://recreio.informach.com.br/api/direitos/health",
+    app: "recreio",
+    projeto: "4512434887786496",
+    segredo: "RECREIO_MONITOR_SENTRY_DSN",
+  });
+  assert.equal(alvosDoMonitor("off", "on")[2].servico, "recreio-direitos");
+  assert.throws(() => alvosDoMonitor("off", "yes"), /CONFIGURACAO/);
+});

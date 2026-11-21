@@ -3,6 +3,7 @@
  * vêm exclusivamente da fila nativa consentida e do livro conferido. */
 
 import { z } from "zod";
+import { nomeDaRotinaDeDireitos } from "../src/features/direitos/rotina";
 import { configuracaoDosDireitosDoProcesso } from "../src/lib/rights-environment";
 
 async function main() {
@@ -106,11 +107,14 @@ async function executar(config: NonNullable<ReturnType<typeof configuracaoDosDir
           RECREIO_RENEWAL_JOBS_MODE: process.env.RECREIO_RENEWAL_JOBS_MODE,
         })),
     };
-    resultado = await recordJobRun({ app: "recreio", job: "direitos" }, async () => ({
-      ...(await processarRodadaDeDireitos(coordenacao)),
-      leiturasLivro,
-      escritasLivro,
-    }));
+    resultado = await recordJobRun(
+      { app: "recreio", job: nomeDaRotinaDeDireitos(config.livroId) },
+      async () => ({
+        ...(await processarRodadaDeDireitos(coordenacao)),
+        leiturasLivro,
+        escritasLivro,
+      }),
+    );
   } catch (erro) {
     falha = { erro };
   }

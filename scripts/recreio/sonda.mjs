@@ -28,21 +28,25 @@ const ALVOS = [
   },
 ];
 
-/** Activated after the portal exposes its independent backup health probe. */
-export function alvosDoMonitor(modoBackup) {
-  if (![undefined, "", "off", "on"].includes(modoBackup)) throw new FalhaDaSonda("CONFIGURACAO");
-  return modoBackup === "on"
-    ? [
-        ...ALVOS,
-        {
-          servico: "recreio-backup",
-          url: "https://recreio.informach.com.br/api/backup/health",
-          app: "recreio",
-          projeto: "4512434887786496",
-          segredo: "RECREIO_MONITOR_SENTRY_DSN",
-        },
-      ]
-    : [...ALVOS];
+/** Each independent probe is enabled only after its portal route is deployed. */
+export function alvosDoMonitor(modoBackup, modoDireitos) {
+  for (const modo of [modoBackup, modoDireitos])
+    if (![undefined, "", "off", "on"].includes(modo)) throw new FalhaDaSonda("CONFIGURACAO");
+  const alvos = [...ALVOS];
+  for (const [modo, tipo] of [
+    [modoBackup, "backup"],
+    [modoDireitos, "direitos"],
+  ]) {
+    if (modo === "on")
+      alvos.push({
+        servico: `recreio-${tipo}`,
+        url: `https://recreio.informach.com.br/api/${tipo}/health`,
+        app: "recreio",
+        projeto: "4512434887786496",
+        segredo: "RECREIO_MONITOR_SENTRY_DSN",
+      });
+  }
+  return alvos;
 }
 
 export class FalhaDaSonda extends Error {
@@ -176,7 +180,10 @@ export async function executarMonitoramento(
   { prova = false, origem = "github-actions" } = {},
 ) {
   // Validar todos antes de iniciar: falta de segredo nunca produz job verde silencioso.
-  const alvos = alvosDoMonitor(segredos.RECREIO_MONITOR_BACKUP).map((alvo) => ({
+  const alvos = alvosDoMonitor(
+    segredos.RECREIO_MONITOR_BACKUP,
+    segredos.RECREIO_MONITOR_DIREITOS,
+  ).map((alvo) => ({
     ...alvo,
     destino: destinoSentry(segredos[alvo.segredo], alvo.projeto),
   }));

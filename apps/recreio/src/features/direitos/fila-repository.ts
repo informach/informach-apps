@@ -4,8 +4,11 @@ import { assertAllowed } from "@/lib/errors";
 
 /** Métricas técnicas do livro configurado, sem IDs, conteúdo ou nomes. Não
  * usa sucesso do cron como sinônimo de ausência de revisão/backlog vencido. */
-export async function resumoDaFilaDeDireitos(livroId: string) {
-  const [fila] = await db.execute<{
+export async function resumoDaFilaDeDireitos(
+  livroId: string,
+  leitor: Pick<typeof db, "execute"> = db,
+) {
+  const [fila] = await leitor.execute<{
     publishing: number;
     processing: number;
     review: number;

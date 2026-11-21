@@ -5,9 +5,11 @@ import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/cl
 import { db, sql } from "@informach/db";
 import { expect, it } from "vitest";
 import { z } from "zod";
+import { GET as conferirSonda } from "@/app/api/direitos/health/route";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
 import { RAIZ_VAZIA } from "@/features/direitos/livro/contrato";
+import { nomeDaRotinaDeDireitos } from "@/features/direitos/rotina";
 import { executarImagemDeDireitos } from "./rights-cli-apoio";
 import { prepararEncerramentoParaImagem } from "./rights-closure-native-apoio";
 import { FalhaDaFixtureDaImagem, prepararRetiradaParaImagem } from "./rights-native-apoio";
@@ -103,6 +105,35 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     RECREIO_RIGHTS_POLICY: "retirar-textos-fundacao-v1",
     RECREIO_OBJECTS_MODE: "off",
   };
+  async function sondar(status: number, modo = "on") {
+    const nomes = [
+      ...Object.keys(env).filter((k) => k.startsWith("RECREIO_RIGHTS_")),
+      "RECREIO_RIGHTS_MONITOR_MODE",
+      "RECREIO_RIGHTS_MONITOR_MAX_AGE_SECONDS",
+      "NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA",
+    ];
+    const anteriores = new Map(nomes.map((k) => [k, process.env[k]]));
+    try {
+      for (const [k, value] of Object.entries(env))
+        if (k.startsWith("RECREIO_RIGHTS_")) process.env[k] = value;
+      process.env.NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA = required("GITHUB_SHA");
+      process.env.RECREIO_RIGHTS_MONITOR_MODE = modo;
+      process.env.RECREIO_RIGHTS_MONITOR_MAX_AGE_SECONDS = "900";
+      const r = await conferirSonda();
+      expect(r.status).toBe(status);
+      expect(r.headers.get("Cache-Control")).toBe("no-store");
+      if (status === 404) expect(await r.text()).toBe("");
+      else
+        expect(await r.json()).toEqual(
+          status === 200 ? { status: "ready", app: "recreio" } : { status: "unavailable" },
+        );
+    } finally {
+      for (const [k, value] of anteriores) {
+        if (value === undefined) delete process.env[k];
+        else process.env[k] = value;
+      }
+    }
+  }
   const report: Record<string, unknown> = {
     source: required("GITHUB_SHA"),
     runId: required("GITHUB_RUN_ID"),
@@ -158,6 +189,9 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     );
     const before = await list(prefix);
     expect(before).toHaveLength(2);
+    phase = "probe_initial";
+    await sondar(404, "off");
+    await sondar(503);
     phase = "idle";
     for (let i = 0; i < 2; i++) {
       const rows = await executarImagemDeDireitos(env);
@@ -166,6 +200,7 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
       expect((await storage.lerCabecalho()).sha256).toBe(first.sha256);
       expect(await list(prefix)).toEqual(before);
     }
+    await sondar(200);
     report.nativeIdleProcessingVerified = true;
     report.freshHeaderReads = 2;
     report.idleWrites = 0;
@@ -244,11 +279,14 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     Falha.parse(missing[0]);
     expect(await list(missingPrefix)).toEqual([]);
     report.absentBookRefusedWithoutBootstrap = true;
+    await sondar(200);
+    report.otherLedgerFailureDoesNotMaskOrPoisonProbe = true;
     phase = "frozen";
     const frozen = await storage.congelarCabecalho(
       await storage.lerCabecalho(),
       new Date().toISOString(),
     );
+    await sondar(503);
     const frozenInventory = await list(prefix);
     expect(frozenInventory).toHaveLength(beforeFreeze.length + 1);
     const refused = await executarImagemDeDireitos(env, 1);
@@ -257,6 +295,8 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
     expect((await storage.lerCabecalho()).sha256).toBe(frozen.sha256);
     expect(await list(prefix)).toEqual(frozenInventory);
     report.frozenBookRefusedWithoutWrites = true;
+    await sondar(503);
+    report.nativeHealthProbeVerified = true;
     phase = "telemetry";
     const runs = await db.execute<{
       ok: boolean;
@@ -264,7 +304,7 @@ it("runs the exact rights image against native SQL and S3, with fresh custody ch
       summary: Record<string, number | boolean>;
     }>(sql`
       select ok,finished_at is not null as finished,summary from ops.job_runs
-      where app='recreio' and job='direitos' order by started_at,id`);
+      where app='recreio' and job in (${nomeDaRotinaDeDireitos(livroId)},${nomeDaRotinaDeDireitos(missingId)}) order by started_at,id`);
     expect(runs).toHaveLength(4 + effectRounds + closureRounds);
     expect(runs.map((r) => r.ok)).toEqual([
       ...Array.from({ length: 2 + effectRounds + closureRounds }, () => true),

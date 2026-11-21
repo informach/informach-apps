@@ -20,6 +20,7 @@ async function cenario(opcoes, conferir) {
   let pedidos = 0;
   let morada = 0;
   let backup = 0;
+  let direitos = 0;
   const servidor = createServer(async (pedido, resposta) => {
     pedidos++;
     resposta.setHeader("content-type", "application/json");
@@ -36,8 +37,14 @@ async function cenario(opcoes, conferir) {
     const ehBackup = pedido.url === "/recreio-backup";
     if (ehMorada) morada++;
     if (ehBackup) backup++;
+    const ehDireitos = pedido.url === "/recreio-direitos";
+    if (ehDireitos) direitos++;
     resposta.statusCode =
-      (ehMorada && opcoes.indisponivel) || (ehBackup && opcoes.backupIndisponivel) ? 503 : 200;
+      (ehMorada && opcoes.indisponivel) ||
+      (ehBackup && opcoes.backupIndisponivel) ||
+      (ehDireitos && opcoes.direitosIndisponiveis)
+        ? 503
+        : 200;
     resposta.end(
       JSON.stringify({
         status: resposta.statusCode === 200 ? "ready" : "unavailable",
@@ -82,7 +89,9 @@ async function cenario(opcoes, conferir) {
                     ? "/morada-server"
                     : url.pathname === "/api/backup/health"
                       ? "/recreio-backup"
-                      : "/recreio";
+                      : url.pathname === "/api/direitos/health"
+                        ? "/recreio-direitos"
+                        : "/recreio";
                 assert.ok(
                   [
                     "recreio.informach.com.br",
@@ -104,7 +113,7 @@ async function cenario(opcoes, conferir) {
     });
     const worker = await mf.getWorker();
     const resultado = await worker.scheduled({ cron: "*/5 * * * *", scheduledTime: new Date() });
-    await conferir({ resultado, eventos, pedidos, morada, backup });
+    await conferir({ resultado, eventos, pedidos, morada, backup, direitos });
     assert.equal((await mf.dispatchFetch("http://monitor.test/")).status, 404);
   } finally {
     if (mf) await mf.dispose();
@@ -193,4 +202,26 @@ test("configuração ausente falha antes de fazer pedidos", async () => {
     assert.equal(resultado.outcome, "exception");
     assert.equal(pedidos, 0);
   });
+});
+
+test("direitos ativo recebe alerta próprio e falha não é mascarada pelos outros alvos", async () => {
+  await cenario(
+    {
+      direitosIndisponiveis: true,
+      bindings: {
+        RECREIO_MONITOR_BACKUP: "on",
+        RECREIO_MONITOR_DIREITOS: "on",
+      },
+    },
+    async ({ resultado, eventos, direitos, backup }) => {
+      assert.equal(resultado.outcome, "exception");
+      assert.equal(direitos, 3);
+      assert.equal(backup, 1);
+      assert.equal(eventos.length, 1);
+      assert.equal(eventos[0].tags.servico, "recreio-direitos");
+      assert.equal(eventos[0].tags.codigo, "HTTP");
+      assert.equal(eventos[0].level, "error");
+      assert.doesNotMatch(JSON.stringify(eventos), /conteudo-privado|naoRegistrar|cookie|email/);
+    },
+  );
 });

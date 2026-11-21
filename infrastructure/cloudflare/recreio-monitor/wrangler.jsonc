@@ -7,7 +7,11 @@
   "triggers": { "crons": ["*/5 * * * *"] },
   "limits": { "cpu_ms": 10 },
   "observability": { "enabled": true, "head_sampling_rate": 1 },
-  "vars": { "MONITOR_PROVA_TRANSPORTE": "false", "RECREIO_MONITOR_BACKUP": "on" },
+  "vars": {
+    "MONITOR_PROVA_TRANSPORTE": "false",
+    "RECREIO_MONITOR_BACKUP": "on",
+    "RECREIO_MONITOR_DIREITOS": "off"
+  },
   "secrets": {
     "required": ["RECREIO_MONITOR_SENTRY_DSN", "MORADA_MONITOR_SENTRY_DSN"]
   }
