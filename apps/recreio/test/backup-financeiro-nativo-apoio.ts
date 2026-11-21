@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { db } from "@informach/db";
+import { customers } from "@informach/db/schema";
 import { criarProcessadorFinanceiroDoEncerramento } from "@/features/direitos/encerramento-financeiro-execucao-service";
 import { criarArmazenamentoDoLivro } from "@/features/direitos/livro/armazenamento";
 import { criarAssinaturaDoLivro } from "@/features/direitos/livro/assinatura";
@@ -8,6 +10,7 @@ import { PedidoDePreparacaoDeDireitosSchema } from "@/features/direitos/preparac
 import { prepararEncerramentoNoBanco } from "@/features/direitos/preparacao-repository";
 import { publicarProximoConsentimento } from "@/features/direitos/publicacao-repository";
 import { consentirEncerramentoNoBanco } from "@/features/direitos/retirada-consentimento-repository";
+import { criarInventarioFinanceiroDeProva } from "../scripts/backup/inventario-financeiro-prova";
 import { exigir } from "../scripts/backup/provas-arquivos";
 import type { criarBucketDaMontagem } from "./backup-provider-apoio";
 import { adultoDoTeste } from "./teste-apoio";
@@ -50,8 +53,8 @@ export async function prepararFinanceiroNativoAnterior(
         atualizadoEm: new Date().toISOString(),
       }),
     );
-    async function admitir() {
-      const adulto = await adultoDoTeste();
+    async function admitir(entrada?: Awaited<ReturnType<typeof adultoDoTeste>>) {
+      const adulto = entrada ?? (await adultoDoTeste());
       const previa = await prepararEncerramentoNoBanco(
         adulto.autor,
         PedidoDePreparacaoDeDireitosSchema.parse({
@@ -91,6 +94,35 @@ export async function prepararFinanceiroNativoAnterior(
       },
     });
     exigir((await processar()).situacao === "confirmada", "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    const pagante = await adultoDoTeste(),
+      clienteStripeId = `cus_recovery_${randomUUID().replaceAll("-", "")}`;
+    await db.insert(customers).values({
+      provider: "stripe",
+      providerCustomerId: clienteStripeId,
+      subjectType: "user",
+      subjectId: pagante.conta.id,
+      app: "recreio",
+      email: pagante.conta.email,
+    });
+    const provedor = await admitir(pagante);
+    const http = await criarInventarioFinanceiroDeProva({
+      contaId: pagante.conta.id,
+      clienteStripeId,
+    });
+    try {
+      const confirmar = criarProcessadorFinanceiroDoEncerramento({
+        livroId,
+        obterCoordenacao: async () => ({
+          assinatura,
+          prova: await conferirPrefixoDoLivro({ storage, maxEntradas: 10, tempoLimiteMs: 15000 }),
+        }),
+        obterRuntime: () => ({ modo: "dev", inventario: http.inventario }),
+      });
+      exigir((await confirmar()).situacao === "confirmada", "CONSENTIMENTO_NATIVO_DIVERGENTE");
+      http.conferir();
+    } finally {
+      await http.encerrar();
+    }
     const pendente = await admitir();
     await storage.congelarCabecalho(await storage.lerCabecalho(), new Date().toISOString());
     return {
@@ -99,6 +131,7 @@ export async function prepararFinanceiroNativoAnterior(
         operacaoId: pendente.operacaoId,
         contaId: pendente.contaId,
         anterior,
+        provedor: { ...provedor, clienteStripeId },
         chaves: {
           "finance-old": antiga.toString("base64"),
           "finance-next": proxima.toString("base64"),

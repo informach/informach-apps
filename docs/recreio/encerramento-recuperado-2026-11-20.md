@@ -95,6 +95,17 @@ e limpeza dos objetos/clusters confirmada. Não tratar o primeiro ensaio como
 gate aprovado nem confundir esse caso pendente sem cliente com a avaliação
 atual de uma confirmação anterior. Qualidade 44858905869 também passou.
 
+O candidato de inventário HTTP acrescenta um terceiro adulto ao mesmo livro:
+cliente sintético, sem compra/assinatura, com consentimento nativo e financeiro
+confirmado pelo adapter real antes da captura. O SDK Stripe conversa apenas
+com servidor 127.0.0.1 descartável, chave literal sintética e GETs limitados.
+A cópia física deve reler o inventário, recusar cliente/pagante/modo divergente,
+contrato/Checkout desconhecido, página incompleta, falha do provedor, cópia de
+evidência e mudança de origem durante I/O, e preservar o recibo/cliente originais.
+São 12 objetos nesse livro, 24 de direitos/28 totais, com remoção confirmada.
+Isso não é consulta ao Stripe real, fatura paga, estorno ou contestação homologada.
+Nenhuma nova capacidade de efeitos pessoais ou publicação acompanha a avaliação.
+
 Cada candidato fica separado da implantação. As duas restaurações técnicas
 reais do arquivo 1613df70 não são as duas recuperações completas deste plano.
 Nenhum passo acima autoriza antecipar vendas, abrir tráfego recuperado ou

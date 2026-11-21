@@ -19,6 +19,7 @@ import { criarAssinaturaDoLivro } from "../../src/features/direitos/livro/assina
 import { AppError } from "../../src/lib/errors";
 import { comConexaoPrivadaDeDireitos } from "./conexao-direitos";
 import { importarFontesHistoricasDeDireitos } from "./importar-fontes-direitos";
+import { provarInventarioFinanceiroRecuperado } from "./provar-inventario-financeiro-recuperado";
 import { exigir } from "./provas-arquivos";
 import { RetiradaNativaDeProvaSchema } from "./retirada-nativa-prova-contrato";
 
@@ -124,7 +125,8 @@ export async function provarFinanceiroRecuperado(config: {
       tempoLimiteMs: 120000,
     };
     const importacao = await importarFontesHistoricasDeDireitos({ ...comum, copia });
-    exigir(importacao.fontesConferidas === 2, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(importacao.fontesConferidas === 3, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    let inventario: Awaited<ReturnType<typeof provarInventarioFinanceiroRecuperado>> | undefined;
     async function negada(
       executar: () => unknown | Promise<unknown>,
       codigo: "DIREITOS_LIVRO" | "DIREITOS_INTEGRIDADE" = "DIREITOS_LIVRO",
@@ -202,6 +204,7 @@ export async function provarFinanceiroRecuperado(config: {
               "CONSENTIMENTO_NATIVO_DIVERGENTE",
             );
           });
+          inventario = await provarInventarioFinanceiroRecuperado(pai, copia, dado.provedor);
           const encerrada = anterior;
           exigir(encerrada, "CAPACIDADE_PRIVADA_DIVERGENTE");
           await negada(() => criarProcessadorFinanceiroRecuperado(encerrada, runtime));
@@ -237,8 +240,12 @@ export async function provarFinanceiroRecuperado(config: {
       join recreio.account_participations p on p.operation_id=o.id where o.id=$1`,
       [dado.operacaoId],
     );
-    exigir(conferida?.valida === true && leituras > 0, "CONSENTIMENTO_NATIVO_DIVERGENTE");
+    exigir(
+      conferida?.valida === true && leituras > 0 && inventario,
+      "CONSENTIMENTO_NATIVO_DIVERGENTE",
+    );
     return {
+      ...inventario,
       nativeClosureFinancialPrivateConnectionVerified: true,
       nativeClosureFinancialRetryVerified: true,
       nativeClosureFinancialRetryIdempotent: true,
