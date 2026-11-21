@@ -1,0 +1,162 @@
+{
+  "source": "01eb68336abc5d66809d0759766980bc5bf50f1c",
+  "syntheticDataOnly": true,
+  "productionDataTouched": false,
+  "trafficAuthorized": false,
+  "runtimeRun": 44844431535,
+  "privateUpgradeRun": 44844435662,
+  "qualityRun": 44844439974,
+  "qualityStatus": "success",
+  "artifacts": [
+    {
+      "runId": 44844431535,
+      "artifactId": 14682811033,
+      "label": "runtime-ci",
+      "zipBytes": 866,
+      "zipSha256": "c553c363efec28d4043a13449fb3f5f4e783a78d56ae90de4c7256ec43262e0c",
+      "proofs": [
+        {
+          "mundos": 1,
+          "fotografias": 1,
+          "bytes": 11075,
+          "tabelas": 3,
+          "linhas": 3,
+          "profile": "with-worlds",
+          "cleanupConfirmed": true
+        },
+        {
+          "mundos": 0,
+          "fotografias": 0,
+          "bytes": 10931,
+          "tabelas": 3,
+          "linhas": 1,
+          "profile": "empty-platform",
+          "cleanupConfirmed": true
+        }
+      ]
+    },
+    {
+      "runId": 44844431535,
+      "artifactId": 14681837218,
+      "label": "runtime-postgres",
+      "zipBytes": 867,
+      "zipSha256": "b13db06825b7bcdabcb9282c918718eb205313859be1bc6cca686999aa0937a3",
+      "proofs": [
+        {
+          "mundos": 1,
+          "fotografias": 1,
+          "bytes": 11303,
+          "tabelas": 3,
+          "linhas": 3,
+          "profile": "with-worlds",
+          "cleanupConfirmed": true
+        },
+        {
+          "mundos": 0,
+          "fotografias": 0,
+          "bytes": 11159,
+          "tabelas": 3,
+          "linhas": 1,
+          "profile": "empty-platform",
+          "cleanupConfirmed": true
+        }
+      ]
+    },
+    {
+      "runId": 44844435662,
+      "artifactId": 14682456953,
+      "label": "upgrade-postgres-present",
+      "zipBytes": 1033,
+      "zipSha256": "7ac5e739fa95c430292c0a10db3b32acce43bb2ac3cc93ee882cb44aec63fb19",
+      "proofs": [
+        {
+          "mundos": 2,
+          "fotografias": 10,
+          "bytes": 1435266,
+          "tabelas": 229,
+          "linhas": 236,
+          "receiptsBefore": 204,
+          "receiptsAfter": 244,
+          "migrationsApplied": 40,
+          "sourceDatabaseMutated": false,
+          "trafficAuthorized": false,
+          "originalMigrationReceiptsPreserved": true,
+          "historicalReceiptVariantsVerified": 0,
+          "originalRecreioColumnValuesPreserved": true,
+          "unrelatedTableDataPreserved": true,
+          "profile": "with-worlds",
+          "cleanupConfirmed": true
+        },
+        {
+          "profile": "unknown-checksum-refusal",
+          "code": "UPGRADE_HISTORY_INCONSISTENT",
+          "cleanupConfirmed": true
+        }
+      ]
+    },
+    {
+      "runId": 44844435662,
+      "artifactId": 14682312524,
+      "label": "upgrade-ci-present",
+      "zipBytes": 1031,
+      "zipSha256": "0214476046172c1d30d966ad9e08f5297c437b26a695e4d0290987ea82e5bf69",
+      "proofs": [
+        {
+          "mundos": 2,
+          "fotografias": 10,
+          "bytes": 1402135,
+          "tabelas": 227,
+          "linhas": 236,
+          "receiptsBefore": 204,
+          "receiptsAfter": 244,
+          "migrationsApplied": 40,
+          "sourceDatabaseMutated": false,
+          "trafficAuthorized": false,
+          "originalMigrationReceiptsPreserved": true,
+          "historicalReceiptVariantsVerified": 2,
+          "originalRecreioColumnValuesPreserved": true,
+          "unrelatedTableDataPreserved": true,
+          "profile": "with-worlds",
+          "cleanupConfirmed": true
+        },
+        {
+          "profile": "unknown-checksum-refusal",
+          "code": "UPGRADE_HISTORY_INCONSISTENT",
+          "cleanupConfirmed": true
+        }
+      ]
+    },
+    {
+      "runId": 44844435662,
+      "artifactId": 14681744024,
+      "label": "upgrade-postgres-empty",
+      "zipBytes": 1029,
+      "zipSha256": "7a744e5f96e40204ccbd0a1dabf48454467cb19fab56104d29876d552befd20c",
+      "proofs": [
+        {
+          "mundos": 0,
+          "fotografias": 0,
+          "bytes": 1434197,
+          "tabelas": 229,
+          "linhas": 218,
+          "receiptsBefore": 204,
+          "receiptsAfter": 244,
+          "migrationsApplied": 40,
+          "sourceDatabaseMutated": false,
+          "trafficAuthorized": false,
+          "originalMigrationReceiptsPreserved": true,
+          "historicalReceiptVariantsVerified": 0,
+          "originalRecreioColumnValuesPreserved": true,
+          "unrelatedTableDataPreserved": true,
+          "profile": "empty-platform",
+          "cleanupConfirmed": true
+        },
+        {
+          "profile": "unknown-checksum-refusal",
+          "code": "UPGRADE_HISTORY_INCONSISTENT",
+          "cleanupConfirmed": true
+        }
+      ]
+    }
+  ]
+}

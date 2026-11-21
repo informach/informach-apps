@@ -12,7 +12,9 @@ pagante pode não jogar. Testes pesados somente no GitHub, testes humanos soment
 no final. Não repetir pedidos de hardware, transferência ou orçamento já adiados.
 [Critérios completos](recreio/fechamento-plataforma-2026-11-16.md).
 
-**Produção:** portal d014bd90/0203/204 recibos, Morada 644b3841, alfa fechado.
+**Produção:** portal d014bd90, PostgreSQL 0243/244 recibos (migração separada
+01eb6833 em 20/11, com os 204 recibos originais preservados), Morada 644b3841,
+alfa fechado. Preview 01eb6833/0243 com portal nativo v2, saúde/prontidão 200.
 Famílias/social/visitas/comercial novo/F7 continuam desligados. Não confundir
 candidata ou tabela existente com implantação/ativação. Preview Sandbox
 comercial permanece disponível; não houve compra/estorno real nesta frente.

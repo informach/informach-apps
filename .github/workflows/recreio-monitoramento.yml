@@ -50,6 +50,7 @@ jobs:
           node-version: 24.15.0
       - name: Conferir prontidão externa e transporte de alertas
         env:
+          RECREIO_MONITOR_BACKUP: ${{ vars.RECREIO_MONITOR_BACKUP }}
           RECREIO_MONITOR_SENTRY_DSN: ${{ secrets.RECREIO_MONITOR_SENTRY_DSN }}
           MORADA_MONITOR_SENTRY_DSN: ${{ secrets.MORADA_MONITOR_SENTRY_DSN }}
           PROVAR_TRANSPORTE: ${{ inputs.provar_transporte }}

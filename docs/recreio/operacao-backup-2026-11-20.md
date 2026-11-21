@@ -384,4 +384,48 @@ confirmou modo off às 00h04 UTC. Só recebe RECREIO_BACKUP_MODE; não recebeu
 credenciais do banco/buckets, domínio, proxy, volume ou cron. Portal, Morada
 e PostgreSQL conservaram os mesmos deploys; ambiente sem alterações staged.
 [Recibo restrito a metadados](evidencias/custodia-preparada-2026-11-20.json).
-Captura cifrada produtiva, recuperação independente e agenda seguem pendentes.
+Esse é o estado histórico anterior à autorização e à captura abaixo.
+
+## Primeira captura real e próxima qualificação
+
+Após a autorização explícita, foram removidas apenas as duas cópias manuais
+de 13/09 mencionadas ao titular. Os outros nove IDs foram conferidos como
+preservados. A nova cópia do volume, `26c8a1dc-09e3-4386-aa6c-7bc5af60ee35`,
+foi criada em 21/11 às 00:40 UTC antes da migração. O executor separado
+`0fee24ec-b5f9-4f89-b80a-92a9f54b40c5` aplicou 204→244; uma releitura SQL
+confirmou os 204 IDs/hashes/timestamps intactos, dois mundos e dez fotografias.
+Portal d014bd90 manteve saúde/prontidão 200 após a migração.
+
+A fonte 5fe5710e criou a captura `1613df70-ef67-416d-b3af-626fa84c805b`
+em 21/11 às 01:14:02 UTC. A publicação foi confirmada às 01:14:13 UTC:
+19.495.249 bytes antes e 19.495.421 bytes depois da cifragem. As dez fotos
+ainda estão no SQL; zero fotografias externas nesta captura não significa
+ausência dos mundos. A execução ficou registrada como concluída em `ops`.
+Repetir às 01:28 respeitou a cadência e não criou uma segunda captura.
+
+O recuperador `953c58cc-6435-4e61-a1b7-069f27978da5` recebeu somente o
+destino/chaves do arquivo e o ID selecionado, sem URL do banco de origem.
+O recibo às 01:20:49 UTC confirmou duas restaurações físicas isoladas,
+244→244, inventário anterior a qualquer upgrade conferido e limpeza dos dois
+clusters. O cliente S3 fez sete leituras, restritas à captura. Serviço
+temporário removido, ausência conferida. Isso não é a homologação de duas
+recuperações completas com finanças/identidade atuais e publicação seletiva.
+
+Próximo incremento, com gates somente no GitHub:
+
+1. Provar um disparo do cron sem reduzir o intervalo mínimo da captura e
+   fixar `14 1,7,13,19 * * *` UTC. Prazo máximo do processo: quinze minutos;
+   retenção: 28 dias desde a captura, não desde a publicação.
+2. Qualificar `/api/backup/health`, separado de `/api/ready`. Consulta read-only
+   com relógio SQL e ambos os destinos completos; acusa captura com mais de
+   sete horas, falha/execução interrompida e controle antigo incompleto.
+   A resposta pública não contém destinos, chaves, contas ou conteúdo.
+3. Ligar a sonda externa só depois do endpoint produtivo, pela variável
+   `RECREIO_MONITOR_BACKUP=on`, reutilizando a ingestão Sentry do Recreio.
+   O portal recebe apenas IDs/nomes/escopos para essa conferência, nunca a
+   credencial ou chave que abre o dump.
+4. Registrar cadência observada, consumo e prova de falha/recuperação do
+   monitor. A leitura SQL não substitui o ensaio periódico do objeto externo.
+
+Monitoração nova, agenda definitiva, custos/RPO observados e recuperação
+operacional completa continuam pendentes até suas respectivas evidências.

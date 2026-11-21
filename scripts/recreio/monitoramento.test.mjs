@@ -2,7 +2,29 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { test } from "node:test";
-import { criarEnvelope, destinoSentry, enviarEnvelope, sondar, verificar } from "./sonda.mjs";
+import {
+  alvosDoMonitor,
+  criarEnvelope,
+  destinoSentry,
+  enviarEnvelope,
+  sondar,
+  verificar,
+} from "./sonda.mjs";
+
+test("a sonda do backup é separada da prontidão e usa só ingestão do projeto Recreio", () => {
+  assert.equal(alvosDoMonitor(undefined).length, 2);
+  assert.equal(alvosDoMonitor("off").length, 2);
+  const alvos = alvosDoMonitor("on");
+  assert.equal(alvos.length, 3);
+  assert.deepEqual(alvos[2], {
+    servico: "recreio-backup",
+    url: "https://recreio.informach.com.br/api/backup/health",
+    app: "recreio",
+    projeto: "4512434887786496",
+    segredo: "RECREIO_MONITOR_SENTRY_DSN",
+  });
+  assert.throws(() => alvosDoMonitor("yes"), /CONFIGURACAO/);
+});
 
 async function comServidor(executarPedido, verificarServidor) {
   const servidor = createServer(executarPedido);

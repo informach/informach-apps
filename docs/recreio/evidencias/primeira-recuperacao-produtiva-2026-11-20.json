@@ -1,0 +1,41 @@
+{
+  "observedAt": "2026-11-21T01:20:49.647774705Z",
+  "projectId": "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
+  "environmentId": "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+  "deploymentId": "953c58cc-6435-4e61-a1b7-069f27978da5",
+  "serviceId": "5d45626f-dbc7-4d01-89ec-39f7cd12d379",
+  "formato": "recreio-backup-recuperacao-v1",
+  "ok": true,
+  "localCleanupConfirmed": true,
+  "resultado": {
+    "capturaId": "1613df70-ef67-416d-b3af-626fa84c805b",
+    "sourceDoArquivo": "5fe5710e28d44d3f04fe1485ba261284c56cdccd",
+    "rodadas": [
+      {
+        "indice": 1,
+        "recibosAntes": 244,
+        "recibosDepois": 244,
+        "migrationsAplicadas": 0,
+        "recibosOriginaisPreservados": true,
+        "inventarioConferidoAntesDoUpgrade": true,
+        "clusterRemovido": true
+      },
+      {
+        "indice": 2,
+        "recibosAntes": 244,
+        "recibosDepois": 244,
+        "migrationsAplicadas": 0,
+        "recibosOriginaisPreservados": true,
+        "inventarioConferidoAntesDoUpgrade": true,
+        "clusterRemovido": true
+      }
+    ],
+    "sourceDatabaseCredentialsPresent": false,
+    "backupClientOnlySelectedCaptureRead": true,
+    "backupReadRequests": 7,
+    "authoritiesNormalizedForTraffic": false,
+    "trafficAuthorized": false
+  },
+  "temporaryServiceDeleted": true,
+  "fullOperationalRecovery": false
+}

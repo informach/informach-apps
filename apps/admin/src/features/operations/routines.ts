@@ -102,6 +102,15 @@ export const ROUTINES: readonly RoutineDefinition[] = [
   },
   {
     app: "recreio",
+    job: "backup",
+    label: "Guardar e conferir a cópia cifrada do Recreio",
+    intervalMinutes: 6 * 60,
+    schedule: "01:14, 07:14, 13:14 e 19:14 UTC",
+    lateAfterMinutes: 7 * 60,
+    maxRuntimeMinutes: 15,
+  },
+  {
+    app: "recreio",
     job: "manutencao",
     label: "Manutenção dos mundos e sessões do Recreio",
     intervalMinutes: 5,
