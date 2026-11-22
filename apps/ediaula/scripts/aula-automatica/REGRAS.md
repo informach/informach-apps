@@ -42,8 +42,14 @@ As marcações ficam acima do zoom, por isso não crescem com ele. Cada uma é p
 - Nada passa do fim da aula: zoom e balão do último clique acabam com ela.
 - Nenhum zoom curto e isolado que não ajude a ler: menos de 4 s sem ação sai.
 - O zoom leva 0,6 s para abrir ou fechar. Nenhuma marcação entra antes de o zoom terminar de abrir, nem fica depois de ele começar a fechar.
+- **Balões (Helena, 22/11/2026):**
+  - **Fonte:** Nunito, tamanho 28, sem crescer com o zoom.
+  - **Lugar:** o balão vai do lado em que cabe (acima de um botão de baixo, abaixo de um de cima, puxado para o meio da tela) e fora da apresentadora só quando ela está de fato à vista (a lista final, depois dos conflitos).
+  - **Ponta:** aponta para o botão ou a área mostrada. Ela é escolhida depois de o balão caber na tela: em cima ou embaixo, à direita ou à esquerda, ou só de lado quando o botão está na altura do balão.
+  - **Paleta:** a paleta "Sistema Zero" com as fontes do tema troca os balões para Baloo 2, e o acabamento os devolve para Nunito.
+  - **Verificação do EdiAula:** ela acusa "letra pequena" (28 px é 2,6% da altura; o mínimo dela é 3,3%). É a escolha da Helena.
 
-**Onde:** `montar.py`.
+**Onde:** `montar.py` (fonte, lugar e ponta) e `acoes/acabamento.mjs` (Nunito de volta depois da paleta).
 
 ## 3. Peças `.edisvg`
 

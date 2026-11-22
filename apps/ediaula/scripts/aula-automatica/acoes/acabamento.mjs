@@ -15,7 +15,8 @@
 //   - os personagens à esquerda, grandes, com dissolve; a regra "personagem silencia a professora" ligada;
 //   - as faixas, de baixo para cima: áudios, gravação (com as animações), zoom, capa, marcações,
 //     apresentadora e personagens;
-//   - a música distribuída (spread_music).
+//   - a música distribuída (spread_music);
+//   - os balões de volta em Nunito, depois da paleta (set_style).
 // Cada passo é um passo de desfazer. Devolve o que fez e o que precisa de revisão.
 import { basename } from "node:path";
 import { ferramentas, fimDe, gravacao, lerProjeto } from "./comum.mjs";
@@ -228,6 +229,12 @@ export default async function acabamento(ctx) {
     if (m) feito.push(await ia("spread_music", { media_id: m.id }));
     else feito.push(`música "${st.musica}" não está na biblioteca: importe antes`);
   }
+
+  // 6. Balões em Nunito (pedido dela, 22/11/2026). A paleta com as fontes do tema põe Baloo 2 em todas as
+  // anotações, inclusive nos balões que o montar.py pediu em Nunito 28; o tamanho e a ponta ficam.
+  proj = await ler();
+  const baloes = proj.d.clips.filter((c) => c.annotation?.kind === "balloon").map((c) => c.id);
+  if (baloes.length) feito.push(await ia("set_style", { clip_ids: baloes, font: "Nunito" }));
   await ler();
   return { feito, revisar };
 }

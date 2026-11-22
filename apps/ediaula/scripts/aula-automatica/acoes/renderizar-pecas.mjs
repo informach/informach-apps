@@ -20,6 +20,10 @@ export default async function renderizarPecas(ctx) {
   const res = { renderizadas: [], ja_tinham: [], falharam: [] };
   for (const arq of ctx.state.svgArquivos ?? []) {
     const nome = arq.split(/[\\/]/).pop();
+    // Cada pedido de vínculo abre a peça numa janela própria do EdiSVG, que renderiza sozinha. Abrir a mesma
+    // peça aqui antes disso tira dela a peça ("já está aberto em outra janela"): a janela do pedido fica vazia
+    // e o render daqui não entra no vinculos.json (Ilha A1P4, 22/11/2026). Primeiro espera o da janela.
+    for (let i = 0; i < 45 && !temRender(arq); i++) await ctx.delay(2000);
     if (temRender(arq)) {
       res.ja_tinham.push(nome);
       continue;

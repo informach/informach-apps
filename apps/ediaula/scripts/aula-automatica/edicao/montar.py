@@ -38,6 +38,7 @@ if isinstance(caixas, dict):  # {página: registros}: a última página aberta �
 de, ate, saida = args.de, args.ate, args.saida
 ANIM = json.loads(args.animacoes)
 W, H = 1920, 1080
+FONTE_BALAO, TAMANHO_BALAO = "Nunito", 28  # balões e anotações de texto (pedido dela, 22/11/2026)
 AMARELO = "#FFD60A"  # contorno dos destaques
 AZUL = "#3D6BFF"  # destaque no encaixe vazio, antes do arrasto
 XP = "#FFC02E"  # caixas das categorias (amarelo XP)
@@ -174,10 +175,13 @@ for gi, g in enumerate(gestos):
         if alvo:
             zoom(t0 - 0.3, t1 + 0.8, alvo, f"zoom no botão ({v})")
             bx, by = centro(alvo)
+            # Nunito 28 (pedido dela, 22/11/2026). O lugar e a ponta saem no fim, depois do zoom e de caber na
+            # tela, para a ponta apontar para o botão de verdade (BALAO_W, mais abaixo).
             add("add_annotation", {"kind": "balloon", "text": g["balao"], "at": round(ta - 0.6, 2), "duration": 2.0,
-                                   "x": round(min(max(bx - 0.12, 0.12), 0.88), 4), "y": round(min(max(by + 0.12, 0.1), 0.9), 4),
-                                   "tail": "top-right", "fill": AMARELO}, f"balão ({v})")
+                                   "x": round(bx, 4), "y": round(by, 4), "tail": "top-right", "fill": AMARELO,
+                                   "font": FONTE_BALAO, "font_size": TAMANHO_BALAO}, f"balão ({v})")
             cmds[-1]["papel"] = "balao"
+            cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
         continue
     if g["tipo"] == "aponta" and FORA_DO_PALCO and g.get("x") is not None:
         # Gravação fora do palco (a área dos pais, sem os contornos que a ponte do palco registra):
@@ -451,8 +455,11 @@ def na_tela_ampliada(c, z):
     for k in ("box_width", "box_height"):
         if k in i:
             i[k] = int(round(i[k] * s_))
-    if i["kind"] != "highlight":
+    # O balão fica no tamanho da fonte pedida (Nunito 28), sem crescer com o zoom; o resto acompanha o zoom.
+    if i["kind"] not in ("highlight", "balloon"):
         i["scale"] = round(i.get("scale", 1) * s_, 4)
+    if "alvo_ponto" in c:
+        c["alvo_ponto"] = [round((c["alvo_ponto"][0] - cx) * s_ + 0.5, 4), round((c["alvo_ponto"][1] - cy) * s_ + 0.5, 4)]
     if "ancora_esquerda" in c:
         c["ancora_esquerda"] = round((c["ancora_esquerda"] - cx) * s_ + 0.5, 4)
     c["zoom"] = [s_, cx, cy]
@@ -486,16 +493,62 @@ MARCA = sorted((c for c in final if c["tool"] == "add_annotation"), key=lambda c
 
 # Balão inteiro na tela e fora da apresentadora: na tela ampliada ele cresce com o zoom e pode passar da
 # borda (o botão Verificar projeto fica embaixo, à direita, onde ela está).
-BALAO_W, BALAO_H = 420, 130  # o balão do EdiAula em escala 1, em pixels do quadro
+def apresentadora_final():
+    """Os trechos em que a apresentadora fica à vista, depois dos conflitos com o zoom (o que vai para
+    <saida>-apresentadora.json)."""
+    ap = []
+    for a, b in sorted(PRES):
+        partes = [[max(a, de), min(b, ate)]]
+        if a < 0.1:
+            # A capa: ela fala desde o primeiro segundo (e fica até o fim de uma animação que começa junto).
+            ap.append([0.0, max(3.0, min(b, ate))])
+            continue
+        for c0, c1 in CONFLITO:
+            if any(c0 < k1 and k0 < c1 for k0, k1 in CONCEITO if k0 <= a + 0.2 and b - 0.2 <= k1):
+                continue
+            novas = []
+            for x0, x1 in partes:
+                if c1 <= x0 or c0 >= x1:
+                    novas.append([x0, x1])
+                else:
+                    if c0 > x0: novas.append([x0, c0])
+                    if c1 < x1: novas.append([c1, x1])
+            partes = novas
+        ap += partes
+    junt = []
+    for a, b in sorted(ap):
+        if junt and a - junt[-1][1] < 0.7:
+            junt[-1][1] = max(junt[-1][1], b)
+        else:
+            junt.append([a, b])
+    return [[round(a, 2), round(b, 2)] for a, b in junt if b - a >= 2.0 or a < 0.1]
+
+
+# O balão vai do lado em que cabe (acima de um botão de baixo, abaixo de um de cima; para o lado do meio da
+# tela) e a ponta sai do lado em que o botão ficou depois de o balão caber na tela: em cima ou embaixo, à
+# direita ou à esquerda, ou só de lado quando o botão está na altura do balão (pedido dela, 22/11/2026).
+BALAO_W, BALAO_H = 360, 115  # o balão do EdiAula em Nunito 28, escala 1, em pixels do quadro
+AP_FINAL = apresentadora_final()
 for c in MARCA:
     i = c["input"]
     if i.get("kind") != "balloon":
         continue
     s_ = i.get("scale", 1)
     hw, hh = BALAO_W * s_ / 2 / W, BALAO_H * s_ / 2 / H
-    direita = (AREA_AP / W if com_apresentadora(i["at"], i["at"] + i["duration"]) else 1.0) - 0.01
+    alvo = c.get("alvo_ponto")
+    if alvo:
+        tx, ty = alvo
+        i["x"] = tx - hw - 0.012 if tx > 0.5 else tx + hw + 0.012
+        i["y"] = ty - hh - 0.06 if ty > 0.5 else ty + hh + 0.06
+    # A apresentadora de verdade (depois dos conflitos), não a lista inicial: uma fala curta antes de um
+    # clique sai da lista final, e o balão não precisa fugir dela.
+    a_vista = any(a < i["at"] + i["duration"] and i["at"] < b for a, b in AP_FINAL)
+    direita = (AREA_AP / W if a_vista else 1.0) - 0.01
     i["x"] = round(min(max(i["x"], hw + 0.01), direita - hw), 4)
     i["y"] = round(min(max(i["y"], hh + 0.01), 0.99 - hh), 4)
+    if alvo:
+        vertical = "top-" if ty < i["y"] - hh * 0.6 else "bottom-" if ty > i["y"] + hh * 0.6 else ""
+        i["tail"] = vertical + ("right" if tx > i["x"] else "left")
 
 # Mesmo bloco destacado de novo em menos de 2 s: estende o anterior em vez de repetir.
 repetidos = []
@@ -560,32 +613,7 @@ for g in gestos:
         if not any(c["tool"] == "add_zoom" and c["input"]["at"] <= g["acao"] <= c["input"]["at"] + c["input"]["duration"] for c in final):
             CONFLITO.append([g["ini"] - 0.5, g["fim"] + 0.5])
 # Intervalos da apresentadora: sem os conflitos (no conceito ela fica: a animação reserva a faixa dela).
-ap = []
-for a, b in sorted(PRES):
-    partes = [[max(a, de), min(b, ate)]]
-    if a < 0.1:
-        # A capa: ela fala desde o primeiro segundo (e fica até o fim de uma animação que começa junto).
-        ap.append([0.0, max(3.0, min(b, ate))])
-        continue
-    for c0, c1 in CONFLITO:
-        if any(c0 < k1 and k0 < c1 for k0, k1 in CONCEITO if k0 <= a + 0.2 and b - 0.2 <= k1):
-            continue
-        novas = []
-        for x0, x1 in partes:
-            if c1 <= x0 or c0 >= x1:
-                novas.append([x0, x1])
-            else:
-                if c0 > x0: novas.append([x0, c0])
-                if c1 < x1: novas.append([c1, x1])
-        partes = novas
-    ap += partes
-junt = []
-for a, b in sorted(ap):
-    if junt and a - junt[-1][1] < 0.7:
-        junt[-1][1] = max(junt[-1][1], b)
-    else:
-        junt.append([a, b])
-apresentadora = [[round(a, 2), round(b, 2)] for a, b in junt if b - a >= 2.0 or a < 0.1]
+apresentadora = apresentadora_final()
 json.dump(apresentadora, open(saida.replace(".json", "-apresentadora.json"), "w"), ensure_ascii=False)
 print("apresentadora:", apresentadora, "| conflitos:", [[round(a, 1), round(b, 1)] for a, b in CONFLITO])
 json.dump(final, open(saida, "w", encoding="utf8"), ensure_ascii=False, indent=1)

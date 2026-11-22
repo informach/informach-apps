@@ -577,6 +577,14 @@ export const AI_TOOLS = {
       box_width: z.number().min(20).max(3840).optional(),
       box_height: z.number().min(20).max(2160).optional(),
       ...STYLE_FIELDS,
+      font_size: z
+        .number()
+        .min(8)
+        .max(200)
+        .optional()
+        .describe(
+          "Text size in px at scale 1 (the size field of the Anotações panel); the default depends on the kind",
+        ),
       arrow_style: z.enum(["solid", "line", "dashed", "dotted"]).optional(),
       two_heads: z.boolean().optional(),
       heads: z.number().int().min(0).max(2).optional(),
