@@ -98,7 +98,8 @@ def parte(curso, aula, n):
         "edicao": f"{pasta}/edicao",
         "pacote": f"{pasta}/Parte {n} - Projeto EdiAula.zip",
         "credenciais": _caminho(cfg.get("credenciaisPalco")),
-        "musica": _caminho(cfg.get("musica")),
+        # A música do curso ("musica" no curso), ou a de todos.
+        "musica": _caminho(c.get("musica") or cfg.get("musica")),
         "perfil": perfil,
     }
 

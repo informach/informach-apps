@@ -11,7 +11,9 @@ y 458 e o meio em x 302; de cima (600 x 600, a mesma medida por pixel nas duas),
 (299, 290) e a chave, em pé, vira uma barra com o meio em (302, 300). Nas vistas de cima, "pe" é o meio da figura.
 """
 
-from edisvg_cena import AMARELO, BRANCO, NOITE, TINTA, nid, tf
+import math
+
+from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VAIVEM, nid, tf
 
 PE = {"aventureiro": (299, 645), "farol-listrado": (260, 887), "pedras": (400, 505), "zappy": (270, 484),
       "chave": (302, 458), "aventureiro-de-cima": (299, 290), "chave-de-cima": (302, 300)}
@@ -39,6 +41,24 @@ def mover(c, g, arq, t0, de, t1, para, easing=None, pe=None):
     for prop, a, b in (("x", de[0] - bx * de[2], para[0] - bx * para[2]),
                        ("y", de[1] - by * de[2], para[1] - by * para[2]), ("sx", de[2], para[2]), ("sy", de[2], para[2])):
         c.trilha(g, prop, [(t0, a, None), (t1, b, easing)])
+
+
+def percurso(c, g, arq, pontos, pe=None):
+    """Vários movimentos do grupo de no_chao numa trilha só por propriedade (o EdiSVG aceita uma por nó):
+    pontos = [(t, (px, py, s), easing), ...], a base no lugar em cada um. Para um pop junto, ponha os pontos
+    da escala aqui também, e não use mostra(pop=True) no mesmo grupo."""
+    bx, by = pe or PE[arq]
+    for prop in ("x", "y", "sx", "sy"):
+        chaves = []
+        for t, (px, py, s), easing in pontos:
+            v = {"x": px - bx * s, "y": py - by * s, "sx": s, "sy": s}[prop]
+            chaves.append((t, v, easing))
+        c.trilha(g, prop, chaves)
+
+
+def pop(t0, px, py, s):
+    """Os pontos de um pop com a base no lugar, para o começo de um percurso."""
+    return [(t0, (px, py, 0.7 * s), SUAVE), (t0 + 0.28, (px, py, 1.05 * s), VAIVEM), (t0 + 0.42, (px, py, s), None)]
 
 
 class Personagem:
@@ -149,3 +169,54 @@ def aperta(c, g, tempos, s=1):
         chaves += [(t - 0.05, s, None), (t + 0.06, s * 0.82, None), (t + 0.22, s, None)]
     for p in ("sx", "sy"):
         c.trilha(g, p, chaves)
+
+
+def estrela(c, nome, cx, cy, r, cor=AMARELO, op=0):
+    """Uma estrela de cinco pontas (o toque, o acerto)."""
+    pts = []
+    for k in range(10):
+        a = -math.pi / 2 + k * math.pi / 5
+        rr = r if k % 2 == 0 else r * 0.45
+        pts.append((round(rr * math.cos(a), 1), round(rr * math.sin(a), 1)))
+    g = c.grupo(nome, cx, cy, [c.poly("estrela", pts, cor)], op=op)
+    c.nos.append(g)
+    return g
+
+
+PELE, PELE_BORDA = "#F6C9A0", "#D99A6C"
+
+
+def mao(c, nome, cx, cy, espelho=False, op=0, s=1):
+    """Uma mão aberta de desenho, de lado, com os dedos para cima e a palma virada para o meio (espelho: a
+    mão da direita)."""
+    k = -1 if espelho else 1
+    filhos = [c.rect("palma", -60, -40, 120, 150, PELE, rx=50, stroke=PELE_BORDA, sw=5)]
+    for j, (dx, alto) in enumerate(((-42, 120), (-14, 140), (14, 134), (42, 112))):
+        filhos.append(c.rect(f"dedo {j + 1}", k * dx - 13, -40 - alto + 30, 26, alto, PELE, rx=13, stroke=PELE_BORDA, sw=5))
+    filhos.append(c.rect("polegar", k * 50 - 15 if k > 0 else k * 50 - 15, 0, 30, 90, PELE, rx=15, stroke=PELE_BORDA, sw=5))
+    g = c.grupo(nome, cx, cy, filhos, op=op, s=s)
+    c.nos.append(g)
+    return g
+
+
+LARANJA_VARIAVEL = "#E8893A"  # a cor da categoria Variáveis no Estúdio
+
+
+def variavel(c, nome, rotulo, cx, cy, valores, w=420, t0=None, t1=None):
+    """Uma variável desenhada: uma caixa com o nome numa aba laranja e o valor dentro. valores = [(t, texto,
+    cor do texto), ...]: cada valor entra no seu tempo e sai quando entra o seguinte. Devolve o grupo da caixa
+    (sem os valores, que são nós próprios)."""
+    h = 150
+    filhos = [c.rect("aba", -w / 2, -h / 2 - 66, min(w, 40 + 30 * len(rotulo)), 80, LARANJA_VARIAVEL, rx=22),
+              c.texto("nome", rotulo, -w / 2 + 22, -h / 2 - 12, 44, BRANCO),
+              c.rect("caixa", -w / 2, -h / 2, w, h, BRANCO, rx=30, stroke=LARANJA_VARIAVEL, sw=10)]
+    g = c.grupo(nome, cx, cy, filhos)
+    c.nos.append(g)
+    if t0 is not None:
+        c.mostra(g, t0, t1, pop=True)
+    for k, (t, texto, cor) in enumerate(valores):
+        fim = valores[k + 1][0] if k + 1 < len(valores) else t1
+        v = c.texto(f"{nome} · valor {k + 1}", texto, cx, cy + 22, 64, cor, ancora="middle", op=0)
+        c.nos.append(v)
+        c.mostra(v, t, fim, pop=True)
+    return g

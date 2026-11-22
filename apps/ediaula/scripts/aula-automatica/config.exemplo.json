@@ -72,7 +72,8 @@
           "id": "0769f0d5-42d4-4a20-b3b8-d259936843d3",
           "roteiro": "docs/aulas-interativas/faisca/a-ilha-do-farol/ilha-aula-3.roteiro.md"
         }
-      }
+      },
+      "musica": "~/Downloads/A ilha do farol/Lighthouse Adventure.mp3"
     },
     "vilao": {
       "nome": "Transformando o vilão em aliado",
