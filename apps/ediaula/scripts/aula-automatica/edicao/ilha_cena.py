@@ -47,7 +47,7 @@ def no_chao(c, nome, arq, px, py, s, op=0, pe=None):
 
 def mover(c, g, arq, t0, de, t1, para, easing=None, pe=None):
     """Leva o grupo de no_chao de (px, py, s) em t0 para (px, py, s) em t1, com a base no lugar."""
-    bx, by = pe or PE[arq]
+    bx, by = pe or PE.get(arq) or pe_do_png(c, arq)
     for prop, a, b in (("x", de[0] - bx * de[2], para[0] - bx * para[2]),
                        ("y", de[1] - by * de[2], para[1] - by * para[2]), ("sx", de[2], para[2]), ("sy", de[2], para[2])):
         c.trilha(g, prop, [(t0, a, None), (t1, b, easing)])
@@ -57,7 +57,7 @@ def percurso(c, g, arq, pontos, pe=None):
     """Vários movimentos do grupo de no_chao numa trilha só por propriedade (o EdiSVG aceita uma por nó):
     pontos = [(t, (px, py, s), easing), ...], a base no lugar em cada um. Para um pop junto, ponha os pontos
     da escala aqui também, e não use mostra(pop=True) no mesmo grupo."""
-    bx, by = pe or PE[arq]
+    bx, by = pe or PE.get(arq) or pe_do_png(c, arq)
     for prop in ("x", "y", "sx", "sy"):
         chaves = []
         for t, (px, py, s), easing in pontos:
