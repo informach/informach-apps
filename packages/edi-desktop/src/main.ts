@@ -16,7 +16,7 @@ import {
   shell,
 } from "electron";
 import type { NsisUpdater } from "electron-updater";
-import { lock, unlockSync } from "proper-lockfile";
+import { unlockSync } from "proper-lockfile";
 import { z } from "zod";
 import { clearAccess, configureDesktopAccess, replaceGrants } from "./access";
 import { desktopConfigSchema, recoveryResultSchema } from "./contracts";
@@ -28,7 +28,7 @@ import { createGrantFile, migrateLegacyToken, removeAllGrantFiles } from "./gran
 import { verifyInstalledApplication } from "./installation-integrity";
 import { desktopJobs } from "./jobs";
 import { createReleaseAcceptance } from "./release-policy";
-import { runtimeLockName } from "./runtime-lock";
+import { holdRuntimeLock, runtimeLockName } from "./runtime-lock";
 import { createSignedUpdater, UPDATE_VERIFIER_MARKER } from "./update-provider";
 import { createVault } from "./vault";
 
@@ -381,12 +381,7 @@ export function createEdiDesktop(options: {
     },
     async start() {
       await mkdir(directory, { recursive: true, mode: 0o700 });
-      runtimeLock = await lock(runtimeFile(), {
-        realpath: false,
-        stale: 30000,
-        update: 5000,
-        retries: 0,
-      });
+      runtimeLock = await holdRuntimeLock(runtimeFile(), logFailure);
       app.on("before-quit", () => {
         quitting = true;
         controller?.cancelConnect();
