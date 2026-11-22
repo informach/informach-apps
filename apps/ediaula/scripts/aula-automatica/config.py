@@ -8,6 +8,7 @@ Também serve de módulo: from config import parte.
 import glob
 import json
 import os
+import re
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +16,19 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 
 def _caminho(p):
     return os.path.normpath(os.path.expanduser(p)).replace("\\", "/") if p else p
+
+
+def _titulo_da_capa(roteiro, n, titulo):
+    """O título da parte como o roteiro escreve, quando a pasta só perdeu o que o Windows não aceita
+    num nome (o "?" de "O que aparece quando você muda de lugar?", na Ilha). Sem o roteiro, ou com
+    outro título nele, vale o da pasta."""
+    try:
+        m = re.search(rf"(?m)^## Parte {int(n)}\. (.+)$", open(roteiro, encoding="utf8").read())
+    except OSError:
+        return titulo
+    if m and re.sub(r'[<>:"/\\|?*]', "", m.group(1)).strip() == titulo:
+        return m.group(1).strip()
+    return titulo
 
 
 def carregar():
@@ -53,11 +67,14 @@ def parte(curso, aula, n):
     endereco_aula = palco["url"].rstrip("/") if palco.get("url") else f"{cfg['palco'].rstrip('/')}/aulas/{slug}/{aula_id}"
     plat = a.get("plataforma") or {}
     conta = (plat.get("porParte") or {}).get(str(n))
+    roteiro = _caminho(a.get("roteiroLocal") or os.path.join(cfg["sistemaZero"], a["roteiro"]))
     return {
         "curso": curso,
         "aulaN": int(aula),
         "parte": int(n),
         "titulo": titulo,
+        # O título na capa: o da pasta, com o "?" de volta quando o roteiro o tem.
+        "tituloCapa": _titulo_da_capa(roteiro, n, titulo),
         "nome": nome,
         "cursoEdiAula": c["cursoEdiAula"],
         "aula": endereco_aula,
@@ -71,7 +88,7 @@ def parte(curso, aula, n):
         "tempos": c.get("tempos") or {},
         # Subtítulo da capa; sem ele, a capa leva o curso do EdiAula, como antes.
         "subtituloCapa": c.get("subtituloCapa") or c["cursoEdiAula"],
-        "roteiro": _caminho(a.get("roteiroLocal") or os.path.join(cfg["sistemaZero"], a["roteiro"])),
+        "roteiro": roteiro,
         "pasta": pasta,
         "voz": f"{pasta}/Parte {n} - Áudio.wav",
         "apresentadora": f"{pasta}/Parte {n} - HeyGen.mp4",

@@ -67,7 +67,7 @@ print(r.get('gerado') if isinstance(r,dict) else r); print(len(r.get('etapas',[]
   montar)
     ANIM="${1:-[]}"; echo "$ANIM" > "$ED/animacoes.json"
     python -X utf8 "$AQUI/edicao/montar.py" "$ED/decisoes.json" "$ED/caixas.json" "$ED/comandos.json" --animacoes "$ANIM" | grep -E "^(apresentadora|revisar|[0-9]+ comandos)"
-    CAPA="$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); print(json.dumps({'kicker': f\"AULA {c['aulaN']} · PARTE {c['parte']}\", 'title': c['titulo'], 'subtitle': c['subtituloCapa']}, ensure_ascii=False))" "$CFG")"
+    CAPA="$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); print(json.dumps({'kicker': f\"AULA {c['aulaN']} · PARTE {c['parte']}\", 'title': c.get('tituloCapa') or c['titulo'], 'subtitle': c['subtituloCapa']}, ensure_ascii=False))" "$CFG")"
     python -X utf8 "$AQUI/edicao/pecas.py" "$ED/comandos.json" "$(v pasta)/pecas" --animacoes "$ANIM" --capa "$CAPA" ;;
   aplicar)
     "$AQUI/edicao/aplicar.sh" "$ED/comandos.json" "$(python -X utf8 -c "import sys; print(sys.argv[1][:-len('.ediaula')] + ' · edição automática.ediaula')" "$(v projeto)")" "${1:-}"

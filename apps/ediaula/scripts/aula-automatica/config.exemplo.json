@@ -52,6 +52,28 @@
         }
       }
     },
+    "ilha": {
+      "nome": "A Ilha do Farol",
+      "cursoEdiAula": "IlhaDoFarol",
+      "prefixo": "Ilha",
+      "subtituloCapa": "A Ilha do Farol",
+      "slug": "jornada-faisca-base-3d",
+      "material": "~/Downloads/A ilha do farol",
+      "aulas": {
+        "1": {
+          "id": "f63fe236-5862-42c9-81c8-cb26a113eac2",
+          "roteiro": "docs/aulas-interativas/faisca/a-ilha-do-farol/ilha-aula-1.roteiro.md"
+        },
+        "2": {
+          "id": "972c7cd4-7c5d-4395-853b-f263724c4348",
+          "roteiro": "docs/aulas-interativas/faisca/a-ilha-do-farol/ilha-aula-2.roteiro.md"
+        },
+        "3": {
+          "id": "0769f0d5-42d4-4a20-b3b8-d259936843d3",
+          "roteiro": "docs/aulas-interativas/faisca/a-ilha-do-farol/ilha-aula-3.roteiro.md"
+        }
+      }
+    },
     "vilao": {
       "nome": "Transformando o vilão em aliado",
       "cursoEdiAula": "TransformandoOVilaoEmAliado",

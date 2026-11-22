@@ -44,8 +44,10 @@ O motor da gravação guiada é do próprio EdiAula. Veja "Gravação guiada" no
 | Arquivo | O que é | Obrigatório |
 | --- | --- | --- |
 | `Parte N - Áudio.wav` | a voz | sim |
-| `Parte N - HeyGen.mp4` | a apresentadora em fundo verde | sim |
-| `Parte N - Debinha 1.mp4` + `.wav` | personagens | quando houver |
+| `Parte N - HeyGen.mp4` | a apresentadora em fundo verde, na resolução exportada (4K na Ilha), sem som: a voz entra pelo `Áudio.wav` | sim |
+| `Parte N - Debinha 1.mp4` + `.wav` | personagens, com som | quando houver |
+
+O título da pasta vira o nome do projeto e o título da capa. Um caractere que o Windows não aceita num nome (o "?" de "O que aparece quando você muda de lugar?") sai da pasta, e a capa o recupera do `## Parte N.` do roteiro.
 
 **Para as animações:**
 - um `.edisvg` base do curso, com as fontes da aula e as artes do jogo numa cena com o grupo "Jogo";
