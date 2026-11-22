@@ -208,6 +208,29 @@ test("rule on: the teacher silent from 0:02.5 to 0:15.2 and her avatar fades; ou
   );
 });
 
+test("rule: a linked EdiSVG animation over the character stays (it is a drawing, not her avatar)", () => {
+  // Ilha A1P3: the animation (WebM with alpha, linked to its .edisvg) took the screen's place under
+  // Debinha; it was taken for the teacher's avatar and faded out, leaving the picture black.
+  const p = aula02();
+  p.assets.push(
+    asset("anim", "video", {
+      name: "Conceito · A câmera muda de lugar",
+      path: "C:/aula/pecas/conceito-3 · renders/animation-a.webm",
+      alpha: true,
+      hasAudio: false,
+      link: { app: "edisvg", project: "C:/aula/pecas/conceito-3.edisvg" } as Asset["link"],
+    }),
+  );
+  p.clips.push(clip("anim1", "anim", "f3", 0, 20));
+  const ctx = roleContext(p);
+  const anim = p.clips.find((c) => c.id === "anim1");
+  assert.ok(anim);
+  assert.deepEqual(voiceRoleOf(anim, ctx), { kind: "none" });
+  const heard = applyVoiceRule(p);
+  assert.deepEqual(byId(heard, "anim1"), byId(p, "anim1"));
+  assert.equal(heard.clips.filter((c) => c.assetId === "anim").length, 1, "not cut into pieces");
+});
+
 test("rule: it follows the character's clip, and off gives the original volume back", () => {
   const moved = aula02({
     clips: aula02().clips.map((c) => (c.id === "dede1" ? { ...c, start: 60 } : c)),

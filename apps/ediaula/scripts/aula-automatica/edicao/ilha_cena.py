@@ -117,3 +117,30 @@ def balao_pensa(c, nome, x, y, texto, op=0):
     g = c.grupo(nome, x, y, filhos, op=op)
     c.nos.append(g)
     return g
+
+
+SETAS = {"dir": [(-18, -20), (20, 0), (-18, 20)], "esq": [(18, -20), (-20, 0), (18, 20)],
+         "cima": [(-20, 18), (0, -20), (20, 18)], "baixo": [(-20, -18), (0, 20), (20, -18)]}
+
+
+def tecla(c, nome, cx, cy, rotulo=None, seta=None, op=0, s=1, cor=None):
+    """Uma tecla do teclado, desenhada: quadrado escuro com uma letra (rotulo) ou uma seta (dir, esq, cima,
+    baixo). A fonte não tem o caractere de seta, por isso a seta é um triângulo."""
+    filhos = [c.rect("tecla", -48, -44, 96, 88, cor or NOITE, rx=18)]
+    if seta:
+        filhos.append(c.poly("seta", SETAS[seta], BRANCO))
+    if rotulo:
+        filhos.append(c.texto("letra", rotulo, 0, 20, 56, BRANCO, ancora="middle"))
+    g = c.grupo(nome, cx, cy, filhos, op=op, s=s)
+    c.nos.append(g)
+    return g
+
+
+def aperta(c, g, tempos, s=1):
+    """A tecla afunda e volta em cada toque (tempos: um segundo ou uma lista; uma trilha só por propriedade)."""
+    tempos = [tempos] if isinstance(tempos, (int, float)) else list(tempos)
+    chaves = []
+    for t in tempos:
+        chaves += [(t - 0.05, s, None), (t + 0.06, s * 0.82, None), (t + 0.22, s, None)]
+    for p in ("sx", "sy"):
+        c.trilha(g, p, chaves)

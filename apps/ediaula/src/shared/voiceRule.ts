@@ -120,10 +120,15 @@ export function roleContext(p: Project): RoleContext {
   };
 }
 
-/** A video of someone talking to the camera: an avatar or the presenter. */
+/**
+ * A video of someone talking to the camera: an avatar or the presenter. A linked EdiSVG animation
+ * has a transparent picture too (alpha) but is a drawing, not a person: it stays on screen while a
+ * character speaks instead of fading out with the teacher's avatar.
+ */
 export const isAvatar = (a: Asset, c: Pick<Clip, "insertId">): boolean =>
   a.kind === "video" &&
   !a.generated &&
+  !a.link &&
   !!(a.key || a.screen || a.alpha || a.origin === "presenter" || c.insertId);
 
 /**

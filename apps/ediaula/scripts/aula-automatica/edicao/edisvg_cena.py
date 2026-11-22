@@ -161,8 +161,10 @@ class Cena:
             ch += [(t1 - 0.25, 100, None), (t1, 0, None)]
         self.trilha(no, "opacity", ch)
         if pop:
+            # Relativo à escala do próprio nó: um grupo em escala 0,4 entra de 0,28 a 0,42 e fica em 0,4.
             for p in ("sx", "sy"):
-                self.trilha(no, p, [(t0, 0.7, SUAVE), (t0 + 0.28, 1.05, VAIVEM), (t0 + 0.42, 1, None)])
+                e = no["transform"].get(p, 1)
+                self.trilha(no, p, [(t0, 0.7 * e, SUAVE), (t0 + 0.28, 1.05 * e, VAIVEM), (t0 + 0.42, e, None)])
         if sobe:
             y = no["transform"]["y"]
             self.trilha(no, "y", [(t0, y + sobe, SUAVE), (t0 + 0.3, y, None)])

@@ -165,11 +165,10 @@ $S/parte.sh farol 3 2 decisoes   # <parte>/edicao/decisoes.txt: cada frase vira 
 $S/parte.sh farol 3 2 copia      # "<projeto> · edição automática.ediaula"
 ```
 
-**2. Escolher os trechos de animação.** Leia o `decisoes.txt` e marque cada trecho de conceito que vira animação, em segundos da aula. Os trechos de conceito são:
-- o que ensina ou recapitula, como o começo da parte de blocos que relembra a experiência;
-- a parte de experiência inteira.
-
-A frase de instrução que abre ou fecha um trecho ("Deixe esse espaço à vista", "Olha aqui") fica na tela.
+**2. Escolher os trechos de animação.** Leia o `decisoes.txt` e marque cada trecho que vira animação, em segundos da aula. Bastante animação em toda parte, ilustrando tudo o que puder (Helena, 22/11/2026):
+- **Parte de experiência:** inteira, do primeiro ao último segundo de fala, inclusive o "Na ilha…" e o convite ("Agora você vai investigar…", "O Zappy vai te mostrando…"), com o Zappy desenhado. A tela nunca mostra a experiência, nem ampliada nem no tamanho da aula.
+- **Partes de blocos:** o que ensina ou recapitula (como o começo que relembra a experiência) e também as falas que explicam por que, para que ou o que acontece, com as artes do curso e os blocos recortados.
+- **Fica na tela:** só a ação (arrastar, clicar, escolher, jogar) e a frase de instrução que abre ou fecha um trecho ("Deixe esse espaço à vista", "Olha aqui").
 
 **3. Peças `.edisvg`.** As peças gráficas prontas ficam em `<parte>/pecas/`. O nome diz o papel e a ordem:
 
@@ -190,6 +189,10 @@ Animações de conceito que ainda não existem: uma cena por trecho, com `edicao
 - **Trechos "[na edição: …]" do roteiro:** o que o robô não grava, como em `edicao/exemplos/farol-a3p4-versoes-e-opcoes.py`.
 - **Fontes:** só caracteres que as fontes da aula têm. Um símbolo como "▾" impede o render; desenhe-o.
 - **Blocos:** os blocos de verdade saem da gravação com `edicao/recortar.sh <gravação> <segundo da voz> quadro q.png`, para medir, e depois com as coordenadas.
+- **Numeração:** a peça `conceito-N` é a do N-ésimo trecho do `montar`, na ordem da aula. Ao acrescentar uma cena no meio, renumere as outras (e apague os renders antigos); fora de ordem, o relatório avisa "conceito-2 dura 10,6 s, o trecho dura 3,9 s".
+- **Entrada com pop:** `c.mostra(no, t, pop=True)` respeita a escala do nó (um grupo em 0,4 fica em 0,4). Uma tecla apertada várias vezes leva todos os toques num `ilha_cena.aperta(c, tecla, (t1, t2, …))`: o EdiSVG aceita uma trilha só por propriedade, e o `validar_svg.py` acusa a repetida.
+- **Personagem por cima:** a Debinha e o Dedé falam por cima da animação, à esquerda. Deixe a metade esquerda da cena livre nesse trecho (o que importa à direita do meio, longe da apresentadora) e a cabeça dela à vista.
+- **Prévias:** o `exportar-svg.mjs` só abre a prévia se a janela principal do EdiSVG não estiver com uma peça vinculada. Depois de um `aplicar`, feche as janelas do EdiSVG e abra o condutor de novo antes de exportar prévias.
 - **Validar:** confira com `edicao/validar_svg.py <pasta>`.
 - **Uma fonte por cena:** depois de vinculada, a cena é editada no EdiSVG. O script não reescreve um `.edisvg` que já existe (`AULA_REFAZER_CENAS=1` reescreve e apaga o que foi feito lá). Os ids saem do nome do arquivo, então reescrever mantém o vínculo.
 - **Nunca achatar:** a peça entra vinculada, não como MP4 ou PNG. O `exportar-svg.mjs` serve só para conferir quadros com o ffmpeg.

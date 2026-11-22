@@ -20,7 +20,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from edisvg_cena import BRANCO, SUAVE, TINTA, Cena, tf  # noqa: E402
+from edisvg_cena import AMARELO, BRANCO, SUAVE, TINTA, Cena, tf  # noqa: E402
 from ilha_cena import Personagem, balao_pensa, camera, chao, mover, no_chao, olho  # noqa: E402
 
 BASE, BLOCOS, SAIDA = sys.argv[1:4]
@@ -88,3 +88,58 @@ mover(c, zappy, "zappy", 20.75, ZAPPY, 21.6, ZAPPY_DIR, SUAVE)
 viu = balao_pensa(c, "Balão · !", 1090, 300, "!")
 c.mostra(viu, 22.25, pop=True)
 c.salvar("conceito-2-mude-de-lugar")
+
+# Desde 22/11/2026 (pedido dela) a parte de experiência é animação do começo ao fim: nada da tela da
+# experiência. As duas cenas abaixo cobrem o "Na ilha…", a pergunta da Debinha e o convite.
+
+# 3. A câmera muda de lugar (23,2 a 33,45): a câmera passa pela frente, por cima e pelo lado da pedra; no
+# "chave escondida" a pedra ganha um "?" (a chave não aparece). Durante a Debinha (29,45 a 33,5), que fica à
+# esquerda, a pedra está à direita do meio.
+c = Cena("Conceito · A câmera muda de lugar", 23.2, 33.45, BASE, BLOCOS, SAIDA)
+c.ideia("A câmera muda de lugar", 23.25, 29.4, None)
+c.ideia("E a chave?", 29.45, 33.45, None)
+chao(c, 23.3)
+ROCHA3 = (900, 830, 0.85)
+pedra3 = no_chao(c, "Pedras", "pedras", *ROCHA3)
+c.trilha(pedra3, "opacity", [(23.3, 0, None), (23.6, 100, None)])
+cam3 = camera(c, "Câmera", 430, 760)
+c.mostra(cam3, 24.3, pop=True)
+for prop, chaves in (("x", [(25.5, 430, None), (26.1, 900, SUAVE), (30.2, 900, None), (30.9, 1220, SUAVE),
+                            (32.0, 1220, None), (32.7, 430, SUAVE)]),
+                     ("y", [(25.5, 760, None), (26.1, 330, SUAVE), (30.2, 330, None), (30.9, 640, SUAVE),
+                            (32.0, 640, None), (32.7, 760, SUAVE)])):
+    c.trilha(cam3, prop, chaves)
+contorno = c.rect("Destaque · a pedra", 900 - 300 * 0.85 - 30, 830 - 455 * 0.85 - 30, 600 * 0.85 + 60, 470 * 0.85 + 60,
+                  "none", rx=30, stroke=AMARELO, sw=8, op=0)
+c.nos.append(contorno)
+c.pisca(contorno, 27.0, 28.8)
+pergunta = balao_pensa(c, "Balão · ? da pedra", 1030, 360, "?")
+c.mostra(pergunta, 28.4, pop=True)
+c.salvar("conceito-3-a-camera-muda-de-lugar")
+
+# 4. O que você acha? e o convite (33,45 a 50,3): o Zappy pensa; a investigação em duas caixas (o que muda, o
+# que fica igual) e três olhos em lugares diferentes; no fim o Zappy mostra o que testar e "repita".
+c = Cena("Conceito · Sua investigação", 33.45, 50.3, BASE, BLOCOS, SAIDA)
+c.ideia("O que você acha?", 33.5, 34.85, None)
+c.ideia("Teste na experiência", 34.9, 37.45, None)
+c.ideia("Sua investigação", 37.5, 44.95, None)
+c.ideia(None, 42.29, 44.95, "Olhe a ilha de lugares diferentes")
+c.ideia("O Zappy te mostra", 45.0, 50.3, None)
+zp = no_chao(c, "Zappy", "zappy", 900, 900, 0.95)
+c.mostra(zp, 33.55, 37.45, pop=True)
+duvida4 = balao_pensa(c, "Balão · ?", 1080, 330, "?")
+c.mostra(duvida4, 33.8, 37.45, pop=True)
+c.mostra(c.caixa("Caixa · o que muda", "o que muda?", BRANCO, TINTA, 420, 440, 360, num=1), 39.25, 44.95, pop=True)
+c.mostra(c.caixa("Caixa · o que fica igual", "o que fica igual?", BRANCO, TINTA, 470, 600, 440, num=2), 40.95, 44.95, pop=True)
+zp_inv = no_chao(c, "Zappy · investigação", "zappy", 900, 560, 0.45)
+c.mostra(zp_inv, 37.6, 44.95, pop=True)
+for k, (x, rotulo) in enumerate(((260, "de frente"), (560, "de lado"), (860, "de cima"))):
+    o4 = olho(c, f"Olho · {rotulo}", x, 800, s=0.8)
+    c.mostra(o4, 43.0 + k * 0.35, 44.95, pop=True)
+    legenda = c.texto(f"Legenda · {rotulo}", rotulo, x, 900, 40, BRANCO, familia="Nunito", peso=800, ancora="middle", op=0)
+    c.nos.append(legenda)
+    c.mostra(legenda, 43.1 + k * 0.35, 44.95)
+zp2 = no_chao(c, "Zappy · mostra", "zappy", 700, 820, 0.9)
+c.mostra(zp2, 45.1, pop=True)
+c.mostra(c.caixa("Caixa · repita", "repita quando quiser", BRANCO, TINTA, 960, 920, 460, num=3), 48.07, pop=True)
+c.salvar("conceito-4-sua-investigacao")
