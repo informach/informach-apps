@@ -7,10 +7,9 @@ nos números, Rodar de novo, as setas, o "Olha só!", conferir os blocos e verif
      (recorte do topo da área).
   3. conceito-3-os-tres-numeros (0:32,6 a 0:42,8): o bloco Colocar o objeto chave (recorte) com x −2, y 1 e z −3
      destacados um por vez; os três jeitos de mudar de lugar da experiência.
-  4. conceito-4-so-o-x-mudou (0:74,6 a 0:80,6): a chave vai para a esquerda; o x mudou, o y ficou igual (mesma
-     altura).
-  5. conceito-5-a-reacao-vem-depois (0:81,0 a 0:88,1): o personagem encosta na chave e nada acontece; a reação
-     vem depois da experiência do contato (as mãos das palmas).
+  4. conceito-4-a-reacao-vem-depois (1:23,8 a 1:28,1): a reação vem depois da experiência do contato (as mãos
+     das palmas). De 1:15 a 1:23 a tela mostra a câmera do jogo girando até a chave, que a vista do começo
+     esconde atrás da pedra (gravação com [girar a cena], pedido dela de 22/11/2026).
 Imagens (pasta de blocos): os renders de ilha-render-modelos.py, zappy.png e dois recortes da gravação:
 bloco-colocar-chave.png (o bloco Colocar o objeto chave com os três números) e area-ao-iniciar.png (o topo da
 área Ao iniciar). Os destaques dos números estão em NUMEROS, em pixels do recorte.
@@ -23,7 +22,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VERDE, Cena, tf  # noqa: E402
-from ilha_cena import Personagem, balao_pensa, chao, mao, no_chao, percurso, pop  # noqa: E402
+from ilha_cena import chao, mao, no_chao, percurso, pop  # noqa: E402
 
 BASE, BLOCOS, SAIDA = sys.argv[1:4]
 # Os números do bloco recortado, em pixels do recorte (x0, y0, x1, y1): medidos depois do recorte e gravados
@@ -105,51 +104,18 @@ chave3 = no_chao(c, "Chave", "chave", 700, 980, 0.3)
 c.mostra(chave3, 39.6, pop=True)
 c.salvar("conceito-3-os-tres-numeros")
 
-# 4. Só o x mudou (74,6 a 80,6).
-c = Cena("Conceito · Só o x mudou", 74.6, 80.6, BASE, BLOCOS, SAIDA)
-c.ideia("A chave foi para a esquerda", 74.65, 77.0, None)
-c.ideia("Mesma altura", 77.05, 80.6, None)
-c.ideia(None, 78.6, 80.6, "Você não mexeu no y")
-chao(c, 74.65)
-chave4 = no_chao(c, "Chave", "chave", 780, 880, 0.45)
-c.mostra(chave4, 74.7)
-percurso(c, chave4, "chave", pop(74.7, 780, 880, 0.45) + [(75.4, (780, 880, 0.45), None),
-                                                          (76.2, (560, 880, 0.45), SUAVE)])
-linha = c.rect("Linha · mesma altura", 380, 880 - 4, 560, 8, BRANCO, rx=4, op=0)
-c.nos.append(linha)
-c.mostra(linha, 77.1)
-x_caixa = c.caixa("Caixa · x", "x: −2 → −3", VERDE, AMARELO, 1080, 420, 360, num=1)
-c.mostra(x_caixa, 75.0, pop=True)
-y_caixa = c.caixa("Caixa · y", "y: 1, igual", BRANCO, TINTA, 1080, 560, 360, num=2)
-c.mostra(y_caixa, 77.1, pop=True)
-contorno = c.rect("Destaque · y", 1080 - 180 - 12, 560 - 48 - 12, 384, 120, "none", rx=36, stroke=AMARELO, sw=8, op=0)
-c.nos.append(contorno)
-c.pisca(contorno, 78.6, 80.6, vezes=2)
-c.mostra(c.caixa("Caixa · z", "z: −2", BRANCO, TINTA, 1080, 700, 360, num=3), 75.3, pop=True)
-c.salvar("conceito-4-so-o-x-mudou")
-
-# 5. A reação vem depois (81,0 a 88,1).
-c = Cena("Conceito · A reação vem depois", 81.0, 88.1, BASE, BLOCOS, SAIDA)
-c.ideia("Encostar ainda não faz nada", 81.05, 83.8, None)
+# 4. A reação vem depois (83,8 a 88,1). De 75 a 83 s a tela mostra a câmera girando até a chave e o
+# personagem perto dela sem nada acontecer (pedido dela de 22/11: ver a chave mudando de lugar no jogo).
+c = Cena("Conceito · A reação vem depois", 83.8, 88.1, BASE, BLOCOS, SAIDA)
 c.ideia("A reação vem daqui a pouco", 83.85, 88.1, None)
 c.ideia(None, 86.2, 88.1, "Depois da experiência do contato")
-chao(c, 81.05, 83.8)
-chave5 = no_chao(c, "Chave", "chave", 760, 880, 0.45)
-c.mostra(chave5, 81.1, 83.8, pop=True)
-heroi = Personagem(c, "Aventureiro")
-heroi.em(81.0, 300, 920, 0.6)
-heroi.anda(81.3, 82.6, (300, 920, 0.6), (600, 900, 0.6))
-c.trilha(heroi.g, "opacity", [(81.05, 0, None), (81.3, 100, None), (83.55, 100, None), (83.8, 0, None)])
-heroi.fechar()
-nada = balao_pensa(c, "Balão · ?", 640, 420, "?")
-c.mostra(nada, 82.9, 83.8, pop=True)
 cartao = c.rect("Cartão · experiência do contato", 240, 380, 820, 560, BRANCO, rx=40, op=0)
 c.nos.append(cartao)
-c.mostra(cartao, 84.0, pop=True)
+c.mostra(cartao, 83.9, pop=True)
 m1 = mao(c, "Mão esquerda", 520, 640, s=0.9)
 m2 = mao(c, "Mão direita", 780, 640, espelho=True, s=0.9)
 for m, x0, x1 in ((m1, 520, 600), (m2, 780, 700)):
-    c.mostra(m, 84.2)
-    c.trilha(m, "x", [(85.0, x0, None), (85.5, x1, SUAVE), (85.8, x0, SUAVE), (86.4, x1, SUAVE), (86.7, x0, SUAVE)])
+    c.mostra(m, 84.1)
+    c.trilha(m, "x", [(84.9, x0, None), (85.4, x1, SUAVE), (85.7, x0, SUAVE), (86.3, x1, SUAVE), (86.6, x0, SUAVE)])
 c.mostra(c.caixa("Caixa · contato", "experiência do contato", NOITE, BRANCO, 650, 860, 520), 86.3, pop=True)
-c.salvar("conceito-5-a-reacao-vem-depois")
+c.salvar("conceito-4-a-reacao-vem-depois")

@@ -1,16 +1,27 @@
-"""Confere as chaves das animações: uma trilha por propriedade, quadros em ordem, únicos e dentro da duração."""
+"""Confere as chaves das animações: uma trilha por propriedade, quadros em ordem, únicos e dentro da duração.
+
+Uso: validar_svg.py <peça.edisvg ou pasta das peças> [...]. Sem nenhuma peça para conferir, sai com erro: antes,
+um arquivo passado no lugar da pasta não era conferido e a resposta era "ok" mesmo assim (Ilha A2P4, 22/11/2026,
+uma tecla com pop e aperta ao mesmo tempo, duas trilhas de escala, que o EdiSVG recusa ao abrir).
+"""
 import glob
 import json
+import os
 import sys
 
-for f in glob.glob(sys.argv[1] + "/*.edisvg"):
+arquivos = []
+for alvo in sys.argv[1:]:
+    arquivos += sorted(glob.glob(os.path.join(alvo, "*.edisvg"))) if os.path.isdir(alvo) else [alvo]
+if not arquivos:
+    sys.exit(f"nenhuma peça .edisvg em {sys.argv[1:]}")
+for f in arquivos:
     d = json.load(open(f, encoding="utf8"))
     a = d["motion"]["animations"][0]
     vistos = set()
     for t in a["tracks"]:
         k = (t["targetId"], t["property"])
-        assert k not in vistos, (f, k)
+        assert k not in vistos, f"{os.path.basename(f)}: duas trilhas de {k[1]} no mesmo nó ({k[0]})"
         vistos.add(k)
         fr = [x["frame"] for x in t["keys"]]
         assert fr == sorted(set(fr)) and max(fr) <= a["frames"], (f, fr)
-print("ok")
+print(f"ok ({len(arquivos)} peças)")
