@@ -206,6 +206,35 @@ test("a citação acha a voz quando a transcrição pula ou junta uma palavra", 
   );
 });
 
+test("a citação cuja última palavra a transcrição perdeu fica na sua frase, não na seguinte", () => {
+  // Ilha A2P2 (22/11/2026): a transcrição ouviu "até perto da" e perdeu o "chave" antes de "Olha só";
+  // a citação inteira só existia com o "chave" da frase seguinte, e as setas iam para depois dela.
+  const lines = [
+    "Clique em Rodar de novo mais uma vez. Depois leve o personagem até perto da chave.",
+    "Olha só: a chave foi um pouco para a esquerda.",
+  ];
+  const notes = [
+    {
+      before: 0,
+      text: 'No "Depois leve o personagem até perto da chave", [segurar tecla ArrowUp por 0,7 s]. No "a chave foi um pouco para a esquerda", [apontar prévia].',
+    },
+  ];
+  const heard = lines
+    .join(" ")
+    .split(/\s+/)
+    .filter((w, k, all) => !(w === "chave." && all[k + 1] === "Olha"));
+  const words = heard.map((text, k) => ({ text, start: 1 + k * 0.4, end: 1.3 + k * 0.4 }));
+  const end = (word: string) =>
+    Math.round((words.find((w) => w.text.startsWith(word))?.end ?? -1) * 100) / 100;
+  const { steps, missed } = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
+  assert.deepEqual(missed, []);
+  // The arrow on the last word heard of its own sentence ("da"), before "Olha só".
+  assert.equal(steps[0].at, end("da"));
+  assert.ok(steps[0].at < end("Olha"));
+  // The next quote keeps its own place, on "esquerda".
+  assert.equal(steps[1].at, end("esquerda."));
+});
+
 test("segurar prende o botão ou a tecla pelo tempo do colchete, e o gesto seguinte espera soltar", () => {
   const button = actionStep('segurar "Mover para a direita" por 1,5 s', "a", viewport);
   assert.deepEqual([button.action, button.hold], ["hold", 1.5]);

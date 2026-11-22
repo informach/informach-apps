@@ -70,14 +70,24 @@ export function screenCueTimes(
         // differently there ("toque em um" for "toque num") must not land on a later line that
         // repeats it word for word, which would push every quote after it out of the voice.
         const own = lineSaying(section, lines, cue.anchor, from);
+        const inOwn = (quote: string) => {
+          if (!own) return null;
+          const f = findPhrase(heard, quote, {
+            from: Math.max(from, own.start - 1),
+            to: own.end + 1,
+            loose: true,
+            misses: Math.ceil(tokens(quote).length / 3),
+          });
+          // A place that ends past its line took words of the next line as its own.
+          return f && f.end <= own.end + 0.01 ? f : null;
+        };
         const found =
-          (own &&
-            findPhrase(heard, cue.anchor, {
-              from: Math.max(from, own.start - 1),
-              to: own.end + 1,
-              loose: true,
-              misses: Math.ceil(tokens(cue.anchor).length / 3),
-            })) ||
+          inOwn(cue.anchor) ||
+          // The transcription can lose the last word of a sentence ("até perto da [chave]. Olha
+          // só", Ilha A2P2): the script says the quote is in this line, so its beginning heard
+          // there, ending on the last word heard, beats the whole quote on a later line, which
+          // would put the gesture after the next phrase.
+          shortened(cue.anchor).reduce<ReturnType<typeof inOwn>>((f, q) => f || inOwn(q), null) ||
           findPhrase(heard, cue.anchor, { from, to: partEnd, loose: true });
         if (found) {
           t = Math.max(0, found.start - LEAD);
@@ -104,6 +114,18 @@ export function screenCueTimes(
  * The first line said, not ending before `from`, whose script text holds the quote word for word,
  * with its times in the voice. Null when no line holds it (a quote of a direction written apart).
  */
+/**
+ * The quote without its last words, one more at a time, up to a third of it and keeping at least
+ * three: the places to look for it when the voice lost the end of it.
+ */
+function shortened(quote: string): string[] {
+  const words = tokens(quote);
+  const out: string[] = [];
+  for (let cut = 1; cut <= Math.floor(words.length / 3) && words.length - cut >= 3; cut++)
+    out.push(words.slice(0, words.length - cut).join(" "));
+  return out;
+}
+
 function lineSaying(
   section: ScriptSection,
   lines: readonly LineMatch[],

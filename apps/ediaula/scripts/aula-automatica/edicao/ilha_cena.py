@@ -5,11 +5,16 @@ As medidas são as dos renders (alfa > 128): o aventureiro (600 x 800) tem os p�
 o farol listrado (520 x 1000), a base em y 887 e o meio em x 260; as pedras (800 x 600), a base em y 505 e o
 meio em x 400; o Zappy (zappy.png, 520 x 530, de packages/community-kids/public/ilustra/zappy-final.webp),
 a base em y 484 e o meio em x 270.
+
+Da Aula 2: a chave dourada (chave.png, 600 x 600, na mesma medida por pixel do aventureiro-parado) tem a base em
+y 458 e o meio em x 302; de cima (600 x 600, a mesma medida por pixel nas duas), o aventureiro tem o meio em
+(299, 290) e a chave, em pé, vira uma barra com o meio em (302, 300). Nas vistas de cima, "pe" é o meio da figura.
 """
 
 from edisvg_cena import AMARELO, BRANCO, NOITE, TINTA, nid, tf
 
-PE = {"aventureiro": (299, 645), "farol-listrado": (260, 887), "pedras": (400, 505), "zappy": (270, 484)}
+PE = {"aventureiro": (299, 645), "farol-listrado": (260, 887), "pedras": (400, 505), "zappy": (270, 484),
+      "chave": (302, 458), "aventureiro-de-cima": (299, 290), "chave-de-cima": (302, 300)}
 
 
 def figura(c, arq, op=100):

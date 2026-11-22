@@ -42,7 +42,18 @@ case "$ETAPA" in
 import json,sys; d=json.load(sys.stdin); r=d.get('result') or d
 print(r.get('gerado') if isinstance(r,dict) else r); print(len(r.get('etapas',[])),'etapas'); print('\n'.join(r.get('verificacao',[])))" ;;
   gravar)
-    "$C" estado '{"soVerificar": false, "caixasEtapa": "ligar", "caixasMin": 30}' >/dev/null
+    # A parte pedida, não a do último ensaio: o estado do condutor guarda a parte, a aula e a voz
+    # de quem passou por ele por último (Ilha A2, 22/11/2026: ensaiadas as seis partes, o estado
+    # ficava na Parte 6). O projeto da parte é aberto, e um que já tem tomada fica como está
+    # (uma tomada por projeto: renomeie o antigo para "(tomada de …)" antes de gravar de novo).
+    P="$(v projeto)"
+    [ -f "$P" ] || { echo "a parte ainda não tem projeto: rode o ensaio primeiro ($P)" >&2; exit 1; }
+    python -X utf8 -c "
+import json, sys
+n = len(json.load(open(sys.argv[1], encoding='utf8')).get('clips', []))
+sys.exit(f'o projeto já tem uma tomada ({n} clipes): renomeie-o antes de gravar de novo' if n else 0)" "$P"
+    "$C" estado "$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); c.update(soVerificar=False, curso=c['cursoEdiAula'], caixasEtapa='ligar', caixasMin=30); print(json.dumps(c, ensure_ascii=False))" "$CFG")" >/dev/null
+    "$C" acao abrir-projeto.mjs "$(python -X utf8 -c "import json,sys; print(json.dumps({'arquivo': sys.argv[1]}, ensure_ascii=False))" "$P")" >/dev/null
     # Toda a saída da sonda fora do terminal: senão ela prende o pipe de quem chamou até o TIMEOUT dela.
     TIMEOUT=1900 "$C" acao sonda-caixas.mjs >/dev/null 2>&1 &
     SONDA=$!
