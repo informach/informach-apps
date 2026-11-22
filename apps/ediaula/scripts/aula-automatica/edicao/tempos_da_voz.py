@@ -20,8 +20,14 @@ import unicodedata
 AQUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+# Palavras que a transcrição escreve como outra que soa igual: o bloco Se como a letra "c".
+SOA_COMO = {"c": "se"}
+
+
 def _igual(ouvida, escrita):
-    """A mesma palavra, ou uma começo da outra com três letras ou mais ("zap" e "zappy", "c" não)."""
+    """A mesma palavra (ou uma que soa igual), ou uma começo da outra com três letras ou mais ("zap" e
+    "zappy")."""
+    ouvida, escrita = SOA_COMO.get(ouvida, ouvida), SOA_COMO.get(escrita, escrita)
     if ouvida == escrita:
         return True
     curta, longa = sorted((ouvida, escrita), key=len)
