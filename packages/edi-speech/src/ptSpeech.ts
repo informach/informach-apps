@@ -236,7 +236,9 @@ function pieces(
   const out: Piece[] = [];
   words.forEach((word, src) => {
     const text = word.replace(/(\d)\s*[º°]/g, "$1o").replace(/(\d)\s*ª/g, "$1a");
-    for (const part of text.split(/[-‐‑–—/]+/)) {
+    // A word of the transcription can hold two, joined before a quoted name ('depois "lógica"',
+    // Ilha A3P1): each is a token of its own, both pointing at that word and its times.
+    for (const part of text.split(/[\s\-‐‑–—/]+/)) {
       const percent = /%/.test(part);
       const bare = part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
       if (bare) {

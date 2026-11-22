@@ -345,3 +345,33 @@ test("glossaries of strings still read, and terms carry the ways they are heard"
   const words: Word[] = [{ text: "Sápi,", start: 0, end: 0.4, p: 0.99 }];
   assert.equal(correctWords(words, [{ term: "Zappy", aliases: ["Sápi"] }])[0].text, "Zappy,");
 });
+
+test("a word the transcription joined to a quoted name counts as two words", () => {
+  // Ilha do Farol, Aula 3 (22/11/2026): the transcription heard 'depois "lógica"', 'e "c"' and
+  // 'bloco "c".' as single words. Each was one token ("depoislogica"), the line matched 4 of 12
+  // and did not count as said, so the gestures it quotes went to a later line with the same words.
+  assert.deepEqual(
+    tokenize(['depois "lógica"', 'e "c"']).map((t) => [t.tok, t.src]),
+    [
+      ["depois", [0]],
+      ["logica", [0]],
+      ["e", [1]],
+      ["c", [1]],
+    ],
+  );
+  const parte = parseScript(
+    [
+      "## Seção 1. Teste",
+      "**Professora:**",
+      '> "Abra Programação e depois Lógica e Se, e pegue o bloco Se."',
+    ].join("\n"),
+  ).sections[0];
+  const heard = speak("x x x x x x x x", 0).map((w, i) => ({
+    ...w,
+    text: ['Abra "programação"', "e", 'depois "lógica"', 'e "c"', "e", "pegue", "o", 'bloco "c".'][
+      i
+    ],
+  }));
+  const line = alignSection(parte, heard).lines[0];
+  assert.ok(line.matched >= 10, `${line.matched} of ${line.total}`);
+});
