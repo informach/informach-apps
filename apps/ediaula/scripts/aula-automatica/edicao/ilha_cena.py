@@ -27,9 +27,19 @@ def figura(c, arq, op=100):
             "text": "", "children": [], "transform": tf(op=op), "visible": True, "locked": False}
 
 
+def pe_do_png(c, arq):
+    """O pé de uma arte sem medida em PE: o meio da base da parte visível (alfa > 128) do PNG. Serve para os
+    renders da Aula 3 (ilha-render-aula3.py) e as miniaturas dos cenários (opacas: a base da imagem)."""
+    from PIL import Image
+
+    im = Image.open(f"{c.blocos}/{arq}.png").convert("RGBA")
+    caixa = im.getchannel("A").point(lambda a: 255 if a > 128 else 0).getbbox() or (0, 0, im.width, im.height)
+    return (caixa[0] + caixa[2]) // 2, caixa[3]
+
+
 def no_chao(c, nome, arq, px, py, s, op=0, pe=None):
     """Um modelo com a base em (px, py) e escala s, num grupo (opacidade inicial op)."""
-    bx, by = pe or PE[arq]
+    bx, by = pe or PE.get(arq) or pe_do_png(c, arq)
     g = c.grupo(nome, px - bx * s, py - by * s, [figura(c, arq)], op=op, s=s)
     c.nos.append(g)
     return g

@@ -46,10 +46,24 @@ export const CURSOR_AT_SOURCE = String.raw`function cursorAt(x, y, doc) {
 export const cursorAtExpression = (x: number, y: number): string =>
   `(${CURSOR_AT_SOURCE})(${x}, ${y})`;
 
+/**
+ * A page text as it is compared with the text of a target: one space between words, lower case and
+ * without the pictographic icons a label may carry. The Estúdio's animation picker shows "🎬 acender"
+ * for the clip acender (Ilha A3P2, 22/11/2026): the target "acender" was not found on the page.
+ */
+export const PLAIN_TEXT_SOURCE = String.raw`(s) =>
+  String(s == null ? "" : s)
+    .replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu, "")
+    .normalize("NFC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("pt-BR")`;
+
 export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
   if (globalThis.__ediaulaGuided) return true;
   const norm = (s) => String(s == null ? "" : s).normalize("NFC").replace(/\s+/g, " ").trim();
   const low = (s) => norm(s).toLocaleLowerCase("pt-BR");
+  const plain = ${PLAIN_TEXT_SOURCE};
   // A toolbox category is named without its icon, as shared/locators.ts names it.
   const categoryName = (s) => norm(String(s == null ? "" : s).replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu, ""));
   const CLICKABLE =
@@ -142,18 +156,19 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
   }
 
   function byText(value, tag, scope) {
-    const want = low(value);
+    // Compared without icons: an option written "🎬 acender" is the text "acender".
+    const want = plain(value);
     const root = scope === document ? document.body : scope;
     if (!root || !want) return [];
     const out = new Set();
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      const own = low(n.data);
+      const own = plain(n.data);
       if (!own || own.length > want.length || !want.includes(own)) continue;
       let el = n.parentElement;
       if (!el || el.closest("script,style,noscript,template")) continue;
-      while (el && low(el.textContent) !== want) {
-        if (low(el.textContent).length > want.length || el === root) {
+      while (el && plain(el.textContent) !== want) {
+        if (plain(el.textContent).length > want.length || el === root) {
           el = null;
           break;
         }
@@ -162,10 +177,10 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       if (!el) continue;
       if (tag && el.tagName.toLowerCase() !== tag) {
         const up = el.closest(tag);
-        if (up && low(up.textContent) === want) el = up;
+        if (up && plain(up.textContent) === want) el = up;
       }
       const action = el.closest(CLICKABLE);
-      if (action && low(action.textContent) === want) el = action;
+      if (action && plain(action.textContent) === want) el = action;
       out.add(el);
     }
     return [...out];

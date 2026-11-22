@@ -20,6 +20,14 @@ import unicodedata
 AQUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _igual(ouvida, escrita):
+    """A mesma palavra, ou uma começo da outra com três letras ou mais ("zap" e "zappy", "c" não)."""
+    if ouvida == escrita:
+        return True
+    curta, longa = sorted((ouvida, escrita), key=len)
+    return len(curta) >= 3 and longa.startswith(curta)
+
+
 def _chave(s):
     s = unicodedata.normalize("NFD", s.lower())
     return "".join(c for c in s if unicodedata.category(c) != "Mn" and c.isalnum())
@@ -60,9 +68,9 @@ class Voz:
         for i in range(len(chaves) - len(alvo) + 1):
             if self.palavras[i][1] < depois - 0.01:
                 continue
-            iguais = sum(1 for k, a in enumerate(alvo) if chaves[i + k] == a)
+            iguais = sum(1 for k, a in enumerate(alvo) if _igual(chaves[i + k], a))
             # Uma em quatro pode vir ouvida de outro jeito ("Se" sai "c"), nunca a primeira.
-            if chaves[i] == alvo[0] and iguais >= len(alvo) - len(alvo) // 4:
+            if _igual(chaves[i], alvo[0]) and iguais >= len(alvo) - len(alvo) // 4:
                 melhor = i
                 break
         if melhor is None:

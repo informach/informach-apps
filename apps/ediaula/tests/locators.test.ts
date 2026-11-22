@@ -5,6 +5,7 @@ import {
   CURSOR_AT_SOURCE,
   cursorAtExpression,
   LOCATOR_PAGE_SCRIPT,
+  PLAIN_TEXT_SOURCE,
 } from "../src/shared/locatorPage.ts";
 import {
   actionPoint,
@@ -561,4 +562,15 @@ test("the pointer over a frame takes the frame's shape, not a rule the page arou
     editable: false,
   });
   assert.equal(LOCATOR_PAGE_SCRIPT.includes(CURSOR_AT_SOURCE), true);
+});
+
+test("a page text is compared without the icons a label carries", () => {
+  // Ilha A3P2 (22/11/2026): the Estúdio's animation picker shows "🎬 acender"; the target
+  // "acender" was not found on the page, and the clip could not be chosen.
+  const plain = new Function(`return ${PLAIN_TEXT_SOURCE}`)() as (s: unknown) => string;
+  assert.equal(plain("🎬 acender"), "acender");
+  assert.equal(plain("⏸️ parado (sem animação)"), "parado (sem animação)");
+  assert.equal(plain("  Próxima   parte "), "próxima parte");
+  assert.equal(plain(null), "");
+  assert.ok(LOCATOR_PAGE_SCRIPT.includes(PLAIN_TEXT_SOURCE), "the page script uses it");
 });

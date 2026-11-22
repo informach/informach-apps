@@ -36,8 +36,13 @@ const NUMBERS: Record<string, string> = {
   dez: "10",
   cem: "100",
 };
-const sameWord = (a: string, b: string): boolean =>
-  a === b || (NUMBERS[a] ?? a) === (NUMBERS[b] ?? b);
+/**
+ * Words the transcription writes as another that sounds the same: the block Se as the letter "c"
+ * ("Continue no Se" heard "continue no c", Ilha A3P2, 22/11/2026).
+ */
+const SOUNDS: Record<string, string> = { c: "se" };
+const spokenAs = (w: string): string => NUMBERS[w] ?? SOUNDS[w] ?? w;
+const sameWord = (a: string, b: string): boolean => a === b || spokenAs(a) === spokenAs(b);
 
 /**
  * The words of a transcript's word as compared. The transcription sometimes joins two words in

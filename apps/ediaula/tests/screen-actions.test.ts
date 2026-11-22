@@ -266,3 +266,15 @@ test("segurar prende o botão ou a tecla pelo tempo do colchete, e o gesto segui
   // The second one comes after the hand's time and the 2 s the first one holds.
   assert.equal(steps[1].at, Math.round((steps[0].at + followGap(DEFAULT_TEMPOS) + 2) * 100) / 100);
 });
+
+test("o bloco Se ouvido como a letra c ainda é a citação", () => {
+  // Ilha A3P2 (22/11/2026): a transcrição escreve o bloco Se como "c", e "Continue no Se" ficava
+  // sem lugar (a última palavra precisa ser dita).
+  const voz = ["Continue", "no", '"c",', "dentro", "do", "encontro"].map((text, k) => ({
+    text,
+    start: k * 0.5,
+    end: k * 0.5 + 0.4,
+  }));
+  assert.deepEqual(findPhrase(voz, "Continue no Se")?.start, 0);
+  assert.equal(findPhrase(voz, "Continue na sala"), null);
+});

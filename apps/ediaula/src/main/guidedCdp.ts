@@ -1306,7 +1306,9 @@ export class WebDriver implements GuidedDriver {
   ): Promise<Point> {
     const locator = target.locator;
     if (!locator) throw new Error("Marque o alvo desta etapa na janela da aula.");
-    const found = await this.found(locator, timeout);
+    // Pointing only rests the hand over it: something drawn on top (the outline of a block with a
+    // warning, Ilha A3P2) does not stop it, as it does not stop the end of a drag.
+    const found = await this.found(locator, timeout, action === "point");
     if (action !== "point") return found.point;
     // The element's box in page pixels: the point is the action point plus its frame's offset.
     const at = actionPoint(locator, found.candidate);
