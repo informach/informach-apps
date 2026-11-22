@@ -35,6 +35,22 @@ const pecaDe = (asset, papel) =>
   !!asset?.link &&
   new RegExp(`^${papel}(-|\\.edisvg$)`).test(basename(asset.link.project).toLowerCase());
 
+/**
+ * Onde o clipe da apresentadora precisa começar para a boca acompanhar a voz: o HeyGen foi gerado
+ * sobre o mesmo Áudio.wav da narração, então o segundo t do vídeo dele é o segundo t da voz. A
+ * narração guiada entra na linha do tempo no segundo em que a voz começou na gravação (o
+ * `narrationOffset` do guided-run.json: 0 quando a parte abre falando, 0,3 a 0,5 s quando abre com
+ * uma ação, como expandir o Estúdio). A apresentadora posta no segundo 0 ficava esse tanto à frente
+ * da voz (Ilha do Farol, Aulas 1 e 2, 22/11/2026). Null quando não há narração ou já está alinhada.
+ */
+export function inicioDaApresentadora(proj, clip) {
+  const narracao = proj.d.clips.find((c) => proj.nome(c) === "narracao");
+  if (!narracao) return null;
+  const alvo = narracao.start - (narracao.in ?? 0) + (clip.in ?? 0);
+  if (alvo < 0 || Math.abs(clip.start - alvo) <= 0.01) return null;
+  return Math.round(alvo * 1000) / 1000;
+}
+
 export default async function acabamento(ctx) {
   const st = ctx.state;
   const feito = [];
@@ -76,7 +92,15 @@ export default async function acabamento(ctx) {
     (proj.asset(c)?.origin === "presenter" ||
       /(^|[^a-zà-ú])(debinha|ded[eé])([^a-zà-ú]|$)/i.test(proj.nome(c)));
   const falas = proj.d.clips.filter(ehPersonagem).map((c) => [c.start, fimDe(c)]);
-  const pres = proj.d.clips.filter((c) => proj.nome(c).includes(apres));
+  let pres = proj.d.clips.filter((c) => proj.nome(c).includes(apres));
+  // A boca acompanha a voz: o clipe único da apresentadora começa onde a narração começa.
+  const inicio = pres.length === 1 ? inicioDaApresentadora(proj, pres[0]) : null;
+  if (inicio !== null) {
+    await ia("move_clips", { clip_ids: [pres[0].id], start: inicio, revision: await revisao() });
+    feito.push(`apresentadora alinhada com a narração: começa em ${inicio} s`);
+    proj = await ler();
+    pres = proj.d.clips.filter((c) => proj.nome(c).includes(apres));
+  }
   if (pres.length) await ia("set_crop", { clip_ids: pres.map((c) => c.id), ...RECORTE });
   if (st.intervalos && pres.length === 1) {
     let trechos = st.intervalos;

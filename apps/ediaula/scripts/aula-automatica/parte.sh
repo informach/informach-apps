@@ -7,6 +7,8 @@
 #   gravar      grava a parte já ensaiada, registrando os contornos dos alvos (edicao/caixas.json)
 #   empacotar   empacota o projeto gravado em "Parte N - Projeto EdiAula.zip" na pasta da parte
 #   decisoes    lista de decisões (edicao/decisoes.json e .txt): ação, explicação, conceito, personagens
+#   frases      as frases da voz no segundo da linha do tempo da edição (já com o atraso da narração na
+#               gravação): use estes segundos nos trechos das animações e no lugar dos personagens
 #   montar      comandos de zoom, marcações e capa (edicao/comandos.json), com as peças .edisvg de <parte>/pecas
 #               no lugar das anotações geradas; opção: '[[ini, fim], ...]' das animações
 #   copia       copia o projeto gravado para "<projeto> · edição automática" (a edição vai na cópia)
@@ -75,6 +77,10 @@ sys.exit(f'o projeto já tem uma tomada ({n} clipes): renomeie-o antes de gravar
     T="$(python -X utf8 "$AQUI/edicao/transcricao.py" "$(v perfil)" "$(v voz)")"
     python -X utf8 "$AQUI/edicao/decisoes.py" "$G" "$T" "$(v roteiro)" "$N" "$ED/decisoes.json" > "$ED/decisoes.txt"
     head -3 "$ED/decisoes.txt"; echo "lista completa em $ED/decisoes.txt" ;;
+  frases)
+    T="$(python -X utf8 "$AQUI/edicao/transcricao.py" "$(v perfil)" "$(v voz)")"
+    G="$(cat "$ED/gravacao.txt" 2>/dev/null || true)"
+    python -X utf8 "$AQUI/edicao/frases.py" "$T" "$G" ;;
   montar)
     ANIM="${1:-[]}"; echo "$ANIM" > "$ED/animacoes.json"
     python -X utf8 "$AQUI/edicao/montar.py" "$ED/decisoes.json" "$ED/caixas.json" "$ED/comandos.json" --animacoes "$ANIM" | grep -E "^(apresentadora|revisar|[0-9]+ comandos)"
@@ -115,5 +121,5 @@ import json, sys
 d = json.load(sys.stdin); r = d.get('result')
 if not isinstance(r, dict): print(d.get('error') or d); sys.exit(1)
 print('relatório:', r['relatorio']); print(len(r['revisar']), 'pontos para revisar |', len(r['verificacao']), 'da verificação')" ;;
-  *) sed -n '2,12p' "$0"; exit 2 ;;
+  *) sed -n '2,18p' "$0"; exit 2 ;;
 esac

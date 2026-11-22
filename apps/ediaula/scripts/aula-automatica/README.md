@@ -199,6 +199,8 @@ Animações de conceito que ainda não existem: uma cena por trecho, com `edicao
 
 **4. Zoom, marcações e peças**
 
+Os trechos estão em segundos da linha do tempo da edição, não do `Áudio.wav`: a narração entra no segundo em que a voz começou na gravação (0,3 a 0,5 s depois do começo nas partes que abrem com uma ação). `$S/parte.sh <curso> <aula> <parte> frases`, depois de gravar, dá cada frase já nesse segundo.
+
 ```bash
 $S/parte.sh farol 3 2 montar '[[13.6,39.75],[100.0,106.6],[139.0,146.6],[175.8,206.1],[241.5,249.0]]'
 ```
@@ -211,12 +213,12 @@ Saem em `<parte>/edicao/`:
 **5. No EdiAula**, com os condutores rodando:
 1. Abra a cópia: `acao abrir-projeto.mjs '{"arquivo": "<cópia>"}'`. O `aplicar` age no projeto que estiver aberto: depois do `empacotar`, o aberto é o gravado, e sem este passo as marcações vão para ele. Confira o nome em `ia get_overview` antes de aplicar.
 2. Importe as mídias pela janela de abrir: `acao importar.mjs '{"arquivos": [...]}'`. Use `/` nos caminhos do JSON.
-   - a apresentadora (`Parte N - HeyGen.mp4`), posta em seguida no segundo 0 com `ia add_clip`: o acabamento espera um clipe só dela;
+   - a apresentadora (`Parte N - HeyGen.mp4`), posta em seguida com `ia add_clip` (no segundo 0 serve): o acabamento espera um clipe só dela e o põe no segundo em que a narração começa, para a boca acompanhar a voz;
    - a música. Ao importar, o EdiAula põe a música sozinho numa faixa "Voz", com o papel de professora: tire esse clipe (`ia remove_clips`), e o acabamento a distribui nas faixas de música;
    - os vídeos dos personagens. O vídeo do HeyGen vem sem som: junte antes com o `.wav` usando ffmpeg.
 3. Ponha cada personagem no seu segundo: `ia add_clip '{"media_id": "...", "at": 100.0}'`. Cada fala usa o seu clipe.
    - Recorte o personagem só na fala, sem o silêncio das pontas: `ia trim_clip '{"clip_id": "...", "start": 173.5, "end": 175.8, "revision": N}'`.
-   - Onde a fala está no vídeo: `ffmpeg -i "Parte N - Debinha 1.wav" -af silencedetect=n=-35dB:d=0.25 -f null -`. Ponha o clipe em (segundo da fala na aula − início da fala no vídeo). Se a fala dela for mais longa que a da professora no mesmo lugar, comece logo depois da última palavra anterior, para não calar a professora na frase seguinte.
+   - Onde a fala está no vídeo: `ffmpeg -i "Parte N - Debinha 1.wav" -af silencedetect=n=-35dB:d=0.25 -f null -`. Ponha o clipe em (segundo da fala na aula − início da fala no vídeo). O segundo da fala na aula é o da linha do tempo (`parte.sh … frases`), não o da transcrição do `Áudio.wav`. Se a fala dela for mais longa que a da professora no mesmo lugar, comece logo depois da última palavra anterior, para não calar a professora na frase seguinte.
    - Às vezes a importação já põe os personagens e a música no começo da linha do tempo, na faixa "Voz": tire esses clipes e ponha cada um no seu segundo.
    - A revisão aparece no fim do `ia get_overview`.
 4. Aplique o zoom, as marcações, a capa e as peças: `$S/parte.sh farol 3 2 aplicar`.
@@ -234,6 +236,7 @@ $S/parte.sh farol 3 2 acabamento
 
 Cada passo é uma ferramenta do EdiAula e um passo de desfazer:
 - **`place_cutaway`:** as animações de conceito (peças `conceito-*.edisvg` vinculadas, ou mídias `conceito-*`) passam para a faixa da tela, no lugar do trecho, com a transição de círculos coloridos nas duas pontas. O som da página perde o mesmo trecho.
+- **`move_clips`:** a apresentadora no segundo em que a narração começa (o HeyGen foi gerado sobre o `Áudio.wav`, então o segundo t do vídeo é o segundo t da voz).
 - **`set_crop` e `keep_ranges`:** a apresentadora com o recorte (esquerda, direita e topo 2%, base 45%), só nos intervalos, com dissolve.
 - **`split_clip` e `set_clip_layout`:** o plano de cada trecho da apresentadora:
   - abertura;
@@ -351,5 +354,6 @@ O `decisoes.py` e o `montar.py` aplicam estas regras. A revisão de 17/11/2026 e
 - **Verde apagado no vídeo do HeyGen** (Ilha A2P5, 98 s; A2P6, 9 s): por um instante o fundo fica (32, 146, 42) em vez de (0, 159, 31), e o recorte padrão (limite 0,3 + suavidade 0,6) deixa um véu azulado em volta da apresentadora. Ache os trechos amostrando o canto do vídeo (força do verde abaixo de 0,9) e baixe a suavidade: `ia set_background_removal '{"media": "Parte N - HeyGen", "enabled": true, "color": "#009F21", "protect_clothes": 0.3, "softness": 0.3, "despill": 1}'` (o vídeo transparente leva 1,5× a duração para ficar pronto).
 - **A câmera do jogo 3D esconde o que a fala mostra** (Ilha A2P2: a chave atrás da pedra): no roteiro, `[girar a cena para o outro lado N vezes]` gira pelos botões da vista do jogo num gesto só (verbo do palco). O Rodar de novo volta à vista do começo, então gire depois de rodar e, se houver setas, depois delas.
 - **`validar_svg.py` aceita a peça ou a pasta** e sai com erro se não achar peça; antes, um arquivo no lugar da pasta respondia "ok" sem conferir nada.
+- **Apresentadora à frente da voz** (Ilha A1P4, A2P2, A2P4, A2P5 e A2P6, até 22/11/2026): a narração guiada entra no `narrationOffset` da gravação (0,30 a 0,50 s nessas partes, que abrem com "expandir estúdio"), e o HeyGen, posto no segundo 0, mostrava a boca esse tanto antes da voz. O som do próprio HeyGen fica só 25 ms atrás do `Áudio.wav`, sem desvio ao longo do vídeo. Desde então o acabamento alinha a apresentadora com a narração, e a etapa `frases` dá os segundos da linha do tempo para as animações e os personagens, que também saíam adiantados quando vinham da transcrição do `Áudio.wav`. Para conferir uma edição pronta: no `.ediaula`, `start - in` dos clipes do HeyGen tem de ser igual ao `start` do clipe `narracao`.
 - **Codificador sem memória no meio da tomada** ("Cannot allocate memory" do ffmpeg, Ilha A2P5): o gravador para na etapa e pergunta "Parar e salvar" ou "Descartar". Descarte (a tomada vai para a Lixeira e o projeto fica sem tomada) e grave de novo com a máquina mais livre.
 - **Gravar numa sessão depois do ensaio:** o `gravar` carrega a parte pedida no estado do condutor (antes ele usava a do último ensaio: com as seis partes ensaiadas, o estado ficava na última), abre o projeto da parte, roda o Verificar plano e só grava se passar. Um projeto que já tem tomada é recusado: renomeie-o para "(tomada de …)" antes.
