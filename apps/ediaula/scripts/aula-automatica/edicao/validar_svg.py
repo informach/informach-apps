@@ -24,4 +24,11 @@ for f in arquivos:
         vistos.add(k)
         fr = [x["frame"] for x in t["keys"]]
         assert fr == sorted(set(fr)) and max(fr) <= a["frames"], (f, fr)
+    # Os limites do EdiSVG (packages/edi-motion/src/assets/limits.ts): acima deles a peça não abre e o render
+    # nunca chega (Ilha A3P8, 23/11/2026).
+    recursos = d.get("assets", [])
+    total = sum(r["byteLength"] for r in recursos)
+    px = sum(r["width"] * r["height"] for r in recursos if r["kind"] == "image")
+    assert total <= 4_000_000, f"{os.path.basename(f)}: recursos de {total / 1e6:.2f} MB; o EdiSVG abre até 4 MB"
+    assert px <= 16_000_000, f"{os.path.basename(f)}: {px / 1e6:.1f} milhões de pixels; o EdiSVG abre até 16"
 print(f"ok ({len(arquivos)} peças)")

@@ -22,6 +22,10 @@ AZUL_JOGO, TINTA, BRANCO, VERDE, AMARELO, NOITE = "#6E9BFF", "#0F1A33", "#FFFFFF
 AREA_ESTUDIO, AREA_GAVETA = "#E7EDF5", "#EEF2F8"
 SUAVE = {"kind": "cubic-bezier", "points": [0.22, 1, 0.36, 1]}
 VAIVEM = {"kind": "cubic-bezier", "points": [0.42, 0, 0.58, 1]}
+# O EdiSVG recusa a peça cujos recursos passam de 4 MB ou 16 milhões de pixels (CATALOG_BYTES e IMAGE_PIXELS em
+# packages/edi-motion/src/assets/limits.ts): "Catálogo excede orçamento de bytes" ao abrir, e o render nunca
+# chega (Ilha A3P8, 23/11/2026, a cena do jogo pronto com doze artes de 600 × 800). A folga cobre o base64.
+ORCAMENTO_BYTES, ORCAMENTO_PIXELS = 3_900_000, 15_500_000
 
 
 def nid():
@@ -208,9 +212,94 @@ class Cena:
         self.d["motion"] = {"version": self.d["motion"]["version"], "animations": [{
             "id": fixo("animation"), "name": self.nome, "fps": FPS, "frames": self.total,
             "mode": "once", "tracks": self.trilhas}]}
+        self._caber_no_orcamento()
         json.dump(self.d, open(caminho, "w", encoding="utf8"), ensure_ascii=False)
         print(caminho, "| nós", len(self.nos), "| trilhas", len(self.trilhas), "| quadros", self.total,
               f"| {self.ini}-{self.fim}")
         return caminho
+
+    def _escalas(self):
+        """A maior escala de cada imagem na cena (pixels da cena por pixel do PNG): as escalas dos grupos acima
+        dela, a fixa ou a maior das trilhas sx/sy (o pop passa um pouco de 1), vezes o tamanho da imagem sobre o
+        do PNG."""
+        nas_trilhas = {}
+        for t in self.trilhas:
+            if t["property"] in ("sx", "sy") and t["keys"]:
+                v = max(abs(k["value"]) for k in t["keys"])
+                nas_trilhas[t["targetId"]] = max(nas_trilhas.get(t["targetId"], 0), v)
+        largura = {a["id"]: a["width"] for a in self.d["assets"] if a["kind"] == "image"}
+        escalas = {}
+
+        def desce(no, s):
+            tr = no.get("transform") or {}
+            s *= max(abs(tr.get("sx", 1)), abs(tr.get("sy", 1)), nas_trilhas.get(no["id"], 0))
+            aid = no.get("assetId")
+            if no.get("tag") == "image" and aid in largura:
+                w = float(no.get("attrs", {}).get("width", largura[aid]))
+                escalas[aid] = max(escalas.get(aid, 0), s * w / largura[aid])
+            for f in no.get("children", []):
+                desce(f, s)
+
+        for no in self.nos:
+            desce(no, 1)
+        return escalas
+
+    def _caber_no_orcamento(self):
+        """Com os recursos acima do que o EdiSVG abre, reduz cada PNG ao tamanho em que ele aparece na cena de
+        1920 × 1080 (o render tem esse tamanho: nada se perde no vídeo). Se ainda não couber, reduz todos um
+        pouco mais e avisa. A imagem guarda a largura e a altura na cena; só o PNG fica menor."""
+        imagens = [a for a in self.d["assets"] if a["kind"] == "image"]
+        fixo = sum(a["byteLength"] for a in self.d["assets"] if a["kind"] != "image")
+        bytes_ = lambda lista: fixo + sum(a["byteLength"] for a in lista)
+        pixels = lambda lista: sum(a["width"] * a["height"] for a in lista)
+        if bytes_(imagens) <= ORCAMENTO_BYTES and pixels(imagens) <= ORCAMENTO_PIXELS:
+            return
+        import io
+
+        from PIL import Image
+
+        escalas = self._escalas()
+        originais = {a["id"]: Image.open(io.BytesIO(base64.b64decode(a["data"]))).convert("RGBA") for a in imagens}
+        folga = 1.0
+        while True:
+            novas = []
+            for a in imagens:
+                im, s = originais[a["id"]], min(1.0, escalas.get(a["id"], 1.0) * folga)
+                if s >= 0.98:
+                    novas.append(a)
+                    continue
+                w, h = max(1, round(im.width * s)), max(1, round(im.height * s))
+                # Com o alfa pré-multiplicado, a borda recortada não ganha um halo escuro ao reduzir.
+                menor = im.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")
+                buf = io.BytesIO()
+                menor.save(buf, "PNG", optimize=True)
+                dados = buf.getvalue()
+                novas.append({**a, "id": "asset-" + hashlib.sha256(dados).hexdigest(), "byteLength": len(dados),
+                              "data": base64.b64encode(dados).decode(), "width": w, "height": h})
+            if (bytes_(novas) <= ORCAMENTO_BYTES and pixels(novas) <= ORCAMENTO_PIXELS) or folga < 0.3:
+                break
+            folga *= 0.85
+        troca = {a["id"]: n["id"] for a, n in zip(imagens, novas)}
+
+        def renomeia(no):
+            if no.get("assetId") in troca:
+                no["assetId"] = troca[no["assetId"]]
+            for f in no.get("children", []):
+                renomeia(f)
+
+        for no in self.nos:
+            renomeia(no)
+        vistos, catalogo = set(), []
+        for a in [a for a in self.d["assets"] if a["kind"] != "image"] + novas:
+            if a["id"] not in vistos:
+                vistos.add(a["id"])
+                catalogo.append(a)
+        antes = bytes_(imagens)
+        self.d["assets"] = catalogo
+        print(f"{self.nome}: imagens reduzidas ao tamanho em que aparecem, {antes / 1e6:.1f} -> "
+              f"{bytes_(novas) / 1e6:.1f} MB (o EdiSVG abre até 4 MB)"
+              + ("" if folga == 1.0 else f"; AVISO: abaixo do tamanho na tela ({folga:.0%}), confira a nitidez"))
+        if bytes_(novas) > ORCAMENTO_BYTES or pixels(novas) > ORCAMENTO_PIXELS:
+            raise SystemExit(f"{self.nome}: os recursos não cabem no EdiSVG nem reduzidos; tire imagens da cena")
 
 
