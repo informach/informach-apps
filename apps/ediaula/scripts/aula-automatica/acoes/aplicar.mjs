@@ -141,21 +141,28 @@ async function vincular(ctx, st, input, { marcacoes }) {
   const dialogo = e.getByRole("dialog", { name: "Importar animação do EdiSVG" });
   await dialogo.waitFor({ timeout: 15000 });
   await dialogo.getByRole("button", { name: "Importar" }).click();
-  await ctx.delay(2500);
 
-  // O clipe novo: a mídia vinculada a esse arquivo, começando no tempo pedido.
-  const proj = await lerProjeto(ctx, st.projeto);
-  const clip = proj.d.clips
-    .filter((c) => {
-      const a = proj.asset(c);
-      return (
-        a?.link &&
-        mesmoCaminho(a.link.project, input.arquivo) &&
-        (!input.animacao || a.link.animationId === input.animacao) &&
-        Math.abs(c.start - input.at) < 0.05
-      );
-    })
-    .at(-1);
+  // O clipe novo: a mídia vinculada a esse arquivo, começando no tempo pedido. Uma peça de alguns MB leva
+  // mais que os 2,5 s de antes para entrar (Ilha A3P5, 23/11/2026): procura de novo até 20 s.
+  const doArquivo = (p) =>
+    p.d.clips
+      .filter((c) => {
+        const a = p.asset(c);
+        return (
+          a?.link &&
+          mesmoCaminho(a.link.project, input.arquivo) &&
+          (!input.animacao || a.link.animationId === input.animacao) &&
+          Math.abs(c.start - input.at) < 0.05
+        );
+      })
+      .at(-1);
+  let proj;
+  let clip;
+  for (let espera = 0; !clip && espera <= 20000; espera += 2500) {
+    await ctx.delay(2500);
+    proj = await lerProjeto(ctx, st.projeto);
+    clip = doArquivo(proj);
+  }
   if (!clip) throw new Error(`a peça ${input.arquivo} não entrou na aula`);
   const nome = proj.nome(clip);
   // O tempo da marcação: termina com ela (a animação de conceito e a capa ficam com a duração da peça).
