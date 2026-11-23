@@ -107,6 +107,8 @@ print(json.dumps({'projeto': c['projeto'][:-len('.ediaula')] + ' · edição aut
                   'intervalos': json.load(open(os.path.join(ed, 'comandos-apresentadora.json'))),
                   # O vídeo da apresentadora DESTA parte: o estado do condutor guarda o do último ensaio.
                   'apresentadora': c['apresentadora'],
+                  # Frases gravadas depois e emendadas na voz (edicao/emendas.json), que o HeyGen não tem.
+                  **({'emendas': json.load(open(os.path.join(ed, 'emendas.json')))} if os.path.exists(os.path.join(ed, 'emendas.json')) else {}),
                   **({'musica': musica} if musica else {})}, ensure_ascii=False))" "$CFG" "$ED")"
     TIMEOUT=1800 "$C" acao acabamento.mjs "$E" | python -X utf8 -c "
 import json, sys

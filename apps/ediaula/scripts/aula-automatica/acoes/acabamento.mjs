@@ -6,6 +6,8 @@
 //   musica         trecho do nome da música na biblioteca (opcional; distribui se ainda não há faixa de música)
 //   cartoes        [[ini, fim], ...] dos cartões de seção (opcional; as peças secao-*.edisvg já contam)
 //   abertura       segundos do plano da abertura (padrão: até o fim da capa; sem capa, 1,5)
+//   emendas        [{ em, duracao }] (opcional): frases gravadas depois que entraram na voz (segundos da voz
+//                  nova); o HeyGen não tem esses trechos, e a apresentadora fica fora durante cada um
 // Faz, nesta ordem (regras de edição, 17/11/2026):
 //   - as animações de conceito (mídia "conceito-*" ou peça conceito-*.edisvg vinculada) no lugar da tela,
 //     com transição (place_cutaway);
@@ -101,8 +103,39 @@ export default async function acabamento(ctx) {
     proj = await ler();
     pres = proj.d.clips.filter((c) => proj.nome(c).includes(apres));
   }
+  // Emendas na voz: uma frase gravada depois entrou no Áudio.wav, e o HeyGen não tem esse trecho. O clipe é
+  // cortado no ponto da emenda e o que vem depois anda a duração da frase: a boca continua acompanhando a
+  // voz, e durante a frase nova não há apresentadora (Ilha A3P4, 23/11/2026: a pergunta que o não traz).
+  const emendas = inicio !== null ? [...(st.emendas ?? [])].sort((a, b) => a.em - b.em) : [];
+  for (const { em, duracao } of emendas) {
+    const t = Math.round((inicio + em) * 100) / 100;
+    proj = await ler();
+    const c = proj.d.clips.find(
+      (x) => proj.nome(x).includes(apres) && x.start + 0.05 < t && t < fimDe(x) - 0.05,
+    );
+    if (!c) {
+      revisar.push(`emenda em ${em} s: a apresentadora não passa por esse ponto`);
+      continue;
+    }
+    await ia("split_clip", { clip_id: c.id, at: t, revision: await revisao() });
+    proj = await ler();
+    const depois = proj.d.clips
+      .filter((x) => proj.nome(x).includes(apres) && x.start >= t - 0.01)
+      .sort((a, b) => b.start - a.start);
+    for (const x of depois)
+      await ia("move_clips", {
+        clip_ids: [x.id],
+        start: Math.round((x.start + duracao) * 100) / 100,
+        revision: await revisao(),
+      });
+    feito.push(`emenda em ${em} s: apresentadora cortada e o resto adiantado ${duracao} s`);
+  }
+  if (emendas.length) {
+    proj = await ler();
+    pres = proj.d.clips.filter((c) => proj.nome(c).includes(apres));
+  }
   if (pres.length) await ia("set_crop", { clip_ids: pres.map((c) => c.id), ...RECORTE });
-  if (st.intervalos && pres.length === 1) {
+  if (st.intervalos && pres.length === 1 + emendas.length) {
     let trechos = st.intervalos;
     for (const [p0, p1] of falas)
       trechos = trechos.flatMap(([a, b]) =>
@@ -113,11 +146,21 @@ export default async function acabamento(ctx) {
               [p1 + 0.05, b],
             ].filter(([x, y]) => y - x >= 1.5),
       );
-    feito.push(
-      await ia("keep_ranges", { clip_id: pres[0].id, ranges: trechos, revision: await revisao() }),
-    );
+    // Cada pedaço (um só, sem emenda) fica com os trechos que caem dentro dele.
+    for (const c of pres) {
+      const dele = trechos
+        .map(([a, b]) => [Math.max(a, c.start), Math.min(b, fimDe(c))])
+        .filter(([a, b]) => b - a >= 0.3);
+      feito.push(
+        dele.length
+          ? await ia("keep_ranges", { clip_id: c.id, ranges: dele, revision: await revisao() })
+          : await ia("remove_clips", { clip_ids: [c.id], revision: await revisao() }),
+      );
+    }
   } else if (st.intervalos) {
-    feito.push(`apresentadora: ${pres.length} clipes, esperava 1; os trechos ficaram como estavam`);
+    feito.push(
+      `apresentadora: ${pres.length} clipes, esperava ${1 + emendas.length}; os trechos ficaram como estavam`,
+    );
   }
   proj = await ler();
   const animacoes = proj.d.clips
