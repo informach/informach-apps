@@ -1,166 +1,178 @@
-"""Exemplo: as animações da Ilha do Farol, Aula 3, Parte 6, "Deixe o jogo com a sua cara" (22/11/2026). Ficam na
-tela as ações (arrastar, abrir a lista, escolher o modelo, rodar, jogar), os "olha só" e o jogo que a fala aponta.
+"""Exemplo: as animações da Ilha do Farol, Aula 3, Parte 6, "Escolha seu esconderijo e teste de verdade"
+(22/11/2026). Ficam na tela as ações (arrastar, trocar os números, rodar, jogar, verificar, enviar), os "olha só" e
+o jogo que a fala aponta.
 
 Os tempos saem da voz da parte (tempos_da_voz.Voz), já na linha do tempo da edição: grave antes de gerar.
-  1. conceito-1-duas-combinacoes ("E agora chegou uma surpresa" até "outro cenário"): "[na edição: duas
-     combinações prontas]", em animação com os renders dos modelos: robo, lancha, chave prateada, farol
-     colorido e ilha nevada (o farol acende e o barco chega); depois, a cada "outro …" da fala, uma peça troca
-     pela da segunda combinação: mergulhador, veleiro, chave dourada, farol de madeira e costa rochosa.
-  2. conceito-2-os-mesmos-nomes ("São as mesmas opções" até "três dimensões"): os modelos 3D com os nomes que
-     a criança já conhece da Chave do Farol.
-  3. conceito-3-a-mesma-medida ("porque todos os personagens" até "como o Aventureiro"): os oito personagens
-     lado a lado, com a régua da mesma altura; o pirata anda no lugar.
-  4. conceito-4-um-farol-so ("No 2D, o farol tinha duas imagens" até "trocar num lugar"): no 2D, duas imagens
-     (apagada e acesa); no 3D, os quatro faróis acendem, cada um um modelo só.
-  5. conceito-5-a-ilha-inteira ("é a ilha inteira" até "e o céu"): o cenário de praia tropical grande, e cada
-     parte apontada quando a fala diz: o mar, o chão, a ponte, as árvores e o céu.
-Imagens (pasta de blocos): os renders de ilha-render-aula3.py e as miniaturas dos cenários da galeria do jogo.
+  1. conceito-1-x-y-z ("Lembra do x, do y e do z?" até "o y muda a altura"): o chão da ilha com a chave e as
+     setas do x (vermelha, para os lados), do z (azul, para perto) e do y (verde, para cima), as cores do
+     Passo a passo.
+  2. conceito-2-ver-nao-basta ("Ver a chave não basta" até "não alcança"): a chave alta demais, acima do
+     personagem, e a chave do outro lado da água; nas duas, o personagem não alcança.
+  3. conceito-3-um-numero-de-cada-vez ("Se não conseguir pegar" até "teste novamente"): os três números do
+     bloco; um muda, o jogo roda, e só então o próximo.
+  4. conceito-4-o-papel-de-cada-aviso ("Se quiser, escreva também" até "Vitória"): as quatro faixas de aviso,
+     cada uma com o seu papel: começo, chave pega, falta a chave e vitória.
+  5. conceito-5-jogo-completo ("Pronto, o seu jogo em três dimensões está completo!"): o farol aceso, o barco
+     chegando e estrelas.
+Imagens (pasta de blocos): os renders (chave, aventureiro-parado, farol-listrado-aceso, barco-veleiro).
 Uso: ilha-a3p6-conceitos.py <base.edisvg> <pasta dos blocos> <pasta de saída (a pasta pecas da parte)>
 """
 
+import math
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from edisvg_cena import AMARELO, BRANCO, SUAVE, TINTA, VAIVEM, Cena  # noqa: E402
+from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VERDE, Cena  # noqa: E402
 from ilha_cena import chao, estrela, mover, no_chao  # noqa: E402
 from tempos_da_voz import Voz  # noqa: E402
 
 BASE, BLOCOS, SAIDA = sys.argv[1:4]
 voz = Voz.da_parte("ilha", 3, 6)
-PERSONAGENS = ["aventureiro", "menina-de-laco", "marinheira", "menino-de-bone", "exploradora-de-chapeu", "pirata",
-               "mergulhador", "robo"]
-FAROIS = ["farol-listrado", "farol-de-pedra", "farol-de-madeira", "farol-colorido"]
+EIXO = {"x": "#D64545", "y": "#2A9457", "z": "#2F6FDB"}
+VERMELHO, AGUA, AREIA, AREIA_BORDA = "#E2563B", "#5B9BE6", "#F3D9A0", "#E2BF7A"
 
 
-def combinacao(c, nome, pecas, t0, t_fim):
-    """Uma combinação montada: cenário ao fundo, personagem, chave, farol e barco (cada um um grupo)."""
-    cenario, personagem, chave, farol, barco = pecas
-    g = {
-        "cenario": no_chao(c, f"{nome} · cenário", f"cenario-{cenario}", 690, 980, 2.3),
-        "personagem": no_chao(c, f"{nome} · personagem", f"personagem-{personagem}", 560, 930, 0.32),
-        "chave": no_chao(c, f"{nome} · chave", chave, 760, 900, 0.17),
-        "farol": no_chao(c, f"{nome} · farol", farol, 1040, 880, 0.36),
-        "farol aceso": no_chao(c, f"{nome} · farol aceso", f"{farol}-aceso", 1040, 880, 0.36),
-        "barco": no_chao(c, f"{nome} · barco", f"barco-{barco}", 330, 820, 0.3),
-    }
+def seta(c, nome, x0, y0, x1, y1, cor, grossura=12):
+    """Seta de (x0, y0) a (x1, y1): um grupo girado no ponto de partida."""
+    comp = math.hypot(x1 - x0, y1 - y0)
+    g = c.grupo(nome, x0, y0, [
+        c.rect("haste", 0, -grossura / 2, comp - 34, grossura, cor, rx=grossura / 2),
+        c.poly("ponta", [(comp - 40, -24), (comp, 0), (comp - 40, 24)], cor),
+    ], op=0)
+    g["transform"]["rotation"] = math.degrees(math.atan2(y1 - y0, x1 - x0))
+    c.nos.append(g)
     return g
 
 
-# 1. Duas combinações.
-t0, t1 = voz.trecho("E agora chegou uma surpresa", "outro cenário.")
-c = Cena("Conceito · Duas combinações", t0, t1, BASE, BLOCOS, SAIDA)
-t_versoes = voz.palavra("outras versões", t0)
-t_pers = voz.palavra("outro personagem", t_versoes)
-t_barco = voz.palavra("outro barco", t_pers)
-t_chave = voz.palavra("outra chave", t_barco)
-t_farol = voz.palavra("outro farol", t_chave)
-t_cen = voz.palavra("outro cenário", t_farol)
-c.ideia("Uma surpresa", t0 + 0.05, t_versoes - 0.1, None)
-c.ideia("Outras versões", t_versoes - 0.05, t1, None)
-a = combinacao(c, "Robô", ("ilha-nevada", "robo", "chave-prateada", "farol-colorido", "lancha"), t0, t_pers)
-b = combinacao(c, "Mergulhador", ("costa-rochosa", "mergulhador", "chave-dourada", "farol-de-madeira", "veleiro"),
-               t_pers, t1)
-c.mostra(a["cenario"], t0 + 0.1, t_cen + 0.3)
-# O farol colorido acende e a lancha chega, antes das trocas. Cada peça da primeira combinação sai quando a
-# fala diz a dela ("outro personagem", "outro barco", …), e a da segunda entra no lugar.
-t_acende = t0 + (t_pers - t0) * 0.45
-c.mostra(a["personagem"], t0 + 0.3, t_pers + 0.2, pop=True)
-c.mostra(a["chave"], t0 + 0.5, t_chave + 0.2, pop=True)
-c.mostra(a["farol"], t0 + 0.7, t_acende + 0.4, pop=True)
-c.mostra(a["farol aceso"], t_acende, t_farol + 0.2)
-c.mostra(a["barco"], t_acende + 0.2, t_barco + 0.2)
-mover(c, a["barco"], "barco-lancha", t_acende + 0.2, (120, 820, 0.3), t_pers - 0.2, (330, 820, 0.3), SUAVE)
-brilho = estrela(c, "Estrela · acendeu", 1040, 470, 46)
-c.mostra(brilho, t_acende, t_acende + 1.0, pop=True)
-for chave, t in (("personagem", t_pers), ("barco", t_barco), ("chave", t_chave), ("farol", t_farol)):
-    c.mostra(b[chave], t, None, pop=True)
-c.mostra(b["farol aceso"], t_farol + 0.6, pop=True)
-c.mostra(b["cenario"], t_cen)
-# O cenário novo entra por trás: o grupo dele vem logo depois do primeiro na ordem de desenho.
-c.nos.remove(b["cenario"])
-c.nos.insert(c.nos.index(a["cenario"]) + 1, b["cenario"])
-c.salvar("conceito-1-duas-combinacoes")
+def rotulo(c, nome, texto, x, y, cor, tam=64):
+    t = c.texto(nome, texto, x, y, tam, cor, ancora="middle", op=0)
+    c.nos.append(t)
+    return t
 
-# 2. Os mesmos nomes.
-t0, t1 = voz.trecho("São as mesmas opções", "três dimensões.")
-c = Cena("Conceito · Os mesmos nomes", t0, t1, BASE, BLOCOS, SAIDA)
-t_nomes = voz.palavra("com os mesmos nomes", t0)
-t_3d = voz.palavra("agora em três dimensões", t_nomes)
-c.ideia("As mesmas opções", t0 + 0.05, t_nomes - 0.1, None)
-c.ideia("Os mesmos nomes", t_nomes - 0.05, t_3d - 0.1, None)
-c.ideia("Agora em 3D", t_3d - 0.05, t1, None)
-cartoes = [("personagem-aventureiro", "aventureiro", 0.36), ("personagem-pirata", "pirata", 0.36),
-           ("barco-veleiro", "veleiro", 0.32), ("chave-dourada", "chave-dourada", 0.24),
-           ("farol-listrado", "farol-listrado", 0.3)]
-for k, (arq, nome, s) in enumerate(cartoes):
-    x = 190 + k * 270
-    fundo = c.rect(f"Cartão · {nome}", x - 120, 380, 240, 470, BRANCO, rx=28, op=0)
-    c.nos.append(fundo)
-    c.mostra(fundo, t0 + 0.2 + 0.25 * k, pop=True)
-    figura = no_chao(c, f"Modelo · {nome}", arq, x, 760, s)
-    c.mostra(figura, t0 + 0.3 + 0.25 * k, pop=True)
-    rotulo = c.texto(f"Nome · {nome}", nome, x, 820, 30, TINTA, familia="Nunito", ancora="middle", op=0)
-    c.nos.append(rotulo)
-    c.mostra(rotulo, t_nomes + 0.15 * k, sobe=8)
-c.salvar("conceito-2-os-mesmos-nomes")
 
-# 3. A mesma medida.
-t0 = voz.palavra("porque todos os personagens")
-t1 = voz.fim("como o Aventureiro.", t0)
-c = Cena("Conceito · A mesma medida", t0, t1, BASE, BLOCOS, SAIDA)
-t_anda = voz.palavra("também anda e respira", t0)
-c.ideia("A mesma medida", t0 + 0.05, t_anda - 0.1, None)
-c.ideia("Anda e respira", t_anda - 0.05, t1, None)
+def proibido(c, nome, cx, cy, r=70):
+    """Um X vermelho: o personagem não alcança."""
+    g = c.grupo(nome, cx, cy, [
+        c.rect("traço 1", -r, -10, 2 * r, 20, VERMELHO, rx=10),
+        c.rect("traço 2", -10, -r, 20, 2 * r, VERMELHO, rx=10),
+    ], op=0)
+    g["transform"]["rotation"] = 45
+    c.nos.append(g)
+    return g
+
+
+def faixa(c, nome, texto, cx, cy, w=760):
+    g = c.grupo(nome, cx, cy, [c.rect("faixa", -w / 2, -40, w, 80, NOITE, rx=22),
+                               c.texto("texto", texto, 0, 12, 32, BRANCO, familia="Nunito", ancora="middle")], op=0)
+    c.nos.append(g)
+    return g
+
+
+# 1. x, y e z.
+t0 = voz.palavra("Lembra do x")
+t1 = voz.fim("muda a altura.", t0)
+c = Cena("Conceito · x, y e z", t0, t1, BASE, BLOCOS, SAIDA)
+t_xz = voz.palavra("O x e o z", t0)
+t_y = voz.palavra("e o y muda", t_xz)
+c.ideia("x, y e z", t0 + 0.05, t_xz - 0.1, None)
+c.ideia("No chão e na altura", t_xz - 0.05, t1, None)
 chao(c, t0 + 0.05)
-figuras = []
-for k, nome in enumerate(PERSONAGENS):
-    f = no_chao(c, f"Personagem · {nome}", f"personagem-{nome}", 230 + k * 150, 900, 0.34)
-    c.mostra(f, t0 + 0.2 + 0.12 * k, pop=True)
-    figuras.append(f)
-regua = c.rect("Régua · mesma altura", 140, 655, 1180, 8, AMARELO, rx=4, op=0)
-c.nos.append(regua)
-c.pisca(regua, t0 + 1.4, t_anda - 0.1, vezes=3)
-pirata = figuras[PERSONAGENS.index("pirata")]
-y = pirata["transform"]["y"]
-balanco = [(t_anda + 0.05 + 0.5 * k, y - (14 if k % 2 else 0), VAIVEM) for k in range(int((t1 - t_anda) / 0.5))]
-c.trilha(pirata, "y", [(t_anda, y, None)] + balanco)
-c.salvar("conceito-3-a-mesma-medida")
+chave = no_chao(c, "Chave", "chave", 640, 760, 0.4)
+c.mostra(chave, t0 + 0.3, pop=True)
+for nome, (x1, y1), t in (("x", (980, 860), t_xz), ("z", (590, 1010), t_xz + 0.5), ("y", (640, 360), t_y)):
+    s = seta(c, f"Seta · {nome}", 640, 860, x1, y1, EIXO[nome])
+    c.mostra(s, t, pop=True)
+    lx, ly = {"x": (1030, 880), "z": (520, 1010), "y": (700, 390)}[nome]
+    c.mostra(rotulo(c, f"Rótulo · {nome}", nome, lx, ly, EIXO[nome]), t + 0.15, pop=True)
+c.salvar("conceito-1-x-y-z")
 
-# 4. Um farol só.
-t0, t1 = voz.trecho("No 2D, o farol tinha duas imagens", "trocar num lugar.")
-c = Cena("Conceito · Um farol só", t0, t1, BASE, BLOCOS, SAIDA)
-t_aqui = voz.palavra("Aqui, cada farol", t0)
-t_todos = voz.palavra("todos sabem acender", t_aqui)
-c.ideia("No 2D, duas imagens", t0 + 0.05, t_aqui - 0.1, None)
-c.ideia("No 3D, um modelo só", t_aqui - 0.05, t1, None)
-for k, (arq, x) in enumerate((("farol-listrado", 420), ("farol-listrado-aceso", 860))):
-    quadro = c.rect(f"Imagem 2D · {k + 1}", x - 170, 330, 340, 560, BRANCO, rx=24, stroke="#C9D6E8", sw=6, op=0)
-    c.nos.append(quadro)
-    c.mostra(quadro, t0 + 0.3 + 0.5 * k, t_aqui, pop=True)
-    f = no_chao(c, f"Farol 2D · {k + 1}", arq, x, 850, 0.46)
-    c.mostra(f, t0 + 0.4 + 0.5 * k, t_aqui, pop=True)
-for k, nome in enumerate(FAROIS):
-    x = 230 + k * 330
-    apagado = no_chao(c, f"Farol 3D · {nome}", nome, x, 940, 0.52)
-    c.mostra(apagado, t_aqui + 0.1 + 0.15 * k, t_todos + 0.6, pop=True)
-    aceso = no_chao(c, f"Farol 3D aceso · {nome}", f"{nome}-aceso", x, 940, 0.52)
-    c.mostra(aceso, t_todos + 0.3)
-c.salvar("conceito-4-um-farol-so")
+# 2. Ver não basta.
+t0, t1 = voz.trecho("Ver a chave não basta", "não alcança.")
+c = Cena("Conceito · Ver não basta", t0, t1, BASE, BLOCOS, SAIDA)
+t_alta = voz.palavra("alta demais", t0)
+t_agua = voz.palavra("do outro lado da água", t_alta)
+t_nao = voz.palavra("o personagem não alcança", t_agua)
+c.ideia("Ver não basta", t0 + 0.05, t1, None)
+# Alta demais: o personagem embaixo, a chave lá em cima.
+chao1 = c.rect("Chão · alta", 140, 860, 520, 60, AREIA, rx=20, stroke=AREIA_BORDA, sw=6, op=0)
+c.nos.append(chao1)
+c.mostra(chao1, t0 + 0.2)
+heroi1 = no_chao(c, "Personagem · alta", "aventureiro-parado", 400, 870, 0.42)
+c.mostra(heroi1, t0 + 0.3, pop=True)
+alta = no_chao(c, "Chave · alta", "chave", 400, 380, 0.3)
+c.mostra(alta, t_alta, pop=True)
+c.mostra(proibido(c, "Não alcança · alta", 400, 480), t_nao, pop=True)
+# Do outro lado da água.
+chao2 = c.rect("Chão · deste lado", 780, 860, 260, 60, AREIA, rx=20, stroke=AREIA_BORDA, sw=6, op=0)
+agua = c.rect("Água", 1040, 870, 200, 50, AGUA, rx=14, op=0)
+chao3 = c.rect("Chão · do outro lado", 1240, 860, 220, 60, AREIA, rx=20, stroke=AREIA_BORDA, sw=6, op=0)
+c.nos += [chao2, agua, chao3]
+for no in (chao2, agua, chao3):
+    c.mostra(no, t_agua - 0.3)
+heroi2 = no_chao(c, "Personagem · água", "aventureiro-parado", 900, 870, 0.42)
+c.mostra(heroi2, t_agua - 0.2, pop=True)
+outro = no_chao(c, "Chave · do outro lado", "chave", 1350, 860, 0.3)
+c.mostra(outro, t_agua, pop=True)
+c.mostra(proibido(c, "Não alcança · água", 1140, 760), t_nao + 0.2, pop=True)
+c.salvar("conceito-2-ver-nao-basta")
 
-# 5. A ilha inteira.
-t0 = voz.palavra("é a ilha inteira")
-t1 = voz.fim("e o céu.", t0)
-c = Cena("Conceito · A ilha inteira", t0, t1, BASE, BLOCOS, SAIDA)
-c.ideia("O cenário é a ilha inteira", t0 + 0.05, t1, None)
-ilha = no_chao(c, "Cenário · praia tropical", "cenario-praia-tropical", 700, 1010, 2.6)
-c.mostra(ilha, t0 + 0.1, pop=True)
-partes = [("o mar", "mar", 260, 820), ("o chão", "chão", 640, 760), ("a ponte", "ponte", 930, 700),
-          ("as árvores", "árvores", 520, 560), ("e o céu", "céu", 1150, 330)]
-depois = t0
-for fala, rotulo, x, y in partes:
+# 3. Um número de cada vez.
+t0, t1 = voz.trecho("Se não conseguir pegar", "teste novamente.")
+c = Cena("Conceito · Um número de cada vez", t0, t1, BASE, BLOCOS, SAIDA)
+t_um = voz.palavra("mude um número de cada vez", t0)
+t_teste = voz.palavra("e teste novamente", t_um)
+c.ideia("Um número de cada vez", t0 + 0.05, t1, None)
+caixas = []
+for k, (nome, antes, depois) in enumerate((("x", "−8", "−7"), ("y", "1", "1"), ("z", "3", "2"))):
+    x = 300 + k * 360
+    c.mostra(rotulo(c, f"Nome · {nome}", nome, x, 470, EIXO[nome], tam=72), t0 + 0.2 + 0.15 * k, pop=True)
+    a = c.caixa(f"Número · {nome}", antes, BRANCO, TINTA, x, 600, 220, tam=64)
+    # O x sai quando muda (o novo entra no lugar); os outros ficam.
+    c.mostra(a, t0 + 0.3 + 0.15 * k, t_um + 0.2 if k == 0 else None, pop=True)
+    caixas.append((x, a, depois))
+# Só o x muda; o jogo roda; o z espera a vez dele.
+x0, a0, depois0 = caixas[0]
+novo = c.caixa("Número · x novo", depois0, AMARELO, TINTA, x0, 600, 220, tam=64)
+c.mostra(novo, t_um + 0.1, pop=True)
+roda = c.grupo("Rodar", x0, 800, [c.rect("botão", -110, -50, 220, 100, "#1F6FD1", rx=50),
+                                  c.poly("triângulo", [(-24, -26), (30, 0), (-24, 26)], BRANCO)], op=0)
+c.nos.append(roda)
+c.mostra(roda, t_teste, pop=True)
+espera = c.caixa("Depois · z", "depois", BRANCO, TINTA, caixas[2][0], 760, 220, tam=40)
+c.mostra(espera, t_teste + 0.3, pop=True)
+c.salvar("conceito-3-um-numero-de-cada-vez")
+
+# 4. O papel de cada aviso.
+t0 = voz.palavra("Se quiser, escreva também")
+t1 = voz.fim("Vitória.", t0)
+c = Cena("Conceito · O papel de cada aviso", t0, t1, BASE, BLOCOS, SAIDA)
+t_papel = voz.palavra("Só conserve o papel", t0)
+c.ideia("Os seus avisos", t0 + 0.05, t_papel - 0.1, None)
+c.ideia("Cada um com o seu papel", t_papel - 0.05, t1, None)
+avisos = [("Começo", "Começo", "Encontre a chave e leve o personagem até o farol."),
+          ("Chave pega", "Chave pega", "Você pegou a chave! Agora vá ao farol."),
+          ("Falta chave", "Falta a chave", "Falta a chave. Procure na ilha antes de voltar."),
+          ("Vitória", "Vitória", "Você acendeu o farol! O barco pode chegar.")]
+depois = t_papel
+for k, (fala, papel, texto) in enumerate(avisos):
+    y = 330 + k * 170
     t = voz.palavra(fala, depois)
     depois = t
-    marca = c.caixa(f"Parte · {rotulo}", rotulo, AMARELO, TINTA, x, y, 220, tam=44)
-    c.mostra(marca, t, pop=True)
-c.salvar("conceito-5-a-ilha-inteira")
+    c.mostra(faixa(c, f"Aviso · {papel}", texto, 900, y), t0 + 0.3 + 0.4 * k, pop=True)
+    c.mostra(c.caixa(f"Papel · {papel}", papel, AMARELO, TINTA, 300, y, 300, tam=40), t, pop=True)
+c.salvar("conceito-4-o-papel-de-cada-aviso")
+
+# 5. Jogo completo.
+t0, t1 = voz.trecho("Pronto, o seu jogo", "está completo!")
+c = Cena("Conceito · Jogo completo", t0, t1, BASE, BLOCOS, SAIDA)
+c.ideia("Seu jogo está completo!", t0 + 0.05, t1, None)
+chao(c, t0 + 0.05)
+farol = no_chao(c, "Farol aceso", "farol-listrado-aceso", 900, 900, 0.62)
+c.mostra(farol, t0 + 0.1, pop=True)
+barco = no_chao(c, "Barco", "barco-veleiro", 220, 880, 0.34)
+c.mostra(barco, t0 + 0.2)
+mover(c, barco, "barco-veleiro", t0 + 0.2, (180, 880, 0.34), t1, (420, 880, 0.34), SUAVE)
+for k, (x, y) in enumerate(((560, 420), (1240, 520), (360, 640), (1180, 860))):
+    c.mostra(estrela(c, f"Estrela · {k + 1}", x, y, 40), t0 + 0.3 + 0.15 * k, pop=True)
+c.salvar("conceito-5-jogo-completo")
