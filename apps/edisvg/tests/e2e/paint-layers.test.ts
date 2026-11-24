@@ -264,7 +264,8 @@ test("the inspector adds, edits, hides and removes extra paint layers", {
     await page.getByRole("button", { name: "Remover preenchimento extra 1" }).click();
     await page.getByRole("button", { name: "Remover contorno extra 1" }).click();
     assert.equal((await saved())?.paintLayers, undefined);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await saved())?.paintLayers?.length, 1);
   } finally {
     await browser.close();
@@ -349,7 +350,8 @@ test("a stroke row's options set its ends and its own trim, which goes with the 
     let board = await saved();
     assert.equal(board?.scene.nodes[0]?.paintLayers, undefined);
     assert.equal(board?.rig?.trims?.length ?? 0, 0, "the layer's trim goes with it");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     board = await saved();
     assert.equal(board?.rig?.trims?.[0]?.layerId, "paint-hand");
     assert.equal(board?.scene.nodes[0]?.paintLayers?.length, 1);

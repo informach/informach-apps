@@ -2,6 +2,7 @@ import {
   emptyMotion,
   identityTransform,
   type Motion,
+  onUnitOpacityScale,
   parseMotion,
   type Transform,
 } from "@informach/edi-motion";
@@ -34,7 +35,12 @@ import { flattenScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
 import { compiledVertexRig, parseVertexClips, type VertexClip } from "./vertexKeys";
 
-export const PROJECT_VERSION = 27;
+/**
+ * v28 changes no field: it marks that opacity tracks are 0–100. A v27 project may hold opacity
+ * tracks the assistant wrote on 0–1 (the `keys` example once showed it), and those are scaled
+ * when the v27 file is opened (`percentOpacity`).
+ */
+export const PROJECT_VERSION = 28;
 const presetSchema = z.enum(["Parado", "Acenar", "Pular"]);
 type Preset = z.infer<typeof presetSchema>;
 const modeSchema = z.enum(["loop", "ping-pong", "once"]);
@@ -117,6 +123,7 @@ const currentSchema = previousSchema.omit({ version: true, scene: true }).extend
     z.literal(24),
     z.literal(25),
     z.literal(26),
+    z.literal(27),
     z.literal(PROJECT_VERSION),
   ]),
   artboards: z.array(artboardSchema).max(100),
@@ -192,6 +199,7 @@ export function parseProject(input: unknown): Project {
       24,
       25,
       26,
+      27,
       PROJECT_VERSION,
     ].includes(header.data.version)
   )
@@ -328,6 +336,7 @@ export function parseProject(input: unknown): Project {
   );
   if (ids.size > 2000) throw new Error("Orçamento agregado de objetos excedido.");
   const motion = parseMotion(value.motion ?? emptyMotion(), ids);
+  if (header.data.version === 27) percentOpacity(motion);
   if (header.data.version < 23 && motion.animations.some((clip) => clip.drawOrders))
     throw new Error("Ordem de desenho animável requer projeto v23.");
   if ("artboards" in value)
@@ -489,6 +498,17 @@ export function parseProject(input: unknown): Project {
     throw new Error("Orçamento agregado de canais/chaves excedido.");
   validateComponentGraph(project);
   return project;
+}
+
+/**
+ * The v27 → v28 step: an opacity track whose every key is within 0–1 (and not all 0) was written
+ * on the 0–1 scale, and is scaled to 0–100 so it shows as it was meant to. Tracks on 0–100 stay.
+ */
+function percentOpacity(motion: Motion): void {
+  for (const clip of motion.animations)
+    for (const track of clip.tracks)
+      if (track.property === "opacity" && onUnitOpacityScale(track.keys.map((key) => key.value)))
+        for (const key of track.keys) key.value *= 100;
 }
 
 export function newProject(): Project {

@@ -187,6 +187,10 @@ const stubDeps = (
     }),
     addArtboards: () => [],
     embedFonts: async () => [],
+    partStart: () => null,
+    undoPart: () => undefined,
+    runPlace: () => ({ projectId: "project-x", artboardId: "artboard-x", clipId: "animation-x" }),
+    resumeRun: () => true,
     ...editor,
   },
   bridge: {
@@ -351,8 +355,7 @@ test("while the assistant drafts, the step says what it is doing; a turn ended b
   assert.equal(cut.outcome.ok, false);
   assert.deepEqual(cut.states.at(-1), {
     status: "failed",
-    message:
-      "A IA demorou demais para responder. As 4 alterações feitas até ali ficaram no projeto.",
+    message: "A IA demorou demais para responder. As 4 alterações feitas até ali foram desfeitas.",
   });
 });
 
@@ -902,6 +905,10 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
           return { text: "", stopped: false, edits: 1 };
         },
         stopAssistant: () => undefined,
+        partStart: () => null,
+        undoPart: () => undefined,
+        runPlace: () => ({ projectId: "project-x", artboardId: null, clipId: null }),
+        resumeRun: () => true,
         beginRun: () => undefined,
         assistantBusy: () => false,
         endRun: () => undefined,

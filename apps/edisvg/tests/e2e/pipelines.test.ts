@@ -172,6 +172,14 @@ const fakeDesktop = (project: string) => `
         window.__guides[id] = bytes.slice();
         return { id, name };
       },
+      // Where a run stopped, by project (main/pipelineRuns.ts).
+      pipelineRunSave: async (projectId, record) => {
+        window.__runs = { ...(window.__runs ?? {}), [projectId]: record };
+      },
+      pipelineRunLoad: async (projectId) => window.__runs?.[projectId] ?? null,
+      pipelineRunClear: async (projectId) => {
+        if (window.__runs) delete window.__runs[projectId];
+      },
       pipelineGuideStyle: async (id) => window.__guideStyles?.[id] ?? null,
       pipelineGuideStyleSave: async (id, style) => {
         window.__guideStyles = { ...(window.__guideStyles ?? {}), [id]: style };
@@ -371,12 +379,14 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press("Control+d");
     assert.notEqual(await page.evaluate(() => localStorage.getItem("edisvg-project")), afterRun);
-    await page.locator('[data-action="undo"]').first().click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), afterRun);
     await page.locator(".narration-bar").waitFor({ timeout: 2_000 });
     assert.equal(await page.locator("audio[data-narration]").count(), 1);
     // The whole run, stopped or not, is one undo step.
-    await page.locator('[data-action="undo"]').first().click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), beforeRun);
     assert.deepEqual(errors, []);
   } finally {
@@ -570,9 +580,11 @@ test("pipelines: the screen demonstration gets its layer artboard, the video und
     await reopened.close();
 
     // Each run is one undo step.
-    await page.locator('[data-action="undo"]').first().click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), afterFirst);
-    await page.locator('[data-action="undo"]').first().click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), beforeRun);
     assert.deepEqual(errors, []);
   } finally {
@@ -1008,14 +1020,38 @@ test("pipelines: a theory lesson sets the presenter's stage at each shot and sho
             const answer = request.prompt.includes('"posicoes"')
               ? '{"posicoes": ["close-right", "medium-left"]}'
               : "";
-            setTimeout(() => {
+            const part = /a parte ([0-9]+) de/.exec(request.prompt)?.[1];
+            setTimeout(async () => {
               if (answer) window.__assistantEvent({ type: "text", text: answer });
+              // Drawing (once told to): each part adds a square of its own colour and animates
+              // it with the short keys command; the part in __failPart then runs out of time.
+              if (part && window.__drawing) try {
+                const look = async () =>
+                  JSON.parse((await window.__tool({ name: "get_overview", input: {} })).text);
+                const edit = async (o, commands) => {
+                  const done = await window.__tool({
+                    name: "edit_document",
+                    input: { projectId: o.projectId, sessionId: o.sessionId, revision: o.revision, artboardId: o.activeArtboardId, commands },
+                  });
+                  if (!done.ok) throw new Error(done.text);
+                };
+                const fill = "#" + part.repeat(6);
+                let o = await look();
+                await edit(o, [{ type: "scene", targetId: null, operation: "add", value: { tag: "rect", attrs: { x: "0", y: "0", width: "10", height: "10", fill } } }]);
+                o = await look();
+                // A new shape is the selected object.
+                await edit(o, [{ type: "motion", command: { type: "keys", animationId: o.activeClipId, targetId: o.selected, tracks: { opacity: [[0, 0], [12, 1, "ease-out"]] } } }]);
+                if (window.__failPart === part)
+                  window.__assistantEvent({ type: "error", text: "A IA demorou demais para responder." });
+              } catch (error) {
+                window.__drawError = String(error?.message ?? error);
+              }
               window.__assistantEvent({ type: "done" });
             }, 0);
             return { started: true };
           },
           onAssistantEvent: (callback) => { window.__assistantEvent = callback; return () => {}; },
-          handleAiTools: () => () => undefined,
+          handleAiTools: (handler) => { window.__tool = handler; return () => {}; },
           onCommand: () => () => undefined,
         };
       })();`);
@@ -1064,7 +1100,7 @@ test("pipelines: a theory lesson sets the presenter's stage at each shot and sho
     assert.ok(said.includes("do vídeo: Médio à esquerda (x 0.229, y 0.9, escala 1.8)"), said);
     assert.match(
       said,
-      /Pedir o rascunho da animação ao assistenteFalhou: O assistente não alterou/,
+      /Pedir o rascunho da animação ao assistenteFalhou: Parte 1 de 3 · Fundo: O assistente não alterou/,
     );
     assert.deepEqual(await page.evaluate("window.__heard"), ["file-video-00001", "video"]);
     const [, from, seconds] = (await page.evaluate("window.__presenter")) as number[];
@@ -1149,6 +1185,55 @@ test("pipelines: a theory lesson sets the presenter's stage at each shot and sho
       slotId: slot.id,
       mediaType: "video/webm",
     });
+
+    // Continuar de onde parou: the steps done are not run again, only the draft's parts are
+    // asked. The second part runs out of time: its square goes away, the first part's stays.
+    const framings = () =>
+      page.evaluate(() =>
+        (window as never as { __sent: string[] }).__sent.filter((p) => p.includes('"posicoes"')),
+      );
+    assert.equal((await framings()).length, 1);
+    assert.match(said, /parou em: Pedir o rascunho da animação ao assistente \(parte 1 de 3\)/);
+    await page.evaluate(() => {
+      Object.assign(window, { __drawing: true, __failPart: "2", __sent: [] });
+    });
+    await dialog.getByRole("button", { name: "Continuar de onde parou" }).click();
+    await dialog.getByText(/Falhou: Parte 2 de 3/).waitFor();
+    const stoppedAgain = (await dialog.textContent()) ?? "";
+    assert.match(
+      stoppedAgain,
+      /Falhou: Parte 2 de 3 · Corte 1: A IA demorou demais para responder\. As 2 alterações feitas nesta parte foram desfeitas\./,
+      stoppedAgain,
+    );
+    assert.match(stoppedAgain, /\(parte 2 de 3\)/);
+    assert.equal((await framings()).length, 0);
+    const squares = async () => {
+      const kept = parseProject(
+        JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+      );
+      const nodes = kept.artboards.at(-1)?.scene.nodes ?? [];
+      const clip = kept.motion.animations.at(-1);
+      return ["#111111", "#222222", "#333333"].filter((fill) => {
+        const node = nodes.find((n) => n.attrs.fill === fill);
+        return node && clip?.tracks.some((t) => t.targetId === node.id && t.property === "opacity");
+      });
+    };
+    assert.deepEqual(await squares(), ["#111111"]);
+    // Again: parts 2 and 3 only, and the run is done (nothing left to continue).
+    await page.evaluate(() => {
+      Object.assign(window, { __failPart: null, __sent: [] });
+    });
+    await dialog.getByRole("button", { name: "Continuar de onde parou" }).click();
+    await dialog.getByText("Pipeline concluído.").waitFor();
+    const parts = (await page.evaluate("window.__sent")) as string[];
+    assert.deepEqual(
+      parts.map((p) => /a parte (\d+) de 3/.exec(p)?.[1]),
+      ["2", "3"],
+    );
+    assert.deepEqual(await squares(), ["#111111", "#222222", "#333333"]);
+    assert.equal(await dialog.getByRole("button", { name: "Continuar de onde parou" }).count(), 0);
+    assert.deepEqual(await page.evaluate("window.__runs"), {});
+    assert.equal(await page.evaluate("window.__drawError"), undefined);
 
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
     // She shows over the artwork in her spot: close on the right in the first shot…

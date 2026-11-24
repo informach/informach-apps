@@ -152,11 +152,13 @@ test("built semantic inspector authors metadata transactionally and preserves un
     await page.waitForFunction(() =>
       localStorage.getItem("edisvg-project")?.includes("Cumprimentar"),
     );
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     await page.waitForFunction(() =>
       localStorage.getItem("edisvg-project")?.includes("Acenar para você"),
     );
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.reload();
     await page.waitForFunction(() =>
       localStorage.getItem("edisvg-project")?.includes("Cumprimentar"),

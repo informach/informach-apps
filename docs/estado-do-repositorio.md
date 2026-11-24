@@ -644,6 +644,31 @@ Verificação:
 - o `edi:work` esperando as outras janelas;
 - o app instalado (atualização com várias janelas).
 
+Ainda em 20/11, o titular relatou etapas do pipeline falhando por tempo. As conversas do Claude Code em `~/.claude/projects/…edisvg-ai-workspace` mostraram o motivo: a etapa do rascunho era uma conversa só, de 25 a 40 minutos para um prazo de 40, com 300–440 mil tokens de contexto e US$ 9–11 por execução. Numa execução, 862 mil caracteres foram escritos em `edit_document`, 555 mil deles em 2.200 comandos `set-key`, um por chave. Também foram cortadas pelo prazo de 10 minutos cinco mensagens do painel em 19/11. Detalhes no [README](../apps/edisvg/README.md), em "O rascunho pelo assistente".
+- **Comando `keys` (`@informach/edi-motion`):** grava todas as trilhas de um objeto num só comando, com tuplas `[quadro, valor, curva?]` e curvas pelo nome. O guia do editor e o pedido do pipeline mandam usá-lo.
+- **Rascunho em partes:** cada parte é uma conversa nova. A aula teórica faz o fundo e depois um corte por vez; as outras receitas vão de 6 em 6 frases. Uma parte que falha é desfeita, e as anteriores ficam.
+- **Continuar de onde parou:** o progresso de etapas e partes fica na memória da janela e, sem mídia, em `pipeline-runs/<projeto>.json`. Depois de reabrir o EdiSVG, só dá para continuar se a parada foi no rascunho.
+- **Limites:** o pedido do pipeline acima de 32 mil caracteres para com aviso, em vez de perder o começo. A mensagem do painel passou de 10 para 20 minutos, e a chamada de ferramenta de 15 s para 1 minuto, com aviso de conferir antes de repetir.
+
+Verificação:
+- **Testes:** os 426 testes do EdiSVG, com as partes, a falha na parte 3 seguida do continuar, o tamanho do pedido de uma parte e o registro no perfil. Os 194 do `edi-motion`, com o `keys` igual aos `set-key` equivalentes.
+- **Typecheck e build:** typecheck dos dois, Biome, build e os 158 e2e do EdiSVG.
+- **E2e da aula teórica:** continua só as partes; desfaz a parte que estoura o prazo; grava com `keys` pelo editor de verdade; apaga o registro no fim.
+
+**Ainda não testado:** uma aula rodada com o Claude Code de verdade, para medir o tempo de cada parte e comparar o contexto e o resultado com a aula aprovada.
+
+Ainda em 20/11, o titular relatou que um overlay mostrava só o fundo e a apresentadora, sem título, cards nem ícones.
+- **Causa:** o exemplo do `keys` no guia trazia `opacity:[[0,0],[12,1]]`, mas a opacidade vai de 0 a 100. O assistente gravou assim 321 das 453 trilhas de opacidade da "Parte 3" da aula 4, e tudo o que entrava com fade parava em 1%. Os grupos dos cortes também ficavam em 1%.
+- **Correção:**
+  - o guia e o pedido do pipeline agora usam 100 e dizem a escala;
+  - no `keys`, uma trilha de opacidade toda entre 0 e 1 é lida como fração;
+  - o projeto v28 corrige ao abrir, uma vez, os arquivos v27 gravados assim, com o backup `.bak` da migração.
+- **Desenho:** canvas, Testar, HTML/React, vídeo, SVG animado e Lottie já usavam a mesma escala e não mudaram.
+- **Verificação:**
+  - 428 testes do EdiSVG, com `opacityScale.test.ts` (fade pelo `edit_document` termina em 100; migração do v27; v28 e anteriores intactos);
+  - os testes do `edi-motion`, typecheck e Biome;
+  - o arquivo real aberto pelo `parseProject`: nenhuma trilha fica em 0–1, e "Texto Observar" no quadro 60 fica com 100%, contando os pais.
+
 Verificação de 12/11: suíte do EdiAula (1179 testes) e do EdiSVG (380 testes, com `styleGuide.test.ts`), typecheck e Biome dos dois, build do EdiSVG e os e2e do assistente, dos pipelines e do kit de design (7). As peças do kit foram desenhadas num Chromium e comparadas com o guia. **Ainda não testado:** as janelas do EdiAula e do EdiSVG com uma aula real (ouvir no diálogo do cursor, inserir o kit num projeto com as fontes do bundle).
 
 A revisão completa do diff, antes do commit de 09/11, achou 10 problemas, todos corrigidos:

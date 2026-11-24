@@ -124,9 +124,11 @@ test("built image inspector authors slicing and dimensions with undo/redo, persi
     await page.getByLabel("Largura da imagem", { exact: true }).fill("200");
     await page.getByRole("button", { name: "Aplicar dimensões da imagem", exact: true }).click();
     assert.equal(await page.locator(".scene-artwork [data-edi-slice]>svg").count(), 9);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.locator(".scene-artwork [data-edi-slice]").count(), 0);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal(await page.locator(".scene-artwork [data-edi-slice]>svg").count(), 9);
     const stored = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     assert.ok(stored);

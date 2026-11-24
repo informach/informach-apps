@@ -92,7 +92,8 @@ test("Editar vértices no Animar grava chaves de vértices no quadro atual, sem 
 
     await page.locator('[data-action="design"]').click();
     assert.equal(await shape.getAttribute("d"), D, "Design shows the drawn path");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await saved())?.vertexClips?.[0]?.keys.length, 1);
     assert.deepEqual(errors, []);
   } finally {

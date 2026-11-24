@@ -10,6 +10,7 @@ import {
   type Recipe,
   type RecipeKind,
   type RunInputs,
+  runInputsSchema,
   spokenScript,
 } from "../../../shared/pipelines";
 import {
@@ -162,6 +163,19 @@ export interface PipelineEditor {
   beginRun(): void;
   endRun(): void;
   /**
+   * The project as it is before a part of the draft; `undoPart` goes back to it when the part
+   * fails, so trying it again starts clean (the parts done before stay).
+   */
+  partStart(): unknown;
+  undoPart(saved: unknown): void;
+  /** Where the run works: the project, its open artboard and animation. */
+  runPlace(): RunPlace;
+  /**
+   * Opens the artboard and the animation of a run that stopped, to continue it; false when the
+   * project is another or they are gone.
+   */
+  resumeRun(place: RunPlace): boolean;
+  /**
    * Opens an animation as long as the narration (in the open artboard) and plays the narration
    * with it in the preview; returns the animation.
    */
@@ -225,6 +239,36 @@ export interface PipelineBridge {
   onPipelineProgress(callback: (event: { jobId: string; ratio: number }) => void): () => void;
 }
 
+/** The project, artboard and animation a run works in. */
+export interface RunPlace {
+  projectId: string;
+  artboardId: string | null;
+  clipId: string | null;
+}
+
+/**
+ * Where a run stopped, to continue it ("Continuar de onde parou"): the steps done, what they
+ * handed on, the report so far, and the inputs and place of the run. Kept in memory and, without
+ * the media, in the profile (main/pipelineRuns.ts).
+ */
+export interface RunRecord {
+  version: 1;
+  recipeId: string;
+  inputs: RunInputs;
+  place: RunPlace;
+  done: string[];
+  results: Record<string, unknown>;
+  report: string[];
+  savedAt: number;
+}
+
+/** What a run that continues starts with (a RunRecord's progress). */
+export interface RunProgress {
+  done: readonly string[];
+  results: Record<string, unknown>;
+  report: readonly string[];
+}
+
 export interface StepContext {
   recipe: Recipe;
   inputs: RunInputs;
@@ -239,6 +283,8 @@ export interface StepContext {
   results: Record<string, unknown>;
   /** Lines of the final report. */
   report: string[];
+  /** Saves where the run is now (a step's own progress, as the parts of the draft). */
+  checkpoint(): void;
 }
 
 export interface PipelineStep {
@@ -695,7 +741,66 @@ const applyPalettes: PipelineStep = {
   },
 };
 
-/** The draft: the assistant animates the scene, each action in the time of its sentence. */
+/**
+ * A part of the draft: one conversation with the assistant, short and with a small context. A
+ * theory lesson has the background first and then each shot (a long shot in pieces); the other
+ * recipes go by a few sentences at a time.
+ */
+export interface DraftPart {
+  id: string;
+  label: string;
+  /** Sentences (0-based) the part animates; none for the background. */
+  lines: number[];
+  background?: boolean;
+  /** The shot (0-based) of a theory lesson the part is in. */
+  shot?: number;
+}
+
+/** Sentences of a shot in one part, and of a part of the other recipes. */
+export const SHOT_PART_LINES = 8;
+export const DRAFT_PART_LINES = 6;
+
+export function draftParts(
+  count: number,
+  shots?: readonly { lines: readonly number[] }[],
+): DraftPart[] {
+  if (shots?.length) {
+    const parts: DraftPart[] = [{ id: "fundo", label: "Fundo", lines: [], background: true }];
+    shots.forEach((shot, i) => {
+      const split = shot.lines.length > SHOT_PART_LINES;
+      for (let at = 0; at < shot.lines.length; at += SHOT_PART_LINES) {
+        const lines = shot.lines.slice(at, at + SHOT_PART_LINES);
+        const first = (lines[0] ?? 0) + 1;
+        const last = (lines.at(-1) ?? 0) + 1;
+        parts.push({
+          id: split ? `corte-${i + 1}-${at / SHOT_PART_LINES + 1}` : `corte-${i + 1}`,
+          label: split ? `Corte ${i + 1} (frases ${first}–${last})` : `Corte ${i + 1}`,
+          lines,
+          shot: i,
+        });
+      }
+    });
+    return parts;
+  }
+  const parts: DraftPart[] = [];
+  for (let at = 0; at < count; at += DRAFT_PART_LINES) {
+    const lines = Array.from({ length: Math.min(DRAFT_PART_LINES, count - at) }, (_, k) => at + k);
+    const first = at + 1;
+    const last = at + lines.length;
+    parts.push({
+      id: `frases-${first}-${last}`,
+      label: first === last ? `Frase ${first}` : `Frases ${first}–${last}`,
+      lines,
+    });
+  }
+  return parts;
+}
+
+/**
+ * The draft: the assistant animates the scene, each action in the time of its sentence, one part
+ * at a time (each a new conversation). A part that fails is undone; the parts done stay, and
+ * "Continuar de onde parou" asks only for the rest.
+ */
 const draftWithAssistant: PipelineStep = {
   id: "draft",
   label: "Pedir o rascunho da animação ao assistente",
@@ -716,106 +821,162 @@ const draftWithAssistant: PipelineStep = {
       const picture = await ctx.bridge.pipelineGuideRead(ctx.inputs.guideImage.id);
       guide = await guideParts(picture, video ? IMAGE_LIMIT - 2 : IMAGE_LIMIT);
     }
-    let frames: { mediaType: string; data: string; name: string }[] = [];
-    let demo: Parameters<typeof draftRequest>[0]["demo"];
-    if (video) {
-      // Up to four frames (two with a guide), a moment into the first sentences, to look at.
-      const pickedLines = piece.lines.slice(0, IMAGE_LIMIT - guide.length);
-      const times = pickedLines.map((l) =>
-        Math.max(0, Math.min(video.duration - 0.1, l.start - piece.start + 0.3)),
-      );
-      if (times.length) {
-        ctx.progress(0.02, "Tirando quadros do vídeo");
-        const taken = await job(ctx, (jobId) =>
-          ctx.bridge.pipelineVideoFrames(video.token, times, jobId),
-        );
-        frames = taken.map((frame, i) => ({ ...frame, name: `Quadro ${i + 1} do vídeo` }));
-      }
-      demo = {
-        video: { name: video.name, width: video.facts.width, height: video.facts.height },
-        clicks:
-          video.facts.clicks
-            ?.filter((c) => c.t <= video.duration)
-            .map((c) => ({ frame: Math.round((c.t + video.offset) * clip.fps), x: c.x, y: c.y })) ??
-          null,
-        elements: (ctx.results.elements as DraftBoard[] | undefined) ?? [],
-        attached: pickedLines.map((l, i) => ({
-          frame: Math.round(((times[i] ?? 0) + video.offset) * clip.fps),
-          text: l.text,
-        })),
-      };
-    }
     // A theory lesson: the presenter's spot and where she stands in each shot.
-    const presenter = ctx.results.presenter as Presenter | undefined;
+    const presenter = ctx.results.presenter as Pick<Presenter, "name"> | undefined;
     const shots = ctx.results.shots as Shot[] | undefined;
     const stage = ctx.results.stage as PresenterStage | undefined;
-    const request = draftRequest({
-      recipe: ctx.recipe,
-      artboard: ctx.editor.activeArtboard(),
-      clip: { id: clip.clipId, fps: clip.fps, frames: clip.frames },
-      lines: piece.lines.map((l) => ({ text: l.text, from: frame(l.start), to: frame(l.end) })),
-      images: (ctx.results.images as DraftBoard[] | undefined) ?? [],
-      textPalette: runStyle(ctx).textPalette,
-      fonts: (ctx.results.fonts as DraftFonts | undefined) ?? null,
-      imagePalette: (ctx.results.imagePalette as string[] | undefined) ?? [],
-      kit: ctx.editor.designKit(),
-      // The recipe's guide picture stands for the guide chosen in the assistant panel.
-      guide: guide.length ? null : ctx.editor.styleGuide(),
-      guideParts: guide.length,
-      lessonStart,
-      ...(demo ? { demo } : {}),
-      ...(presenter && shots && stage
-        ? {
-            presenter: {
-              ...stage,
-              video: presenter.name,
-              shots: shots.map((shot) => {
-                const placement = placementOf(shot.placement);
-                return {
-                  from: shot.from,
-                  to: shot.to,
-                  placement: placement.label,
-                  side: placement.side,
-                  lines: shot.lines,
-                  column: contentColumn(placement.side),
-                };
-              }),
-            },
+    const lecture = presenter && shots && stage ? { presenter, shots, stage } : null;
+    const parts = draftParts(piece.lines.length, lecture?.shots);
+    const done = new Set((ctx.results.draftDone as string[] | undefined) ?? []);
+    ctx.results.draftTotal = parts.length;
+    ctx.checkpoint();
+    const lines = piece.lines.map((l) => ({
+      text: l.text,
+      from: frame(l.start),
+      to: frame(l.end),
+    }));
+    const artboard = ctx.editor.activeArtboard();
+    for (const [index, part] of parts.entries()) {
+      if (done.has(part.id)) continue;
+      const many = parts.length > 1;
+      const where = many ? `Parte ${index + 1} de ${parts.length} · ${part.label}` : "";
+      const say = (detail: string) =>
+        many ? ctx.progress(index / parts.length, `${where} · ${detail}`) : ctx.status(detail);
+      let frames: { mediaType: string; data: string; name: string }[] = [];
+      let demo: Parameters<typeof draftRequest>[0]["demo"];
+      if (video) {
+        // Up to four frames (two with a guide), a moment into the part's first sentences.
+        const pickedLines = part.lines
+          .slice(0, IMAGE_LIMIT - guide.length)
+          .flatMap((i) => (piece.lines[i] ? [piece.lines[i]] : []));
+        const times = pickedLines.map((l) =>
+          Math.max(0, Math.min(video.duration - 0.1, l.start - piece.start + 0.3)),
+        );
+        if (times.length) {
+          say("Tirando quadros do vídeo");
+          try {
+            const taken = await job(ctx, (jobId) =>
+              ctx.bridge.pipelineVideoFrames(video.token, times, jobId),
+            );
+            frames = taken.map((f, i) => ({ ...f, name: `Quadro ${i + 1} do vídeo` }));
+          } catch (error) {
+            // A run continued after EdiSVG was reopened: its video is not open any more, and the
+            // assistant goes on without frames (the clicks still say where she works).
+            if (!ctx.results.restored || ctx.signal.aborted) throw error;
           }
-        : {}),
-    });
-    // Cancelar while the frames were taken: the assistant is never asked.
-    ctx.signal.throwIfAborted();
-    const stop = () => ctx.editor.stopAssistant();
-    ctx.signal.addEventListener("abort", stop, { once: true });
-    try {
-      // How far the assistant is cannot be known: the line says what it is doing and for how long.
-      ctx.status("O assistente está animando");
-      const turn = await ctx.editor.askAssistant(
-        request,
-        `Pipeline "${ctx.recipe.name}": montar o rascunho da animação (${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}, tempos e imagens enviados${guide.length ? ", com o guia de estilo" : ""}).`,
-        [...guide, ...frames],
-        (activity) => ctx.status(assistantLine(activity)),
-      );
+        }
+        demo = {
+          video: { name: video.name, width: video.facts.width, height: video.facts.height },
+          clicks:
+            video.facts.clicks
+              ?.filter((c) => c.t <= video.duration)
+              .map((c) => ({
+                frame: Math.round((c.t + video.offset) * clip.fps),
+                x: c.x,
+                y: c.y,
+              })) ?? null,
+          elements: (ctx.results.elements as DraftBoard[] | undefined) ?? [],
+          attached: frames.length
+            ? pickedLines.map((l, i) => ({
+                frame: Math.round(((times[i] ?? 0) + video.offset) * clip.fps),
+                text: l.text,
+              }))
+            : [],
+        };
+      }
+      const request = draftRequest({
+        recipe: ctx.recipe,
+        artboard,
+        clip: { id: clip.clipId, fps: clip.fps, frames: clip.frames },
+        lines,
+        images: (ctx.results.images as DraftBoard[] | undefined) ?? [],
+        textPalette: runStyle(ctx).textPalette,
+        fonts: (ctx.results.fonts as DraftFonts | undefined) ?? null,
+        imagePalette: (ctx.results.imagePalette as string[] | undefined) ?? [],
+        kit: ctx.editor.designKit(),
+        // The recipe's guide picture stands for the guide chosen in the assistant panel.
+        guide: guide.length ? null : ctx.editor.styleGuide(),
+        guideParts: guide.length,
+        lessonStart,
+        ...(demo ? { demo } : {}),
+        ...(lecture
+          ? {
+              presenter: {
+                ...lecture.stage,
+                video: lecture.presenter.name,
+                shots: lecture.shots.map((shot) => {
+                  const placement = placementOf(shot.placement);
+                  return {
+                    from: shot.from,
+                    to: shot.to,
+                    placement: placement.label,
+                    side: placement.side,
+                    lines: shot.lines,
+                    column: contentColumn(placement.side),
+                  };
+                }),
+              },
+            }
+          : {}),
+        ...(many
+          ? {
+              part: {
+                ...part,
+                index,
+                total: parts.length,
+                done: parts.filter((p) => done.has(p.id)).map((p) => p.label),
+              },
+            }
+          : {}),
+      });
+      // Cancelar while the frames were taken: the assistant is never asked.
       ctx.signal.throwIfAborted();
-      if (turn.stopped) throw new Error("O assistente foi interrompido antes de terminar.");
-      // Ended by a time limit or a failing client: what it did so far is not a finished draft.
-      if (turn.error)
-        throw new Error(
-          turn.edits
-            ? `${turn.error} As ${turn.edits === 1 ? "1 alteração feita" : `${turn.edits} alterações feitas`} até ali ficaram no projeto.`
-            : turn.error,
+      const before = ctx.editor.partStart();
+      const stop = () => ctx.editor.stopAssistant();
+      ctx.signal.addEventListener("abort", stop, { once: true });
+      try {
+        // How far the assistant is cannot be known: the line says what it is doing and for how long.
+        say("O assistente está animando");
+        const about = many
+          ? `${part.label}, parte ${index + 1} de ${parts.length}`
+          : `${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}`;
+        const turn = await ctx.editor.askAssistant(
+          request,
+          `Pipeline "${ctx.recipe.name}": montar o rascunho da animação (${about}, tempos e imagens enviados${guide.length ? ", com o guia de estilo" : ""}).`,
+          [...guide, ...frames],
+          (activity) => say(assistantLine(activity)),
         );
-      if (!turn.edits)
-        throw new Error(
-          `O assistente não alterou o projeto${turn.text.trim() ? `: ${turn.text.trim().slice(0, 300)}` : "."} Veja o painel Assistente.`,
+        ctx.signal.throwIfAborted();
+        if (turn.stopped) throw new Error("O assistente foi interrompido antes de terminar.");
+        // Ended by a time limit or a failing client: what it did so far is not a finished part.
+        if (turn.error)
+          throw new Error(
+            turn.edits
+              ? `${turn.error} ${turn.edits === 1 ? "A alteração feita" : `As ${turn.edits} alterações feitas`} ${many ? "nesta parte" : "até ali"} ${turn.edits === 1 ? "foi desfeita" : "foram desfeitas"}.`
+              : turn.error,
+          );
+        if (!turn.edits)
+          throw new Error(
+            `O assistente não alterou o projeto${turn.text.trim() ? `: ${turn.text.trim().slice(0, 300)}` : "."} Veja o painel Assistente.`,
+          );
+        ctx.report.push(
+          `${many ? `${part.label}: o` : "O"} assistente fez ${turn.edits} ${turn.edits === 1 ? "alteração" : "alterações"} no rascunho.`,
         );
-      ctx.report.push(
-        `O assistente fez ${turn.edits} ${turn.edits === 1 ? "alteração" : "alterações"} no rascunho.`,
-      );
-      if (turn.text.trim()) ctx.report.push(turn.text.trim().slice(0, 2000));
-    } finally {
-      ctx.signal.removeEventListener("abort", stop);
+        if (turn.text.trim()) ctx.report.push(turn.text.trim().slice(0, many ? 1200 : 2000));
+      } catch (error) {
+        try {
+          ctx.editor.undoPart(before);
+        } catch {
+          // Another file was opened meanwhile: nothing of the run is on it to undo.
+        }
+        if (!many || ctx.signal.aborted) throw error;
+        throw new Error(`${where}: ${failureText(error)}`);
+      } finally {
+        ctx.signal.removeEventListener("abort", stop);
+      }
+      done.add(part.id);
+      ctx.results.draftDone = parts.filter((p) => done.has(p.id)).map((p) => p.id);
+      ctx.checkpoint();
     }
   },
 };
@@ -915,23 +1076,100 @@ export function failureText(error: unknown): string {
   );
 }
 
+/** The record as kept in the profile: JSON, without media (the presenter's preview). */
+export function recordForDisk(record: RunRecord): RunRecord {
+  return JSON.parse(
+    JSON.stringify(record, (_key, value: unknown) =>
+      value instanceof Uint8Array ? undefined : value,
+    ),
+  );
+}
+
+/**
+ * A record read back from the profile, for `recipe`. It continues only at the draft: the steps
+ * before it work with media and picked files that a reopened EdiSVG no longer has. Null when it
+ * cannot be continued.
+ */
+export function restoredRecord(value: unknown, recipe: Recipe): RunRecord | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Partial<RunRecord>;
+  const place = record.place;
+  if (
+    record.version !== 1 ||
+    record.recipeId !== recipe.id ||
+    !Array.isArray(record.done) ||
+    !Array.isArray(record.report) ||
+    typeof record.results !== "object" ||
+    record.results === null ||
+    typeof place !== "object" ||
+    place === null ||
+    typeof place.projectId !== "string"
+  )
+    return null;
+  const inputs = runInputsSchema.safeParse(record.inputs);
+  if (!inputs.success) return null;
+  const done = record.done.filter((id): id is string => typeof id === "string");
+  const next = stepsFor(recipe.kind, !!inputs.data.guideImage).find((s) => !done.includes(s.id));
+  if (next?.id !== "draft") return null;
+  return {
+    version: 1,
+    recipeId: recipe.id,
+    inputs: inputs.data,
+    place: {
+      projectId: place.projectId,
+      artboardId: typeof place.artboardId === "string" ? place.artboardId : null,
+      clipId: typeof place.clipId === "string" ? place.clipId : null,
+    },
+    done,
+    results: { ...record.results, restored: true },
+    report: record.report.filter((line): line is string => typeof line === "string"),
+    savedAt: typeof record.savedAt === "number" ? record.savedAt : 0,
+  };
+}
+
+/** Where a kept run stopped, in words: the step, and the part of the draft. */
+export function stoppedAt(record: RunRecord, steps: readonly PipelineStep[]): string {
+  const next = steps.find((step) => !record.done.includes(step.id));
+  if (!next) return "no fim";
+  const total = record.results.draftTotal;
+  const done = record.results.draftDone;
+  return next.id === "draft" && typeof total === "number" && total > 1
+    ? `${next.label} (parte ${(Array.isArray(done) ? done.length : 0) + 1} de ${total})`
+    : next.label;
+}
+
 export interface RunOutcome {
   ok: boolean;
   report: string[];
   results: Record<string, unknown>;
 }
 
+/**
+ * Runs the steps in order. With `resume` (a run that stopped), the steps it finished are not run
+ * again: their results go on to the next ones. `onCheckpoint` hears the progress after every step
+ * and every saved part of one, to keep it for a later "Continuar de onde parou".
+ */
 export async function runPipeline(
   recipe: Recipe,
   inputs: RunInputs,
   steps: readonly PipelineStep[],
   deps: { editor: PipelineEditor; bridge: PipelineBridge; signal: AbortSignal },
   onState: (stepId: string, state: StepState) => void,
+  options: { resume?: RunProgress; onCheckpoint?: (progress: RunProgress) => void } = {},
 ): Promise<RunOutcome> {
-  const results: Record<string, unknown> = {};
-  const report: string[] = [];
-  for (const step of steps) onState(step.id, { status: "waiting" });
+  const results: Record<string, unknown> = { ...(options.resume?.results ?? {}) };
+  const report: string[] = [...(options.resume?.report ?? [])];
+  const done = new Set(options.resume?.done ?? []);
+  const checkpoint = () =>
+    options.onCheckpoint?.({
+      done: steps.flatMap((s) => (done.has(s.id) ? [s.id] : [])),
+      results,
+      report,
+    });
+  for (const step of steps)
+    onState(step.id, done.has(step.id) ? { status: "done" } : { status: "waiting" });
   for (const [index, step] of steps.entries()) {
+    if (done.has(step.id)) continue;
     if (deps.signal.aborted) {
       for (const rest of steps.slice(index)) onState(rest.id, { status: "cancelled" });
       return { ok: false, report, results };
@@ -953,7 +1191,10 @@ export async function runPipeline(
             ...(detail ? { detail } : {}),
           }),
         status: (detail) => onState(step.id, { status: "running", detail }),
+        checkpoint,
       });
+      done.add(step.id);
+      checkpoint();
       onState(step.id, { status: "done" });
     } catch (error) {
       const cancelled = deps.signal.aborted;

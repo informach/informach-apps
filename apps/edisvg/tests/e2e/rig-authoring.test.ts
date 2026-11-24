@@ -68,9 +68,11 @@ test("bones are drawn and cancelled through the real tool, IK is authored, undon
     await page.getByRole("button", { name: "Adicionar restrição", exact: true }).click();
     const constrained = await snapshot();
     assert.equal(constrained.artboards[0]?.rig?.constraints.length, 1);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot()).artboards[0]?.rig?.constraints.length, 0);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal((await snapshot()).artboards[0]?.rig?.constraints.length, 1);
     const beforeTest = await snapshot();
     await page.getByRole("button", { name: "Testar rig", exact: true }).click();

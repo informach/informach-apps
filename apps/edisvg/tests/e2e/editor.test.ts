@@ -101,11 +101,28 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     await page.locator("#help-dialog[open]").waitFor();
     await page.keyboard.press("Escape");
     assert.deepEqual(await snapshot(page), beforeWorkspace);
-    await page.locator('[data-action="object"]').click();
-    await page.locator('[data-command="object-duplicate"]').waitFor();
+    // Objeto, Animação, Exibir and Arquivo are dropdown menus, not dialogs.
+    const objectMenu = page.locator('[data-action="object"]');
+    await objectMenu.click();
+    await page.getByRole("menu", { name: "Objeto" }).waitFor();
+    await page.locator('[data-menu-item="object-duplicate"]').waitFor();
+    assert.equal(await objectMenu.getAttribute("aria-expanded"), "true");
+    assert.equal(await page.locator("dialog[open]").count(), 0);
+    await objectMenu.click();
+    assert.equal(await page.getByRole("menu").count(), 0, "The same button closes its menu");
+    await objectMenu.click();
+    await page.locator('[data-action="animation"]').hover();
+    await page.getByRole("menu", { name: "Animação" }).waitFor();
+    assert.equal(await page.getByRole("menu").count(), 1, "Pointing at another menu switches");
     await page.keyboard.press("Escape");
+    assert.equal(await page.getByRole("menu").count(), 0);
+    await page.locator('[data-action="file"]').click();
+    await page.locator('[data-menu-item="file-save"]').waitFor();
+    await page.locator(".topbar .project").click();
+    assert.equal(await page.getByRole("menu").count(), 0, "A click outside closes the menu");
     await page.locator("[data-object]").first().click({ button: "right" });
-    await page.locator('[data-command="object-delete"]').waitFor();
+    await page.getByRole("menu", { name: "Objeto" }).waitFor();
+    await page.locator('[data-menu-item="object-delete"]').waitFor();
     await page.keyboard.press("Escape");
     const resize = page.getByRole("separator", { name: "Redimensionar hierarquia", exact: true }),
       oldWidth = Number(await resize.getAttribute("aria-valuenow"));
@@ -125,11 +142,29 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
       beforeWorkspace,
       "Panel and command navigation never consume content undo",
     );
+    // Objeto > Duplicar seleção and Objeto > Excluir seleção run from the menu.
+    const originalId = (await snapshot(page)).scene.nodes[0].id;
+    await objectMenu.click();
+    await page.getByRole("menuitem", { name: /Duplicar seleção/ }).click();
+    assert.equal((await snapshot(page)).scene.nodes.length, 2);
+    await objectMenu.click();
+    await page.getByRole("menuitem", { name: /Excluir seleção/ }).click();
+    assert.equal((await snapshot(page)).scene.nodes.length, 1);
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
+    assert.deepEqual(
+      (await snapshot(page)).scene.nodes.map((node: { id: string }) => node.id),
+      [originalId],
+    );
+    await page.locator(`[data-scene-select="${originalId}"]`).click();
     await page.locator('[data-action="animate"]').click();
     await page.locator("#animation-select").selectOption("Pular");
     await x.fill("43");
     await x.press("Tab");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot(page)).scene.nodes[0].transform.x, 42);
     assert.equal(await page.locator("#animation-select").inputValue(), "Pular");
     assert.ok(
@@ -195,9 +230,11 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     await page.locator('[data-scene-transform="rotation"]').fill("90");
     await page.locator('[data-scene-transform="rotation"]').press("Tab");
     assert.equal((await snapshot(page)).motion.animations[0].tracks.length, 7);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot(page)).motion.animations[0].tracks[6].keys.length, 1);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal((await snapshot(page)).motion.animations[0].tracks[6].keys.length, 2);
     await page.locator('[data-action="export"]').click();
     const clipDownloading = page.waitForEvent("download");
@@ -307,9 +344,11 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     };
     await dragKey(24);
     assert.equal((await snapshot(page)).motion.animations[0].tracks[0].keys[1].frame, 24);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot(page)).motion.animations[0].tracks[0].keys[1].frame, 36);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     const beforeCanceledDrag = JSON.stringify(await snapshot(page));
     for (const reason of ["escape", "pointercancel", "blur", "dispose"] as const) {
       await dragKey(30, reason);
@@ -398,14 +437,16 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
       const keys = (await snapshot(page)).motion.animations[0].tracks;
       for (const index of [0, 6])
         assert.ok(keys[index].keys.some((key: { frame: number }) => key.frame === 6));
-      await page.locator('[data-action="undo"]').click();
+      await page.locator('[data-menu="edit"]').click();
+      await page.locator('[data-menu-item="undo"]').click();
       assert.deepEqual(await snapshot(page), beforeKeys);
       await choosePair();
     }
     await page.locator('[data-action="delete-key"]').click();
     assert.equal((await snapshot(page)).motion.animations[0].tracks[0].keys.length, 1);
     assert.equal((await snapshot(page)).motion.animations[0].tracks[6].keys.length, 1);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(page), beforeKeys);
     await page.locator('[data-action="timeline-zoom-in"]').click();
     assert.equal((await snapshot(page)).version, PROJECT_VERSION);
@@ -437,7 +478,8 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
       "Timeline Delete must not remove the selected object",
     );
     assert.equal((await snapshot(page)).motion.animations[1].tracks[0].keys.length, 1);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     await page.reload();
     await page.locator("#clip-select").waitFor();
     assert.equal((await snapshot(page)).motion.animations[0].tracks[6].keys.length, 2);
@@ -466,7 +508,8 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
       assert.notEqual(afterMove.scene.nodes[i].transform.x, beforeMove.scene.nodes[i].transform.x);
       assert.notEqual(afterMove.scene.nodes[i].transform.y, beforeMove.scene.nodes[i].transform.y);
     }
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(page), beforeMove, "One undo restores the entire selection");
     for (const reason of ["escape", "pointercancel", "blur", "dispose"]) {
       const current = await canvasObject.boundingBox();
@@ -510,9 +553,11 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     for (const name of ["x", "y", "width", "height"] as const)
       assert.ok(Math.abs(groupedBounds[name] - ungroupedBounds[name]) < 0.01);
     assert.ok((await snapshot(page)).scene.nodes[0].basis);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot(page)).scene.nodes[0].id, groupId);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();
     assert.ok((await snapshot(page)).scene.nodes[0].basis);
@@ -545,9 +590,11 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
       .getByRole("button", { name: "Confirmar exclusão da prancheta", exact: true })
       .click();
     assert.equal((await snapshot(page)).artboards.length, 2);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot(page)).artboards.length, 3);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal((await snapshot(page)).artboards.length, 2);
     await page.reload();
     await page.locator("[data-artboard-panel]").waitFor();
@@ -680,7 +727,8 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     assert.equal(movedPoints[0]?.x, (initialPoints[0]?.x ?? NaN) + 1);
     assert.equal(movedPoints[1]?.x, (initialPoints[1]?.x ?? NaN) + 1);
     assert.equal(movedPoints[2]?.x, initialPoints[2]?.x);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await vectorNode(), initialVector);
     await page.locator('[data-vertex-part="anchor"][data-vertex-index="0"]').click();
     await page
@@ -692,11 +740,13 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     await page.getByLabel("Converter curvas em segmentos retos", { exact: true }).check();
     await page.getByRole("button", { name: "Simplificar caminho", exact: true }).click();
     assert.doesNotMatch((await vectorNode()).attrs.d, /C/);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await vectorNode(), smoothVector);
     await page.getByRole("button", { name: "Separar no vértice", exact: true }).click();
     assert.equal(parsePath((await vectorNode()).attrs.d)[0]?.closed, false);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await vectorNode(), smoothVector);
     const beforeImport = await snapshot(page);
     await page.locator('[data-action="import-svg"]').first().click();
@@ -733,7 +783,8 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     const semanticRoot = importedProject.artboards.at(-1).scene.nodes[0];
     assert.deepEqual(semanticRoot.semantics, { kind: "group", label: "Exemplo" });
     assert.equal(semanticRoot.children[0].attrs.fill, "red");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(page), beforeImport);
     // Exercise the paste ingress event without touching the OS clipboard.
     await page.evaluate((source) => {
@@ -799,7 +850,8 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     assert.equal(afterBoolean.artboards.at(-1).scene.nodes[0].tag, "path");
     assert.equal(afterBoolean.artboards.at(-1).scene.nodes[0].id, booleanIds[0]);
     assert.deepEqual(afterBoolean.motion, beforeBoolean.motion);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(page), beforeBoolean);
     await page.getByRole("button", { name: "Escolher cor de preenchimento" }).click();
     const colorPicker = page.getByRole("dialog", { name: "Escolher cor de preenchimento" });
@@ -834,9 +886,11 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     const editedText = (await snapshot(page)).artboards.at(-1).scene.nodes.at(-1);
     assert.equal(editedText.text, "Olá <&>\nمرحبا");
     assert.equal(editedText.attrs.direction, "rtl");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot(page)).artboards.at(-1).scene.nodes.at(-1).text, "Seu texto");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(page), beforeText);
     await page.locator('[data-action="export"]').click();
     await page.locator('input[name="format"][value="json"]').check();

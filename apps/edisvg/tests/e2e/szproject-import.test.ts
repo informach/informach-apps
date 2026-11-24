@@ -163,7 +163,8 @@ test("built editor: dropping a .szproject.json imports it as one edit, opens the
     );
     await page.getByText(/Projeto do Estúdio importado\. 3 imagens viraram pranchetas/).waitFor();
     // The whole import is one edit.
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
     assert.deepEqual(errors, []);
   } finally {

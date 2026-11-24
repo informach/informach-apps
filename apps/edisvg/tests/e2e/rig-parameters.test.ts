@@ -39,12 +39,14 @@ test("real rig key authoring preserves rest pose, supports undo/reload, and test
     assert.equal(rig?.version, 2);
     assert.equal(rig?.parameterClips?.[0]?.tracks[0]?.keys.length, 2);
     assert.deepEqual(keyed.artboards[0]?.scene, fixture.project().artboards[0]?.scene);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(
       (await snapshot()).artboards[0]?.rig?.parameterClips?.[0]?.tracks[0]?.keys.length,
       1,
     );
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(await snapshot(), keyed);
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();

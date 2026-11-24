@@ -80,7 +80,8 @@ test("dense mixed timeline virtualizes both axes, preserves scroll across render
       fixture.keys,
     );
     assert.deepEqual(edited.motion, fixture.source.motion);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot(page)), contentSnapshot(fixture.source));
     assert.deepEqual(errors, []);
   } finally {
@@ -145,7 +146,8 @@ test("unified timeline distinguishes equal motion/rig IDs, edits mixed keys atom
           operation === "move-keys" ? [2, 10] : [0, 2, 10],
         );
       }
-      await page.locator('[data-action="undo"]').click();
+      await page.locator('[data-menu="edit"]').click();
+      await page.locator('[data-menu-item="undo"]').click();
       assert.deepEqual(contentSnapshot(await snapshot(page)), before);
       await pair();
     }
@@ -153,7 +155,8 @@ test("unified timeline distinguishes equal motion/rig IDs, edits mixed keys atom
     const deleted = await snapshot(page);
     assert.equal(deleted.motion.animations[0]?.tracks[0]?.keys.length, 1);
     assert.equal(deleted.artboards[0]?.rig?.parameterClips?.[0]?.tracks[0]?.keys.length, 1);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot(page)), before);
     await rig.click();
     await rig.press("Enter");
@@ -216,11 +219,14 @@ test("unified timeline distinguishes equal motion/rig IDs, edits mixed keys atom
     );
     assert.equal(await rig.isVisible(), true);
     assert.equal(await rig.getAttribute("data-clip-frame"), "9");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot(page)), contentSnapshot(edited));
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot(page)), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot(page)), contentSnapshot(edited));
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();

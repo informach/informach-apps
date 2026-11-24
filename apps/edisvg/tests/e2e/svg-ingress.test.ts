@@ -293,9 +293,11 @@ test("built SVG drop opens review without editing, blocks file drops in fields/d
     const imported = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     assert.ok(imported && imported !== before);
     assert.equal(parseProject(JSON.parse(imported)).artboards.at(-1)?.scene.source, source);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), imported);
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();
@@ -345,7 +347,8 @@ test("an SVG placed on the open artboard becomes one selected group there, undon
     assert.equal(group?.tag, "g");
     assert.equal(group?.name, "Logo");
     assert.equal(group?.children[0]?.tag, "path");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
     assert.deepEqual(errors, []);
   } finally {

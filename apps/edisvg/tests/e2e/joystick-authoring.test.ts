@@ -103,9 +103,11 @@ test("joystick pad previews real IK without history, commits once and supports k
     assert.ok(Math.abs(joystick.x - 0.6) < 0.01 && Math.abs(joystick.y - 0.24) < 0.01);
     assert.equal(await pad.evaluate((element) => element === document.activeElement), true);
     assert.deepEqual(committed.artboards[0]?.scene, baseline.artboards[0]?.scene);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(), baseline);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(await snapshot(), committed);
     await pad.focus();
     await page.keyboard.down("ArrowRight");
@@ -117,7 +119,8 @@ test("joystick pad previews real IK without history, commits once and supports k
       Math.abs((nudged.artboards[0]?.rig?.joysticks?.[0]?.x ?? 0) - joystick.x - 0.2) < 1e-10,
     );
     assert.equal(await pad.evaluate((element) => element === document.activeElement), true);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(), committed);
     const x = page.getByLabel("Joystick X", { exact: true }),
       y = page.getByLabel("Joystick Y", { exact: true });
@@ -176,7 +179,8 @@ test("joystick pad previews real IK without history, commits once and supports k
     await page.getByRole("button", { name: "Aplicar eixos", exact: true }).click();
     assert.equal(await page.locator(".joystick-point").getAttribute("cx"), "1");
     assert.equal(await page.locator(".joystick-point").getAttribute("cy"), "1");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await snapshot(), added);
     assert.deepEqual(errors, []);
   } finally {

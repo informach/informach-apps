@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { chromium, type Page } from "playwright";
-import { parseProject } from "../../src/shared/project";
+import { PROJECT_VERSION, parseProject } from "../../src/shared/project";
 import { rendererServer } from "../rendererServer";
 
 /** EdiSVG's library as the main process hands it: the bundle's files, by id. */
@@ -114,9 +114,11 @@ test("a library font from the text panel: in the catalog once, on the text at on
     project = await stored(page);
     assert.equal(project.assets.length, 1);
     // One undo step: back to the system font and an empty catalog; redo brings both.
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     [node] = await texts(page);
     assert.equal(node?.fontAssetId, baloo?.id);
     assert.deepEqual(errors, []);
@@ -156,7 +158,7 @@ test("Fontes do projeto: defaults from the library, a new text in the title one,
     await dialog.getByRole("button", { name: "Salvar fontes deste projeto" }).click();
     await dialog.getByText("Fontes padrão do projeto salvas.").waitFor();
     let project = await stored(page);
-    assert.equal(project.version, 27);
+    assert.equal(project.version, PROJECT_VERSION);
     assert.equal(project.assets.length, 2);
     const ids = project.defaults?.fonts;
     assert.ok(ids?.heading && ids.body);

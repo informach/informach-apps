@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { applyMotionCommands } from "./commands";
 import { ease, evaluateAnimation, frameAtSeconds } from "./evaluator";
-import { emptyMotion, parseMotion } from "./model";
+import { emptyMotion, onUnitOpacityScale, parseMotion } from "./model";
 
 const targets = new Set(["node-a", "node-b"]);
 function fixture() {
@@ -189,4 +189,152 @@ test("key edits preserve identity, reject collisions atomically and duplicate cl
   expect(evaluateAnimation(copy, 20)).toEqual(
     evaluateAnimation(edited.animations[0] ?? animation, 20),
   );
+});
+
+test("a keys command writes the same keys as the set-keys it stands for", () => {
+  const base = applyMotionCommands(emptyMotion(), targets, [
+    {
+      type: "create-animation",
+      animation: {
+        id: "animation-short",
+        name: "Curta",
+        fps: 30,
+        frames: 60,
+        mode: "once",
+        tracks: [],
+      },
+    },
+  ]);
+  const short = applyMotionCommands(base, targets, [
+    {
+      type: "keys",
+      animationId: "animation-short",
+      targetId: "node-a",
+      tracks: {
+        opacity: [
+          [0, 0],
+          [12, 100, "ease-out"],
+        ],
+        y: [
+          [0, 40, "hold"],
+          [12, 0],
+        ],
+      },
+    },
+  ]);
+  const long = applyMotionCommands(base, targets, [
+    {
+      type: "set-key",
+      animationId: "animation-short",
+      targetId: "node-a",
+      property: "opacity",
+      frame: 0,
+      value: 0,
+    },
+    {
+      type: "set-key",
+      animationId: "animation-short",
+      targetId: "node-a",
+      property: "opacity",
+      frame: 12,
+      value: 100,
+      easing: { kind: "cubic-bezier", points: [0, 0, 0.58, 1] },
+    },
+    {
+      type: "set-key",
+      animationId: "animation-short",
+      targetId: "node-a",
+      property: "y",
+      frame: 0,
+      value: 40,
+      easing: "hold",
+    },
+    {
+      type: "set-key",
+      animationId: "animation-short",
+      targetId: "node-a",
+      property: "y",
+      frame: 12,
+      value: 0,
+    },
+  ]);
+  const shape = (motion: typeof short) =>
+    motion.animations[0]?.tracks.map((track) => ({
+      targetId: track.targetId,
+      property: track.property,
+      keys: track.keys.map(({ frame, value, easing }) => ({ frame, value, easing })),
+    }));
+  expect(shape(short)).toEqual(shape(long));
+  const clip = short.animations[0];
+  if (!clip) throw new Error("Missing animation");
+  expect(evaluateAnimation(clip, 6).get("node-a")).toEqual(
+    evaluateAnimation(long.animations[0] ?? clip, 6).get("node-a"),
+  );
+  for (const tracks of [{}, { opacity: [] }, { opacity: [[-1, 0]] }, { color: [[0, 1]] }])
+    expect(() =>
+      applyMotionCommands(base, targets, [
+        { type: "keys", animationId: "animation-short", targetId: "node-a", tracks },
+      ]),
+    ).toThrow();
+  expect(() =>
+    applyMotionCommands(base, targets, [
+      { type: "keys", animationId: "animation-short", targetId: "node-z", tracks: { x: [[0, 1]] } },
+    ]),
+  ).toThrow();
+});
+
+test("an opacity fade sent by keys on 0–1 ends fully visible (opacity is 0–100)", () => {
+  const base = applyMotionCommands(emptyMotion(), targets, [
+    {
+      type: "create-animation",
+      animation: {
+        id: "animation-fade",
+        name: "Fade",
+        fps: 30,
+        frames: 60,
+        mode: "once",
+        tracks: [],
+      },
+    },
+  ]);
+  const fade = (opacity: [number, number][]) => {
+    const clip = applyMotionCommands(base, targets, [
+      { type: "keys", animationId: "animation-fade", targetId: "node-a", tracks: { opacity } },
+    ]).animations[0];
+    if (!clip) throw new Error("Missing animation");
+    return {
+      keys: clip.tracks[0]?.keys.map((key) => key.value),
+      end: evaluateAnimation(clip, 30).get("node-a")?.opacity,
+    };
+  };
+  // The shape the contract once showed, [[0,0],[12,1]]: 1 is not 1%, it is fully visible.
+  expect(
+    fade([
+      [0, 0],
+      [12, 1],
+    ]),
+  ).toEqual({ keys: [0, 100], end: 100 });
+  expect(
+    fade([
+      [0, 0.3],
+      [12, 0.75],
+    ]).keys,
+  ).toEqual([30, 75]);
+  // Percent tracks, and a track that is all 0, stay as sent.
+  expect(
+    fade([
+      [0, 0],
+      [12, 100],
+    ]),
+  ).toEqual({ keys: [0, 100], end: 100 });
+  expect(
+    fade([
+      [0, 100],
+      [12, 1],
+    ]).keys,
+  ).toEqual([100, 1]);
+  expect(fade([[0, 0]]).keys).toEqual([0]);
+  expect(onUnitOpacityScale([0, 1])).toBe(true);
+  expect(onUnitOpacityScale([0, 0])).toBe(false);
+  expect(onUnitOpacityScale([0, 50])).toBe(false);
 });

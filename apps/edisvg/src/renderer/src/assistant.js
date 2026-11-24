@@ -18,6 +18,8 @@ import { clock } from "./pipelines/runner";
 const ATTACH_ICON =
   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 5h6"/><path d="M19 2v6"/><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg>';
 /** Menu commands with no meaning while no project is open (Fechar projeto). */
+/** The longest message the main process takes (main/engines.js). */
+const PROMPT_LIMIT = 32000;
 const CLOSED_REFUSES = new Set(["save", "save-as", "undo", "redo", "fonts", "assistant"]);
 export function setupAssistant(editor) {
   const bridge = window.desktop,
@@ -304,6 +306,11 @@ export function setupAssistant(editor) {
    */
   async function runTurn(text, shown, images = [], onActivity) {
     if (!bridge) throw new Error("O assistente precisa do aplicativo desktop.");
+    // Sent whole (submit never cuts a pipeline's request): too long is said, not cut.
+    if (text.length > PROMPT_LIMIT)
+      throw new Error(
+        `O pedido ao assistente ficou longo demais (${text.length} caracteres; o limite é ${PROMPT_LIMIT}). Encurte o roteiro ou as instruções da receita.`,
+      );
     if (busy) throw new Error("O assistente está respondendo outra mensagem. Espere ou pare.");
     if (panel.hidden) toggle();
     clearHistory();
@@ -344,13 +351,17 @@ export function setupAssistant(editor) {
       // own); the conversation takes the room that is left of the message's limit.
       style = long ? null : guideText(),
       room = 30000 - (style ? style.length + 2 : 0),
-      talk = recent
-        .map(
-          (m) =>
-            `${m.role === "user" ? "Usuário" : "Assistente"}: ${attached(m.images?.length ?? 0)}${m.text}`,
-        )
-        .join("\n\n")
-        .slice(-room),
+      // A pipeline's request goes as it is: its beginning (the recipe, the rules) is what
+      // matters most, and cutting the start of it would drop it without a word.
+      talk = long
+        ? text
+        : recent
+            .map(
+              (m) =>
+                `${m.role === "user" ? "Usuário" : "Assistente"}: ${attached(m.images?.length ?? 0)}${m.text}`,
+            )
+            .join("\n\n")
+            .slice(-room),
       prompt = style ? `${style}\n\n${talk}` : talk;
     try {
       await bridge.aiSend({
@@ -531,51 +542,50 @@ export function setupAssistant(editor) {
     if (!result.saved) throw new Error("Recovery save canceled");
     if (result.warning) editor.notify(result.warning);
   });
-  async function fileMenu() {
+  /**
+   * The Arquivo menu (menu-popover.ts): the file rows, which `runFileAction` runs, around the
+   * catalog's other Arquivo commands (`more`), with Fechar projeto last.
+   */
+  function fileMenuItems(more = []) {
+    const reason = bridge ? undefined : "Abra a versão desktop para salvar e abrir arquivos.";
+    return [
+      ["file-new-window", "Nova janela", "Ctrl+Shift+N"],
+      ["file-new", "Novo projeto", "Ctrl+N"],
+      ["file-open", "Abrir projeto…", "Ctrl+O"],
+      ["import-svg", "Importar SVG…", "Ctrl+I"],
+      null,
+      ["file-save", "Salvar", "Ctrl+S"],
+      ["file-save-as", "Salvar como…", "Ctrl+Shift+S"],
+      null,
+      ...more,
+      null,
+      ["file-close-project", "Fechar projeto", "Ctrl+W"],
+    ].map((row) =>
+      !row
+        ? { separator: true }
+        : !Array.isArray(row)
+          ? row
+          : {
+              id: row[0],
+              label: row[1],
+              group: "Arquivo",
+              shortcut: row[2],
+              reason: row[0] === "import-svg" ? undefined : reason,
+            },
+    );
+  }
+  function runFileAction(id) {
     if (!bridge) {
       editor.notify("Abra a versão desktop para salvar e abrir arquivos.");
       return;
     }
-    if (document.querySelector(".file-dialog")) return;
-    const opener = document.activeElement;
-    const d = document.createElement("dialog");
-    d.className = "file-dialog";
-    d.setAttribute("aria-labelledby", "file-dialog-title");
-    d.setAttribute("aria-describedby", "file-dialog-description");
-    const actions = [
-      ["new", "＋", "Novo projeto", "Comece com uma tela em branco.", "Ctrl+N"],
-      ["open", "↗", "Abrir projeto…", "Continue editando um arquivo .edisvg.", "Ctrl+O"],
-      ["import", "↓", "Importar SVG…", "Substitua a arte atual por um SVG.", "Ctrl+I"],
-      [
-        "close-project",
-        "×",
-        "Fechar projeto",
-        "O EdiSVG continua aberto, pronto para outro projeto.",
-        "Ctrl+W",
-      ],
-    ];
-    d.innerHTML = `<header class="file-dialog-header"><div><h2 id="file-dialog-title">Arquivo</h2><p id="file-dialog-description">Crie, abra ou salve seu projeto.</p></div><button data-close-file aria-label="Fechar janela" title="Fechar (Esc)">×</button></header><div class="file-dialog-actions">${actions.map(([id, icon, title, description, shortcut]) => `<button class="file-dialog-action" data-${id}><span class="file-action-icon" aria-hidden="true">${icon}</span><span class="file-action-copy"><strong>${title}</strong><span>${description}</span></span><kbd>${shortcut}</kbd></button>`).join("")}</div><section class="file-dialog-save" aria-labelledby="file-save-title"><div class="file-save-heading"><h3 id="file-save-title">Salvar projeto atual</h3><span>.edisvg</span></div><div class="file-save-buttons"><button class="primary" data-save autofocus>Salvar <kbd>Ctrl+S</kbd></button><button data-save-as>Salvar como… <kbd>Ctrl+Shift+S</kbd></button></div></section><footer class="file-dialog-footer"><span>Esc para fechar</span><button data-cancel>Voltar ao editor</button></footer>`;
-    document.body.append(d);
-    d.onclose = () => {
-      d.remove();
-      if (opener?.isConnected) opener.focus();
-    };
-    const handlers = {
-      new: createNew,
-      import: () => editor.importSvg(),
-      open: openProject,
-      save: () => saveProject(),
-      "save-as": () => saveProject(true),
-      "close-project": closeProject,
-    };
-    for (const [action, handler] of Object.entries(handlers))
-      d.querySelector(`[data-${action}]`).onclick = () => {
-        d.close();
-        void handler();
-      };
-    d.querySelector("[data-cancel]").onclick = () => d.close();
-    d.querySelector("[data-close-file]").onclick = () => d.close();
-    d.showModal();
+    if (id === "file-new-window")
+      void bridge.newWindow().catch((error) => editor.notify(error.message));
+    else if (id === "file-new") void createNew();
+    else if (id === "file-open") void openProject();
+    else if (id === "file-save") void saveProject();
+    else if (id === "file-save-as") void saveProject(true);
+    else if (id === "file-close-project") void closeProject();
   }
   /**
    * A project the main process made the open one (Novo, Abrir, or the project of a lesson from
@@ -593,7 +603,8 @@ export function setupAssistant(editor) {
   }
   return {
     toggle,
-    fileMenu,
+    fileMenuItems,
+    runFileAction,
     runTurn,
     adoptProject,
     save: (as = false) => saveProject(as),

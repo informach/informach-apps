@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("desktop", {
   projectInitialize: (legacy) => ipcRenderer.invoke("project:initialize", legacy),
   projectNew: () => ipcRenderer.invoke("project:new"),
   projectClose: () => ipcRenderer.invoke("project:close"),
+  newWindow: () => ipcRenderer.invoke("window:new"),
   importSvg: () => ipcRenderer.invoke("svg:import"),
   importGameProject: () => ipcRenderer.invoke("game:import"),
   importDesignKit: () => ipcRenderer.invoke("kit:import"),
@@ -40,6 +41,10 @@ contextBridge.exposeInMainWorld("desktop", {
   pipelineGuideRead: (id) => ipcRenderer.invoke("pipeline:guide-read", id),
   pipelineGuideStyle: (id) => ipcRenderer.invoke("pipeline:guide-style", id),
   pipelineGuideStyleSave: (id, style) => ipcRenderer.invoke("pipeline:guide-style-save", id, style),
+  pipelineRunSave: (projectId, record) =>
+    ipcRenderer.invoke("pipeline:run-save", projectId, record),
+  pipelineRunLoad: (projectId) => ipcRenderer.invoke("pipeline:run-load", projectId),
+  pipelineRunClear: (projectId) => ipcRenderer.invoke("pipeline:run-clear", projectId),
   // Other Edi tools' requests and the renders of linked animations (packages/edi-link).
   linkNext: () => ipcRenderer.invoke("link:next"),
   linkOpenProject: (id) => ipcRenderer.invoke("link:open-project", id),

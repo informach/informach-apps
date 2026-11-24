@@ -12,6 +12,14 @@ export function assertCommandBudget(input: unknown) {
       keys += command.references.length;
     if ("vertices" in command && Array.isArray(command.vertices)) keys += command.vertices.length;
     if ("type" in command && command.type === "set-key") keys++;
+    if (
+      "tracks" in command &&
+      typeof command.tracks === "object" &&
+      command.tracks !== null &&
+      !Array.isArray(command.tracks)
+    )
+      for (const list of Object.values(command.tracks))
+        if (Array.isArray(list)) keys += list.length;
     if ("poses" in command && Array.isArray(command.poses)) {
       if (command.poses.length > 2000) throw new Error("Orçamento de poses excedido.");
       for (const pose of command.poses)

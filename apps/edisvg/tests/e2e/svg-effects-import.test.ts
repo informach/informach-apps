@@ -73,7 +73,8 @@ test("built file import keeps native source choices, independent duplication, un
     await page.keyboard.press("Escape");
     await page.mouse.up();
     assert.equal(await live.getAttribute("transform"), originalTransform);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), importedText);
     await page.locator(`[data-scene-select="${target.id}"]`).click();
     await page.locator('[data-scene-operation="duplicate"]').click();
@@ -90,11 +91,14 @@ test("built file import keeps native source choices, independent duplication, un
         (node) => node.id === duplicate.effects?.clip?.sourceId && node.tag === "circle",
       ),
     );
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), importedText);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.reload();
     await page.locator('[data-action="artboards"]').click();
     await page.locator(`[data-artboard-select="${board.id}"]`).click();

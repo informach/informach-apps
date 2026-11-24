@@ -198,7 +198,8 @@ test("a design kit: the folders that fit, 'Kit ·' artboards with its palette an
     assert.equal(project.assets.find((asset) => asset.id === image?.assetId)?.kind, "image");
 
     // The whole import is one edit.
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
     assert.deepEqual(errors, []);
   } finally {

@@ -73,9 +73,11 @@ test("built cubic authoring previews geometry, requires consent, persists one un
       attrs: { ...shape.attrs, d: prepareCubicConversion(shape.attrs.d ?? "").pathData },
     });
     assert.equal(inspectLottieCompatibility(converted, options).supported, true);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), contentSnapshot(converted));
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();

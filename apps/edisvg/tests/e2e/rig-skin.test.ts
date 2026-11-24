@@ -63,9 +63,11 @@ test("real vector skin binding, vertex selection and weight edits preserve histo
     assert.deepEqual(keyed.artboards[0]?.rig?.skins?.[0]?.weights[1], [
       { boneId: "node-upper", weight: 1 },
     ]);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await snapshot()).artboards[0]?.rig?.skins?.[0]?.weights[1]?.length, 2);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(await snapshot(), keyed);
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();

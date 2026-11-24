@@ -31,9 +31,14 @@ import {
   failureText,
   type PipelineBridge,
   type PipelineEditor,
+  type RunProgress,
+  type RunRecord,
+  recordForDisk,
+  restoredRecord,
   runPipeline,
   type StepState,
   stepsFor,
+  stoppedAt,
 } from "./runner";
 import "./pipelines.css";
 
@@ -49,9 +54,19 @@ export interface PipelinesDesktop extends PipelineBridge {
     id: string | null;
     script: { text: string; section: number } | null;
   }>;
+  /** Where a run stopped, by project (main/pipelineRuns.ts). */
+  pipelineRunSave(projectId: string, record: RunRecord): Promise<void>;
+  pipelineRunLoad(projectId: string): Promise<unknown>;
+  pipelineRunClear(projectId: string): Promise<void>;
   /** The end of a run, for the phone notice the main process sends when it is set up. */
   pipelineNotify(notice: { ok: boolean; recipe: string; seconds: number }): Promise<void>;
 }
+
+/**
+ * The runs that stopped in this window, by project, with their media: closing the dialog does
+ * not lose them. The profile keeps a copy without media for after EdiSVG is reopened.
+ */
+const stoppedRuns = new Map<string, RunRecord>();
 
 /** The phrases of the picked lesson's script, and which of them this run animates. */
 interface LessonPick {
@@ -451,7 +466,37 @@ function RunForm({
     },
     [],
   );
-  const steps = stepsFor(recipe.kind, !!guide);
+  // A run of this recipe that stopped on this project: "Continuar de onde parou".
+  const [stopped, setStopped] = useState<RunRecord | null>(null);
+  // The steps of the run going (a continued run keeps the guide it was started with).
+  const [runSteps, setRunSteps] = useState<ReturnType<typeof stepsFor> | null>(null);
+  useEffect(() => {
+    const projectId = editor.runPlace().projectId;
+    const kept = stoppedRuns.get(projectId);
+    if (kept) {
+      if (kept.recipeId === recipe.id) setStopped(kept);
+      return;
+    }
+    let current = true;
+    Promise.resolve()
+      .then(() => desktop.pipelineRunLoad(projectId))
+      .then((value) => {
+        const record = restoredRecord(value, recipe);
+        if (current && live.current && record) setStopped(record);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [desktop, editor, recipe]);
+  const forget = (projectId: string) => {
+    stoppedRuns.delete(projectId);
+    // The copy in the profile only helps after a reopening: failing to keep it stops nothing.
+    Promise.resolve()
+      .then(() => desktop.pipelineRunClear(projectId))
+      .catch(() => undefined);
+  };
+  const steps = runSteps ?? stepsFor(recipe.kind, !!guide);
   // The colours and fonts come from the style guide; the recipe's are used only without one.
   const inputs = {
     recipeId: recipe.id,
@@ -522,32 +567,71 @@ function RunForm({
       if (live.current) report(failureText(error));
     });
   }, [recipe.kind, report]);
-  const start = async () => {
-    const parsed = runInputsSchema.safeParse(inputs);
-    if (!parsed.success || missing.length) return;
+  /** Runs the recipe from the start, or continues `from` (a run that stopped) where it stopped. */
+  const start = async (from?: RunRecord) => {
+    const parsed = runInputsSchema.safeParse(from ? from.inputs : inputs);
+    if (!parsed.success || (!from && missing.length)) return;
     // A reply the assistant is writing would land on the file in the middle of the run.
     if (editor.assistantBusy()) {
       report("Espere o assistente terminar a resposta, ou interrompa, antes de rodar o pipeline.");
       return;
     }
+    const projectId = editor.runPlace().projectId;
+    // Continuing: the artboard and animation of the run open again, if they are still there.
+    if (from && !editor.resumeRun(from.place)) {
+      forget(from.place.projectId);
+      setStopped(null);
+      report("O que o pipeline tinha feito não está mais neste projeto: rode o pipeline de novo.");
+      return;
+    }
+    // Rodar starts over: the run that had stopped is no longer continued.
+    if (!from) forget(projectId);
+    const runInputs = parsed.data;
+    const used = stepsFor(recipe.kind, !!runInputs.guideImage);
+    const keep = (progress: RunProgress) => {
+      const record: RunRecord = {
+        version: 1,
+        recipeId: recipe.id,
+        inputs: runInputs,
+        place: editor.runPlace(),
+        done: [...progress.done],
+        results: { ...progress.results },
+        report: [...progress.report],
+        savedAt: Date.now(),
+      };
+      stoppedRuns.set(projectId, record);
+      Promise.resolve()
+        .then(() => desktop.pipelineRunSave(projectId, recordForDisk(record)))
+        .catch(() => undefined);
+    };
     const abort = new AbortController();
     control.current = abort;
     setRunning(true);
     setBusy(true);
     setOutcome(null);
+    setStopped(null);
+    setStates({});
+    setRunSteps(used);
     editor.beginRun();
     const startedAt = performance.now();
     try {
       const result = await runPipeline(
         recipe,
-        parsed.data,
-        steps,
+        runInputs,
+        used,
         { editor, bridge: desktop, signal: abort.signal },
         (stepId, state) => {
           if (live.current) setStates((current) => ({ ...current, [stepId]: state }));
         },
+        { ...(from ? { resume: from } : {}), onCheckpoint: keep },
       );
-      if (live.current) setOutcome({ ok: result.ok, report: result.report });
+      // Done: nothing to continue. Stopped: Continuar picks up after the last step or part done.
+      if (result.ok) forget(projectId);
+      const kept = stoppedRuns.get(projectId);
+      if (live.current) {
+        setOutcome({ ok: result.ok, report: result.report });
+        setStopped(!result.ok && kept?.recipeId === recipe.id ? kept : null);
+      }
       // Stopped by the person: they are at the computer, no notice.
       if (!abort.signal.aborted)
         desktop
@@ -560,7 +644,10 @@ function RunForm({
     } finally {
       // Whatever the run did (also when it stopped) is undone by one Ctrl+Z.
       editor.endRun();
-      if (live.current) setRunning(false);
+      if (live.current) {
+        setRunning(false);
+        setRunSteps(null);
+      }
       setBusy(false);
       control.current = null;
     }
@@ -671,6 +758,13 @@ function RunForm({
             ))}
           </div>
         )}
+        {stopped && !running && (
+          <p className="micro pipeline-resume">
+            A última execução desta receita neste projeto parou em:{" "}
+            {stoppedAt(stopped, stepsFor(recipe.kind, !!stopped.inputs.guideImage))}. Continuar
+            refaz só o que falta, com os mesmos arquivos e roteiro; Rodar pipeline começa do zero.
+          </p>
+        )}
       </div>
       <div className="dialog-footer">
         <button type="button" disabled={running} onClick={onBack}>
@@ -682,14 +776,21 @@ function RunForm({
             Cancelar
           </button>
         ) : (
-          <button
-            type="button"
-            className="primary"
-            disabled={missing.length > 0}
-            onClick={() => void start()}
-          >
-            Rodar pipeline
-          </button>
+          <>
+            {stopped && (
+              <button type="button" className="primary" onClick={() => void start(stopped)}>
+                Continuar de onde parou
+              </button>
+            )}
+            <button
+              type="button"
+              className={stopped ? undefined : "primary"}
+              disabled={missing.length > 0}
+              onClick={() => void start()}
+            >
+              Rodar pipeline
+            </button>
+          </>
         )}
       </div>
     </>

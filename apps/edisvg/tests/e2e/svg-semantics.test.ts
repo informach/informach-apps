@@ -174,12 +174,14 @@ test("built import dialog stores editable semantics in a new artboard with undo,
       label: "Retângulo",
       description: "Forma vermelha.",
     });
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     await page.waitForFunction(
       () => JSON.parse(localStorage.getItem("edisvg-project") ?? "null")?.artboards.length === 1,
     );
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.locator('[data-action="artboards"]').click();
     await page.locator(`[data-artboard-select="${imported.id}"]`).click();
     await page.reload();

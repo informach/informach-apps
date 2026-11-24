@@ -316,9 +316,11 @@ test("built effects inspector authors safe references, preserves undo/recovery a
     await panel.getByLabel("Intensidade da máscara", { exact: true }).fill("0.5");
     await panel.getByRole("button", { name: "Aplicar recorte / máscara", exact: true }).click();
     assert.equal(await page.locator(".scene-artwork clipPath").count(), 2);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.locator(".scene-artwork clipPath").count(), 0);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.locator("#clip-select").selectOption(fixture.animationId);
     await page.locator('[data-action="end"]').click();
     const livePath = page.locator(".scene-artwork [data-edi-live-effects] clipPath path");

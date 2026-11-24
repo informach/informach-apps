@@ -96,7 +96,8 @@ test("authored graph, data and events are created through real UI, survive histo
     assert.deepEqual(await project(page), beforeDrag);
     await page.mouse.up();
     assert.notDeepEqual(await project(page), beforeDrag);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await project(page), beforeDrag);
     await page.getByLabel("Input do binding", { exact: true }).selectOption(number.id);
     await page.getByLabel("Objeto do binding", { exact: true }).selectOption(object.id);

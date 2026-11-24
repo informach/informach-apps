@@ -187,12 +187,14 @@ test("font import requires explicit rights, applies typed font reference, waits 
     await page.waitForFunction(
       () => document.querySelector<HTMLButtonElement>('[data-action="export"]')?.disabled === false,
     );
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.notEqual(
       await page.locator(".scene-artwork text").getAttribute("font-family"),
       `edi-${font.id}`,
     );
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.reload();
     await page.waitForFunction(
       (id) =>
@@ -269,9 +271,11 @@ test("built resource panel imports, converts with consent, inserts reusable imag
     await page.getByRole("button", { name: "Inserir imagem", exact: true }).click();
     assert.equal(await page.locator(".scene-artwork svg use").count(), 2);
     assert.equal(await page.locator(".scene-artwork>svg>defs>image").count(), 1);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.locator(".scene-artwork svg use").count(), 1);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal(await page.locator(".scene-artwork svg use").count(), 2);
     await page.getByRole("button", { name: "Excluir recurso", exact: true }).click();
     await page.getByRole("alert").filter({ hasText: "Remova as imagens" }).waitFor();
@@ -280,7 +284,13 @@ test("built resource panel imports, converts with consent, inserts reusable imag
     await page.reload();
     await page.locator(".scene-artwork svg use").first().waitFor();
     assert.equal(await page.locator(".scene-artwork svg use").count(), 2);
-    assert.equal(await page.locator('[data-action="undo"]').isDisabled(), true); // a reopened project starts a fresh undo session
+    // A reopened project starts a fresh undo session.
+    await page.locator('[data-menu="edit"]').click();
+    assert.equal(
+      await page.locator('[data-menu-item="undo"]').getAttribute("aria-disabled"),
+      "true",
+    );
+    await page.keyboard.press("Escape");
     await page.locator('[data-action="assets"]').click();
     const before = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await input.setInputFiles({

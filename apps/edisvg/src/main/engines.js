@@ -19,8 +19,13 @@ export const MCP_PORT = 47322;
 export const PROVIDERS = { claude: "claude-code", codex: "codex" };
 
 const CONVERSATION = "edisvg";
-const TIMEOUT_MS = 10 * 60_000;
-/** A pipeline's request: the assistant animates a whole scene, often past 10 minutes. */
+/**
+ * A message of the panel. An edit on a big project reads a lot before it writes: 10 minutes cut
+ * replies that were still working (19/11/2026). A reply that stops giving signs of life still
+ * ends after IDLE_MS.
+ */
+const TIMEOUT_MS = 20 * 60_000;
+/** A pipeline's request: a part of the draft (runner.ts draftParts), the framing, the guide. */
 export const LONG_TIMEOUT_MS = 40 * 60_000;
 const IDLE_MS = 5 * 60_000;
 

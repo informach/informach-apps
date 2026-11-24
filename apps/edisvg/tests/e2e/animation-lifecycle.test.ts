@@ -79,11 +79,14 @@ test("real clip duplication keeps rig playback; deletion confirmation, cancellat
     assert.ok(
       confirmations.every((message) => message.includes("canais") && message.includes("áudio")),
     );
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await snapshot(), copiedText);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal(await snapshot(), before);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();
     assert.equal(await snapshot(), copiedText);

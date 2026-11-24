@@ -5,14 +5,18 @@ import { AI_TOOLS } from "../shared/aiTools.js";
 
 /**
  * Tool calls answered by the editor (@informach/edi-desktop/ai-clients): checked against the
- * tool's schema before they leave, answered once, and given up after 15 s or when the window
- * closes.
+ * tool's schema before they leave, answered once, and given up after a minute (a big edit on a
+ * big project takes a while) or when the window closes. A call given up may still be applied by
+ * the editor, and the assistant is told to look before repeating it.
  */
 export function createBridge(getWindow) {
   const calls = createRendererRequests({
     channel: "ai:call",
-    timeoutMs: 15000,
-    timeout: { ok: false, text: "O editor não respondeu." },
+    timeoutMs: 60_000,
+    timeout: {
+      ok: false,
+      text: "O editor não respondeu em 1 minuto. A edição pode ter sido aplicada: confira com get_objects antes de repetir.",
+    },
     gone: { ok: false, text: "Janela fechada." },
   });
   return {

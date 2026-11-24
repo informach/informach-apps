@@ -97,9 +97,11 @@ export async function toolbarSmoke(win) {
   await drag(".scene-artwork [data-object] rect", 20, 15);
   project = await saved();
   assert(project.scene.nodes[0].transform.x > 0, "Arraste n?o moveu objeto");
-  await click('[data-action="undo"]');
+  await click('[data-menu="edit"]');
+  await click('[data-menu-item="undo"]');
   assert((await saved()).scene.nodes[0].transform.x === 0, "Arraste n?o foi desfeito");
-  await click('[data-action="redo"]');
+  await click('[data-menu="edit"]');
+  await click('[data-menu-item="redo"]');
   const moved = await saved();
   await drag(".scene-artwork [data-object] rect", 10, 10, true);
   assert(JSON.stringify(await saved()) === JSON.stringify(moved), "Escape alterou projeto");
@@ -140,9 +142,11 @@ export async function toolbarSmoke(win) {
     (await saved()).scene.nodes[0].attrs.d !== pathBefore,
     "Arraste do vértice não alterou o path",
   );
-  await click('[data-action="undo"]');
+  await click('[data-menu="edit"]');
+  await click('[data-menu-item="undo"]');
   assert((await saved()).scene.nodes[0].attrs.d === pathBefore, "Undo de vértice falhou");
-  await click('[data-action="redo"]');
+  await click('[data-menu="edit"]');
+  await click('[data-menu-item="redo"]');
   assert((await saved()).scene.nodes[0].attrs.d !== pathBefore, "Redo de vértice falhou");
   return "draw / move / undo / redo / cancel / lock / text / pan / zoom / path conversion / vertex edit passed";
 }

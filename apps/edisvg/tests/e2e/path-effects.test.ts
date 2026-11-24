@@ -125,7 +125,8 @@ test("efeitos de caminho adicionam, editam e removem o trim com prévia no Desig
     await page.getByRole("button", { name: "Remover trim" }).click();
     assert.equal((await saved(page)).artboards[0]?.rig?.trims?.length ?? 0, 0);
     assert.equal(await shape.getAttribute("d"), PATH_D);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal((await saved(page)).artboards[0]?.rig?.trims?.length, 1);
   } finally {
     await close();

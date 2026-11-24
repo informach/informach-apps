@@ -155,6 +155,67 @@ h3 small {
   padding: 6px;
   font-size: 11px;
 }
+.menus button[aria-expanded="true"] {
+  background: #282c35;
+  color: var(--text);
+}
+/* Arquivo, Objeto, Animação, Exibir and the right click on an object (menu-popover.ts). */
+.edi-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-width: 220px;
+  max-width: min(340px, calc(100vw - 8px));
+  max-height: calc(100dvh - 8px);
+  overflow: auto;
+  padding: 4px;
+  color: var(--text);
+  background: var(--panel2);
+  border: 1px solid #343944;
+  border-radius: 7px;
+  box-shadow: 0 10px 28px #0009;
+  font-size: 12px;
+}
+.edi-menu:focus {
+  outline: none;
+}
+.edi-menu [role="menuitem"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 10px;
+  text-align: left;
+  color: var(--text);
+  border-radius: 4px;
+}
+.edi-menu [role="menuitem"]:hover,
+.edi-menu [role="menuitem"]:focus {
+  background: #4fe3c11f;
+  color: var(--text);
+  outline: none;
+}
+.edi-menu [role="menuitem"][aria-disabled="true"] {
+  color: #5d6370;
+  cursor: default;
+  background: none;
+}
+.edi-menu kbd {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--muted);
+}
+.edi-menu [aria-disabled="true"] kbd {
+  color: #4a4f5a;
+}
+.edi-menu hr {
+  height: 1px;
+  margin: 4px 6px;
+  border: 0;
+  background: var(--line);
+}
 .modes {
   display: flex;
   gap: 2px;

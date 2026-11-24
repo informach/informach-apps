@@ -36,9 +36,11 @@ test("typed view models are authored and linked through UI, persist through undo
     await page.getByRole("button", { name: "Aplicar Nome da pessoa", exact: true }).click();
     const after = await get();
     assert.notDeepEqual(after, before);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(await get(), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(await get(), after);
     const behavior = after.artboards[0]?.behavior,
       model = behavior?.data?.models[0],

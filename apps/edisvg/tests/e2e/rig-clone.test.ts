@@ -77,9 +77,11 @@ test("editing an existing path constraint preserves rig v3 trims, deformation ch
     assert.equal(constraint.progress, 0.37);
     assert.deepEqual(rig?.trims, fixture.project().artboards[0]?.rig?.trims);
     assert.deepEqual(rig?.parameterClips, fixture.project().artboards[0]?.rig?.parameterClips);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), contentSnapshot(edited));
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();
@@ -130,9 +132,11 @@ test("real object duplication preserves animated trim, undo/reload and the copie
       fixture.project().artboards[0]?.scene.nodes[0],
     );
     assert.equal(copied.artboards[0]?.rig?.parameterClips?.[0]?.tracks.length, 2);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), contentSnapshot(copied));
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();

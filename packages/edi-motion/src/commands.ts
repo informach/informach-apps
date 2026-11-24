@@ -8,6 +8,7 @@ import {
   type Motion,
   objectIdSchema,
   objectTransformPatchSchema,
+  onUnitOpacityScale,
   type Property,
   parseMotion,
   propertySchema,
@@ -19,6 +20,29 @@ const retimeFields = {
   keyIds: z.array(clipId).min(1).max(100000),
   ...keyRetimingSchema.shape,
 };
+
+/** Short names of the usual curves, written in a `keys` command instead of their points. */
+export const EASING_NAMES = {
+  ease: [0.25, 0.1, 0.25, 1],
+  "ease-in": [0.42, 0, 1, 1],
+  "ease-out": [0, 0, 0.58, 1],
+  "ease-in-out": [0.42, 0, 0.58, 1],
+  "back-out": [0.34, 1.56, 0.64, 1],
+} as const satisfies Record<string, readonly [number, number, number, number]>;
+const easingNameSchema = z.enum(
+  Object.keys(EASING_NAMES) as [keyof typeof EASING_NAMES, ...(keyof typeof EASING_NAMES)[]],
+);
+const keyFrame = z.number().min(0).max(360000);
+/** One key of a `keys` command: [frame, value] or [frame, value, easing]. */
+const shortKeySchema = z.union([
+  z.tuple([keyFrame, z.number()]),
+  z.tuple([keyFrame, z.number(), z.union([easingSchema, easingNameSchema])]),
+]);
+type EasingName = keyof typeof EASING_NAMES;
+const isEasingName = (easing: Easing | EasingName | undefined): easing is EasingName =>
+  typeof easing === "string" && Object.hasOwn(EASING_NAMES, easing);
+const easingOf = (easing: Easing | EasingName | undefined): Easing | undefined =>
+  isEasingName(easing) ? { kind: "cubic-bezier", points: [...EASING_NAMES[easing]] } : easing;
 export const motionCommandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("create-animation"), animation: animationSchema }),
   z.strictObject({
@@ -70,6 +94,14 @@ export const motionCommandSchema = z.discriminatedUnion("type", [
     frame: z.number().min(0).max(360000),
     value: z.number(),
     easing: easingSchema.optional(),
+  }),
+  // Every key of one object in one command (the same as its set-keys): a fade and a slide are
+  // a few short tuples, not one long command per key.
+  z.strictObject({
+    type: z.literal("keys"),
+    animationId: clipId,
+    targetId: objectIdSchema,
+    tracks: z.partialRecord(propertySchema, z.array(shortKeySchema).min(1).max(10000)),
   }),
   z.strictObject({
     type: z.literal("delete-key"),
@@ -153,7 +185,11 @@ export function applyMotionCommands(
         fps: command.fps,
         mode: command.mode,
       });
-    } else if (command.type === "set-key" || command.type === "set-poses") {
+    } else if (
+      command.type === "set-key" ||
+      command.type === "set-poses" ||
+      command.type === "keys"
+    ) {
       const channels = new Map(
         animation.tracks.map((track) => [`${track.targetId}:${track.property}`, track]),
       );
@@ -198,7 +234,20 @@ export function applyMotionCommands(
           command.easing,
           false,
         );
-      else {
+      else if (command.type === "keys") {
+        const listed = Object.entries(command.tracks) as [
+          Property,
+          z.infer<typeof shortKeySchema>[],
+        ][];
+        if (!listed.length) throw new Error("Informe ao menos uma trilha.");
+        for (const [property, keys] of listed) {
+          // Opacity is 0–100; a track sent on 0–1 ([[0,0],[12,1]]) means 0 to fully visible.
+          const scale =
+            property === "opacity" && onUnitOpacityScale(keys.map(([, value]) => value)) ? 100 : 1;
+          for (const [frame, value, easing] of keys)
+            set(command.targetId, property, frame, value * scale, easingOf(easing), false);
+        }
+      } else {
         const ids = new Set(command.poses.map((pose) => pose.targetId));
         if (ids.size !== command.poses.length) throw new Error("Pose contém IDs repetidos.");
         for (const pose of command.poses)

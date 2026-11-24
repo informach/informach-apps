@@ -55,9 +55,11 @@ test("trim authored with real controls preserves source, keeps degree channels, 
     await page
       .getByRole("region", { name: "Recorte animável do caminho", exact: true })
       .screenshot({ path: resolve("../../.cache/edisvg-review/trim-authoring.png") });
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), before);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(contentSnapshot(await snapshot()), contentSnapshot(authored));
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();

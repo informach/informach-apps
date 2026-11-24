@@ -337,7 +337,7 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
       const objects = project.artboards.flatMap((board) => flattenScene(board.scene));
       const targets = new Set<string>(objects.map(({ node }) => node.id));
       let touched: string[] = [];
-      if (operation.type === "set-key") touched = [operation.targetId];
+      if (operation.type === "set-key" || operation.type === "keys") touched = [operation.targetId];
       if (operation.type === "set-poses") touched = operation.poses.map((pose) => pose.targetId);
       if (
         operation.type === "delete-keys" ||

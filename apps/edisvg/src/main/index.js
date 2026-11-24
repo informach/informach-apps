@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -83,6 +83,7 @@ import {
 } from "./pipelineGuides.ts";
 import { notifyPipelineEnd } from "./pipelineNotify.ts";
 import { loadReferences, saveReference } from "./pipelineReferences.ts";
+import { clearRun, loadRun, saveRun } from "./pipelineRuns.ts";
 import {
   pickPipelineFile,
   readPickedProject,
@@ -188,8 +189,43 @@ const otherWindows = () => liveWindows(windows).filter((w) => w.slot !== slot);
 /** This window's file in the profile: window 1 keeps the name EdiSVG always had. */
 const ownFile = (name, extension) =>
   slot === 1 ? `${name}.${extension}` : `${name}-janela-${slot}.${extension}`;
-/** Opens another EdiSVG window (Arquivo › Nova janela, or one for a request). */
+/**
+ * The build this window runs: its main bundle on disk when it started. A development build
+ * rewritten under an open window (pnpm build, tests, a new edi:work build) is another program: a
+ * window started from it has another license key (the suite's access screen opens) and other
+ * renderer files. The installed app is replaced only after every window closes.
+ */
+const bundle = fileURLToPath(import.meta.url);
+const buildStamp = () => {
+  try {
+    const stat = statSync(bundle);
+    return `${stat.size}:${stat.mtimeMs}`;
+  } catch {
+    return null;
+  }
+};
+const builtAs = buildStamp();
+let staleSaid = false;
+/**
+ * Opens another EdiSVG window (Arquivo › Nova janela, or one for a request); none when this
+ * window's build was replaced on disk, saying why (once for the requests of other tools).
+ */
 function openWindow(extra = []) {
+  if (builtAs && buildStamp() !== builtAs) {
+    if (extra.length && staleSaid) return;
+    staleSaid = true;
+    const notice = {
+      type: "warning",
+      title: "EdiSVG",
+      message: "O EdiSVG foi recompilado depois que esta janela abriu.",
+      detail:
+        "Uma janela nova seria de outra versão e não abriria direito. Salve o trabalho, feche todas as janelas do EdiSVG e abra de novo; depois use Nova janela.",
+    };
+    void (win && !win.isDestroyed()
+      ? dialog.showMessageBox(win, notice)
+      : dialog.showMessageBox(notice));
+    return;
+  }
   const child = spawn(process.execPath, windowArguments(process.argv, extra), {
     detached: true,
     stdio: "ignore",
@@ -261,6 +297,11 @@ function publishWindow() {
     idle: windowIdle(),
   });
 }
+/**
+ * The window's menu bar is hidden (createWindow): the editor's own top bar is the menu. This
+ * menu stays set because its accelerators are the shortcuts (Ctrl+N/O/S/I/W, Ctrl+Shift+P/N,
+ * copy and paste in text fields, zoom); the renderer does not handle those keys itself.
+ */
 function menu() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -399,6 +440,8 @@ async function createWindow() {
       devTools: !app.isPackaged,
     },
   });
+  // One menu: the editor's top bar (Arquivo, Objeto, Animação, Exibir), not a second native one.
+  win.setMenuBarVisibility(false);
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (event, url) => {
     if (url !== rendererUrl) event.preventDefault();
@@ -620,6 +663,7 @@ app
       if (runner.busy()) throw new Error("Interrompa a IA antes de criar um projeto.");
       return files.new();
     });
+    handle("window:new", () => openWindow());
     handle("project:close", () => {
       if (!initialized) throw new Error("A recuperação precisa terminar antes da edição.");
       if (runner.busy()) throw new Error("Interrompa a IA antes de fechar o projeto.");
@@ -690,6 +734,12 @@ app
       saveGuideStyle(app.getPath("userData"), id, style),
     );
     handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
+    // Where a run stopped, by project: "Continuar de onde parou" (pipelineRuns.ts).
+    handle("pipeline:run-save", (projectId, record) =>
+      saveRun(app.getPath("userData"), projectId, record),
+    );
+    handle("pipeline:run-load", (projectId) => loadRun(app.getPath("userData"), projectId));
+    handle("pipeline:run-clear", (projectId) => clearRun(app.getPath("userData"), projectId));
     // The lesson comes as a package someone sent (a ZIP): Downloads, like the other files.
     handle("pipeline:pick", (kind) => pickPipelineFile(win, kind, folderFor("downloads")));
     handle("pipeline:read-project", (token) => readPickedProject(token));

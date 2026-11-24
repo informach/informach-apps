@@ -2,6 +2,12 @@
 
 Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e `shared`. O canvas e os painéis existentes permanecem em JavaScript; interfaces novas, como o painel de pranchetas, usam React/TypeScript integrado sem reescrita visual integral.
 
+## Menus da barra superior
+
+**Arquivo**, **Editar** (Desfazer, Refazer), **Objeto**, **Animação** e **Exibir** abrem um menu suspenso sob o botão (por exemplo Objeto › Excluir seleção); o clique direito num objeto abre o menu Objeto no ponteiro. Um comando indisponível aparece apagado e diz o motivo ao passar o mouse. Esc, um clique fora ou o mesmo botão fecham o menu; com um menu aberto, apontar para outro ou usar ← → passa para ele. Os comandos vêm do mesmo catálogo da paleta (`commandCatalog.ts`); o menu está em `menu-popover.ts`. A paleta (Ctrl/Cmd+K) continua sendo a busca em todos os comandos.
+
+A barra de menu nativa do Electron fica escondida (`win.setMenuBarVisibility(false)` em `src/main/index.js`), para não haver um segundo Arquivo nem um segundo Desfazer/Refazer. O menu nativo continua definido só pelos atalhos (Ctrl+N/O/S/I/W, Ctrl+Shift+P/N, copiar e colar, zoom), que o renderer não trata sozinho.
+
 ## Várias janelas (uma aula por janela)
 
 O EdiSVG abre quantas janelas forem precisas, até 8, para editar várias aulas ao mesmo tempo: o pipeline de uma roda enquanto outra é editada, e as exportações e os renders das animações vinculadas de cada janela correm em paralelo. Cada janela é um processo próprio, com a sua assistente e os seus pipelines, sobre o mesmo perfil (`%APPDATA%\edisvg`). As receitas, os guias de estilo e as fontes padrão continuam valendo para todas.
@@ -177,14 +183,64 @@ cria; o balão da demonstração já vem no negrito do corpo.
   quanto tempo roda, por exemplo "Assistente: Escrevendo as alterações (13 KB) · 2 alterações ·
   6:12". O painel Assistente mostra a mesma atividade e o tempo dela ("Pensando… 2:14"). Os dados
   vêm do evento `activity` do `@informach/edi-desktop` (`src/main/engines.js`).
-- O pedido do pipeline tem prazo de 40 minutos; uma mensagem do painel continua com 10. O Claude
-  Code dá sinal mais ou menos a cada segundo enquanto trabalha, então 5 minutos calado significam
-  que travou, e ele é encerrado antes do prazo.
-- Se o assistente não estiver conectado, for interrompido, terminar por erro (prazo, silêncio,
-  falha do cliente) ou não fizer nenhuma edição, o pipeline para nessa etapa e diz por quê. As
-  alterações que ele já tinha feito ficam no projeto, e a mensagem diz quantas.
+- **O rascunho é feito em partes**, cada uma numa conversa nova e curta (`draftParts` em
+  `pipelines/runner.ts`):
+  - na aula teórica, primeiro o fundo e depois um corte por vez (um corte com mais de 8 frases
+    vira mais de uma parte);
+  - nas outras receitas, de 6 em 6 frases.
+  - Antes, o rascunho inteiro era uma conversa só. Em 19 e 20/11/2026 ela levava de 25 a 40
+    minutos, chegava a 300–440 mil tokens de contexto e às vezes passava do prazo.
+  - Cada parte recebe o pedido inteiro, mas só as frases dela por extenso; as outras vão
+    resumidas. Ela fica sabendo quais partes já foram feitas e que não deve mexer nelas.
+  - A etapa mostra em que parte está, por exemplo "Parte 3 de 8 · Corte 2 · Assistente: …".
+- **As animações vão no comando curto `keys`** (`@informach/edi-motion`): um comando por objeto,
+  com todas as trilhas, como `{type:'keys', animationId, targetId, tracks:{opacity:[[0,0],[12,100,'ease-out']]}}`.
+  - Era um `set-key` por chave: 2.200 comandos e 555 mil caracteres numa só execução.
+  - O texto que o modelo escreve era o que mais gastava tempo e contexto.
+  - O guia do editor e o pedido do pipeline mandam usar o `keys`. Ele aceita as curvas `ease`,
+    `ease-in`, `ease-out`, `ease-in-out` e `back-out` pelo nome.
+- **A opacidade vai de 0 a 100** em toda trilha, chave e pose; 100 é totalmente visível.
+  - No primeiro dia do `keys`, o exemplo do guia mostrava `opacity:[[0,0],[12,1]]`. O
+    assistente gravou aulas inteiras assim, e tudo o que entrava com fade parava em 1%. Na
+    reprodução só apareciam o fundo e a apresentadora. Na "Parte 3" da aula 4 de "Transformando
+    o vilão em aliado", eram 321 de 453 trilhas.
+  - **Correção na entrada:** no `keys`, uma trilha de opacidade com todos os valores entre 0 e 1
+    (nem todos 0) é lida como fração e multiplicada por 100 (`onUnitOpacityScale` no
+    `@informach/edi-motion`).
+  - **Correção nos arquivos (projeto v28):** um arquivo v27 com trilhas assim é corrigido ao
+    abrir, uma vez só. Arquivos v28 e anteriores ao v27 não passam por isso. O primeiro
+    salvamento sobre o original guarda antes o backup `.v27.<uuid>.bak`, como em toda migração
+    (`percentOpacity` em `src/shared/project.ts`).
+  - O desenho não mudou. Canvas, Testar, HTML/React, vídeo, SVG animado e Lottie já dividiam a
+    opacidade por 100 do mesmo jeito.
+- **Prazos:**
+  - cada pedido do pipeline (uma parte, os planos ou a leitura do guia) tem 40 minutos;
+  - uma mensagem do painel tem 20;
+  - o Claude Code dá sinal mais ou menos a cada segundo enquanto trabalha, então 5 minutos sem
+    sinal significam que travou, e ele é encerrado antes do prazo;
+  - uma chamada de ferramenta espera o editor por 1 minuto. Se passar disso, o assistente ouve
+    que a edição pode ter sido aplicada e que deve conferir antes de repetir.
+- **Pedido longo demais:** o pedido do pipeline vai inteiro. Acima de 32 mil caracteres, a etapa
+  para dizendo isso. Antes, o começo era cortado sem aviso.
+- **Quando uma parte falha:**
+  - Se o assistente não estiver conectado, for interrompido, terminar por erro (prazo, silêncio,
+    falha do cliente) ou não fizer nenhuma edição, o pipeline para nessa parte e diz por quê.
+  - O que essa parte tinha feito é desfeito. As partes anteriores continuam no projeto.
+- **Continuar de onde parou:** depois de uma parada, o diálogo mostra esse botão e onde a
+  execução parou, por exemplo "Pedir o rascunho… (parte 3 de 8)".
+  - Ele não refaz as etapas prontas nem as partes prontas.
+  - Usa os mesmos arquivos e roteiro, na prancheta e na animação da execução.
+  - "Rodar pipeline" continua começando do zero.
+  - **Onde fica o progresso:** fica na memória da janela, então sobrevive a fechar o diálogo.
+    Uma cópia sem mídia fica no perfil, em `pipeline-runs/<id do projeto>.json`
+    (`src/main/pipelineRuns.ts`).
+  - **Depois de reabrir o EdiSVG:** com o projeto salvo, dá para continuar se a parada foi no
+    rascunho. As etapas antes dele usam arquivos e mídia que só existem enquanto a janela está
+    aberta.
+  - O registro é apagado quando a execução termina. Se a prancheta ou a animação da execução não
+    existir mais, ele é descartado e o pipeline pede para rodar de novo.
 - A execução inteira, até onde chegou, é **um passo de desfazer**: um Ctrl+Z volta o projeto ao
-  que era antes de rodar. Cada edição da execução é juntada à marca no próprio `commit`, antes dos
+  que era antes de rodar. Uma execução continuada é outro passo. Cada edição da execução é juntada à marca no próprio `commit`, antes dos
   limites do histórico, e a marca nunca é descartada por eles (`history.js`).
 - Enquanto roda, nada mais mexe no projeto: o pipeline não começa com o assistente respondendo;
   desfazer, refazer, importar, abrir e criar projeto esperam; e o painel não fecha (a parada é

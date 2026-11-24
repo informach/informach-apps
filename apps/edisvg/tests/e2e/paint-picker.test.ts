@@ -51,7 +51,8 @@ test("o seletor visual aplica preenchimento e opacidade em uma edição reversí
     assert.match(saved.artboards[0]?.scene.nodes[0]?.attrs.fill ?? "", /^#[\da-f]{6}$/);
     assert.notEqual(saved.artboards[0]?.scene.nodes[0]?.attrs.fill, "#4fe3c1");
     assert.equal(saved.artboards[0]?.scene.nodes[0]?.attrs["fill-opacity"], "0.01");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     const restored = parseProject(
       await page.evaluate(() => JSON.parse(localStorage.getItem("edisvg-project") ?? "null")),
     );

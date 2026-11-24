@@ -95,7 +95,8 @@ test("artboards of another project come in with their animation, chosen in a dia
     // The imported artboard is the open one, drawn on the canvas.
     await page.locator(".scene-artwork rect").first().waitFor();
     await page.getByText(/De mascote: 1 prancheta, 1 animação e 0 recursos/).waitFor();
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
     assert.deepEqual(errors, []);
   } finally {

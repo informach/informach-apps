@@ -79,7 +79,8 @@ test("o inspetor da prancheta edita tamanho e layout com histórico, e guarda a 
     assert.equal(saved.artboards[0]?.layout?.root.clip, true);
     await mkdir(resolve("../../.cache/edisvg-review"), { recursive: true });
     await page.screenshot({ path: resolve("../../.cache/edisvg-review/artboard-inspector.png") });
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(
       parseProject(JSON.parse((await readProject()) ?? "null")).artboards[0]?.layout?.root.clip,
       false,
@@ -187,7 +188,8 @@ test("arrastar o rótulo ajusta o valor e os vínculos mantêm a proporção do 
       parseProject(JSON.parse((await readProject()) ?? "null")).artboards[0]?.scene.viewBox,
       [0, 0, 1100, 1080],
     );
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await readProject(), original);
     assert.deepEqual(errors, []);
   } finally {
@@ -247,7 +249,8 @@ test("os modos de tamanho da prancheta exigem layout e ajustar ao conteúdo redi
 
     await width.selectOption("fixed");
     assert.equal(parseProject(await readProject()).artboards[0]?.layout?.rootSize?.width, "fixed");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await width.inputValue(), "hug");
     assert.deepEqual(errors, []);
   } finally {
@@ -319,7 +322,8 @@ test("modelo e instância da prancheta ligam os links da prancheta e trocam a in
     });
     await instance.selectOption("instance-b");
     assert.equal((await readData())?.context?.instanceId, "instance-b");
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await instance.inputValue(), "instance-a");
 
     await page.locator('[data-action="machine"]').click();

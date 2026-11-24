@@ -72,6 +72,11 @@ export interface DraftFacts {
     /** Frames of the video attached to this request, in order. */
     attached: { frame: number; text: string }[];
   };
+  /**
+   * The part of the draft this request is (runner.ts draftParts), each asked in a conversation of
+   * its own; none: the whole draft at once.
+   */
+  part?: DraftPartFacts;
   /** The presenter of a theory lesson (the "Aula teórica com a apresentadora" recipe). */
   presenter?: {
     /** Her spot (locked, keyed by the run). */
@@ -102,6 +107,23 @@ export interface DraftFacts {
   };
 }
 
+export interface DraftPartFacts {
+  label: string;
+  /** 0-based, of `total`. */
+  index: number;
+  total: number;
+  /** Sentences (0-based) of the part; none for the background. */
+  lines: number[];
+  background?: boolean;
+  /** The shot (0-based) of a theory lesson the part is in. */
+  shot?: number;
+  /** Labels of the parts already done. */
+  done: string[];
+}
+
+/** A sentence outside the part: enough of it to know the whole, short to keep the request small. */
+const OTHER_LINE_CHARS = 80;
+
 /** The ranges of sentences, 1-based ("1–3, 5"). */
 const sentenceList = (lines: readonly number[]): string => {
   const out: string[] = [];
@@ -119,8 +141,16 @@ const sentenceList = (lines: readonly number[]): string => {
 const clock = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
 export function draftRequest(f: DraftFacts): string {
+  const part = f.part;
+  const mine = new Set(part?.lines ?? f.lines.map((_, i) => i));
   const lines = f.lines
-    .map((l, i) => `${i + 1}. Quadros ${l.from}–${l.to}: "${l.text}"`)
+    .map((l, i) => {
+      const text =
+        mine.has(i) || l.text.length <= OTHER_LINE_CHARS
+          ? l.text
+          : `${l.text.slice(0, OTHER_LINE_CHARS).trimEnd()}…`;
+      return `${i + 1}. Quadros ${l.from}–${l.to}: "${text}"`;
+    })
     .join("\n");
   const images = f.images.length
     ? f.images.map((b) => `- ${b.name} [${b.id}] ${b.width}×${b.height}`).join("\n")
@@ -173,7 +203,9 @@ export function draftRequest(f: DraftFacts): string {
       ]
     : [];
   return [
-    `Pipeline "${f.recipe.name}". Monte o rascunho da animação desta cena, sincronizado com a narração.`,
+    part
+      ? `Pipeline "${f.recipe.name}". Monte uma parte do rascunho da animação desta cena, sincronizado com a narração: a parte ${part.index + 1} de ${part.total}, ${part.label}.`
+      : `Pipeline "${f.recipe.name}". Monte o rascunho da animação desta cena, sincronizado com a narração.`,
     "",
     ...guidePicture,
     ...(f.guide ? [f.guide, ""] : []),
@@ -210,15 +242,53 @@ export function draftRequest(f: DraftFacts): string {
           "",
         ]
       : []),
+    ...(part ? partSection(f, part) : []),
     "## Regras",
     "- Use get_overview e get_objects para ver a cena antes de editar; edite só pelas ferramentas do EdiSVG.",
+    "- Anime cada objeto com um só comando motion keys, com todas as trilhas dele ({type:'motion',command:{type:'keys',animationId,targetId,tracks:{opacity:[[quadro,0],[quadro,100,'ease-out']],y:[...]}}}), e não com um set-key por chave. Junte vários objetos no mesmo edit_document. A opacidade vai de 0 a 100: 100 é totalmente visível, e 1 seria 1%.",
     `- Anime só a animação [${f.clip.id}], na prancheta [${f.artboard.id}]. Não edite as pranchetas das imagens.`,
     "- Cada ação acontece dentro dos quadros da frase que ela ilustra: entra no começo da frase (até uns 6 quadros antes) e termina antes da frase seguinte.",
     `- Textos curtos (as palavras-chave da frase), nas cores de texto${f.fonts ? " e nas fontes acima" : ""}, legíveis no tamanho da prancheta.`,
     "- Para mostrar uma imagem que ainda não está na cena, crie uma instância da prancheta dela.",
     "- Não apague nem mova o que veio do projeto além do que a animação pede; o rascunho é revisado pela pessoa.",
-    "- Ao terminar, responda com uma linha por frase dizendo o que acontece nela.",
+    part?.background
+      ? "- Ao terminar, responda em poucas linhas o que criou no fundo."
+      : `- Ao terminar, responda com uma linha por frase${part ? " desta parte" : ""} dizendo o que acontece nela.`,
   ].join("\n");
+}
+
+/**
+ * What this part is: only its sentences (or only the background), the parts done before (kept as
+ * they are) and the ones still to come (not made now).
+ */
+function partSection(f: DraftFacts, part: DraftPartFacts): string[] {
+  const first = part.lines[0] ?? 0;
+  const last = part.lines.at(-1) ?? first;
+  const from = f.lines[first]?.from ?? 0;
+  const to = f.lines[last]?.to ?? f.clip.frames;
+  const shot = part.shot === undefined ? undefined : f.presenter?.shots[part.shot];
+  const done = part.done.length
+    ? [
+        `- Já feito em partes anteriores: ${part.done.join(", ")}. Está na prancheta: não altere, mova nem apague, e não leia as trilhas delas (só o que precisar para não sobrepor).`,
+      ]
+    : [];
+  if (part.background)
+    return [
+      "## Esta parte: só o fundo",
+      `- Faça agora só o fundo da animação inteira (quadros 0–${f.clip.frames}): os brilhos grandes, a textura e as estrelinhas, com o movimento deles do começo ao fim, na ordem de camadas pedida acima.`,
+      "- Não crie conteúdo de nenhuma frase: cada corte é feito depois, numa parte só dele.",
+      ...done,
+      "",
+    ];
+  return [
+    `## Esta parte: ${part.label}`,
+    shot
+      ? `- Anime agora só as frases ${first + 1}–${last + 1} (quadros ${from}–${to}), do Corte ${(part.shot ?? 0) + 1}, na coluna dele. Se o grupo "Corte ${(part.shot ?? 0) + 1} · conteúdo" já existir (a parte anterior deste corte), acrescente nele.`
+      : `- Anime agora só as frases ${first + 1}–${last + 1} (quadros ${from}–${to}).`,
+    `- As outras frases são feitas em outras partes, cada uma numa conversa separada: não crie, mova nem apague nada delas.${f.presenter ? " O fundo (brilhos, textura e estrelinhas) é de outra parte: não crie outro." : ""}`,
+    ...done,
+    "",
+  ];
 }
 
 /**

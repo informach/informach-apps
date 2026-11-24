@@ -37,6 +37,7 @@ export {
   motionSchema,
   objectIdSchema,
   objectTransformPatchSchema,
+  onUnitOpacityScale,
   type Property,
   parseMotion,
   propertyBounds,

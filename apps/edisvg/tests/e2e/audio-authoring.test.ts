@@ -43,12 +43,14 @@ test("built audio authoring imports PCM, binds actual events, persists undo/redo
       .fill("Tom de confirmação");
     await page.getByRole("button", { name: "Vincular áudio ao evento", exact: true }).click();
     await page.getByRole("button", { name: "Salvar vínculo", exact: true }).waitFor();
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(
       await page.getByRole("button", { name: "Salvar vínculo", exact: true }).count(),
       0,
     );
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.getByRole("button", { name: "Salvar vínculo", exact: true }).waitFor();
     await page.getByLabel("Volume do efeito", { exact: true }).fill("0.5");
     await page.getByRole("button", { name: "Salvar vínculo", exact: true }).click();

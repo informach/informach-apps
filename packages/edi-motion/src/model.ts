@@ -23,6 +23,15 @@ export const propertyBounds: Readonly<Record<Property, readonly [number, number]
   skewX: [-85, 85],
   opacity: [0, 100],
 };
+/**
+ * Opacity is 0–100 everywhere (100 is fully visible). An opacity track whose every value is
+ * within 0–1, and not all 0, was written on the 0–1 scale: read as percent, its 1 is 1% and the
+ * object never shows. Such a track is read as 0–1 and scaled to percent — by the `keys` command
+ * and, once, when a v27 EdiSVG project written that way is opened.
+ */
+export function onUnitOpacityScale(values: readonly number[]): boolean {
+  return values.every((value) => value >= 0 && value <= 1) && values.some((value) => value > 0);
+}
 const id = z.string().regex(/^[a-z]+-[\w-]{1,100}$/);
 export const objectIdSchema = z.string().regex(/^node-[\w-]{1,100}$/);
 export const modeSchema = z.enum(["loop", "ping-pong", "once"]);

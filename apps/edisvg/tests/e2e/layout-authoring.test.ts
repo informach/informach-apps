@@ -32,7 +32,8 @@ test("layout is authored, undone, restored and exported offline through the real
     await page.getByLabel("Gap horizontal", { exact: true }).fill("24");
     await page.getByRole("button", { name: "Aplicar contêiner", exact: true }).click();
     assert.notEqual(await get(), authored);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await get(), authored);
     await page.reload();
     await page.locator(".scene-artwork [data-edi-layout]").waitFor();

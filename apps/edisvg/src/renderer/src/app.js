@@ -144,6 +144,7 @@ import {
 } from "./keyEditor.js";
 import { mountLayoutPanel } from "./layout-panel";
 import { mountLayoutPreview } from "./layout-preview";
+import { closeMenu, openMenu, openMenuKey } from "./menu-popover";
 import { paintOnionSkin } from "./onionSkin";
 import { bindPanelResize } from "./panelResize";
 import { mountPathActions } from "./path-actions";
@@ -418,6 +419,17 @@ const layers = [
 ];
 const button = (action, label, cls = "") =>
   `<button data-action="${action}" class="${cls}">${label}</button>`;
+/** The top bar menus and the command group each one lists. */
+const TOP_MENUS = {
+  file: "Arquivo",
+  edit: "Editar",
+  object: "Objeto",
+  animation: "Animação",
+  view: "Exibir",
+};
+/** A top bar menu (Arquivo, Objeto, Animação, Exibir): opens a dropdown, see menu-popover.ts. */
+const menuButton = (action, label) =>
+  `<button data-action="${action}" data-menu="${action}" aria-haspopup="menu" aria-expanded="${openMenuKey() === action}">${label}</button>`;
 function render() {
   document.body.classList.toggle(
     "edisvg-design-mode",
@@ -509,7 +521,7 @@ function render() {
   synchronizePathEditing(state);
   const authoredMachine = Boolean(state.scene && state.view === "machine");
   $("#app").innerHTML =
-    `<header class="topbar"><div class="brand"><span class="mark">⌁</span>EdiSVG <small class="app-version">${packageInfo.version}</small></div><nav class="menus">${button("file", "Arquivo")}${button("undo", "↶ Desfazer")}${button("redo", "↷ Refazer")}${button("object", "Objeto")}${button("animation", "Animação")}${button("view", "Exibir")}${button("help", "Ajuda")}</nav><div class="modes">${button("design", "◇ Design", state.view === "design" ? "active" : "")}${button("animate", "◷ Animar", state.view === "animate" ? "active" : "")}${state.scene ? button("machine", "◈ Estados", authoredMachine ? "active" : "") : ""}</div><span class="project">${state.scene ? "Projeto" : "Mascote"} ${escapeHtml(state.name)} <span title="${escapeHtml(fileStatus.path || "Projeto ainda sem arquivo")}">/ ${escapeHtml(fileStatus.name)}${fileStatus.dirty ? " •" : ""}</span><i class="saved" title="${escapeHtml(localSaveStatus)}"></i></span><button type="button" class="link-status" data-link-status aria-live="polite" title="Fila de renders para a aula"${linkStatusText() ? "" : " hidden"}>${escapeHtml(linkStatusText())}</button><div class="top-actions">${button("test", "▷ <span>Testar</span>")}${button("assistant", "✧ <span>Assistente</span>")}${button("export", "↗ Exportar", "primary")}</div></header><main class="workspace ${state.view === "machine" ? "machine-workspace" : ""}">${toolbar(state)}${authoredMachine ? '<aside class="sidebar" data-behavior-sidebar></aside>' : state.scene ? sceneSidebar(state) : state.view === "machine" ? machineSidebar() : hierarchy()}<section class="center">${authoredMachine ? '<div data-behavior-canvas style="height:100%"></div>' : state.scene ? sceneCanvas(state) : state.view === "machine" ? machineCanvas() : canvas()}</section><aside class="inspector">${authoredMachine ? "<div data-behavior-inspector></div>" : state.scene ? sceneInspector(state) : state.view === "machine" ? machineInspector() : inspector()}</aside></main>${authoredMachine ? '<footer class="statusbar"><span class="live-dot"></span> Lógica editável da prancheta <span class="push">Estados · Dados · Eventos</span></footer>' : state.view === "machine" ? '<footer class="statusbar"><span class="live-dot"></span> Máquina de estados · Interação <span class="push">3 estados · 4 listeners</span></footer>' : timeline()}<dialog id="export-dialog"></dialog><dialog id="help-dialog"></dialog><dialog id="clip-dialog"></dialog>`;
+    `<header class="topbar"><div class="brand"><span class="mark">⌁</span>EdiSVG <small class="app-version">${packageInfo.version}</small></div><nav class="menus">${menuButton("file", "Arquivo")}${menuButton("edit", "Editar")}${menuButton("object", "Objeto")}${menuButton("animation", "Animação")}${menuButton("view", "Exibir")}${button("help", "Ajuda")}</nav><div class="modes">${button("design", "◇ Design", state.view === "design" ? "active" : "")}${button("animate", "◷ Animar", state.view === "animate" ? "active" : "")}${state.scene ? button("machine", "◈ Estados", authoredMachine ? "active" : "") : ""}</div><span class="project">${state.scene ? "Projeto" : "Mascote"} ${escapeHtml(state.name)} <span title="${escapeHtml(fileStatus.path || "Projeto ainda sem arquivo")}">/ ${escapeHtml(fileStatus.name)}${fileStatus.dirty ? " •" : ""}</span><i class="saved" title="${escapeHtml(localSaveStatus)}"></i></span><button type="button" class="link-status" data-link-status aria-live="polite" title="Fila de renders para a aula"${linkStatusText() ? "" : " hidden"}>${escapeHtml(linkStatusText())}</button><div class="top-actions">${button("test", "▷ <span>Testar</span>")}${button("assistant", "✧ <span>Assistente</span>")}${button("export", "↗ Exportar", "primary")}</div></header><main class="workspace ${state.view === "machine" ? "machine-workspace" : ""}">${toolbar(state)}${authoredMachine ? '<aside class="sidebar" data-behavior-sidebar></aside>' : state.scene ? sceneSidebar(state) : state.view === "machine" ? machineSidebar() : hierarchy()}<section class="center">${authoredMachine ? '<div data-behavior-canvas style="height:100%"></div>' : state.scene ? sceneCanvas(state) : state.view === "machine" ? machineCanvas() : canvas()}</section><aside class="inspector">${authoredMachine ? "<div data-behavior-inspector></div>" : state.scene ? sceneInspector(state) : state.view === "machine" ? machineInspector() : inspector()}</aside></main>${authoredMachine ? '<footer class="statusbar"><span class="live-dot"></span> Lógica editável da prancheta <span class="push">Estados · Dados · Eventos</span></footer>' : state.view === "machine" ? '<footer class="statusbar"><span class="live-dot"></span> Máquina de estados · Interação <span class="push">3 estados · 4 listeners</span></footer>' : timeline()}<dialog id="export-dialog"></dialog><dialog id="help-dialog"></dialog><dialog id="clip-dialog"></dialog>`;
   bind();
   for (const action of ["test", "export"]) {
     const control = document.querySelector(`[data-action="${action}"]`);
@@ -1435,17 +1447,6 @@ function updateFileStatus(status) {
   document.title = (status.dirty ? "• " : "") + status.name + " — EdiSVG " + packageInfo.version;
 }
 function refreshHistoryControls() {
-  for (const direction of ["undo", "redo"]) {
-    const el = document.querySelector('[data-action="' + direction + '"]');
-    if (el) {
-      el.disabled = direction === "undo" ? !projectHistory.canUndo : !projectHistory.canRedo;
-      el.title =
-        direction === "undo" ? "Desfazer edição (Ctrl+Z)" : "Refazer edição (Ctrl+Shift+Z)";
-      if (projectHistory.evictedCount)
-        el.title +=
-          " · Histórico antigo reduzido pelo limite de snapshots (32 MB serializados/100 edições).";
-    }
-  }
   const indicator = document.querySelector("[data-local-save]");
   if (indicator) indicator.textContent = localSaveStatus;
 }
@@ -1457,6 +1458,16 @@ function travelHistory(direction) {
   }
   const project = projectHistory[direction]();
   if (!project) return false;
+  restoreContent(project);
+  save(false);
+  render();
+  return true;
+}
+/**
+ * Puts a checkpoint of the content back (an undo, a redo, a part of a pipeline run undone),
+ * keeping the view, the animation, the frame and the selection when they still exist.
+ */
+function restoreContent(project) {
   const context = {
     view: state.view,
     animation: state.animation,
@@ -1477,9 +1488,6 @@ function travelHistory(direction) {
   state.frame = Math.min(context.frame, currentAnimation().frames);
   if (state.scene && flattenScene(state.scene).some(({ node }) => node.id === context.selected))
     state.selected = context.selected;
-  save(false);
-  render();
-  return true;
 }
 function notify(text) {
   $("#toast").textContent = text;
@@ -1729,8 +1737,9 @@ function updatePose() {
   syncReferenceVideo(state.activeArtboardId, state.playing, state.frame / a.fps);
 }
 function action(id) {
-  if (["commands", "object", "animation", "view"].includes(id))
-    return openCommands({ object: "Objeto", animation: "Animação", view: "Exibir" }[id]);
+  if (id === "commands") return openCommands();
+  if (id in TOP_MENUS) return openTopMenu(id);
+  if (id.startsWith("file-")) return assistant.runFileAction(id);
   if (state.scene && (id === "rulers" || id === "guides")) {
     state[id] = state[id] === false;
     render();
@@ -1868,7 +1877,6 @@ function action(id) {
   }
   if (state.scene && id === "test") return openBehaviorTest();
   if (id === "assistant") return assistant.toggle();
-  if (id === "file") return assistant.fileMenu();
   if (["animate", "design", "machine"].includes(id)) {
     state.view = id;
     if (id === "machine") state.pathEdit = null;
@@ -1931,24 +1939,6 @@ function action(id) {
   if (id === "export") return openExport();
   if (id === "help") return openHelp();
   if (id === "trigger") return setMachine("Pular");
-  if (id === "file") {
-    save();
-    notify("Projeto salvo neste navegador. Use Exportar para baixar uma cópia.");
-    return;
-  }
-  if (id === "animation")
-    return state.scene
-      ? openClipDialog(state, { transact, render, notify }, !activeClip(state))
-      : play();
-  if (id === "view") {
-    state.clean = !state.clean;
-    render();
-    return;
-  }
-  if (id === "object") {
-    notify("Selecione uma camada à esquerda e edite a transformação no painel direito.");
-    return;
-  }
   if (id === "undo" || id === "redo") {
     travelHistory(id);
     return;
@@ -2922,6 +2912,33 @@ function openPipelines(handed = undefined) {
         return assets.map((asset) => asset.id);
       },
       stopAssistant: () => void window.desktop?.aiStop(),
+      // A part of the draft that failed goes away (one edit, joined to the run's undo step).
+      partStart: () => contentSnapshot(snapshot(state)),
+      undoPart: (saved) => {
+        sameRunSession();
+        restoreContent(structuredClone(saved));
+        save();
+        render();
+      },
+      runPlace: () => ({
+        projectId: state.id,
+        artboardId: state.activeArtboardId ?? null,
+        clipId: state.activeClipId ?? null,
+      }),
+      resumeRun: (place) => {
+        const board = state.artboards.find((item) => item.id === place.artboardId);
+        if (state.id !== place.projectId || !board) return false;
+        if (place.clipId && !state.motion.animations.some((clip) => clip.id === place.clipId))
+          return false;
+        bindActiveArtboard(state, board.id);
+        chooseObject(state, null);
+        if (place.clipId) {
+          state.activeClipId = place.clipId;
+          state.view = "animate";
+        }
+        render();
+        return true;
+      },
       assistantBusy: () => assistant.isBusy(),
       // A run is one undo step: the edits since the mark are joined at its end.
       beginRun: () => {
@@ -3194,13 +3211,11 @@ bindSvgIngress(
   },
   notify,
 );
-function openCommands(group) {
-  if (document.querySelector("dialog[open]")) return;
-  state.playing = false;
-  render();
+/** Every editor command with what keeps it unavailable now: the palette's and the menus'. */
+function currentCommands() {
   const ids = new Set(selectionIds(state)),
     selection = flattenScene(state.scene).filter(({ node }) => ids.has(node.id));
-  const commands = editorCommands(
+  return editorCommands(
     {
       scene: !!state.scene,
       selection: state.view !== "machine" && selection.length > 0,
@@ -3220,11 +3235,17 @@ function openCommands(group) {
       shortcut: tool.shortcut,
       reason: toolAvailability(tool, state) || undefined,
     })),
-  ).filter((command) => !group || command.group === group);
+  );
+}
+function openCommands() {
+  if (document.querySelector("dialog[open]")) return;
+  closeMenu({ restoreFocus: false });
+  state.playing = false;
+  render();
   const dialog = document.querySelector("#clip-dialog");
   disposePalette = mountCommandPalette(dialog, {
-    commands,
-    title: group ? `Comandos · ${group}` : "Comandos do EdiSVG",
+    commands: currentCommands(),
+    title: "Comandos do EdiSVG",
     execute(id) {
       disposePalette?.();
       dialog.close();
@@ -3263,9 +3284,44 @@ document.addEventListener("contextmenu", (event) => {
   if (!target || document.querySelector("dialog[open]")) return;
   event.preventDefault();
   const id = target.getAttribute("data-object") ?? target.getAttribute("data-scene-select");
-  if (id && !selectionIds(state).includes(id)) chooseObject(state, id);
-  openCommands("Objeto");
+  if (id && !selectionIds(state).includes(id)) {
+    chooseObject(state, id);
+    render();
+  }
+  openMenu({
+    key: "context",
+    label: "Objeto",
+    items: currentCommands().filter((command) => command.group === "Objeto"),
+    point: { x: event.clientX, y: event.clientY },
+    select: action,
+  });
 });
+/** The top bar menus: the catalog's commands of that group; Arquivo starts with the file ones. */
+function openTopMenu(id) {
+  if (document.querySelector("dialog[open]")) return;
+  const group = currentCommands().filter((command) => command.group === TOP_MENUS[id]);
+  openMenu({
+    key: id,
+    label: TOP_MENUS[id],
+    anchor: document.querySelector(`[data-menu="${id}"]`) ?? undefined,
+    items:
+      id === "file"
+        ? assistant.fileMenuItems(group.filter((command) => command.id !== "import-svg"))
+        : id === "edit" && projectHistory.evictedCount
+          ? [
+              ...group,
+              { separator: true },
+              {
+                id: "history-note",
+                label: "Histórico antigo reduzido",
+                group: "Editar",
+                reason: "Limite de snapshots: 32 MB serializados ou 100 edições.",
+              },
+            ]
+          : group,
+    select: action,
+  });
+}
 function openHelp() {
   const d = $("#help-dialog");
   d.innerHTML = `<div class="dialog-heading"><div><h2>Seu estúdio de movimento.</h2><p>Crie uma cena própria ou importe um SVG.</p></div><button id="close-help" aria-label="Fechar">×</button></div><div class="help-content"><p><b>01 · Anime objetos</b><br>Crie uma animação, selecione um objeto e grave uma pose. Ative Autochave, mude de quadro e edite as transformações para criar movimento. FPS e duração são configuráveis.</p><p><b>02 · Explore a timeline</b><br>Clique na régua e pressione Espaço para reproduzir. Selecione uma chave para posicionar o cursor ou excluí-la; Ctrl+Z desfaz edições.</p><p><b>03 · Leve para a web</b><br>O HTML independente usa o mesmo avaliador do editor, sem conta ou conexão. SVG usa amostragem no FPS do documento. Sequência PNG, GIF, MP4 e WebM desenham cada quadro com o mesmo player, sem áudio nem interação. O projeto preserva trilhas e configurações.</p><p><b>04 · Edite as formas</b><br>Em Design, selecione uma forma e pressione Enter. Arraste pontos e alças; use Concluir para sair.</p><p class="micro">Presets globais são legados; seus marcadores não guardam poses. Alças de curvas são editáveis. Estados permite criar máquinas, camadas, transições e dados; Testar executa sessão isolada e HTML interativo conserva a lógica. Layouts responsivos e modelos compostos/listas são editáveis; React exporta componente, tipos, runtime e exemplo Next.js. Componentes mantêm sessões independentes de lógica/dados/layout; Testar permite inspecioná-las sem editar a origem. Rig, malha e recursos avançados continuam em implementação. Não há compatibilidade .riv.</p></div>`;

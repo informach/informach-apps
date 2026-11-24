@@ -266,12 +266,14 @@ test("morph capture and exclusive expressions are authored through UI, keep the 
     }
     const keyed = await snapshot();
     assert.equal(keyed.artboards[0]?.rig?.parameterClips?.[0]?.tracks[0]?.keys.length, 2);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(
       (await snapshot()).artboards[0]?.rig?.parameterClips?.[0]?.tracks[0]?.keys.length,
       1,
     );
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.deepEqual(await snapshot(), keyed);
     await page.reload();
     await page.locator(".scene-artwork>svg").waitFor();

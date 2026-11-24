@@ -173,13 +173,15 @@ test("built text inspector diagnoses missing glyphs and authors embedded fallbac
         document.querySelector(".scene-artwork text")?.getAttribute("font-family") === expected,
       family,
     );
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     await page.waitForFunction(
       (expected) =>
         document.querySelector(".scene-artwork text")?.getAttribute("font-family") === expected,
       `edi-${fixture.primary.id}`,
     );
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     await page.reload();
     await page.waitForFunction(
       (expected) =>

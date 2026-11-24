@@ -200,9 +200,11 @@ test("built gradient editor authors stops/opacity/geometry, refuses unsorted edi
       .getByRole("button", { name: "Aplicar gradiente de preenchimento", exact: true })
       .click();
     assert.equal(await page.locator(".scene-artwork linearGradient stop").count(), 3);
-    await page.locator('[data-action="undo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
     assert.equal(await page.locator(".scene-artwork linearGradient stop").count(), 2);
-    await page.locator('[data-action="redo"]').click();
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="redo"]').click();
     assert.equal(await page.locator(".scene-artwork linearGradient stop").count(), 3);
     const stored = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await page.reload();

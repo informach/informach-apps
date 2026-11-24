@@ -177,7 +177,7 @@ test("project defaults: a new text is born in the title font; apply to all by we
   assert.equal(fonts.heading?.family, "Baloo 2");
   assert.equal(fonts.body?.family, "Nunito");
   assert.equal(project.version, PROJECT_VERSION);
-  assert.equal(PROJECT_VERSION, 27);
+  assert.ok(PROJECT_VERSION >= 27);
   // A new text (as the toolbar and the assistant make it) takes the title font.
   const added = await edit(project, [
     { type: "scene", operation: "add", targetId: null, value: "text" },
@@ -228,13 +228,13 @@ test("project defaults: a new text is born in the title font; apply to all by we
     ),
     /fontes padrão do projeto/,
   );
-  // Saved and opened again, the defaults stay; v26 cannot carry them, and opens as v27 without.
+  // Saved and opened again, the defaults stay; v26 cannot carry them, and opens as the current version without.
   const roundTrip = parseProject(JSON.parse(JSON.stringify(project)));
   assert.deepEqual(roundTrip.defaults, project.defaults);
   assert.throws(() => parseProject({ ...JSON.parse(JSON.stringify(project)), version: 26 }), /v27/);
   const old = { ...JSON.parse(JSON.stringify(start)), version: 26 };
   const migrated = parseProject(old);
-  assert.equal(migrated.version, 27);
+  assert.equal(migrated.version, PROJECT_VERSION);
   assert.equal(migrated.defaults, undefined);
   assert.deepEqual(migrated.artboards, start.artboards);
 });
