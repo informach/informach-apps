@@ -56,33 +56,54 @@ function Close-EdiFerramenta([string]$Id, [int]$Segundos = 60) {
   $false
 }
 
-# Cópia do perfil da ferramenta (e dos projetos do EdiAula), no máximo uma por dia e as 10
-# mais recentes. Ficam de fora os caches do Chromium, o motor de transcrição, que é baixado de
-# novo, e arquivos acima de 200 MB (vídeos), para o backup continuar pequeno.
+# Gravações e vídeos dos projetos do EdiAula: quase todo o tamanho da pasta, e não mudam
+# depois de gravados.
+$EdiMidia = @("*.wav", "*.mp4", "*.webm", "*.mov", "*.mkv", "*.mp3", "*.m4a", "*.aac", "*.ogg", "*.flac")
+
+# Backup do perfil da ferramenta (e dos projetos do EdiAula), no máximo um por dia.
+# - A pasta do dia (<ferramenta>\<data>) tem o perfil e os arquivos de projeto, sem a mídia:
+#   guarda as 10 mais recentes.
+# - A mídia do EdiAula vai para uma cópia só (<ferramenta>\midia), que recebe os arquivos novos ou
+#   mudados e nunca apaga: um vídeo apagado do projeto continua lá. Copiar ~10 GB todo dia
+#   segurava a abertura por minutos.
+# - Ficam de fora os caches do Chromium, o motor de transcrição (baixado de novo) e arquivos acima
+#   de 200 MB.
+# Só conta como feito quando termina (o arquivo .concluido): um backup interrompido continua na
+# próxima abertura, e o robocopy pula o que já foi copiado.
 function Backup-EdiFerramenta([string]$Id) {
   $pasta = Join-Path $EdiBackups $Id
   $destino = Join-Path $pasta (Get-Date -Format "yyyy-MM-dd")
-  if (Test-Path $destino) { return $null }
-  $origens = @()
-  $perfil = Join-Path $env:APPDATA $Id
-  if (Test-Path $perfil) { $origens += , @($perfil, (Join-Path $destino "perfil")) }
-  if ($Id -eq "ediaula") {
-    $projetos = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "EdiAula\Projetos"
-    if (Test-Path $projetos) { $origens += , @($projetos, (Join-Path $destino "Projetos")) }
-  }
-  if (-not $origens.Count) { return $null }
+  $concluido = Join-Path $destino ".concluido"
+  if (Test-Path $concluido) { return $null }
   $caches = @(
     "Cache", "Code Cache", "GPUCache", "GPUPersistentCache", "GrShaderCache", "ShaderCache",
     "DawnGraphiteCache", "DawnWebGPUCache", "Shared Dictionary", "VideoDecodeStats", "whisper",
     "Crashpad", "logs"
   )
-  foreach ($par in $origens) {
-    $argumentos = @($par[0], $par[1], "/E", "/MAX:209715200", "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NJS", "/NP", "/XD") + $caches
+  $comum = @("/E", "/MAX:209715200", "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NJS", "/NP")
+  # Cada cópia: origem, destino, arquivos (vazio = todos) e opções a mais.
+  $copias = @()
+  $perfil = Join-Path $env:APPDATA $Id
+  if (Test-Path $perfil) {
+    $copias += , @($perfil, (Join-Path $destino "perfil"), @(), (@("/XD") + $caches))
+  }
+  if ($Id -eq "ediaula") {
+    $projetos = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "EdiAula\Projetos"
+    if (Test-Path $projetos) {
+      $copias += , @($projetos, (Join-Path $destino "Projetos"), @(), (@("/XF") + $EdiMidia + @("/XD") + $caches))
+      $copias += , @($projetos, (Join-Path $pasta "midia\Projetos"), $EdiMidia, (@("/XD") + $caches))
+    }
+  }
+  if (-not $copias.Count) { return $null }
+  foreach ($copia in $copias) {
+    $argumentos = @($copia[0], $copia[1]) + $copia[2] + $comum + $copia[3]
     & robocopy @argumentos | Out-Null
     # Robocopy: 0 a 7 são sucesso; 8 ou mais, falha.
-    if ($LASTEXITCODE -ge 8) { throw "o backup de $($par[0]) falhou (robocopy $LASTEXITCODE)" }
+    if ($LASTEXITCODE -ge 8) { throw "o backup de $($copia[0]) falhou (robocopy $LASTEXITCODE)" }
   }
-  Get-ChildItem $pasta -Directory | Sort-Object Name -Descending | Select-Object -Skip 10 |
-    Remove-Item -Recurse -Force
+  New-Item -ItemType Directory -Force $destino | Out-Null
+  Set-Content -Path $concluido -Value (Get-Date -Format "o") -Encoding ascii
+  Get-ChildItem $pasta -Directory | Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' } |
+    Sort-Object Name -Descending | Select-Object -Skip 10 | Remove-Item -Recurse -Force
   $destino
 }

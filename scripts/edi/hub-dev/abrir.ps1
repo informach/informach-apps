@@ -1,7 +1,8 @@
 ﻿# Abre uma ferramenta Edi no modo de trabalho (`pnpm edi:work`), a partir do código deste
 # computador. Antes: instala as dependências se o pnpm-lock.yaml mudou desde a última vez (um
-# `git pull` com pacote novo) e faz o backup do dia do perfil da ferramenta. Tudo vai para o
-# registro em .cache\edi-work\registros\<ferramenta>.log.
+# `git pull` com pacote novo). O backup do dia do perfil da ferramenta (backup.ps1) começa junto,
+# em segundo plano, sem segurar a abertura. Tudo vai para o registro em
+# .cache\edi-work\registros\<ferramenta>.log; o do backup, para <ferramenta>-backup.log.
 #
 # Usado pelo Hub de desenvolvimento e, com -Avisar, pelos atalhos de cada ferramenta: sem o
 # Hub aberto, uma falha aparece numa caixa de mensagem.
@@ -86,9 +87,12 @@ try {
       $exclusao.ReleaseMutex()
       $exclusao.Dispose()
     }
-    Registrar "fazendo o backup do dia"
-    $backup = Backup-EdiFerramenta $Ferramenta
-    if ($backup) { Registrar "backup em $backup" }
+    # O backup do dia corre ao lado (backup.ps1): copiar os projetos segurava a abertura.
+    Start-Process -FilePath (Join-Path $PSHOME "powershell.exe") -WindowStyle Hidden -ArgumentList @(
+      "-NoProfile", "-ExecutionPolicy", "Bypass",
+      "-File", "`"$(Join-Path $PSScriptRoot "backup.ps1")`"", "-Ferramenta", $Ferramenta
+    )
+    Registrar "backup do dia em segundo plano"
     Registrar "compilando e abrindo"
     $argumentos = if ($Oculto) { " --oculto" } else { "" }
     $codigo = Executar "pnpm edi:work $Ferramenta$argumentos"
