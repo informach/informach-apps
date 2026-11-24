@@ -5,10 +5,14 @@ import {
   type AnnotationIcon,
   defaultOutline,
   fillsFrame,
+  HEAD_LABEL,
+  HEAD_SHAPES,
+  type HeadShape,
   ICON_IDS,
   type ItemMarker,
   KIND_LABEL,
   KIT,
+  lineHeads,
   type Outline,
   type OutlineStyle,
   outlineStyle,
@@ -35,6 +39,7 @@ import { MessageSquareText, PenLine, PenTool, Type, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { ICON_COMPONENTS } from "@/lib/annotationIcons";
 import { updateAnnotation } from "@/lib/annotations";
+import { aimClip, changesBody, nearestClick } from "@/lib/balloonTarget";
 import { changeDrawing } from "@/lib/drawing";
 import { annotationStyle } from "@/lib/sharedLibrary";
 import { useApp } from "@/state/app";
@@ -141,6 +146,8 @@ function ShortText({
 
 const TAILS: [Tail, string][] = [
   ["none", "Sem"],
+  ["bottom", "↓"],
+  ["top", "↑"],
   ["bottom-left", "↙"],
   ["bottom-right", "↘"],
   ["top-left", "↖"],
@@ -149,16 +156,71 @@ const TAILS: [Tail, string][] = [
   ["right", "→"],
 ];
 
-const ARROW_DIRECTIONS: [number, string][] = [
-  [-135, "↖"],
-  [-90, "↑"],
-  [-45, "↗"],
-  [180, "←"],
-  [0, "→"],
-  [135, "↙"],
-  [90, "↓"],
-  [45, "↘"],
-];
+/** A head as a small drawing, at the right end of a short line (mirrored for the start). */
+function HeadGlyph({ shape, start }: { shape: HeadShape; start?: boolean }): ReactNode {
+  const head = (() => {
+    switch (shape) {
+      case "none":
+        return null;
+      case "triangle":
+        return <polygon points="30,8 21,3 21,13" fill="currentColor" />;
+      case "notched":
+        return <polygon points="30,8 21,3 24,8 21,13" fill="currentColor" />;
+      case "open":
+        return (
+          <polyline points="22,3 29,8 22,13" fill="none" stroke="currentColor" strokeWidth="2" />
+        );
+      case "circle":
+        return <circle cx="26" cy="8" r="4" fill="currentColor" />;
+      case "square":
+        return <rect x="22" y="4" width="8" height="8" fill="currentColor" />;
+      case "bar":
+        return <line x1="29" y1="2" x2="29" y2="14" stroke="currentColor" strokeWidth="2.5" />;
+    }
+  })();
+  const stop = shape === "triangle" || shape === "notched" ? 22 : shape === "none" ? 30 : 26;
+  return (
+    <svg
+      width="32"
+      height="16"
+      viewBox="0 0 32 16"
+      aria-hidden="true"
+      style={start ? { transform: "scaleX(-1)" } : undefined}
+    >
+      <line x1="2" y1="8" x2={stop} y2="8" stroke="currentColor" strokeWidth="2" />
+      {head}
+    </svg>
+  );
+}
+
+/** The head of one end of a line or arrow, as in Illustrator's stroke panel. */
+function HeadPicker({
+  value,
+  start,
+  onPick,
+}: {
+  value: HeadShape;
+  start?: boolean;
+  onPick: (shape: HeadShape) => void;
+}): ReactNode {
+  return (
+    <div className="chip-row">
+      {HEAD_SHAPES.map((shape) => (
+        <button
+          type="button"
+          key={shape}
+          className={`chip chip-arrow chip-head ${value === shape ? "is-active" : ""}`}
+          title={HEAD_LABEL[shape]}
+          aria-label={HEAD_LABEL[shape]}
+          aria-pressed={value === shape}
+          onClick={() => onPick(shape)}
+        >
+          <HeadGlyph shape={shape} start={start} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Kinds whose main color is the outline itself (the color row edits both). */
 const OUTLINE_IS_COLOR = new Set<Annotation["kind"]>(["highlight"]);
@@ -366,8 +428,29 @@ function TypedTexts({ clip }: { clip: Clip }): ReactNode {
 /** Editing an annotation redraws its picture; each change is one undo step. */
 export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
   const a = clip.annotation!;
+  // A balloon aimed at an item aims again when its body changes (a new text, another font).
   const set = (c: Partial<Annotation>): void => {
-    void updateAnnotation(clip.id, c);
+    if (a.kind === "balloon" && a.target && changesBody(c)) void aimClip(clip.id, undefined, c);
+    else void updateAnnotation(clip.id, c);
+  };
+  const [aiming, setAiming] = useState(false);
+  /** The tail on the recorded click closest in time to the balloon. */
+  const pointAtClick = async (): Promise<void> => {
+    const p = useProject.getState().project;
+    if (!p) return;
+    setAiming(true);
+    try {
+      const click = await nearestClick(p, clip.start, clipEnd(clip));
+      if (!click) {
+        useApp.getState().toast("Esta aula não tem cliques gravados para apontar.", "info");
+        return;
+      }
+      await aimClip(clip.id, click.point);
+    } catch (error) {
+      useApp.getState().toast(String(error), "error");
+    } finally {
+      setAiming(false);
+    }
   };
   const hasText = TEXT_KINDS.has(a.kind);
   const penOn = useApp((s) => s.highlightPen === clip.id);
@@ -467,11 +550,22 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
           </>
         )}
         {a.kind === "balloon" && (
-          <Chips
-            value={a.tail ?? "bottom-left"}
-            options={TAILS}
-            onPick={(tail) => set({ tail, tailPoint: undefined })}
-          />
+          <>
+            <Chips
+              value={a.tail ?? "bottom-left"}
+              options={TAILS}
+              onPick={(tail) => set({ tail, tailPoint: undefined, target: undefined })}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={aiming}
+              title="A ponta vai para o clique gravado mais perto do tempo do balão, com o zoom levado em conta"
+              onClick={() => void pointAtClick()}
+            >
+              {aiming ? "Apontando…" : "Apontar para o clique mais próximo"}
+            </button>
+          </>
         )}
         {a.kind === "balloon" && (
           <>
@@ -648,28 +742,28 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
             ]}
             onPick={(arrowStyle) => set({ arrowStyle })}
           />
-          <span className="field-label">Pontas</span>
-          <Chips
-            value={a.heads ?? (a.kind === "line" ? 0 : 1)}
-            options={[
-              [0, "Nenhuma"],
-              [1, "Uma"],
-              [2, "Duas"],
-            ]}
-            onPick={(heads) => set({ heads })}
+          <p className="muted field-hint">
+            Arraste as bolinhas nas pontas, na prévia, para mudar o início e o fim.
+          </p>
+          <span className="field-label">Ponta inicial</span>
+          <HeadPicker
+            value={lineHeads(a).start}
+            start
+            onPick={(headStart) => set({ headStart, headEnd: lineHeads(a).end })}
           />
-          <div className="chip-row">
-            {ARROW_DIRECTIONS.map(([deg, label]) => (
-              <button
-                type="button"
-                key={deg}
-                className={`chip chip-arrow ${Math.round(a.angle ?? 0) === deg ? "is-active" : ""}`}
-                onClick={() => set({ angle: deg })}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <span className="field-label">Ponta final</span>
+          <HeadPicker
+            value={lineHeads(a).end}
+            onPick={(headEnd) => set({ headEnd, headStart: lineHeads(a).start })}
+          />
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            title="Troca a ponta do início com a do fim"
+            onClick={() => set({ headStart: lineHeads(a).end, headEnd: lineHeads(a).start })}
+          >
+            ⇄ Trocar pontas
+          </button>
           <Slider
             label="Direção"
             value={a.angle ?? 0}
@@ -682,8 +776,8 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
           <Slider
             label="Comprimento"
             value={a.length ?? 200}
-            min={60}
-            max={900}
+            min={20}
+            max={2200}
             step={10}
             format={(v) => `${Math.round(v)} px`}
             onCommit={(v) => set({ length: v })}

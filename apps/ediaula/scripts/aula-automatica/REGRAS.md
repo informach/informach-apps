@@ -61,6 +61,8 @@ As peças gráficas da aula chegam prontas em `.edisvg`, na pasta `<parte>/pecas
 - **O nome diz o papel e a ordem:** `caixa-01-programacao.edisvg`, `destaque-03-bloco-se.edisvg`, `conceito-2-a-pergunta-certa.edisvg`. A N-ésima peça de um papel vai no lugar da N-ésima marcação desse papel na aula. O resto do nome é conferido com a fala do lugar: se não bater, entra no relatório.
 - **As demais regras valem para as peças:** faixa única das marcações, sem sobreposição no tempo, posição recalculada para a tela ampliada, escurecimento só em bloco inteiro, caixa numerada 1 → 2 no menu lateral.
 - **Animações de conceito** vão na faixa da gravação, no lugar do trecho (como cutaway), com a apresentadora por cima durante toda a animação.
+- **Animações seguidas** nunca deixam entre elas um pedaço de tela com menos de 1,5 s. A de antes cobre até a próxima: primeiro com o próprio material, depois com o último quadro parado e, só em último caso, até 5% mais lenta. Cada troca tem uma transição só, a de entrada da animação seguinte. O `place_cutaway` já faz isso, e a verificação antes de exportar aponta o que sobrou.
+- **A apresentadora** não é cortada em pedaços de menos de 1 s. Animações seguidas contam como um trecho só para o plano dela.
 - **Peça faltando:** o EdiAula cria no mesmo padrão e o relatório final lista como "criada sem .edisvg".
 
 **Onde:**

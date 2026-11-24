@@ -98,6 +98,8 @@ import { BalloonTailControl } from "./BalloonTailControl";
 import { CaptionOverlay, KeyOverlay, useCues } from "./CaptionOverlay";
 import { CursorLayer } from "./CursorLayer";
 import { CutFxLayer } from "./CutFxLayer";
+import { LineEndsControl } from "./LineEndsControl";
+import { LinePen } from "./LinePen";
 import { MaskTarget } from "./MaskTarget";
 import { MediaPool } from "./mediaPool";
 import { PolygonPen } from "./PolygonPen";
@@ -300,6 +302,7 @@ export function Preview(): ReactNode {
   const textEditing = useApp((s) => s.textEdit);
   const maskEdit = useApp((s) => s.maskEdit);
   const highlightPen = useApp((s) => s.highlightPen);
+  const linePen = useApp((s) => s.linePen);
   /** The annotation whose picture the text being typed replaces on the screen (a title). */
   const [textHidden, setTextHidden] = useState<string | null>(null);
   const closeText = useCallback(() => useApp.getState().set({ textEdit: null }), []);
@@ -1119,6 +1122,8 @@ export function Preview(): ReactNode {
     if (masking && masking !== selectedId) useApp.getState().set({ maskEdit: null });
     const drawing = useApp.getState().highlightPen;
     if (drawing && drawing !== selectedId) useApp.getState().set({ highlightPen: null });
+    // A line waiting to be drawn gives way to another selection.
+    if (useApp.getState().linePen) useApp.getState().set({ linePen: null });
   }, [selectedId]);
 
   /** Double click on an annotation with text: it is typed right on it. False for anything else. */
@@ -1537,6 +1542,7 @@ export function Preview(): ReactNode {
                 onCancel={() => useApp.getState().set({ highlightPen: null })}
               />
             )}
+          {linePen && <LinePen pen={linePen} width={size.w} height={size.h} settings={settings} />}
           {selected && selectedAsset && recordingZoom?.assetId === selectedAsset.id && (
             <RecordingZoomTarget
               clip={selected}
@@ -1584,6 +1590,20 @@ export function Preview(): ReactNode {
               onEditing={setTailEditing}
             />
           )}
+          {(selected?.annotation?.kind === "arrow" || selected?.annotation?.kind === "line") &&
+            selectedAsset &&
+            project &&
+            !linePen &&
+            maskEdit !== selected.id && (
+              <LineEndsControl
+                key={`ends:${selected.id}`}
+                clip={selected}
+                asset={selectedAsset}
+                project={project}
+                scale={scale}
+                onEditing={setTailEditing}
+              />
+            )}
           {selected &&
             sizedOnStage(selected.annotation) &&
             selectedAsset &&

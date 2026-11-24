@@ -75,6 +75,8 @@ export const ANNOTATION_STYLE_KEYS = [
   "thickness",
   "headSize",
   "heads",
+  "headStart",
+  "headEnd",
   "curve",
   "shape",
 ] as const;

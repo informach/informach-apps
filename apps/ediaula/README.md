@@ -310,7 +310,7 @@ EdiAula pergunta numa janela do Windows, sem travar as outras ferramentas, e a p
 
 **Outros:** vídeos com taxa de quadros variável ganham cópia de trabalho com taxa fixa; cópias de
 segurança automáticas em `Projetos/.backups`; tempo de edição medido por aula; exportação com
-.srt, .vtt e miniatura .jpg.
+.srt, .vtt e miniatura .jpg, opções que vêm desligadas na janela de exportação.
 
 ## Preparar aula, revisão e verificação
 
@@ -412,12 +412,34 @@ histórico (o `undo` da IA também desfaz) e valem no painel do assistente e nos
   (`clip_id`). A faixa e as de `also_track_ids` (o som da página) perdem o trecho, cortadas em volta. A
   transição (padrão círculos coloridos de 0,6 s na paleta da aula) entra na animação e no clipe que volta
   depois dela.
+  Entre duas animações seguidas não fica sobra de tela com menos de `min_screen` (padrão 1,5 s), nem no
+  começo ou no fim da faixa, nem vão vazio, que apareceria preto. A animação de antes cobre até a próxima,
+  nesta ordem:
+  1. com o próprio material que sobra;
+  2. com o último quadro parado, uma imagem como a do "Estender quadro";
+  3. só em último caso, até 5% mais lenta (a resposta avisa); além disso, fica como estava e a resposta diz.
+
+  O som da página que ficava nessa sobra sai junto. Cada troca fica com uma transição só, a de entrada da
+  animação seguinte (`src/shared/cutawayJoins.ts`, `src/renderer/src/lib/cutawaySlivers.ts`). Vão de menos de
+  um quadro é coberto deixando a animação essa fração mais lenta, sem imagem nova.
 - `spread_music` distribui a música de fundo em duas faixas novas marcadas como música, que abaixam com a voz.
   Cada cópia entra 3 s antes da anterior acabar, todas com fade, e a última termina com fade no fim da aula.
   O volume padrão é 0,15.
 
 `remove_clips`, `trim_clip`, `keep_ranges` e `place_cutaway` pedem a revisão do projeto, e todas são
 recusadas com um rascunho de estrutura esperando. Cada uma é um passo do histórico.
+
+A verificação antes de exportar (diálogo de exportação, Preparar aula e `check_before_export`) aponta, com
+correção em um clique:
+
+| Aviso | O que quer dizer | Correção |
+| --- | --- | --- |
+| **Trecho de tela de X s entre dois slides (transição dupla)** | Uma sobra de tela que pisca entre duas transições. | Cobre todas as sobras da faixa como o `place_cutaway` faz. |
+| **Vão entre dois slides** | O mesmo, sem nada entre elas: aparece preto. Não é contado de novo como tela preta. | A mesma. |
+| **Avatar muda de plano por menos de 1 s** | Um pedaço da apresentadora menor que 1 s, encostado em outro do mesmo vídeo, com outro lugar e tamanho ou com transição. | Junta o pedaço ao vizinho: no mesmo ponto do vídeo, o vizinho só continua. Se não, o pedaço fica com o lugar e o tamanho do vizinho e perde a transição. |
+
+O `acabamento.mjs` da edição automática não corta a apresentadora em pedaços de menos de 1 s e trata
+animações seguidas como um trecho só.
 
 **Cortar bordas (IA).** `set_crop` faz pela IA o que o **Cortar bordas** do inspetor faz: `left`, `right`,
 `top` e `bottom` são frações da largura ou da altura do vídeo original (0 a 0,45). O recorte vem antes da
@@ -564,7 +586,8 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   parada no meio, os lotes já traduzidos ficam guardados e a próxima vez continua das que faltam. A fonte da legenda
   gravada não aceita quebra de linha, vírgula, chaves nem barra invertida (elas mexeriam no arquivo `.ass`).
 - **Exportar:** além do `.srt`, `.vtt` e `.jpg`, a exportação grava `<aula>.<idioma>.srt` e `.vtt` de cada tradução em
-  dia e `<aula>.plataforma.json` (opção **Pacote para a plataforma**), ao lado do vídeo. O pacote leva o código do
+  dia e `<aula>.plataforma.json` (opção **Pacote para a plataforma**), ao lado do vídeo. Na janela de exportação,
+  legendas, legendas traduzidas, miniatura e pacote vêm desligados: cada um sai só quando é ligado ali. O pacote leva o código do
   vídeo, título, descrição, resumo, os capítulos só quando valem (começam em 0:00, são pelo menos 3, em ordem e cada um
   com 10 s ou mais; senão vão de fora, com o motivo), o quiz, a miniatura (arquivo, segundo e título), os arquivos de
   legenda e o SHA-256 do vídeo exportado, para a plataforma conferir que o arquivo é o mesmo. Um vídeo chamado como a
@@ -1294,7 +1317,18 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
   sobre um clipe, vão para a faixa livre mais próxima acima, ou uma nova logo acima. Soltas numa faixa de som
   (a da voz, por exemplo), vão para a frente da imagem daquele momento, nunca atrás da tela; uma faixa
   magnética não recebe a anotação (`src/shared/dropSpot.ts`). Arraste no vídeo para posicionar.
-  Propriedades: cor (paleta do curso), direção da seta, rabinho do balão, largura, tamanho da letra. No balão a cor é o preenchimento (o texto fica claro em fundos escuros); a moldura fica como está, e só muda se você quiser, na seção Contorno.
+  **Seta, Linha, Curva e Seta grossa se desenham**, como a ferramenta de linha do Illustrator: o clique
+  no bloco deixa a prévia esperando o traço, e você arrasta do início ao fim (a ponta da seta fica onde
+  soltar; Shift deixa reta ou a 45°; Esc desiste; clicar de novo no bloco também). A linha entra no ponto
+  do cursor, num passo de desfazer, já selecionada (`editor/LinePen.tsx`). Selecionada, cada ponta tem uma
+  bolinha que se arrasta: a outra ponta fica onde está (`editor/LineEndsControl.tsx`). As contas ficam em
+  `src/shared/lineGeometry.ts`; a anotação continua guardada como centro, ângulo e comprimento, então a
+  IA, os templates e as aulas antigas não mudam. Arrastado para a timeline, o bloco põe a seta padrão.
+  Nas propriedades, **Ponta inicial** e **Ponta final** escolhem a ponta de cada lado (nenhuma,
+  triângulo, aberta, entalhada, círculo, quadrado, barra), **⇄ Trocar pontas** inverte, e **Tamanho da
+  ponta** muda o tamanho. Uma aula antiga com `heads` (uma ou duas pontas) desenha igual (`lineHeads` em
+  `src/shared/annotation.ts`).
+  Propriedades: cor (paleta do curso), pontas da linha, rabinho do balão, largura, tamanho da letra. No balão a cor é o preenchimento (o texto fica claro em fundos escuros); a moldura fica como está, e só muda se você quiser, na seção Contorno.
   O texto se edita na própria anotação (balão, nota, rótulo, título, passo, faixa de nome e cartelas):
   duplo clique nela na prévia abre um campo sobre o texto, com a mesma letra, cores e quebra de linha do
   desenho (`editor/AnnotationTextEditor.tsx`). O campo usa os mesmos números do desenho:
@@ -1312,6 +1346,40 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
   duas linhas retas até a ponta (`balloonPath`/`balloonTail` em `src/shared/annotation.ts`, os mesmos
   no desenho e na prévia do arrasto). Sem arrastar, a ponta sai reta do lado, curta (`BALLOON_TAIL`,
   40 px em 1080p); arrastada, vai aonde foi solta, até a borda do quadro.
+
+  **Pontas `top` e `bottom`** saem do meio do lado. `tailOffset` (0 a 1, `tail_offset` na IA) põe a ponta
+  em outro ponto ao longo do lado.
+
+  **Balão que aponta para um item** (`target`, ou `point_at_click` na IA). O alvo fica em frações do
+  quadro, como a tela aparece sem as camadas de zoom. A ponta cai em cima do item e sai do lado virado
+  para ele: em cima se o item está acima, embaixo se está abaixo. O corpo desliza para dentro do quadro e
+  a ponta continua no alvo.
+  - **Lugar do corpo:** sem lugar dado, fica logo acima do item, ou abaixo dele quando o item está no alto
+    do quadro.
+  - **Zoom:** com uma camada de zoom abaixo do balão, o alvo vai para onde o item aparece ampliado, no meio
+    do tempo do balão. Se o zoom mexe o item enquanto o balão está na tela, a IA avisa.
+  - **Cliques gravados:** o botão **Apontar para o clique mais próximo** (Propriedades) usa o clique
+    gravado mais perto do tempo do balão, já com o zoom da gravação.
+  - **Mudanças:** um balão com alvo mira de novo quando o texto, a fonte ou o lugar mudam. Arrastar a
+    ponta ou escolher uma ponta fixa solta o alvo.
+
+  O código está em `src/shared/balloonAim.ts` e `src/renderer/src/lib/balloonTarget.ts`.
+
+  **Texto do balão.** Ele quebra em linhas de tamanho parecido, com no máximo 20 letras por linha
+  (`maxCharsPerLine`, `max_chars_per_line` na IA). Se você deu uma largura no slider Largura, quem manda é
+  ela. Uma palavra nunca fica sozinha na última linha. A quebra de linha digitada fica onde está. O desenho
+  guarda as linhas em `textLines`, para a verificação antes de exportar.
+
+  **Verificação antes de exportar.** Dois avisos de balão:
+  - **"A ponta do balão está a X px do item clicado"**: aparece quando um clique gravado perto do tempo do
+    balão está a mais de 30 px e a menos de 320 px da ponta. A correção é **Apontar para o clique**.
+  - **"Balão com palavra sozinha na última linha"**: a correção é **Reequilibrar o texto**. Os balões de
+    antes são conferidos com a quebra que tinham.
+
+  **IA, `update_annotation`.** Muda uma anotação que já existe sem recriá-la: texto, ponta, alvo, letras
+  por linha, fonte, tamanho da letra, cores, contorno, sombra, lugar, escala e tempo. O que não for dado
+  fica como estava, inclusive a faixa, as cores, a fonte e a sombra. No balão, `x` e `y` são o centro do
+  corpo. É um passo de desfazer.
   Cada anotação é desenhada como imagem transparente (`lib/annotations.ts`), a mesma na prévia e na exportação.
 - **Meme**: imagem que entra com pop por 2,5 s no canto, sem cobrir o centro da tela.
 - **Entrada e saída** de qualquer clipe: dissolver, pop, aproximar, deslizar (4 direções), com duração.

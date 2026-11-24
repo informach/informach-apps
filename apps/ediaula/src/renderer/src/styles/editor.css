@@ -1343,6 +1343,54 @@
 .polygon-pen-shape.is-drawing {
   stroke-dasharray: 5 4;
 }
+/* A line or an arrow drawn on the preview, from the start to the end (LinePen). */
+.line-pen {
+  position: absolute;
+  z-index: 530;
+  cursor: crosshair;
+  pointer-events: auto;
+  touch-action: none;
+  outline: 1.5px dashed rgba(255, 255, 255, 0.6);
+}
+.line-pen-lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+/* The ends of a selected line or arrow (LineEndsControl). */
+.line-end-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px #111;
+  z-index: 502;
+  cursor: crosshair;
+  touch-action: none;
+}
+.line-end-handle.is-start {
+  background: #fff;
+  border-color: var(--accent);
+}
+.line-ends-guide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 501;
+  overflow: visible;
+  pointer-events: none;
+}
+.line-ends-guide line {
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 4;
+}
 .polygon-pen-hint {
   position: absolute;
   left: 50%;

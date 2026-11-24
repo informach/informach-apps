@@ -100,7 +100,12 @@ export function BalloonTailControl({
       if (apply && moved) {
         setSaving(true);
         try {
-          await updateAnnotation(clip.id, { tailPoint: next, tail: freeBalloonTip(next).tail });
+          // Dragged by hand: no longer aimed at an item.
+          await updateAnnotation(clip.id, {
+            tailPoint: next,
+            tail: freeBalloonTip(next).tail,
+            target: undefined,
+          });
         } catch (error) {
           useApp.getState().toast(String(error), "error");
         } finally {

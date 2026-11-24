@@ -143,11 +143,21 @@ import {
 } from "@/state/project";
 import { actions } from "./actions";
 import { endAiCall, startAiCall, updateAiCall } from "./aiActivity";
-import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
+import {
+  addAnnotation,
+  addCard,
+  addImageOverlay,
+  annotationSpec,
+  type BodyPlace,
+  OVERSAMPLE,
+  updateAnnotation,
+} from "./annotations";
+import { aimBalloonAt, bodyNow, naturalDensity, nearestClick } from "./balloonTarget";
 import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
 import { loadClickEvents } from "./clickSounds";
 import { askChoice, askConfirm } from "./confirm";
 import { applyTemplateParts, courseTemplate } from "./courseTemplate";
+import { closeCutawaySlivers, sliverReport } from "./cutawaySlivers";
 import { hasPlatformData, makeQuiz, quizItemTime, translateLesson } from "./delivery";
 import { frameForAi } from "./frame";
 import { importMedia, mediaPictures, preparePlayback, probeMedia } from "./importMedia";
@@ -822,6 +832,13 @@ function shadowNamed(
 }
 
 /** Font, outline and shadow changes for an annotation, from the AI tools' fields. */
+/** A target that a zoom layer moves while the balloon is up: said, so the time can be fixed. */
+function driftNote(drift: number, width: number): string {
+  return drift > width * 0.01
+    ? ` Atenção: um zoom muda ${Math.round(drift)} px o lugar do item enquanto o balão aparece; a ponta acerta o meio do balão. Mude o tempo do balão para quando o zoom estiver parado.`
+    : "";
+}
+
 function annotationStyle(
   a: Annotation,
   o: {
@@ -2046,6 +2063,10 @@ ${r.message}`);
       angle,
       length,
       tail,
+      tail_offset,
+      target,
+      point_at_click,
+      max_chars_per_line,
       box_width,
       box_height,
       font,
@@ -2058,6 +2079,9 @@ ${r.message}`);
       arrow_style,
       two_heads,
       heads,
+      head_start,
+      head_end,
+      head_size,
       curve,
       thickness,
       shape,
@@ -2079,43 +2103,204 @@ ${r.message}`);
     if (dim && kind !== "highlight")
       throw new ToolError("Só o destaque (highlight) escurece o resto da tela.");
     if (track_id) requireTrack(p, track_id);
-    const base = ANNOTATION_PRESETS.find((x) => x.kind === kind)!.spec;
+    const balloonOnly = [tail_offset, target, point_at_click, max_chars_per_line].some(
+      (v) => v !== undefined,
+    );
+    if (balloonOnly && kind !== "balloon")
+      throw new ToolError(
+        "tail_offset, target, point_at_click e max_chars_per_line são só do balão.",
+      );
+    const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind)!;
+    const base = preset.spec;
+    const changes: Partial<Annotation> = {
+      ...annotationStyle(
+        { ...base, ...(color ? { color: color.toUpperCase() } : {}) },
+        { font, outline_color, outline_width, outline_dash, outline_style, shadow },
+      ),
+      ...(arrow_style ? { arrowStyle: arrow_style } : {}),
+      ...(two_heads !== undefined ? { heads: two_heads ? 2 : 1 } : {}),
+      ...(heads !== undefined ? { heads: heads as 0 | 1 | 2 } : {}),
+      ...(head_start ? { headStart: head_start } : {}),
+      ...(head_end ? { headEnd: head_end } : {}),
+      ...(head_size !== undefined ? { headSize: head_size } : {}),
+      ...(curve !== undefined ? { curve } : {}),
+      ...(thickness !== undefined ? { thickness } : {}),
+      ...(shape ? { shape } : {}),
+      ...(fill ? { fill: fill.toUpperCase() } : {}),
+      ...(text !== undefined ? { text } : {}),
+      ...(subtitle !== undefined ? { subtitle } : {}),
+      ...(color ? { color: color.toUpperCase() } : {}),
+      ...(angle !== undefined ? { angle } : {}),
+      ...(length !== undefined ? { length } : {}),
+      ...(tail ? { tail } : {}),
+      ...(box_width ? { boxWidth: box_width } : {}),
+      ...(box_height ? { boxHeight: box_height } : {}),
+      ...(text_color ? { textColor: text_color.toUpperCase() } : {}),
+      ...(badge !== undefined ? { badge } : {}),
+      ...(pointer ? { pointer } : {}),
+      ...(icon ? { icon } : {}),
+      ...(marker ? { marker } : {}),
+      ...(bare !== undefined ? { bare } : {}),
+      ...(dim ? { dim } : {}),
+      ...(tail_offset !== undefined ? { tailOffset: tail_offset } : {}),
+      ...(max_chars_per_line ? { maxCharsPerLine: max_chars_per_line } : {}),
+    };
+    // A balloon pointing at an item: its tail aimed there, its body next to it (or at x, y).
+    let body: BodyPlace | undefined;
+    let note = "";
+    if (kind === "balloon" && (target || point_at_click)) {
+      const to = start + (duration ?? preset.duration);
+      const point = target ?? (await nearestClick(p, start, to))?.point;
+      if (!point)
+        throw new ToolError(
+          "Esta aula não tem cliques gravados para apontar: dê target com o lugar do item.",
+        );
+      const W = p.settings.width;
+      const H = p.settings.height;
+      const placed = x !== undefined && y !== undefined;
+      const aimed = await aimBalloonAt(p, annotationSpec(p, kind, changes), {
+        target: point,
+        center: placed ? { x: x * W, y: y * H } : { x: W / 2, y: H * 0.42 },
+        density: naturalDensity(scale ?? 1),
+        place: !placed,
+        trackId: track_id ?? null,
+        from: start,
+        to,
+      });
+      Object.assign(changes, aimed.changes);
+      body = aimed.body;
+      note = driftNote(aimed.drift, W);
+    }
     const id = await addAnnotation(
       kind,
-      {
-        ...annotationStyle(
-          { ...base, ...(color ? { color: color.toUpperCase() } : {}) },
-          { font, outline_color, outline_width, outline_dash, outline_style, shadow },
-        ),
-        ...(arrow_style ? { arrowStyle: arrow_style } : {}),
-        ...(two_heads !== undefined ? { heads: two_heads ? 2 : 1 } : {}),
-        ...(heads !== undefined ? { heads: heads as 0 | 1 | 2 } : {}),
-        ...(curve !== undefined ? { curve } : {}),
-        ...(thickness !== undefined ? { thickness } : {}),
-        ...(shape ? { shape } : {}),
-        ...(fill ? { fill: fill.toUpperCase() } : {}),
-        ...(text !== undefined ? { text } : {}),
-        ...(subtitle !== undefined ? { subtitle } : {}),
-        ...(color ? { color: color.toUpperCase() } : {}),
-        ...(angle !== undefined ? { angle } : {}),
-        ...(length !== undefined ? { length } : {}),
-        ...(tail ? { tail } : {}),
-        ...(box_width ? { boxWidth: box_width } : {}),
-        ...(box_height ? { boxHeight: box_height } : {}),
-        ...(font_size ? { fontSize: font_size } : {}),
-        ...(text_color ? { textColor: text_color.toUpperCase() } : {}),
-        ...(badge !== undefined ? { badge } : {}),
-        ...(pointer ? { pointer } : {}),
-        ...(icon ? { icon } : {}),
-        ...(marker ? { marker } : {}),
-        ...(bare !== undefined ? { bare } : {}),
-        ...(dim ? { dim } : {}),
-      },
-      { at: start, duration, x, y, scale, trackId: track_id },
+      changes,
+      { at: start, duration, x, y, scale, trackId: track_id, body },
       commit,
     );
     if (!id) throw new ToolError("Não foi possível adicionar a anotação.");
-    return `Anotação [${id}] em ${t(start)}.`;
+    return `Anotação [${id}] em ${t(start)}.${note}`;
+  },
+
+  async update_annotation(input, { commit }) {
+    const p = requireProject();
+    const clip = p.clips.find((c) => c.id === input.clip_id);
+    const asset = clip && p.assets.find((a) => a.id === clip.assetId);
+    if (!clip?.annotation || !asset)
+      throw new ToolError(`[${input.clip_id}] não é uma anotação desta aula (veja get_overview).`);
+    const a = clip.annotation;
+    if (isDrawingKind(a.kind))
+      throw new ToolError(
+        "O desenho feito na gravação não muda: apague-o ou corte-o como um clipe.",
+      );
+    if (p.tracks.find((tr) => tr.id === clip.trackId)?.locked)
+      throw new ToolError(`A faixa de [${clip.id}] está travada.`);
+    const balloon = a.kind === "balloon";
+    const aims = input.target !== undefined || !!input.point_at_click;
+    if (
+      !balloon &&
+      (aims ||
+        input.tail !== undefined ||
+        input.tail_offset !== undefined ||
+        input.max_chars_per_line !== undefined)
+    )
+      throw new ToolError(
+        "tail, tail_offset, target, point_at_click e max_chars_per_line são só do balão.",
+      );
+    const changes: Partial<Annotation> = {
+      ...annotationStyle(a, input),
+      ...(input.text !== undefined ? { text: input.text } : {}),
+      ...(input.subtitle !== undefined ? { subtitle: input.subtitle } : {}),
+      ...(input.font_size !== undefined ? { fontSize: input.font_size } : {}),
+      ...(input.color ? { color: input.color.toUpperCase() } : {}),
+      ...(input.fill ? { fill: input.fill.toUpperCase() } : {}),
+      ...(input.text_color ? { textColor: input.text_color.toUpperCase() } : {}),
+      ...(input.max_chars_per_line ? { maxCharsPerLine: input.max_chars_per_line } : {}),
+      ...(input.tail_offset !== undefined ? { tailOffset: input.tail_offset } : {}),
+      // A tail said in words lets go of the item it was aimed at.
+      ...(input.tail !== undefined && !aims
+        ? { tail: input.tail, tailPoint: undefined, target: undefined }
+        : {}),
+    };
+    const W = p.settings.width;
+    const H = p.settings.height;
+    const start = input.at ?? clip.start;
+    const length = input.duration ?? clip.duration;
+    const moved = input.x !== undefined || input.y !== undefined || input.scale !== undefined;
+    let body: BodyPlace | undefined;
+    let note = "";
+    if (balloon) {
+      const now = bodyNow(p, clip, asset);
+      const center = {
+        x: input.x !== undefined ? input.x * W : now.center.x,
+        y: input.y !== undefined ? input.y * H : now.center.y,
+      };
+      const density = input.scale !== undefined ? naturalDensity(input.scale) : now.density;
+      // Aimed again when asked, or when the body changes and it was aimed before.
+      const bodyChanges =
+        moved ||
+        input.at !== undefined ||
+        ["text", "fontSize", "fontFamily", "maxCharsPerLine"].some((k) => k in changes);
+      const kept = input.tail === undefined && a.target && bodyChanges ? a.target : undefined;
+      const point =
+        input.target ??
+        (input.point_at_click ? (await nearestClick(p, start, start + length))?.point : kept);
+      if (input.point_at_click && !point)
+        throw new ToolError(
+          "Esta aula não tem cliques gravados para apontar: dê target com o lugar do item.",
+        );
+      if (point) {
+        const aimed = await aimBalloonAt(
+          p,
+          { ...a, ...changes },
+          {
+            target: point,
+            center,
+            density,
+            place: false,
+            trackId: clip.trackId,
+            from: start,
+            to: start + length,
+          },
+        );
+        Object.assign(changes, aimed.changes);
+        body = aimed.body;
+        note = driftNote(aimed.drift, W);
+      } else if (moved) body = { x: center.x / W, y: center.y / H, density };
+    }
+    const batch = batched(commit);
+    if (Object.keys(changes).length || body)
+      await updateAnnotation(clip.id, changes, batch.commit, undefined, body);
+    // Place and size of other kinds: the center of the picture, a multiple of its natural size.
+    const place = !balloon && moved;
+    if (place || input.at !== undefined || input.duration !== undefined)
+      batch.commit((q) => ({
+        ...q,
+        clips: q.clips.map((c) => {
+          if (c.id !== clip.id) return c;
+          const t = c.transform ?? DEFAULT_TRANSFORM;
+          const pic = q.assets.find((x) => x.id === c.assetId) ?? asset;
+          const fit = Math.min(W / (pic.width || W), H / (pic.height || H));
+          return {
+            ...c,
+            start,
+            duration: length,
+            ...(place
+              ? {
+                  transform: {
+                    ...t,
+                    ...(input.x !== undefined ? { x: input.x } : {}),
+                    ...(input.y !== undefined ? { y: input.y } : {}),
+                    ...(input.scale !== undefined
+                      ? { scale: input.scale / (OVERSAMPLE * fit) }
+                      : {}),
+                  },
+                }
+              : {}),
+          };
+        }),
+      }));
+    if (!batch.flush()) throw new ToolError("Nada mudou: a aula aberta mudou.");
+    return `Anotação [${clip.id}] atualizada.${note}`;
   },
 
   async add_image({ path, near_text, at, duration, placement }, { commit }) {
@@ -2676,8 +2861,17 @@ ${r.message}`);
           );
     const r = placeCutaway(p, cut, input.track_id, input.also_track_ids ?? [], transition);
     if (!r.ok) throw new ToolError(r.error);
-    committedOrFail(commit((q) => ({ ...q, clips: r.clips })));
-    return `[${r.cutaway.id}] no lugar de ${t(r.cutaway.start)}–${t(clipEnd(r.cutaway))} na faixa ${input.track_id}${transition ? `, com a transição ${kind} nas duas pontas` : ""}: ${plural(r.trimmed, "clipe cortado", "clipes cortados")} em volta e ${plural(r.removed, "tirado", "tirados")}. Nada andou.`;
+    // What is left of the screen between this animation and its neighbors is covered by the one
+    // before it (shared/cutawayJoins.ts): never a flash of screen with a transition on each side.
+    const joins = await closeCutawaySlivers(
+      { ...p, clips: r.clips },
+      { trackIds: [input.track_id], min: input.min_screen },
+    );
+    committedOrFail(
+      commit((q) => ({ ...q, clips: joins.clips, assets: [...q.assets, ...joins.assets] })),
+    );
+    const report = sliverReport(joins, t);
+    return `[${r.cutaway.id}] no lugar de ${t(r.cutaway.start)}–${t(clipEnd(r.cutaway))} na faixa ${input.track_id}${transition ? `, com a transição ${kind} nas duas pontas` : ""}: ${plural(r.trimmed, "clipe cortado", "clipes cortados")} em volta e ${plural(r.removed, "tirado", "tirados")}. Nada andou.${report ? ` ${report}` : ""}`;
   },
 
   async spread_music({ media_id, start, end, overlap, fade, volume }, { commit }) {

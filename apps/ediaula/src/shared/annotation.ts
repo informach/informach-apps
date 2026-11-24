@@ -30,6 +30,8 @@ export type AnnotationKind =
   | "board";
 export type Tail =
   | "none"
+  | "bottom"
+  | "top"
   | "bottom-left"
   | "bottom-right"
   | "top-left"
@@ -79,8 +81,14 @@ export function preserveBalloonBody<T extends { x: number; y: number; scale: num
   return { ...value, x: value.x + dx, y: value.y + dy, scale: (value.scale * oldFit) / newFit };
 }
 
-/** Coordinates relative to the body; the attachment follows the nearest side. */
-export function freeBalloonTip(point: { x: number; y: number }): {
+/**
+ * Coordinates relative to the body; the attachment follows the nearest side. A balloon aimed at
+ * something (shared/balloonAim.ts) says the side in `prefer`: it is kept while the tip is beyond it.
+ */
+export function freeBalloonTip(
+  point: { x: number; y: number },
+  prefer?: Tail,
+): {
   point: { x: number; y: number };
   tail: Tail;
 } {
@@ -89,6 +97,12 @@ export function freeBalloonTip(point: { x: number; y: number }): {
     x = 1.25;
     y = 0.5;
   }
+  if (prefer?.startsWith("top") && y < 0)
+    return { point: { x, y: Math.min(-0.02, y) }, tail: prefer };
+  if (prefer?.startsWith("bottom") && y > 1)
+    return { point: { x, y: Math.max(1.02, y) }, tail: prefer };
+  if (prefer === "left" && x < 0) return { point: { x: Math.min(-0.02, x), y }, tail: prefer };
+  if (prefer === "right" && x > 1) return { point: { x: Math.max(1.02, x), y }, tail: prefer };
   if (Math.abs(x - 0.5) >= Math.abs(y - 0.5)) {
     x = x >= 0.5 ? Math.max(1.02, x) : Math.min(-0.02, x);
     return { point: { x, y }, tail: x > 0.5 ? "right" : "left" };
@@ -116,9 +130,20 @@ export function tailHalfWidth(along: number, r: number, length: number, dist: nu
   );
 }
 
+/** Where along its side a tail without a dragged tip leaves the body (0 = left or top end). */
+export function tailAlong(tail: Tail, offset?: number): number {
+  if (offset !== undefined && Number.isFinite(offset)) return Math.max(0, Math.min(1, offset));
+  return tail === "top" || tail === "bottom" || tail === "left" || tail === "right"
+    ? 0.5
+    : tail.endsWith("left")
+      ? 0.28
+      : 0.72;
+}
+
 /**
  * Where a tail leaves the body and where it points: the middle of its base on that side and
- * its tip. Without a dragged tip, the tail of the preset direction, `length` long.
+ * its tip. Without a dragged tip, the tail of the preset direction, `length` long, `offset` of
+ * the way along its side (tailAlong).
  */
 export function balloonTail(
   x: number,
@@ -129,6 +154,7 @@ export function balloonTail(
   length: number,
   tail: Tail,
   tip?: Point,
+  offset?: number,
 ): { base: Point; b: number; tip: Point } {
   const r = bodyRadius(w, h, radius);
   const across = tail.startsWith("top") || tail.startsWith("bottom");
@@ -148,14 +174,14 @@ export function balloonTail(
   const clampAlong = (v: number, from: number, size: number): number =>
     Math.max(from + r + b, Math.min(from + size - r - b, v));
   if (across) {
-    const cx = clampAlong(tip ? tip.x : x + w * (tail.endsWith("left") ? 0.28 : 0.72), x, w);
+    const cx = clampAlong(tip ? tip.x : x + w * tailAlong(tail, offset), x, w);
     return {
       base: { x: cx, y: side },
       b,
       tip: tip ?? { x: cx, y: tail.startsWith("top") ? y - short : y + h + short },
     };
   }
-  const cy = clampAlong(tip ? tip.y : y + h / 2, y, h);
+  const cy = clampAlong(tip ? tip.y : y + h * tailAlong(tail, offset), y, h);
   return {
     base: { x: edge, y: cy },
     b,
@@ -177,9 +203,10 @@ export function balloonPath(
   length: number,
   tail: Tail,
   tip?: Point,
+  offset?: number,
 ): string {
   const r = bodyRadius(w, h, radius);
-  const t = tail === "none" ? null : balloonTail(x, y, w, h, radius, length, tail, tip);
+  const t = tail === "none" ? null : balloonTail(x, y, w, h, radius, length, tail, tip, offset);
   const parts = [`M ${x + r} ${y}`];
   if (t && tail.startsWith("top"))
     parts.push(tailLines({ x: t.base.x - t.b, y }, { x: t.base.x + t.b, y }, t.tip));
@@ -211,6 +238,18 @@ export interface Annotation {
   tail?: Tail;
   /** Free tail tip, in fractions of the balloon body (may lie outside 0..1). */
   tailPoint?: { x: number; y: number };
+  /** Balloon without a free tip: where along its side the tail leaves (0..1; tailAlong). */
+  tailOffset?: number;
+  /**
+   * Balloon: the point its tail was aimed at, in fractions of the frame as the screen shows it
+   * without zoom layers (shared/balloonAim.ts). Kept so an edit that changes the body (a new text)
+   * aims it again; dragging the tail lets go of it.
+   */
+  target?: { x: number; y: number };
+  /** Balloon: letters per line before wrapping (absent = BALLOON_CHARS_PER_LINE, or `width`). */
+  maxCharsPerLine?: number;
+  /** Balloon: the lines its picture was drawn with, for the check before export. */
+  textLines?: string[];
   /** Body and tip in the generated PNG, including its transparent padding. */
   balloonGeometry?: BalloonGeometry;
   /** Highlight box and panel size. */
@@ -236,7 +275,11 @@ export interface Annotation {
   thickness?: number;
   headSize?: number;
   arrowStyle?: "solid" | "line" | "dashed" | "dotted";
+  /** The older way to say the heads (1 = at the end, 2 = both); headStart/headEnd win over it. */
   heads?: 0 | 1 | 2;
+  /** Arrow and line: the head at each end, as in Illustrator's stroke panel (see lineHeads). */
+  headStart?: HeadShape;
+  headEnd?: HeadShape;
   curve?: number;
   /** Highlight and shapes: form, fill inside (#RRGGBB, absent = none) and its opacity. Balloon: its color inside (absent = white). */
   shape?: "rounded" | "rect" | "ellipse" | "triangle" | "polygon";
@@ -444,6 +487,45 @@ export function editedAnnotation(before: Annotation, changes: Partial<Annotation
 /** Drawn like the kit's box: a box, or a balloon (the same box with a tail). */
 export const kitBox = (a: Pick<Annotation, "kind">): boolean =>
   a.kind === "box" || a.kind === "balloon";
+
+/** The heads a line or an arrow can have at each of its ends. */
+export const HEAD_SHAPES = [
+  "none",
+  "triangle",
+  "open",
+  "notched",
+  "circle",
+  "square",
+  "bar",
+] as const;
+export type HeadShape = (typeof HEAD_SHAPES)[number];
+
+export const HEAD_LABEL: Record<HeadShape, string> = {
+  none: "Nenhuma",
+  triangle: "Triângulo",
+  open: "Aberta",
+  notched: "Entalhada",
+  circle: "Círculo",
+  square: "Quadrado",
+  bar: "Barra",
+};
+
+/**
+ * The head at the start and at the end of a line or an arrow. headStart and headEnd say it; a
+ * project from before them says it with `heads` (an arrow has one at the end unless it says
+ * otherwise, a line none; 2 = both ends), in the shape its stroke used to give it: a full
+ * triangle on the heavy arrow, a notched one on the others. So older lessons draw the same.
+ */
+export function lineHeads(
+  a: Pick<Annotation, "kind" | "heads" | "headStart" | "headEnd" | "arrowStyle">,
+): { start: HeadShape; end: HeadShape } {
+  const heads = a.heads ?? (a.kind === "line" ? 0 : 1);
+  const usual: HeadShape = (a.arrowStyle ?? "solid") === "solid" ? "triangle" : "notched";
+  return {
+    start: a.headStart ?? (heads === 2 ? usual : "none"),
+    end: a.headEnd ?? (heads >= 1 ? usual : "none"),
+  };
+}
 
 export const PALETTE = [
   "#C8F031",

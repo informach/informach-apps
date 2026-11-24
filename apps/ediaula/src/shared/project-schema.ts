@@ -7,7 +7,7 @@ import {
   PROPOSAL_ITEM_LIMIT,
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
-import { type AnnotationIcon, ICON_IDS } from "./annotation.ts";
+import { type AnnotationIcon, HEAD_SHAPES, ICON_IDS } from "./annotation.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { CLICK_KINDS } from "./clickEvents.ts";
 import { POLYGON_MAX, POLYGON_SHAPES_MAX, polygonOutlines } from "./compose.ts";
@@ -209,9 +209,23 @@ export const annotationSchema = z.looseObject({
   width: number.optional(),
   fontSize: number.optional(),
   tail: z
-    .enum(["none", "bottom-left", "bottom-right", "top-left", "top-right", "left", "right"])
+    .enum([
+      "none",
+      "bottom",
+      "top",
+      "bottom-left",
+      "bottom-right",
+      "top-left",
+      "top-right",
+      "left",
+      "right",
+    ])
     .optional(),
   tailPoint: point.optional(),
+  tailOffset: number.optional(),
+  target: point.optional(),
+  maxCharsPerLine: number.optional(),
+  textLines: z.array(text).optional(),
   balloonGeometry: z
     .looseObject({ x: number, y: number, w: number, h: number, tipX: number, tipY: number })
     .optional(),
@@ -235,6 +249,8 @@ export const annotationSchema = z.looseObject({
   headSize: number.optional(),
   arrowStyle: z.enum(["solid", "line", "dashed", "dotted"]).optional(),
   heads: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  headStart: z.enum(HEAD_SHAPES).optional(),
+  headEnd: z.enum(HEAD_SHAPES).optional(),
   curve: number.optional(),
   shape: z.enum(["rounded", "rect", "ellipse", "triangle", "polygon"]).optional(),
   polygon: polygonPoints.optional(),

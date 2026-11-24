@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type AnnotationIcon, ICON_IDS } from "./annotation.ts";
+import { type AnnotationIcon, HEAD_SHAPES, ICON_IDS } from "./annotation.ts";
 import { CAPTION_FONT_NAME } from "./captions.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { EXPORT_FORMATS, EXPORT_PRESET_IDS } from "./exportPresets.ts";
@@ -21,6 +21,42 @@ const STYLE_FIELDS = {
   outline_dash: z.boolean().optional(),
   outline_style: z.enum(["none", "solid", "dashed", "dotted"]).optional(),
   shadow: z.enum(["none", "default", "soft", "strong", "long", "glow"]).optional(),
+};
+
+/** Where a balloon's tail can leave its body (shared/annotation.ts, Tail). */
+const BALLOON_TAILS = [
+  "none",
+  "top",
+  "bottom",
+  "bottom-left",
+  "bottom-right",
+  "top-left",
+  "top-right",
+  "left",
+  "right",
+] as const;
+
+/** A balloon pointing at an item, and how its text breaks (add_annotation, update_annotation). */
+const BALLOON_FIELDS = {
+  tail_offset: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Balloon: where along its side the tail leaves (0 = left or top end, 0.5 = middle)"),
+  target: z
+    .object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
+    .optional()
+    .describe(
+      "Balloon: the item the tail points at, in fractions of the frame as the screen shows it without zoom layers",
+    ),
+  point_at_click: z
+    .boolean()
+    .optional()
+    .describe(
+      "Balloon: point at the recorded click closest in time (screen recordings of EdiAula)",
+    ),
+  max_chars_per_line: z.number().int().min(8).max(60).optional(),
 };
 
 /** Broad edits write a draft the person reviews item by item (default) or change the lesson at once. */
@@ -555,7 +591,7 @@ export const AI_TOOLS = {
     title: "Adicionar anotação",
     permission: "write",
     description:
-      "Adds an annotation over the lesson: arrow, balloon (speech balloon), note (sticky note), label (pill), title, highlight (outline box or circle with shape=ellipse, optional fill), panel (filled shape: shape rounded/rect/ellipse/triangle, color = fill), line (straight or curved line, no heads unless heads is set), step (numbered circle) lowerthird (name bar at the bottom: text = name, subtitle = second line), box (a box whose color says its role, centered heavy text: white = an action or a term, the success green with the accent text = the game's reaction, the accent yellow = what to do now, the dark color = a strong notice; badge = a number on its corner, pointer = up/down/left/right toward what it talks about) or item (a row of a list on a card: marker circle with badge = number, square with badge = letter of a quiz option, check = something learned, with bare = true for no card; icon = a small drawing in the marker; subtitle = the line below). Place it in time with near_text (exact words spoken, from the transcript; the annotation starts when they are said) or at (timeline seconds); default is the playhead. x and y are the center as fractions of the frame (avoid covering controls, blocks, readouts or results). Arrow: angle in degrees (0 = pointing right, 90 = down), length in px, arrow_style solid/line/dashed, two_heads, curve (−1..1, 0 = straight) and thickness. font, outline_* and shadow as in set_style. Balloon: tail = none, bottom-left, bottom-right, top-left, top-right, left, right; fill = the balloon color inside (default white, the text turns light on dark fills), color = its outline. Colors: #C8F031 lime, #FFD60A yellow, #FF4D4D red, #3D6BFF blue, #9B7BFF violet, #FFFFFF, #12140A. Returns the clip id. Undoable.",
+      "Adds an annotation over the lesson: arrow, balloon (speech balloon), note (sticky note), label (pill), title, highlight (outline box or circle with shape=ellipse, optional fill), panel (filled shape: shape rounded/rect/ellipse/triangle, color = fill), line (straight or curved line, no heads unless heads is set), step (numbered circle) lowerthird (name bar at the bottom: text = name, subtitle = second line), box (a box whose color says its role, centered heavy text: white = an action or a term, the success green with the accent text = the game's reaction, the accent yellow = what to do now, the dark color = a strong notice; badge = a number on its corner, pointer = up/down/left/right toward what it talks about) or item (a row of a list on a card: marker circle with badge = number, square with badge = letter of a quiz option, check = something learned, with bare = true for no card; icon = a small drawing in the marker; subtitle = the line below). Place it in time with near_text (exact words spoken, from the transcript; the annotation starts when they are said) or at (timeline seconds); default is the playhead. x and y are the center as fractions of the frame (avoid covering controls, blocks, readouts or results). Arrow: angle in degrees (0 = pointing right, 90 = down; it points from its start to its end), length in px, arrow_style solid/line/dashed, curve (−1..1, 0 = straight) and thickness. Arrow and line heads: head_start and head_end pick the head of each end (none, triangle, open, notched, circle, square, bar; an arrow has a triangle at its end by default) and head_size its size in px; two_heads and heads still work. font, outline_* and shadow as in set_style. Balloon: to point at an item give target (where the item is, fractions of the frame as the screen shows it without zoom layers; a zoom layer under the balloon is accounted for) or point_at_click = true (the recorded click closest in time): the tail tip lands on it, the tail leaves the side facing it and the body slides inside the frame; without x and y the body goes right above the item (below it when the item is high on the frame), with x and y they are the center of the body. Otherwise tail = none, top, bottom (centered), bottom-left, bottom-right, top-left, top-right, left, right, and tail_offset (0..1) moves it along its side. The text is broken into lines of about the same length, max_chars_per_line letters at most (default 20), never a word alone on the last line; \n breaks a line where you want. fill = the balloon color inside (default white, the text turns light on dark fills), color = its outline. To change a balloon afterwards use update_annotation. Colors: #C8F031 lime, #FFD60A yellow, #FF4D4D red, #3D6BFF blue, #9B7BFF violet, #FFFFFF, #12140A. Returns the clip id. Undoable.",
     input: z.object({
       kind: z.enum(ANNOTATION_KINDS),
       subtitle: z.string().optional(),
@@ -570,10 +606,9 @@ export const AI_TOOLS = {
         .regex(/^#[0-9a-fA-F]{6}$/)
         .optional(),
       angle: z.number().min(-180).max(360).optional(),
-      length: z.number().min(40).max(800).optional(),
-      tail: z
-        .enum(["none", "bottom-left", "bottom-right", "top-left", "top-right", "left", "right"])
-        .optional(),
+      length: z.number().min(20).max(2200).optional(),
+      tail: z.enum(BALLOON_TAILS).optional(),
+      ...BALLOON_FIELDS,
       box_width: z.number().min(20).max(3840).optional(),
       box_height: z.number().min(20).max(2160).optional(),
       ...STYLE_FIELDS,
@@ -588,6 +623,9 @@ export const AI_TOOLS = {
       arrow_style: z.enum(["solid", "line", "dashed", "dotted"]).optional(),
       two_heads: z.boolean().optional(),
       heads: z.number().int().min(0).max(2).optional(),
+      head_start: z.enum(HEAD_SHAPES).optional(),
+      head_end: z.enum(HEAD_SHAPES).optional(),
+      head_size: z.number().min(10).max(160).optional(),
       curve: z.number().min(-1).max(1).optional(),
       thickness: z.number().min(3).max(64).optional(),
       shape: z.enum(["rounded", "rect", "ellipse", "triangle"]).optional(),
@@ -657,6 +695,8 @@ export const AI_TOOLS = {
             tail: z
               .enum([
                 "none",
+                "top",
+                "bottom",
                 "bottom-left",
                 "bottom-right",
                 "top-left",
@@ -716,6 +756,38 @@ export const AI_TOOLS = {
     input: z.object({
       clip_ids: z.array(z.string()).min(1),
       ...STYLE_FIELDS,
+    }),
+  },
+  update_annotation: {
+    title: "Editar anotação",
+    permission: "write",
+    description:
+      "Changes an annotation already in the lesson (a balloon above all) without making it again: text, subtitle, tail, tail_offset, target or point_at_click (as in add_annotation), max_chars_per_line, font, font_size, color, fill, text_color, outline_* and shadow, its place (x and y: the center; for a balloon, of its body) and size (scale, a multiple of the natural size), its time (at, duration). Whatever is not given stays as it is: track, colors, font, shadow. A balloon aimed at an item (target) aims again when its text or place changes; giving tail lets go of the target. Undoable as one step.",
+    input: z.object({
+      clip_id: z.string(),
+      text: z.string().optional(),
+      subtitle: z.string().optional(),
+      tail: z.enum(BALLOON_TAILS).optional(),
+      ...BALLOON_FIELDS,
+      font_size: z.number().min(12).max(300).optional(),
+      color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional(),
+      fill: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional(),
+      text_color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional(),
+      ...STYLE_FIELDS,
+      x: z.number().min(0).max(1).optional(),
+      y: z.number().min(0).max(1).optional(),
+      scale: z.number().min(0.1).max(5).optional(),
+      at: z.number().min(0).optional(),
+      duration: z.number().min(0.5).max(30).optional(),
     }),
   },
   add_image: {
@@ -977,7 +1049,7 @@ export const AI_TOOLS = {
     title: "Pôr um clipe no lugar de um trecho",
     permission: "write",
     description:
-      "Puts a clip in place of a stretch of a track, typically an animation in place of a stretch of the screen recording: media_id (from list_library) starting at `at` (its whole length, or duration seconds), or clip_id of a clip already on the timeline, which moves there keeping its start. The clips of track_id, and of also_track_ids (the sound of the same recording, say), lose that stretch, split around it; nothing moves. transition (default colorcircles 0.6 s in the lesson palette, or none) goes into the cutaway and into the clip that comes back after it. Refused on locked tracks and when a grouped clip would be cut. Requires the project revision. One undo step.",
+      "Puts a clip in place of a stretch of a track, typically an animation in place of a stretch of the screen recording: media_id (from list_library) starting at `at` (its whole length, or duration seconds), or clip_id of a clip already on the timeline, which moves there keeping its start. The clips of track_id, and of also_track_ids (the sound of the same recording, say), lose that stretch, split around it; nothing moves. transition (default colorcircles 0.6 s in the lesson palette, or none) goes into the cutaway and into the clip that comes back after it. A stretch of screen shorter than min_screen seconds (default 1.5) left between two animations on the track, or at its start or end, is not left there: the animation before runs on to the next one (its own footage, then its last frame held, and only as a last resort up to 5% slower, said in the answer), so each change has one transition (the next animation's) and no flash of screen; the screen's sound in that stretch goes too. Refused on locked tracks and when a grouped clip would be cut. Requires the project revision. One undo step.",
     input: z.object({
       media_id: z.string().optional(),
       clip_id: z.string().optional(),
@@ -985,6 +1057,12 @@ export const AI_TOOLS = {
       duration: z.number().min(0.1).optional(),
       track_id: z.string().describe("Track whose stretch is replaced (the screen recording's)"),
       also_track_ids: z.array(z.string()).optional(),
+      min_screen: z
+        .number()
+        .min(0)
+        .max(5)
+        .optional()
+        .describe("Shortest stretch of screen kept between two animations, seconds (default 1.5)"),
       transition: z
         .enum([
           "colorcircles",

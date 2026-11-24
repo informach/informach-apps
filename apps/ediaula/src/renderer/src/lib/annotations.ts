@@ -12,15 +12,18 @@ import {
   editedAnnotation,
   fillsFrame,
   freeBalloonTip,
+  type HeadShape,
   isDrawingKind,
   KIT,
   kitBox,
+  lineHeads,
   MEME,
   type Outline,
   outlineStyle,
   preserveBalloonBody,
   textBoxLayout,
 } from "@shared/annotation";
+import { BALLOON_CHARS_PER_LINE, balancedWrap } from "@shared/balloonAim";
 import {
   DEFAULT_TRANSFORM,
   type Motion,
@@ -49,6 +52,8 @@ export const OVERSAMPLE = 2;
 
 interface Rendered {
   balloon?: BalloonGeometry;
+  /** A balloon's lines of text, as drawn (Annotation.textLines). */
+  lines?: string[];
   /** Transparent room between the picture's edge and what it draws (picture pixels). */
   margin: number;
   bytes: Uint8Array;
@@ -70,6 +75,33 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, max: number): string[
     lines.push(line);
   }
   return lines;
+}
+
+/**
+ * A balloon's lines: about the same length each, `maxCharsPerLine` letters at most (20 when the
+ * balloon has no width of its own; with a width, as wide as it), never a word alone on the last
+ * line (shared/balloonAim.ts). A line still wider than the balloon's width breaks again by width.
+ */
+function balloonLines(a: Annotation, ctx: CanvasRenderingContext2D, maxWidth: number): string[] {
+  const text = a.text ?? "";
+  const width = (s: string): number => ctx.measureText(s).width;
+  const chars = a.maxCharsPerLine ?? (a.width === undefined ? BALLOON_CHARS_PER_LINE : undefined);
+  const lines = chars ? balancedWrap(text, (s) => s.length, chars) : [];
+  return lines.length && lines.every((l) => width(l) <= maxWidth)
+    ? lines
+    : balancedWrap(text, width, maxWidth);
+}
+
+/**
+ * The lines a balloon's picture shows: the ones it was drawn with, or, for a balloon drawn before
+ * they were kept, the plain wrapping it had then.
+ */
+export async function drawnBalloonLines(a: Annotation, frameHeight: number): Promise<string[]> {
+  if (a.textLines) return a.textLines;
+  await loadAnnotationFonts(a.fontFamily, frameHeight, a.bodyFont);
+  const s = sizing(a, frameHeight);
+  const box = textBoxLayout(a);
+  return wrap(measuring(s.font(box.fontSize, 800)), a.text ?? "", box.maxWidth * s.k);
 }
 
 const isLight = (hex: string): boolean => {
@@ -131,7 +163,12 @@ function boxGeometry(a: Annotation, s: Sizing) {
   const kit = kitBox(a);
   const font = s.font(box.fontSize, kit ? 800 : 700);
   const ctx = measuring(font);
-  const lines = box.wraps ? wrap(ctx, a.text ?? "", box.maxWidth * k) : [a.text ?? ""];
+  const lines =
+    a.kind === "balloon"
+      ? balloonLines(a, ctx, box.maxWidth * k)
+      : box.wraps
+        ? wrap(ctx, a.text ?? "", box.maxWidth * k)
+        : [a.text ?? ""];
   const lh = box.lineHeight * k;
   const tw = widest(ctx, lines, 20 * k);
   const px = box.padX * k;
@@ -146,7 +183,7 @@ function boxGeometry(a: Annotation, s: Sizing) {
   const ph = pointer === "none" ? 0 : KIT.pointer.height * k;
   const free =
     a.kind === "balloon" && a.tailPoint && a.tail !== "none"
-      ? freeBalloonTip(a.tailPoint)
+      ? freeBalloonTip(a.tailPoint, a.tail)
       : undefined;
   const tail = free?.tail ?? (a.kind === "balloon" ? (a.tail ?? "bottom-left") : "none");
   const tl = tail === "none" ? 0 : BALLOON_TAIL * k;
@@ -682,6 +719,7 @@ export async function renderAnnotation(
   const { k, olw, pad, font, ink } = sz;
   const ol = sz.outline;
   let balloon: BalloonGeometry | undefined;
+  let balloonText: string[] | undefined;
   const canvas = document.createElement("canvas");
   let ctx = canvas.getContext("2d")!;
 
@@ -779,10 +817,12 @@ export async function renderAnnotation(
       // Curve: the middle of the arrow is pushed sideways by up to a third of its length.
       const bend = (a.curve ?? 0) * L * 0.35;
       const style = a.arrowStyle ?? "solid";
-      const heads = a.heads ?? (a.kind === "line" ? 0 : 1);
-      const one = heads >= 1;
-      const two = heads === 2;
-      const box = Math.hypot(L + (one ? head : T), Math.abs(bend) * 2 + (one ? head : T)) + pad * 2;
+      // The head of each end (shared/annotation.ts lineHeads): triangle, open, notched, circle,
+      // square, bar or none.
+      const ends = lineHeads(a);
+      const headed = ends.start !== "none" || ends.end !== "none";
+      const box =
+        Math.hypot(L + (headed ? head : T), Math.abs(bend) * 2 + (headed ? head : T)) + pad * 2;
       size(box, box);
       ctx.translate(box / 2, box / 2);
       ctx.rotate(((a.angle ?? 0) * Math.PI) / 180);
@@ -795,9 +835,27 @@ export async function renderAnnotation(
       const P0: [number, number] = [-L / 2, 0];
       const d1 = unit(P1[0] - C[0], P1[1] - C[1]);
       const d0 = unit(P0[0] - C[0], P0[1] - C[1]);
-      const inset = style === "solid" ? head * 0.85 : head * 0.5;
-      const E1: [number, number] = one ? [P1[0] - d1[0] * inset, P1[1] - d1[1] * inset] : P1;
-      const E0: [number, number] = two ? [P0[0] - d0[0] * inset, P0[1] - d0[1] * inset] : P0;
+      /** Round heads and squares: their size beside a triangle of the same headSize. */
+      const knob = head * 0.6;
+      /** How far back from the tip the shaft stops, under each head. */
+      const inset = (shape: HeadShape): number =>
+        shape === "triangle"
+          ? head * 0.85
+          : shape === "notched"
+            ? head * 0.5
+            : shape === "open"
+              ? T * 0.5
+              : shape === "circle" || shape === "square"
+                ? knob / 2
+                : 0;
+      const E1: [number, number] = [
+        P1[0] - d1[0] * inset(ends.end),
+        P1[1] - d1[1] * inset(ends.end),
+      ];
+      const E0: [number, number] = [
+        P0[0] - d0[0] * inset(ends.start),
+        P0[1] - d0[1] * inset(ends.start),
+      ];
       const shaft = new Path2D();
       if (drawn >= 1) {
         shaft.moveTo(E0[0], E0[1]);
@@ -825,26 +883,67 @@ export async function renderAnnotation(
           );
         }
       }
-      const headPath = (tip: [number, number], d: [number, number]): Path2D => {
+      /**
+       * A head at `tip`, pointing along `d`: filled (triangle, notched, circle, square) or a stroke
+       * of its own width (the open "V" and the bar across the end).
+       */
+      const headPath = (
+        shape: HeadShape,
+        tip: [number, number],
+        d: [number, number],
+      ): { path: Path2D; stroke?: number } | null => {
         const nx = -d[1];
         const ny = d[0];
-        const w = style === "solid" ? head : head * 0.85;
+        const p = new Path2D();
+        if (shape === "none") return null;
+        if (shape === "circle") {
+          p.arc(tip[0] - (d[0] * knob) / 2, tip[1] - (d[1] * knob) / 2, knob / 2, 0, Math.PI * 2);
+          return { path: p };
+        }
+        if (shape === "square") {
+          const cx = tip[0] - (d[0] * knob) / 2;
+          const cy = tip[1] - (d[1] * knob) / 2;
+          const h = knob / 2;
+          p.moveTo(cx + (d[0] + nx) * h, cy + (d[1] + ny) * h);
+          p.lineTo(cx + (-d[0] + nx) * h, cy + (-d[1] + ny) * h);
+          p.lineTo(cx + (-d[0] - nx) * h, cy + (-d[1] - ny) * h);
+          p.lineTo(cx + (d[0] - nx) * h, cy + (d[1] - ny) * h);
+          p.closePath();
+          return { path: p };
+        }
+        if (shape === "bar") {
+          const w = head * 0.8;
+          p.moveTo(tip[0] + (nx * w) / 2, tip[1] + (ny * w) / 2);
+          p.lineTo(tip[0] - (nx * w) / 2, tip[1] - (ny * w) / 2);
+          return { path: p, stroke: T };
+        }
+        const w = shape === "triangle" ? head : head * 0.85;
         const bx = tip[0] - d[0] * head;
         const by = tip[1] - d[1] * head;
-        const p = new Path2D();
+        if (shape === "open") {
+          // The stroke's own width: the "V" stops a half width short of the point, so its corner
+          // lands on the tip.
+          const sw = Math.max(T, head * 0.14);
+          const back = sw / 2;
+          const tx = tip[0] - d[0] * back;
+          const ty = tip[1] - d[1] * back;
+          p.moveTo(bx + (nx * w) / 2, by + (ny * w) / 2);
+          p.lineTo(tx, ty);
+          p.lineTo(bx - (nx * w) / 2, by - (ny * w) / 2);
+          return { path: p, stroke: sw };
+        }
         p.moveTo(tip[0], tip[1]);
         p.lineTo(bx + (nx * w) / 2, by + (ny * w) / 2);
-        // Line arrows get a notched head.
-        if (style !== "solid") p.lineTo(bx + d[0] * head * 0.3, by + d[1] * head * 0.3);
+        if (shape === "notched") p.lineTo(bx + d[0] * head * 0.3, by + d[1] * head * 0.3);
         p.lineTo(bx - (nx * w) / 2, by - (ny * w) / 2);
         p.closePath();
-        return p;
+        return { path: p };
       };
       // The head at the tip comes when the stroke gets there; the one at the tail is there already.
       const tips = [
-        ...(one && drawn >= 1 ? [headPath(P1, d1)] : []),
-        ...(two && drawn > 0 ? [headPath(P0, d0)] : []),
-      ];
+        drawn >= 1 ? headPath(ends.end, P1, d1) : null,
+        drawn > 0 ? headPath(ends.start, P0, d0) : null,
+      ].filter((h) => h !== null);
       const cap: CanvasLineCap = style === "solid" ? "butt" : "round";
       const shaftDash =
         style === "dashed" ? [T * 1.8, T * 1.4] : style === "dotted" ? [0, T * 1.9] : [];
@@ -857,10 +956,15 @@ export async function renderAnnotation(
         ctx.setLineDash(shaftDash);
         ctx.stroke(shaft);
         ctx.setLineDash([]);
-        ctx.lineWidth = olw * 2;
         for (const h of tips) {
-          ctx.fill(h);
-          ctx.stroke(h);
+          if (h.stroke !== undefined) {
+            ctx.lineWidth = h.stroke + olw * 2;
+            ctx.stroke(h.path);
+          } else {
+            ctx.lineWidth = olw * 2;
+            ctx.fill(h.path);
+            ctx.stroke(h.path);
+          }
         }
       }
       ctx.strokeStyle = a.color;
@@ -870,7 +974,13 @@ export async function renderAnnotation(
       ctx.setLineDash(shaftDash);
       ctx.stroke(shaft);
       ctx.setLineDash([]);
-      for (const h of tips) ctx.fill(h);
+      for (const h of tips) {
+        if (h.stroke === undefined) ctx.fill(h.path);
+        else {
+          ctx.lineWidth = h.stroke;
+          ctx.stroke(h.path);
+        }
+      }
       shadow(12, 4);
       break;
     }
@@ -885,13 +995,14 @@ export async function renderAnnotation(
         const { tip } =
           tail === "none"
             ? { tip: { x: x + bw / 2, y: y + bh } }
-            : balloonTail(x, y, bw, bh, g.radius, tl, tail, absoluteTip);
+            : balloonTail(x, y, bw, bh, g.radius, tl, tail, absoluteTip, a.tailOffset);
         balloon = { x, y, w: bw, h: bh, tipX: tip.x, tipY: tip.y };
+        balloonText = lines;
       }
       const fill = box.fill;
       const path =
         a.kind === "balloon"
-          ? new Path2D(balloonPath(x, y, bw, bh, g.radius, tl, tail, absoluteTip))
+          ? new Path2D(balloonPath(x, y, bw, bh, g.radius, tl, tail, absoluteTip, a.tailOffset))
           : new Path2D();
       if (a.kind !== "balloon") path.roundRect(x, y, bw, bh, g.radius);
       // A box's pointer: a small triangle on one side, part of the same shape.
@@ -1191,6 +1302,7 @@ export async function renderAnnotation(
     width: out.width,
     height: out.height,
     balloon,
+    ...(balloonText ? { lines: balloonText } : {}),
     margin,
   };
 }
@@ -1250,6 +1362,53 @@ export interface AddOptions {
   scale?: number;
   enter?: Motion;
   exit?: Motion;
+  /** A balloon's body centered here instead (x, y), `density` frame pixels per picture pixel. */
+  body?: BodyPlace;
+}
+
+/** Where a balloon's body goes: its center in fractions of the frame, and its size. */
+export interface BodyPlace {
+  x: number;
+  y: number;
+  /** Frame pixels per pixel of the picture. */
+  density: number;
+}
+
+/** The transform that puts the body of picture `r` at `place` (without a body, the picture). */
+function bodyTransform(
+  r: { width: number; height: number; balloon?: BalloonGeometry },
+  frame: Project["settings"],
+  place: BodyPlace,
+): Pick<Transform, "x" | "y" | "scale"> {
+  const fit = Math.min(frame.width / r.width, frame.height / r.height);
+  const b = r.balloon;
+  const offX = b ? b.x + b.w / 2 - r.width / 2 : 0;
+  const offY = b ? b.y + b.h / 2 - r.height / 2 : 0;
+  return {
+    x: place.x - (offX * place.density) / frame.width,
+    y: place.y - (offY * place.density) / frame.height,
+    scale: place.density / fit,
+  };
+}
+
+/** The annotation `addAnnotation` makes: the kind's preset in the lesson's palette and fonts, with `changes`. */
+export function annotationSpec(
+  p: Project,
+  kind: AnnotationKind,
+  changes: Partial<Annotation> = {},
+): Annotation {
+  const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind)!;
+  // Presets are written in EdiAula's colors; they come in the project's palette.
+  const font = projectFont(p, { kind, textRole: changes.textRole ?? preset.spec.textRole });
+  // An item's line below takes the theme's text font.
+  const body = kind === "item" ? projectFont(p, "note") : undefined;
+  return {
+    ...inPalette(preset.spec, activePalette(p)),
+    ...(font ? { fontFamily: font } : {}),
+    ...(body ? { bodyFont: body } : {}),
+    ...changes,
+    kind,
+  };
 }
 
 /** Adds an annotation at the playhead (or `at`) on a free track above the lesson; one undo step. Returns the clip id. */
@@ -1262,17 +1421,7 @@ export async function addAnnotation(
   const p = basisOf(commit);
   if (!p) return null;
   const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind)!;
-  // Presets are written in EdiAula's colors; they come in the project's palette.
-  const font = projectFont(p, { kind, textRole: changes.textRole ?? preset.spec.textRole });
-  // An item's line below takes the theme's text font.
-  const body = kind === "item" ? projectFont(p, "note") : undefined;
-  const spec: Annotation = {
-    ...inPalette(preset.spec, activePalette(p)),
-    ...(font ? { fontFamily: font } : {}),
-    ...(body ? { bodyFont: body } : {}),
-    ...changes,
-    kind,
-  };
+  const spec = annotationSpec(p, kind, changes);
   const r = await renderAnnotation(spec, p.settings.height);
   const path = await window.api.saveGenerated(r.bytes, "png");
   const asset: Asset = {
@@ -1306,16 +1455,22 @@ export async function addAnnotation(
       in: 0,
       duration,
       volume: 1,
-      annotation: { ...spec, balloonGeometry: r.balloon },
-      transform: scaledBy(
-        naturalTransform(
-          r,
-          q.settings,
-          opts.x ?? (kind === "lowerthird" ? 0.06 + r.width / 2 / 2 / q.settings.width : 0.5),
-          opts.y ?? (kind === "title" ? 0.2 : kind === "lowerthird" ? 0.68 : 0.42),
-        ),
-        opts.scale ?? 1,
-      ),
+      annotation: {
+        ...spec,
+        balloonGeometry: r.balloon,
+        ...(r.lines ? { textLines: r.lines } : {}),
+      },
+      transform: opts.body
+        ? { ...DEFAULT_TRANSFORM, ...bodyTransform(r, q.settings, opts.body) }
+        : scaledBy(
+            naturalTransform(
+              r,
+              q.settings,
+              opts.x ?? (kind === "lowerthird" ? 0.06 + r.width / 2 / 2 / q.settings.width : 0.5),
+              opts.y ?? (kind === "title" ? 0.2 : kind === "lowerthird" ? 0.68 : 0.42),
+            ),
+            opts.scale ?? 1,
+          ),
       fadeIn: ANNOTATION_MOTION.enter,
       fadeOut: ANNOTATION_MOTION.exit,
       enter: opts.enter ?? preset.enter,
@@ -1335,16 +1490,18 @@ const redraws = new Map<string, Promise<void>>();
  * reaches the project only when the picture is ready, so it is tracked (trackEdit) until then:
  * leaving the project waits for it. `move` shifts it too, in fractions of the frame (and every
  * keyframe with it), in the same step: a shape resized on the stage from one side
- * (editor/ShapeSizeControl.tsx) keeps its other side where it was.
+ * (editor/ShapeSizeControl.tsx) keeps its other side where it was. `body` puts a balloon's
+ * body at a place and size instead (lib/balloonTarget.ts), the keyframes moved by as much.
  */
 export function updateAnnotation(
   clipId: string,
   changes: Partial<Annotation>,
   commit: Commit = personCommit,
   move?: { dx: number; dy: number },
+  body?: BodyPlace,
 ): Promise<void> {
   const previous = redraws.get(clipId) ?? Promise.resolve();
-  const next = previous.then(() => redrawAnnotation(clipId, changes, commit, move));
+  const next = previous.then(() => redrawAnnotation(clipId, changes, commit, move, body));
   const settled = next.then(
     () => undefined,
     () => undefined,
@@ -1361,6 +1518,7 @@ async function redrawAnnotation(
   changes: Partial<Annotation>,
   commit: Commit,
   move?: { dx: number; dy: number },
+  body?: BodyPlace,
 ): Promise<void> {
   const p = useProject.getState().project;
   const clip = p?.clips.find((c) => c.id === clipId);
@@ -1375,16 +1533,27 @@ async function redrawAnnotation(
   const r = await renderAnnotation(spec, p.settings.height, p.settings.width);
   const path = await window.api.saveGenerated(r.bytes, "png");
   const t = clip.transform ?? DEFAULT_TRANSFORM;
+  // A body put somewhere: the transform that does it, and every keyframe moved and sized by
+  // as much as the transform was.
+  const placed = body ? bodyTransform(r, p.settings, body) : null;
+  const ratio = placed ? placed.scale / t.scale : 1;
   // Same on-screen size per pixel as before: rescale for the new picture's dimensions.
   const adjust = <T extends { x: number; y: number; scale: number }>(value: T): T =>
-    preserveBalloonBody(
-      move ? { ...value, x: value.x + move.dx, y: value.y + move.dy } : value,
-      asset,
-      r,
-      p.settings,
-      clip.annotation?.balloonGeometry,
-      r.balloon,
-    );
+    placed
+      ? {
+          ...value,
+          x: value.x + placed.x - t.x,
+          y: value.y + placed.y - t.y,
+          scale: value.scale * ratio,
+        }
+      : preserveBalloonBody(
+          move ? { ...value, x: value.x + move.dx, y: value.y + move.dy } : value,
+          asset,
+          r,
+          p.settings,
+          clip.annotation?.balloonGeometry,
+          r.balloon,
+        );
   commit((q) => {
     if (q.id !== p.id || q.clips.find((c) => c.id === clipId) !== clip) return q;
     // A copy (pasted or split) shares the picture: it gets its own, so the other one stays as it is.
@@ -1408,7 +1577,11 @@ async function redrawAnnotation(
           ? {
               ...c,
               assetId,
-              annotation: { ...spec, balloonGeometry: r.balloon },
+              annotation: {
+                ...spec,
+                balloonGeometry: r.balloon,
+                ...(r.lines ? { textLines: r.lines } : {}),
+              },
               transform: adjust(t),
               keyframes: c.keyframes?.map(adjust),
             }

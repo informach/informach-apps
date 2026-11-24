@@ -1,6 +1,7 @@
 import { needsSpeech } from "@shared/audio";
 import { buildCues, captionWords, cueLayout } from "@shared/captions";
 import { speechIntervals, timelineWords } from "@shared/cleanup";
+import { joinPresenterFlash } from "@shared/cutawayJoins";
 import { type Finding, type Loudness, preflight } from "@shared/preflight";
 import { newId } from "@shared/timeline";
 import type { Project } from "@shared/types";
@@ -9,8 +10,11 @@ import { setCaptions } from "@/editor/CaptionSettings";
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { updateAnnotation } from "./annotations";
+import { drawnBalloonLines, updateAnnotation } from "./annotations";
 import { projectSpeech } from "./audio";
+import { aimClip } from "./balloonTarget";
+import { clickTargets } from "./courseTemplate";
+import { closeCutawaySlivers, sliverReport } from "./cutawaySlivers";
 import { showProposal } from "./proposals";
 import { reconnectMissing } from "./relink";
 import { currentView } from "./script";
@@ -85,7 +89,17 @@ export async function checkLesson(
   const view = transcripts.size ? await currentView(project) : null;
   const loudness =
     opts.loudness && opts.loudness.revision === revision ? opts.loudness.value : undefined;
+  // The balloons' lines as their pictures show them, and the clicks they may point at.
+  const balloonLines = new Map<string, string[]>();
+  for (const c of project.clips)
+    if (c.annotation?.kind === "balloon")
+      balloonLines.set(c.id, await drawnBalloonLines(c.annotation, project.settings.height));
+  const clicks = project.clips.some((c) => c.annotation?.kind === "balloon")
+    ? await clickTargets(project).catch(() => [])
+    : [];
   const findings = preflight(project, {
+    balloonLines,
+    clicks,
     words,
     speech: speechIntervals(project, { transcripts, envelopes: inputs.envelopes }),
     cues: cueWords.length ? buildCues(cueWords, 42, 2, cueLayout(project)) : [],
@@ -97,6 +111,12 @@ export async function checkLesson(
   });
   return { findings, revision, projectId: project.id };
 }
+
+/** m:ss,d for the messages of the fixes. */
+const clockOf = (s: number): string => {
+  const d = Math.round(s * 10) / 10;
+  return `${Math.floor(d / 60)}:${(d % 60).toFixed(1).replace(".", ",").padStart(4, "0")}`;
+};
 
 /** Whether a list is still about the lesson as it is (same lesson, same revision). */
 export const checkIsCurrent = (check: LessonCheck): boolean => {
@@ -172,6 +192,36 @@ export async function runFix(
         return !!opts.withoutCursor;
       case "solo-off":
         useApp.getState().set({ solo: [] });
+        return true;
+      case "close-slivers": {
+        const r = await closeCutawaySlivers(p, { trackIds: [fix.trackId] });
+        if (!r.closed.length) {
+          toast(sliverReport(r, clockOf) || "Nada a cobrir nesta faixa.", "info");
+          return false;
+        }
+        const done = useProject
+          .getState()
+          .commit((q) =>
+            q.id === p.id ? { ...q, clips: r.clips, assets: [...q.assets, ...r.assets] } : q,
+          );
+        if (done) toast(sliverReport(r, clockOf), "info");
+        return done;
+      }
+      case "join-presenter":
+        return useProject.getState().commit((q) => ({
+          ...q,
+          clips: joinPresenterFlash(q.clips, {
+            clipId: fix.clipId,
+            intoId: fix.intoId,
+            start: 0,
+            end: 0,
+          }),
+        }));
+      case "balloon-aim":
+        return aimClip(fix.clipId, fix.target);
+      case "balloon-rewrap":
+        // Drawn again: the lines come out balanced (lib/annotations.ts balloonLines).
+        await updateAnnotation(fix.clipId, { textLines: undefined });
         return true;
       case "silence-teacher":
         // The rule "personagem silencia a professora" on (shared/voiceRule.ts): one undo step.

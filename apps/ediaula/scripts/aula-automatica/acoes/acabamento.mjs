@@ -30,6 +30,22 @@ const PLANOS = {
   secao: { x: 0.53, y: 1.67, scale: 3.36 },
 };
 const PERSONAGEM = { x: 0.24, y: 0.83, scale: 1.18, fade_in: 0.3, fade_out: 0.3 };
+// A apresentadora nunca fica com um pedaço menor que isto (segundos): um corte mais curto aparece como um
+// pulo de plano ou uma piscada (a verificação antes de exportar aponta "Avatar muda de plano").
+const PEDACO_MINIMO = 1;
+// Animações com menos que isto de tela entre elas são um trecho só (o place_cutaway já cobre a sobra).
+const SOBRA_DE_TELA = 1.5;
+
+/** Intervalos que se encostam, ou quase, viram um só. */
+const juntar = (ints, folga) =>
+  [...ints]
+    .sort((a, b) => a[0] - b[0])
+    .reduce((acc, [a, b]) => {
+      const ultimo = acc.at(-1);
+      if (ultimo && a - ultimo[1] < folga) ultimo[1] = Math.max(ultimo[1], b);
+      else acc.push([a, b]);
+      return acc;
+    }, []);
 const RECORTE = { left: 0.02, right: 0.02, top: 0.02, bottom: 0.45 };
 
 /** A peça vinculada de um papel (conceito-*.edisvg, secao-*.edisvg). */
@@ -163,9 +179,14 @@ export default async function acabamento(ctx) {
     );
   }
   proj = await ler();
-  const animacoes = proj.d.clips
-    .filter((c) => c.trackId === tela.trackId && conceito(proj, c))
-    .map((c) => [c.start, fimDe(c)]);
+  // Animações seguidas são um trecho só: um corte entre elas deixaria a apresentadora com um pedaço curto
+  // entre dois planos iguais.
+  const animacoes = juntar(
+    proj.d.clips
+      .filter((c) => c.trackId === tela.trackId && conceito(proj, c))
+      .map((c) => [c.start, fimDe(c)]),
+    SOBRA_DE_TELA,
+  );
   const cartoes = [
     ...(st.cartoes ?? []),
     ...proj.d.clips.filter((c) => pecaDe(proj.asset(c), "secao")).map((c) => [c.start, fimDe(c)]),
@@ -178,11 +199,17 @@ export default async function acabamento(ctx) {
   );
   const abertura = st.abertura ?? (fimCapa > 0.5 ? fimCapa : 1.5);
   // Cada mudança de plano é um corte no clipe dela (o pedaço de cada lado fica com o seu plano).
-  const cortes = [abertura, ...animacoes.flat(), ...cartoes.flat()].sort((a, b) => a - b);
+  // Nunca dois cortes a menos de PEDACO_MINIMO um do outro: fica o primeiro.
+  const cortes = [abertura, ...animacoes.flat(), ...cartoes.flat()]
+    .sort((a, b) => a - b)
+    .reduce((acc, t) => (acc.length && t - acc.at(-1) < PEDACO_MINIMO ? acc : [...acc, t]), []);
   for (const t of cortes) {
     proj = await ler();
     const c = proj.d.clips.find(
-      (x) => proj.nome(x).includes(apres) && x.start + 0.3 < t && t < fimDe(x) - 0.3,
+      (x) =>
+        proj.nome(x).includes(apres) &&
+        x.start + PEDACO_MINIMO <= t &&
+        t <= fimDe(x) - PEDACO_MINIMO,
     );
     if (c)
       await ia("split_clip", {

@@ -1,10 +1,14 @@
 import { KIT, textBoxLayout } from "./annotation.ts";
+import { loneLastWord, targetOnFrame, tipOnFrame } from "./balloonAim.ts";
 import type { Cue } from "./captions.ts";
 import { DEFAULT_CAPTION_STYLE } from "./captions.ts";
 import { strip, type TimelineWord } from "./cleanup.ts";
 import { clipLayout } from "./compose.ts";
+import { CUTAWAY_JOIN, findSlivers, presenterFlashes } from "./cutawayJoins.ts";
+import { transformAt } from "./keyframes.ts";
 import { chaptersOf, hasChapterMarkers } from "./markers.ts";
 import { LINE_MISSING, LINE_PARTIAL } from "./retake.ts";
+import type { PointTarget } from "./screenDirections.ts";
 import { type ScriptSection, speechItems } from "./script.ts";
 import type { Alignment } from "./scriptAlign.ts";
 import { CROWD_COUNT, CROWD_WINDOW, crowdedEffects } from "./soundPlacement.ts";
@@ -41,7 +45,11 @@ export type FindingKind =
   | "short-piece"
   | "solo"
   | "sfx-crowded"
-  | "two-voices";
+  | "two-voices"
+  | "cutaway-sliver"
+  | "presenter-flash"
+  | "balloon-tip"
+  | "balloon-lone-word";
 
 export type Fix = { label: string } & (
   | { action: "cut"; ranges: [number, number][] }
@@ -54,6 +62,10 @@ export type Fix = { label: string } & (
   | { action: "solo-off" }
   | { action: "without-cursor" }
   | { action: "silence-teacher" }
+  | { action: "close-slivers"; trackId: string }
+  | { action: "join-presenter"; clipId: string; intoId: string }
+  | { action: "balloon-aim"; clipId: string; target: { x: number; y: number } }
+  | { action: "balloon-rewrap"; clipId: string }
 );
 
 /** What a recording whose cursor data went missing looks like in the export. */
@@ -110,6 +122,10 @@ export interface PreflightContext {
   normalize?: boolean;
   /** Tracks heard alone in the editor now (solo): the export does not follow it. */
   solo?: readonly string[];
+  /** Recorded clicks of the screen recordings (lib/courseTemplate.ts clickTargets). */
+  clicks?: readonly PointTarget[];
+  /** The lines each balloon's picture shows, by clip id (lib/annotations.ts drawnBalloonLines). */
+  balloonLines?: ReadonlyMap<string, readonly string[]>;
 }
 
 /** Thresholds of the checks. */
@@ -144,11 +160,22 @@ export const PREFLIGHT = {
   lufs: [-20, -9] as [number, number],
   /** True peak above this distorts (dBTP). */
   peak: -1,
+  /** A balloon's tip farther than this from the item clicked misses it (1080p px)… */
+  balloonTip: 30,
+  /** …when a click this close (1080p px) shows it was meant for it. */
+  balloonTipNear: 320,
+  /** Clicks this long before or after a balloon count as its own (seconds). */
+  balloonClickWindow: 1.5,
 } as const;
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const secs = (s: number): string => `${s.toFixed(1).replace(".", ",")} s`;
+/** m:ss,d: the slivers are fractions of a second apart. */
+const tenth = (s: number): string => {
+  const d = Math.round(s * 10) / 10;
+  return `${Math.floor(d / 60)}:${(d % 60).toFixed(1).replace(".", ",").padStart(4, "0")}`;
+};
 const dec = (v: number, d = 1): string => v.toFixed(d).replace(".", ",").replace("-", "−");
 
 /** Reads the summary FFmpeg's ebur128 filter prints at the end (peak=true). */
@@ -646,7 +673,61 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
     reach = Math.max(reach, b);
   }
   if (covered.length && duration - reach >= 1 / fps - 1e-6) gaps.push([reach, duration]);
+  // Slivers of screen between animations: one finding per track, the fix covers them all.
+  const slivers = findSlivers(project);
+  /** A short length said in frames, a longer one in seconds. */
+  const frames = (length: number): string => {
+    const n = Math.max(1, Math.round(length * fps));
+    return length >= 0.5 ? secs(length) : n === 1 ? "um quadro" : `${n} quadros`;
+  };
+  const sliverGap = (a: number, b: number): boolean =>
+    slivers.some((s) => !s.pieceId && Math.abs(s.start - a) < 0.01 && Math.abs(s.end - b) < 0.01);
+  for (const s of slivers) {
+    const length = s.end - s.start;
+    out.push({
+      severity: "warn",
+      kind: "cutaway-sliver",
+      at: s.start,
+      message: s.pieceId
+        ? `Trecho de tela de ${secs(length)} entre dois slides em ${tenth(s.start)} (transição dupla): a tela pisca entre duas transições.`
+        : `Vão de ${frames(length)} entre dois slides em ${tenth(s.start)}: aparece preto (ou o que está embaixo) entre eles.`,
+      fix: { label: "Cobrir com o slide anterior", action: "close-slivers", trackId: s.trackId },
+    });
+  }
+
+  // The presenter's pieces too short to be a shot: a jump of layout or a blink.
+  for (const f of presenterFlashes(project)) {
+    const c = project.clips.find((x) => x.id === f.clipId)!;
+    const into = project.clips.find((x) => x.id === f.intoId)!;
+    const nextCut = project.clips.find(
+      (x) =>
+        x.id !== c.id &&
+        x.trackId === c.trackId &&
+        x.assetId === c.assetId &&
+        Math.abs(x.start - clipEnd(c)) <= CUTAWAY_JOIN.touch,
+    );
+    const look = (x: Clip, t: number): string => JSON.stringify(transformAt(x, t));
+    const sameLook =
+      look(c, c.start) === look(into, into.start < c.start ? clipEnd(into) : into.start);
+    // A cut that changes nothing on screen (same look, no transition) is not seen.
+    if (sameLook && !c.transition && !nextCut?.transition) continue;
+    out.push({
+      severity: "warn",
+      kind: "presenter-flash",
+      at: f.start,
+      message: `Avatar muda de plano por menos de 1 s em ${tenth(f.start)} (pedaço de ${secs(f.end - f.start)}): aparece como um pulo ou uma piscada.`,
+      fix: {
+        label: "Juntar ao pedaço vizinho",
+        action: "join-presenter",
+        clipId: f.clipId,
+        intoId: f.intoId,
+      },
+    });
+  }
+
   for (const [a, b] of project.background ? [] : gaps) {
+    // A gap between two animations is said once, as a sliver, with its own fix.
+    if (sliverGap(a, b)) continue;
     const spoken = (ctx.speech ?? []).some(([s, e]) => s < b - 0.05 && e > a + 0.05);
     out.push({
       severity: "warn",
@@ -664,6 +745,51 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
       at: c.start,
       message: `Pedaço de ${Math.max(1, Math.round(c.duration * fps))} ${Math.round(c.duration * fps) <= 1 ? "quadro" : "quadros"} de ${assets.get(c.assetId)?.name ?? "mídia"} em ${clock(c.start)}: aparece como um piscar.`,
       fix: { label: "Tirar o pedaço", action: "cut", ranges: [[c.start, clipEnd(c)]] },
+    });
+  }
+
+  // Balloons: a tip that misses the item clicked, and a word alone on the last line.
+  for (const c of project.clips) {
+    const a = c.annotation;
+    const asset = assets.get(c.assetId);
+    if (a?.kind !== "balloon" || !asset) continue;
+    const lines = ctx.balloonLines?.get(c.id) ?? a.textLines;
+    if (lines && loneLastWord(a.text ?? "", lines))
+      out.push({
+        severity: "warn",
+        kind: "balloon-lone-word",
+        at: c.start,
+        message: `Balão com palavra sozinha na última linha em ${clock(c.start)}: "${lines.join(" / ")}".`,
+        fix: { label: "Reequilibrar o texto", action: "balloon-rewrap", clipId: c.id },
+      });
+    const g = a.balloonGeometry;
+    if (!g || a.tail === "none" || !ctx.clicks?.length) continue;
+    const mid = c.start + c.duration / 2;
+    const lay = clipLayout({ transform: transformAt(c, mid) }, asset, project.settings);
+    const tip = tipOnFrame(lay.full, lay.full.w / (asset.width || 1), g);
+    const w = PREFLIGHT.balloonClickWindow;
+    let best: { d: number; target: { x: number; y: number } } | null = null;
+    for (const k of ctx.clicks) {
+      if (k.t < c.start - w || k.t > clipEnd(c) + w) continue;
+      const [x, y] = k.seenAt?.(mid) ?? [k.x, k.y];
+      const seen = targetOnFrame(project, c.trackId, { x, y }, mid);
+      const d = Math.hypot(seen.x - tip.x, seen.y - tip.y);
+      if (!best || d < best.d) best = { d, target: { x, y } };
+    }
+    if (!best) continue;
+    const px = (best.d * 1080) / project.settings.height;
+    if (px <= PREFLIGHT.balloonTip || px > PREFLIGHT.balloonTipNear) continue;
+    out.push({
+      severity: "warn",
+      kind: "balloon-tip",
+      at: c.start,
+      message: `A ponta do balão em ${clock(c.start)} está a ${Math.round(px)} px do item clicado (o limite é ${PREFLIGHT.balloonTip} px).`,
+      fix: {
+        label: "Apontar para o clique",
+        action: "balloon-aim",
+        clipId: c.id,
+        target: best.target,
+      },
     });
   }
 

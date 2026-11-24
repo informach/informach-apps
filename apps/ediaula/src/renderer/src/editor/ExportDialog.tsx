@@ -33,7 +33,7 @@ import {
   Zap,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import { hasPlatformData, translationState } from "@/lib/delivery";
+import { translationState } from "@/lib/delivery";
 import { exportCurrentFrame } from "@/lib/exportExtras";
 import { bytes, duration } from "@/lib/format";
 import { kidsProject } from "@/lib/kids";
@@ -86,15 +86,17 @@ export function ExportDialog(): ReactNode {
   const [bitrate, setBitrate] = useState(12000);
   const [normalize, setNormalize] = useState(true);
   const transcribed = project.assets.filter((a) => a.transcript && a.transcriptStatus === "ready");
-  const [captions, setCaptions] = useState(true);
-  const [thumbnail, setThumbnail] = useState(true);
+  // The files beside the video (captions, thumbnail, translations, platform package) start off:
+  // each one goes out only when it is turned on here.
+  const [captions, setCaptions] = useState(false);
+  const [thumbnail, setThumbnail] = useState(false);
   // What goes to the platform beside the video: the translations up to date and the package.
   const [ready, setReady] = useState<{ current: string[]; stale: string[] }>({
     current: [],
     stale: [],
   });
-  const [translations, setTranslations] = useState(true);
-  const [platform, setPlatform] = useState(() => hasPlatformData(project));
+  const [translations, setTranslations] = useState(false);
+  const [platform, setPlatform] = useState(false);
   const revision = useProject((s) => s.revision);
   // Worked out again when the lesson changes (its revision), only when it has translations.
   const translated = !!project.captionTranslations?.length;

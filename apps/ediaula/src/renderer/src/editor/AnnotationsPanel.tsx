@@ -251,6 +251,15 @@ export function AnnotationsPanel(): ReactNode {
       ? "var(--accent)"
       : c;
   const time = usePlayback((s) => s.time);
+  const drawing = useApp((s) => s.linePen);
+  /**
+   * Lines and arrows are drawn on the preview, from the start to the end (editor/LinePen.tsx):
+   * the tile waits for the drawing; clicking it again gives up.
+   */
+  const drawn = (kind: AnnotationKind): kind is "arrow" | "line" =>
+    kind === "arrow" || kind === "line";
+  const draw = (kind: "arrow" | "line", spec: Partial<Annotation>, label: string) => () =>
+    useApp.getState().set({ linePen: drawing?.label === label ? null : { kind, spec, label } });
   const run = async (id: string, fn: () => Promise<unknown>): Promise<void> => {
     setBusy(id);
     await fn();
@@ -275,11 +284,16 @@ export function AnnotationsPanel(): ReactNode {
     <button
       type="button"
       key={id}
-      className="ann-tile"
+      className={`ann-tile ${drawing?.label === label ? "is-active" : ""}`}
       disabled={busy !== null}
       onClick={onClick}
+      aria-pressed={drag && drawn(drag.kind) ? drawing?.label === label : undefined}
       title={
-        drag ? `${hint}. Clique para pôr no cursor, ou arraste para uma faixa da timeline.` : hint
+        drag && drawn(drag.kind)
+          ? `${hint}. Clique e desenhe na prévia, do início ao fim; ou arraste para uma faixa da timeline.`
+          : drag
+            ? `${hint}. Clique para pôr no cursor, ou arraste para uma faixa da timeline.`
+            : hint
       }
       draggable={!!drag}
       onDragStart={(e) => {
@@ -309,6 +323,7 @@ export function AnnotationsPanel(): ReactNode {
         Clique para pôr no ponto do cursor ({Math.floor(time / 60)}:
         {String(Math.floor(time % 60)).padStart(2, "0")}), por cima da aula, ou arraste para a faixa
         e o tempo que quiser na timeline, sem criar faixa nova. Arraste no vídeo para posicionar.
+        Seta, Linha, Curva e Seta grossa se desenham: clique e arraste na prévia do início ao fim.
       </p>
 
       <h3 className="ann-group">Cartelas</h3>
@@ -340,7 +355,9 @@ export function AnnotationsPanel(): ReactNode {
             p.label,
             HINTS[p.kind]!,
             tint(inPalette(p.spec, palette).color),
-            () => void run(p.kind, () => addAnnotation(p.kind)),
+            drawn(p.kind)
+              ? draw(p.kind, {}, p.label)
+              : () => void run(p.kind, () => addAnnotation(p.kind)),
             { kind: p.kind },
           ),
         )}
@@ -355,7 +372,9 @@ export function AnnotationsPanel(): ReactNode {
             s.label,
             s.hint,
             tint(s.spec.color ?? palette.roles.accent),
-            () => void run(s.id, () => addAnnotation(s.kind, s.spec)),
+            drawn(s.kind)
+              ? draw(s.kind, s.spec, s.label)
+              : () => void run(s.id, () => addAnnotation(s.kind, s.spec)),
             { kind: s.kind, spec: s.spec },
           ),
         )}
@@ -370,7 +389,9 @@ export function AnnotationsPanel(): ReactNode {
             s.label,
             s.hint,
             shapeColor(s),
-            () => void run(s.id, () => addAnnotation(s.kind, s.spec)),
+            drawn(s.kind)
+              ? draw(s.kind, s.spec, s.label)
+              : () => void run(s.id, () => addAnnotation(s.kind, s.spec)),
             { kind: s.kind, spec: s.spec },
           ),
         )}

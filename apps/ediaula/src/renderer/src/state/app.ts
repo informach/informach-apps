@@ -1,3 +1,4 @@
+import type { Annotation } from "@shared/annotation";
 import type { AppInfo, JobProgress } from "@shared/types";
 import { create } from "zustand";
 
@@ -37,6 +38,14 @@ export type LeftPanel =
   | "audio"
   | "captions"
   | "zoom";
+
+/** A line or an arrow waiting to be drawn on the preview (editor/LinePen.tsx). */
+export interface LinePenRequest {
+  kind: "arrow" | "line";
+  /** The look of the tile that was clicked. */
+  spec: Partial<Annotation>;
+  label: string;
+}
 
 interface AppStore {
   screen: "home" | "editor";
@@ -102,6 +111,11 @@ interface AppStore {
   maskPen: boolean;
   /** The Destaque whose shape is being drawn as a polygon over the frame (editor/PolygonPen.tsx). */
   highlightPen: string | null;
+  /**
+   * A line or an arrow waiting to be drawn on the preview, from where the press starts to where
+   * it lets go (editor/LinePen.tsx), with the look of the tile that was clicked.
+   */
+  linePen: LinePenRequest | null;
   set(partial: Partial<AppStore>): void;
   startJob(id: string, label: string): void;
   endJob(id: string): void;
@@ -142,6 +156,7 @@ export const useApp = create<AppStore>((set, get) => ({
   maskEdit: null,
   maskPen: false,
   highlightPen: null,
+  linePen: null,
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
   endJob: (id) => {
