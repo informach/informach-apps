@@ -2,6 +2,8 @@
 
 Este é o processo que transforma "grava a aula tal, parte tal" numa parte gravada e editada. O editor só confere e exporta.
 
+**Comece pelo [PASSO-A-PASSO.md](PASSO-A-PASSO.md):** a ordem de trabalho de uma aula, do que chega do ElevenLabs e do HeyGen ao pacote editado, com os comandos de cada etapa.
+
 **Etapas:**
 1. **Gravação da tela pelo robô:** gravador guiado do EdiAula, no palco de gravação do Sistema Zero.
 2. **Animações de conceito:** feitas no EdiSVG.
@@ -39,7 +41,7 @@ O motor da gravação guiada é do próprio EdiAula. Veja "Gravação guiada" no
 
 **Motor de transcrição no perfil do condutor.** O gravador transcreve a voz para gerar o plano. Sem o motor no perfil do condutor, o "Gerar plano do roteiro" não faz nada visível. Copie `%APPDATA%\ediaula\whisper` (binários e modelos) para `<perfil do EdiAula>\whisper`, ou instale a transcrição abrindo o EdiAula nesse perfil.
 
-**Material da parte**, numa pasta por curso: `<material>/Aula N/Parte N - <título>/`.
+**Material da parte**, numa pasta por curso: `<material>/Aula N/Parte N - <título>/`. Monte as pastas com `preparar-pastas.py <curso> <aula>`, a partir das vozes do ElevenLabs e dos vídeos do HeyGen (ver o [passo a passo](PASSO-A-PASSO.md)).
 
 | Arquivo | O que é | Obrigatório |
 | --- | --- | --- |

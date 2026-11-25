@@ -120,6 +120,42 @@
           }
         }
       }
+    },
+    "jardim": {
+      "nome": "O Jardim Secreto",
+      "cursoEdiAula": "JardimSecreto",
+      "prefixo": "Jardim",
+      "subtituloCapa": "O Jardim Secreto",
+      "slug": "jornada-faisca-missao",
+      "material": "~/Downloads/O Jardim Secreto",
+      "aulas": {
+        "1": {
+          "id": "4fa1db60-2b47-44f0-819e-f887950cb853",
+          "roteiro": "docs/aulas-interativas/faisca/o-jardim-secreto/aula-1.roteiro.md"
+        },
+        "2": {
+          "id": "cb688ff3-9d28-4fb9-b7d0-87a579ea5dd2",
+          "roteiro": "docs/aulas-interativas/faisca/o-jardim-secreto/aula-2.roteiro.md"
+        }
+      }
+    },
+    "moedas": {
+      "nome": "Moedas no caminho",
+      "cursoEdiAula": "PoderMoedas",
+      "prefixo": "Moedas",
+      "subtituloCapa": "Moedas no caminho",
+      "slug": "jornada-faisca-poder-1",
+      "material": "~/Downloads/Poder - Moedas",
+      "aulas": {
+        "1": {
+          "id": "b57666c0-8b78-4c06-a498-3caf8a76f39b",
+          "roteiro": "docs/aulas-interativas/faisca/poder-moedas-no-caminho/moedas-aula-1.roteiro.md"
+        },
+        "2": {
+          "id": "2d96b320-6e63-41dd-a9c0-fe5133b1eaf4",
+          "roteiro": "docs/aulas-interativas/faisca/poder-moedas-no-caminho/moedas-aula-2.roteiro.md"
+        }
+      }
     }
   }
 }
