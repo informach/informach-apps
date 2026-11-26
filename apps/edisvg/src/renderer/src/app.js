@@ -85,6 +85,7 @@ import {
 import { rigParameterKey } from "@informach/edi-motion/rig";
 import { inspectAppearance, inspectAppearanceValue } from "../../shared/appearanceInspection";
 import { inspectAssetNotice, inspectAssets } from "../../shared/assetInspection";
+import { assetUsage } from "../../shared/assets";
 import { inspectAudio, inspectAudioValue } from "../../shared/audioInspection";
 import { inspectBehavior, inspectBehaviorValue } from "../../shared/behaviorInspection";
 import { executeDocumentTransaction } from "../../shared/documentCommands.ts";
@@ -116,7 +117,7 @@ import { mountAppearancePanel } from "./appearance-panel";
 import { mountArtboardInspector } from "./artboard-inspector.tsx";
 import { mountArtboardPanel } from "./artboard-panel.tsx";
 import { bindActiveArtboard, replaceActiveScene } from "./artboardWorkspace.ts";
-import { mountAssetPanel } from "./asset-panel";
+import { ASSET_DRAG_TYPE, mountAssetPanel } from "./asset-panel";
 import { setupAssistant } from "./assistant.js";
 import { mountBehaviorTest } from "./behavior/test-panel";
 import { mountBehaviorWorkbench } from "./behavior/workbench";
@@ -578,6 +579,7 @@ function render() {
     disposeAssetPanel = mountAssetPanel(assetPanel, {
       board: state.artboards.find((board) => board.id === state.activeArtboardId),
       assets: state.assets,
+      usage: assetUsage(state),
       selectedTextId: flattenScene(state.scene).find(
         ({ node }) => node.id === state.selected && node.tag === "text",
       )?.node.id,
@@ -3276,6 +3278,35 @@ function openBehaviorTest(machineId) {
     notify(error.message);
   }
 }
+/** An image tile of Recursos dropped on the artboard: the image goes in with its center there. */
+const assetDropTarget = (event) =>
+  state.scene &&
+  event.dataTransfer?.types.includes(ASSET_DRAG_TYPE) &&
+  event.target instanceof Element &&
+  event.target.closest(".stage") &&
+  !document.querySelector("dialog[open]");
+document.addEventListener("dragover", (event) => {
+  if (!assetDropTarget(event)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+});
+document.addEventListener("drop", (event) => {
+  if (!assetDropTarget(event)) return;
+  event.preventDefault();
+  const assetId = event.dataTransfer.getData(ASSET_DRAG_TYPE),
+    matrix = document.querySelector(".scene-artwork>svg")?.getScreenCTM();
+  if (!assetId || !matrix) return;
+  const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+  try {
+    transact([
+      { type: "asset", operation: "insert-image", assetId, at: { x: point.x, y: point.y } },
+    ]);
+    render();
+  } catch (error) {
+    notify(error.message);
+  }
+});
 document.addEventListener("contextmenu", (event) => {
   const target =
     event.target instanceof Element

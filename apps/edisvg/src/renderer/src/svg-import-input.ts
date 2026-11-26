@@ -31,9 +31,13 @@ export function bindSvgIngress(
   };
   const nativeFileInput = (target: EventTarget | null) =>
     target instanceof HTMLInputElement && target.type === "file" && !target.matches(":disabled");
+  /** Recursos takes its own file drops (PNG, WAV, fonts): they are not SVGs to open. */
+  const assetDrop = (target: EventTarget | null) =>
+    target instanceof Element && target.closest("[data-asset-drop]") !== null;
   const drop = (event: DragEvent) => {
     const data = event.dataTransfer;
     if (!data || (!data.types.includes("Files") && !data.files.length)) return;
+    if (assetDrop(event.target)) return;
     // Native file inputs own selection/change; every other file drop must be
     // prevented even when global import is ineligible, or the browser may navigate.
     if (nativeFileInput(event.target)) return;
@@ -48,7 +52,8 @@ export function bindSvgIngress(
   };
   const drag = (event: DragEvent) => {
     const data = event.dataTransfer;
-    if (!data?.types.includes("Files") || nativeFileInput(event.target)) return;
+    if (!data?.types.includes("Files") || nativeFileInput(event.target) || assetDrop(event.target))
+      return;
     event.preventDefault();
     data.dropEffect =
       editable(event.target) || document.querySelector("dialog[open]") ? "none" : "copy";

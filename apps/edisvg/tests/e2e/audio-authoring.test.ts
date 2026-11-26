@@ -36,6 +36,8 @@ test("built audio authoring imports PCM, binds actual events, persists undo/redo
       mimeType: "audio/wav",
       buffer: Buffer.from(decodeAssetData(fixture.asset.data)),
     });
+    // Efeitos de áudio is a closed section at the end of Recursos.
+    await page.locator(".asset-effects > summary").click();
     await page.getByLabel("Recurso de áudio", { exact: true }).selectOption(fixture.asset.id);
     await page.getByLabel("Evento de áudio", { exact: true }).selectOption("event-tone");
     await page
@@ -64,8 +66,9 @@ test("built audio authoring imports PCM, binds actual events, persists undo/redo
     restored.on("pageerror", (error) => errors.push(error.message));
     await restored.goto(server.url);
     await restored.locator(".scene-artwork>svg").waitFor();
-    if (!(await restored.getByRole("region", { name: "Efeitos de áudio" }).isVisible()))
+    if (!(await restored.locator(".asset-effects").isVisible()))
       await restored.locator('[data-action="assets"]').click();
+    await restored.locator(".asset-effects > summary").click();
     assert.equal(
       await restored.getByLabel("Volume do efeito", { exact: true }).inputValue(),
       "0.5",

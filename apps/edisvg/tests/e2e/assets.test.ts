@@ -168,16 +168,15 @@ test("font import requires explicit rights, applies typed font reference, waits 
       })
       .check();
     await confirm.click();
-    await page
-      .getByRole("button", { name: "Aplicar fonte ao texto selecionado", exact: true })
-      .waitFor();
+    const fontTile = page.locator(".asset-grid-font .asset-thumb");
+    await fontTile.waitFor();
     await page.locator('[data-action="tool-text"]').click();
     const stage = await page.locator(".scene-artwork>svg").boundingBox();
     if (!stage) throw new Error("Missing stage");
     await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2);
-    await page
-      .getByRole("button", { name: "Aplicar fonte ao texto selecionado", exact: true })
-      .click();
+    // Recursos › the font's menu (right click on its tile).
+    await fontTile.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Aplicar ao texto selecionado" }).click();
     await page.waitForFunction(
       (id) =>
         document.querySelector(".scene-artwork text")?.getAttribute("font-family") === `edi-${id}`,
@@ -266,9 +265,12 @@ test("built resource panel imports, converts with consent, inserts reusable imag
       mimeType: "image/png",
       buffer: Buffer.from(decodeAssetData(imageFixture().data)),
     });
-    await page.getByRole("button", { name: "Inserir imagem", exact: true }).waitFor();
-    await page.getByRole("button", { name: "Inserir imagem", exact: true }).click();
-    await page.getByRole("button", { name: "Inserir imagem", exact: true }).click();
+    // The image's tile: its menu inserts it, and so does a double click.
+    const imageTile = page.locator(".asset-grid-image .asset-thumb");
+    await imageTile.waitFor();
+    await imageTile.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Inserir na prancheta" }).click();
+    await imageTile.dblclick();
     assert.equal(await page.locator(".scene-artwork svg use").count(), 2);
     assert.equal(await page.locator(".scene-artwork>svg>defs>image").count(), 1);
     await page.locator('[data-menu="edit"]').click();
@@ -277,8 +279,22 @@ test("built resource panel imports, converts with consent, inserts reusable imag
     await page.locator('[data-menu="edit"]').click();
     await page.locator('[data-menu-item="redo"]').click();
     assert.equal(await page.locator(".scene-artwork svg use").count(), 2);
-    await page.getByRole("button", { name: "Excluir recurso", exact: true }).click();
-    await page.getByRole("alert").filter({ hasText: "Remova as imagens" }).waitFor();
+    // Dragged onto the artboard, the tile inserts one more (undone right after).
+    await imageTile.dragTo(page.locator(".scene-artwork>svg"));
+    assert.equal(await page.locator(".scene-artwork svg use").count(), 3);
+    await page.locator('[data-menu="edit"]').click();
+    await page.locator('[data-menu-item="undo"]').click();
+    assert.equal(await page.locator(".scene-artwork svg use").count(), 2);
+    // In use: Excluir is disabled and says why; the Delete key is refused too.
+    await imageTile.click({ button: "right" });
+    const removeItem = page.getByRole("menuitem", { name: "Excluir" });
+    assert.equal(await removeItem.getAttribute("aria-disabled"), "true");
+    assert.match((await removeItem.getAttribute("title")) ?? "", /Remova as imagens/);
+    await page.keyboard.press("Escape");
+    await imageTile.focus();
+    await page.keyboard.press("Delete");
+    await page.getByRole("alert").filter({ hasText: "está em uso" }).waitFor();
+    assert.equal(await page.locator(".scene-artwork svg use").count(), 2);
     const stored = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     assert.ok(stored);
     await page.reload();

@@ -1,0 +1,246 @@
+/* Recursos: a grade de assets (como no Rive), no tema denso da barra lateral. */
+.asset-panel {
+  padding: 12px 12px 16px;
+  min-height: 100%;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+}
+.asset-panel.is-dropping {
+  border-color: var(--mint);
+  background: color-mix(in srgb, var(--mint) 6%, transparent);
+}
+.asset-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.asset-heading h3 {
+  margin: 0;
+}
+.asset-add {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text);
+  border-color: var(--line);
+}
+.asset-add:hover:not(:disabled) {
+  border-color: var(--mint);
+  color: var(--mint);
+}
+.asset-empty {
+  margin: 16px 0;
+  padding: 20px 12px;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+}
+.asset-error {
+  color: #ff8a8a;
+  overflow-wrap: anywhere;
+}
+.asset-busy button {
+  padding: 2px 6px;
+  border-color: var(--line);
+}
+.asset-group {
+  margin-top: 6px;
+}
+.asset-group > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  color: var(--muted);
+  font-weight: 600;
+  user-select: none;
+}
+.asset-group > summary span {
+  margin-left: 4px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+  padding: 6px 0 4px;
+}
+.asset-tile {
+  position: relative;
+  min-width: 0;
+}
+.asset-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background-color: var(--panel2);
+}
+/* Transparent PNGs show over a checkerboard. */
+.asset-grid-image .asset-thumb {
+  background-image:
+    linear-gradient(45deg, #ffffff0d 25%, transparent 25%),
+    linear-gradient(-45deg, #ffffff0d 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ffffff0d 75%),
+    linear-gradient(-45deg, transparent 75%, #ffffff0d 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+.asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.asset-thumb img.pixelated {
+  image-rendering: pixelated;
+}
+.asset-thumb:hover {
+  border-color: var(--muted);
+}
+.asset-tile.selected .asset-thumb {
+  border-color: var(--mint);
+  box-shadow: 0 0 0 1px var(--mint);
+}
+.asset-tile.unused .asset-thumb > :not(.asset-used) {
+  opacity: 0.55;
+}
+.asset-glyph {
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  font-size: 26px;
+  line-height: 1;
+}
+.asset-audio {
+  gap: 4px;
+  font-size: 22px;
+}
+.asset-audio small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.asset-used {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  min-width: 16px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  color: #0d0e11;
+  background: var(--mint);
+}
+.asset-more {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 0 5px;
+  line-height: 16px;
+  color: var(--text);
+  background: #0d0e11cc;
+  opacity: 0;
+}
+.asset-tile:hover .asset-more,
+.asset-tile.selected .asset-more,
+.asset-more:focus-visible {
+  opacity: 1;
+}
+.asset-name {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 11px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asset-detail {
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.asset-detail input {
+  width: 100%;
+  padding: 4px 6px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.asset-detail p {
+  margin: 6px 0 0;
+}
+.asset-footer {
+  margin: 12px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.asset-effects {
+  margin-top: 12px;
+}
+.asset-effects > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+}
+.asset-confirm {
+  width: min(520px, calc(100vw - 32px));
+  padding: 16px 18px;
+  max-height: calc(100vh - 64px);
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.asset-confirm section {
+  display: grid;
+  gap: 10px;
+}
+.asset-confirm h3 {
+  margin: 0;
+}
+.asset-confirm label {
+  display: grid;
+  gap: 4px;
+}
+.asset-confirm label.asset-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.asset-confirm pre {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 11px;
+}
+.asset-confirm textarea {
+  min-height: 60px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.asset-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.asset-confirm-actions button {
+  border-color: var(--line);
+}

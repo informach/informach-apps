@@ -51,6 +51,10 @@ function pngFixture(
     data: encodeAssetData(bytes),
   };
 }
+/** A 2 × 1 picture: another file of another proportion than imageFixture. */
+export function wideImageFixture(): ImageAsset {
+  return { ...pngFixture(2, 1, Buffer.from([0, 0, 0, 255, 255, 255, 0, 0, 255])), name: "Wide" };
+}
 export function sliceImageFixture(): ImageAsset {
   const pixels = Buffer.alloc(30 * 121),
     colors = [
