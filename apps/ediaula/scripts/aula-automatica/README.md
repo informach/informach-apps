@@ -47,7 +47,7 @@ O motor da gravação guiada é do próprio EdiAula. Veja "Gravação guiada" no
 | --- | --- | --- |
 | `Parte N - Áudio.wav` | a voz | sim |
 | `Parte N - HeyGen.mp4` | a apresentadora em fundo verde, na resolução exportada (4K na Ilha), sem som: a voz entra pelo `Áudio.wav` | sim |
-| `Parte N - Debinha 1.mp4` + `.wav` | personagens, com som | quando houver |
+| `Parte N - Debinha 1.mp4` + `.wav` | personagens, com som; `Debinha 2` é a segunda fala dela na parte, na ordem do `Falas.txt` | quando houver |
 
 O título da pasta vira o nome do projeto e o título da capa. Um caractere que o Windows não aceita num nome (o "?" de "O que aparece quando você muda de lugar?") sai da pasta, e a capa o recupera do `## Parte N.` do roteiro.
 
@@ -143,7 +143,10 @@ $S/parte.sh farol 3 2 palco      # uma vez por perfil
 $S/parte.sh farol 3 2 ensaio     # projeto novo, roteiro, voz, plano e ensaio seco
 $S/parte.sh farol 3 2 gravar     # grava e registra os contornos em <parte>/edicao/caixas.json
 $S/parte.sh farol 3 2 empacotar  # "Parte 2 - Projeto EdiAula.zip" na pasta da parte
+python -X utf8 $S/edicao/sincronia.py farol 3 2   # sincronia.md e sincronia-jogo.jpg em <parte>/edicao
 ```
+
+O `gravar-aula.sh` faz as quatro etapas e roda a conferência da sincronia antes de empacotar: uma parte com gesto fora da palavra (mais de 0,15 s) não é empacotada.
 
 **Regras da gravação:**
 - **Gestos que mudam a plataforma** (ativar um presente, criar um perfil): só acontecem uma vez por conta, e o Verificar plano os faz de verdade. Faça o ensaio com uma conta e grave com outra, nova, com `comando.sh estado '{"semVerificar": true}'` antes do `gravar` (e `false` depois), para a gravação não rodar a verificação de novo.

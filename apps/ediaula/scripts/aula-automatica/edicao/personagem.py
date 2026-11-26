@@ -30,11 +30,12 @@ falas_txt = glob.glob(os.path.join(cfg["pasta"], f"Parte {n} - Falas.txt"))
 linhas = open(falas_txt[0], encoding="utf8").read().splitlines() if falas_txt else []
 voz = None
 for mp4 in cfg["personagens"]:
-    nome = re.match(rf"Parte {n} - (.+) \d+\.mp4$", os.path.basename(mp4)).group(1)
+    nome, k = re.match(rf"Parte {n} - (.+) (\d+)\.mp4$", os.path.basename(mp4)).groups()
     falas = [ln.split(": ", 1)[1] for ln in linhas if ln.startswith(f"{nome} (")]
-    if len(falas) != 1:
-        sys.exit(f"{os.path.basename(mp4)}: esperava uma fala de {nome} no Falas.txt e achei {len(falas)}")
-    fala = falas[0]
+    # "Debinha 2.mp4" é a segunda fala dela na parte, na ordem do Falas.txt (Cadê A1P4 e A2P3 têm duas).
+    if not 1 <= int(k) <= len(falas):
+        sys.exit(f"{os.path.basename(mp4)}: esperava a fala {k} de {nome} no Falas.txt e achei {len(falas)}")
+    fala = falas[int(k) - 1]
     wav = mp4[:-4] + ".wav"
     r = subprocess.run([FF, "-hide_banner", "-i", wav, "-af", "silencedetect=noise=-38dB:d=0.12", "-f", "null", "-"],
                        capture_output=True, text=True).stderr
@@ -43,7 +44,10 @@ for mp4 in cfg["personagens"]:
     inicios = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", r)]
     fins = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", r)]
     s0 = fins[0] if inicios and inicios[0] < 0.05 and fins else 0.0
-    s1 = next((x for x in inicios if x > s0 + 0.3), dur)
+    # O fim da fala é o começo do silêncio que vai até o fim do clipe (cada clipe é uma fala só). Uma pausa no meio
+    # ("Ué, por que o número ficou no zero?", o Dedé da Cadê A2P1) não é o fim: antes, o clipe acabava no "Ué".
+    finais = [a for a, b in zip(inicios, fins + [dur]) if a > s0 + 0.3 and b >= dur - 0.05]
+    s1 = finais[-1] if finais else dur
     voz = voz or Voz.da_parte(curso, aula, n)
     final = " ".join(fala.split()[-3:])
     t, fim_prof = voz.trecho(fala, final)

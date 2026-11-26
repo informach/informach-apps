@@ -44,13 +44,20 @@
         },
         "2": {
           "id": "51e58b39-991b-4404-a532-594abf1fd12c",
-          "roteiro": "docs/aulas-interativas/faisca/cade-todo-mundo/cade-todo-mundo-aula-2.roteiro.md"
+          "roteiro": "docs/aulas-interativas/faisca/cade-todo-mundo/cade-todo-mundo-aula-2.roteiro.md",
+          "palco": {
+            "partes": {
+              "5": "?parte=5&enviado=1"
+            }
+          },
+          "_leia": "A Parte 5 começa com o projeto já enviado na Parte 4: o palco abre com &enviado=1 (o Compartilhar só libera depois do envio)."
         },
         "3": {
           "id": "bd8682aa-1f42-4266-a164-b160ea77318c",
           "roteiro": "docs/aulas-interativas/faisca/cade-todo-mundo/cade-todo-mundo-certificado.roteiro.md"
         }
-      }
+      },
+      "subtituloCapa": "Cadê Todo Mundo"
     },
     "ilha": {
       "nome": "A Ilha do Farol",

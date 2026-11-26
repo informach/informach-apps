@@ -20,8 +20,10 @@ import unicodedata
 AQUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-# Palavras que a transcrição escreve como outra que soa igual: o bloco Se como a letra "c".
-SOA_COMO = {"c": "se"}
+# Palavras que a transcrição escreve como outra que soa igual: o bloco Se como a letra "c", e os números em
+# algarismo ("aumenta em 1", Cadê A2P2) onde o roteiro os escreve por extenso, e o contrário.
+SOA_COMO = {"c": "se", **{str(k): w for k, w in enumerate(
+    "zero um dois tres quatro cinco seis sete oito nove dez".split())}}
 
 
 def _igual(ouvida, escrita):

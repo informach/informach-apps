@@ -37,6 +37,13 @@ sys.exit(0 if r.get('duracao') else 1)" "$ED/gravacao.log"; then break; fi
     # A tentativa que falhou deixou clipes no projeto: o ensaio seguinte cria um projeto limpo.
     ./parte.sh "$CURSO" "$A" "$n" ensaio > "$ED/ensaio.log" 2>&1
   done
+  # Cada gesto na palavra dele, e o jogo fazendo o que a fala diz: a tabela e a folha de quadros ficam em
+  # <parte>/edicao/sincronia.md e sincronia-jogo.jpg. Fora da tolerância, a parte não é empacotada.
+  if ! python -X utf8 edicao/sincronia.py "$CURSO" "$A" "$n"; then
+    echo "Parte $n: gesto fora da palavra (veja $ED/sincronia.md); não empacotei"
+    continue
+  fi
+  echo "Parte $n: confira os quadros do jogo em $ED/sincronia-jogo.jpg antes de editar"
   ./parte.sh "$CURSO" "$A" "$n" empacotar 2>&1 | tail -1
 done
 echo "=== fim $(date +%H:%M:%S)"

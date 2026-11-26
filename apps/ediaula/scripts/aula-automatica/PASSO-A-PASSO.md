@@ -141,14 +141,21 @@ $S/gravar-aula.sh moedas 1 1 2 3 4 5 6 7 8   # em segundo plano; leva mais ou me
 **Para cada parte, o script faz:**
 1. **Ensaio:** cria um projeto novo, põe o roteiro e a voz, gera o plano e roda o Verificar plano.
 2. **Gravação:** só se o ensaio disser "Todas as etapas funcionaram". São até 3 tentativas, e cada uma registra os contornos dos alvos.
-3. **Pacote:** gera `Parte N - Projeto EdiAula.zip` na pasta da parte.
+3. **Sincronia:** `edicao/sincronia.py` mede em que palavra caiu cada gesto (tolerância de 0,15 s) e tira um quadro do jogo logo depois de cada gesto no jogo. Uma parte com gesto fora da palavra não é empacotada.
+4. **Pacote:** gera `Parte N - Projeto EdiAula.zip` na pasta da parte.
 
 **Registros, em `<parte>/edicao/`:**
 - `ensaio.log`;
 - `gravar.log`;
 - `gravacao.log` (duração e verificação);
 - `caixas.json` (contornos);
-- `gravacao.txt` (a pasta da gravação no perfil).
+- `gravacao.txt` (a pasta da gravação no perfil);
+- `sincronia.md` (cada gesto, a palavra do plano, a palavra em que aconteceu e o atraso) e `sincronia-jogo.jpg` (o jogo logo depois de cada gesto no jogo).
+
+**Gesto na palavra e jogo fazendo o que a fala diz (Helena, 26/11/2026).** Ela viu, na Jardim A2, a fala dizer "pega o regador e depois vai na flor" e o personagem ir direto para a flor. Na Jardim A2P3, a seta de "pegue o regador" saiu 1,3 s depois, já em "personagem": o plano tinha as setas encavaladas com o toque anterior, e o executor faz uma etapa por vez. Por isso, depois de cada gravação:
+- leia o `sincronia.md`: nenhum gesto fora da tolerância;
+- olhe a `sincronia-jogo.jpg`: o jogo fez o que a fala diz em cada gesto (o esconderijo sumiu, o número mudou, o personagem pegou o item antes de chegar ao destino). Segurar uma seta por um tempo estimado não garante o caminho; quando o quadro mostra outro lugar, acerte o `[segurar tecla … por N s]` no roteiro e grave de novo;
+- o jogo pronto sendo jogado num trecho `[na edição: …]` vai como animação do EdiSVG com as artes do jogo e cada toque na palavra (`edicao/exemplos/cade-conceitos-regravacao.py`, Aula 3, Parte 2), e não como clipe gravado à parte.
 
 **Quando algo falha:**
 - **O ensaio não passou:** quase sempre é uma citação do Na tela que a transcrição escreveu diferente. Use uma cópia do roteiro com `"roteiroLocal"` na aula. A outra causa comum é um alvo fora da tela: falta um `[arrastar até "…"]` no roteiro.
