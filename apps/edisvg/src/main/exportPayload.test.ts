@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseExportPayload } from "./exportPayload";
+import { exportFileName, parseExportPayload } from "./exportPayload";
 
 test("export IPC supports only named text/ZIP profiles, bounds decoding and refuses client paths/noncanonical encodings", () => {
   assert.deepEqual(parseExportPayload({ extension: "lottie.json", content: '{"v":"5.13.0"}' }), {
@@ -35,4 +35,24 @@ test("export IPC supports only named text/ZIP profiles, bounds decoding and refu
 test("raster and video bytes are not accepted in a single export message", () => {
   const gif = Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 0, 0x3b]);
   assert.throws(() => parseExportPayload({ extension: "gif", bytes: gif, encoding: "binary" }));
+});
+
+test("the Save dialog proposes the project's file name, then the animation", () => {
+  const path = "C:\\Users\\ana\\Documents\\Personagem.edisvg";
+  assert.equal(exportFileName(path), "Personagem");
+  assert.equal(exportFileName(path, "Aceno"), "Personagem - Aceno");
+  assert.equal(
+    exportFileName(path, "Aula 3 (começa em 0m12,5s)"),
+    "Personagem - Aula 3 (começa em 0m12,5s)",
+  );
+  // Already named after the project: not twice.
+  assert.equal(exportFileName(path, "Personagem final"), "Personagem final");
+  assert.equal(exportFileName("/home/ana/Cena.EDISVG", "Pulo"), "Cena - Pulo");
+  // Never saved: the suggestion alone, or the old default.
+  assert.equal(exportFileName(null, "Aceno"), "Aceno");
+  assert.equal(exportFileName(null), "projeto");
+  // Within 120 characters, with no trailing dot or space after the cut.
+  const long = exportFileName(path, `${"a".repeat(105)} .b`);
+  assert.equal(long.length <= 120, true);
+  assert.equal(/[. ]$/.test(long), false);
 });

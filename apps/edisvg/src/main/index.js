@@ -26,7 +26,7 @@ import {
 } from "./boundedText.ts";
 import { readDesignKit } from "./designKit.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
-import { parseExportPayload } from "./exportPayload";
+import { exportFileName, parseExportPayload } from "./exportPayload";
 import {
   createFontPreference,
   libraryFont,
@@ -905,7 +905,13 @@ app
     );
     handle("export:alpha-webm", async (input) => {
       if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
-      return exportAlphaWebm(win, input, folderFor("documents"), () => desktop.assertAccess());
+      return exportAlphaWebm(
+        win,
+        input,
+        folderFor("documents"),
+        () => desktop.assertAccess(),
+        files.status().path,
+      );
     });
     handle("pipeline:cancel", (jobId) => {
       if (typeof jobId === "string") cancelPipelineJob(jobId);
@@ -951,11 +957,13 @@ app
         typeof payload === "object" && payload !== null && "upload" in payload
           ? mediaUploads.finish(payload.upload)
           : parseExportPayload(payload);
+      // Named after the project file (the generic player package belongs to no project).
+      const name =
+        exported.extension === "web-player.zip"
+          ? "projeto"
+          : exportFileName(files.status().path, exported.name);
       const { canceled, filePath } = await dialog.showSaveDialog(win, {
-        defaultPath: join(
-          folderFor("documents") ?? "",
-          `${exported.name ?? "projeto"}.${exported.extension}`,
-        ),
+        defaultPath: join(folderFor("documents") ?? "", `${name}.${exported.extension}`),
         properties: ["dontAddToRecent"],
         filters: [{ name: "Exportação EdiSVG", extensions: [exported.extension.split(".").pop()] }],
       });

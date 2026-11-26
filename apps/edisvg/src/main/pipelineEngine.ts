@@ -10,7 +10,7 @@ import { app, type BrowserWindow, dialog } from "electron";
 import { type UnzipOptions, type Unzipped, unzip } from "fflate";
 import type { PickedFile } from "../shared/pipelines";
 import type { PersonBounds } from "../shared/presenterFraming";
-import { suggestedNameSchema } from "./exportPayload.ts";
+import { exportFileName, suggestedNameSchema } from "./exportPayload.ts";
 import { type PackageLesson, packageLesson, unpackLesson } from "./lessonPackage.ts";
 import {
   cutNarrationArgs,
@@ -550,6 +550,8 @@ export async function exportAlphaWebm(
   defaultFolder: string | undefined,
   /** The suite's access check, before anything is written (as every export). */
   assertAccess: () => void,
+  /** The open project's file: the proposed name starts with it (exportFileName). */
+  projectPath?: string | null,
 ): Promise<{ saved: boolean }> {
   const value = input as { bytes?: unknown; name?: unknown };
   if (!(value?.bytes instanceof Uint8Array) || value.bytes.byteLength > ALPHA_ZIP_BYTES)
@@ -587,7 +589,8 @@ export async function exportAlphaWebm(
     throw new Error("Sequência de quadros inválida.");
   if (!Number.isInteger(fps) || (fps as number) < 1 || (fps as number) > 120)
     throw new Error("Sequência de quadros inválida.");
-  const name = suggestedNameSchema.safeParse(value.name).data ?? "camada";
+  const suggested = suggestedNameSchema.safeParse(value.name).data;
+  const name = projectPath || suggested ? exportFileName(projectPath, suggested) : "camada";
   const { paths, media } = machine();
   const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-alpha-"));
   try {

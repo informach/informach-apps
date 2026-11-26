@@ -151,6 +151,21 @@ export function buildExport(state, options, demoSvg = "", runtimeSource = "") {
   };
 }
 
+/**
+ * A name (an animation's) as part of the exported file's name, which the main process accepts
+ * (exportPayload.ts suggestedNameSchema): reserved and control characters become "-", no dot or
+ * space at the ends; undefined when nothing is left.
+ */
+export function exportNamePart(name) {
+  if (typeof name !== "string") return undefined;
+  const safe = [...name]
+    .map((c) => (c.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(c) ? "-" : c))
+    .join("")
+    .slice(0, 120)
+    .replace(/^[.\s]+|[.\s]+$/g, "");
+  return safe || undefined;
+}
+
 export async function exportProject(state, request, task = {}) {
   // The suggested file name only goes to the Save dialog: each format checks its own options
   // strictly (React refuses a key it does not know).
@@ -268,13 +283,19 @@ export function saveExport(
   if (globalThis.window?.desktop) {
     // Images and video cross IPC as bytes; bounded library/component ZIPs use base64.
     if (binaryMedia) return saveMedia({ content, extension, name }, signal);
+    const named = name ? { name } : {};
     if (content instanceof Uint8Array) {
       let binary = "";
       for (let offset = 0; offset < content.length; offset += 32768)
         binary += String.fromCharCode(...content.subarray(offset, offset + 32768));
-      return window.desktop.exportFile({ content: btoa(binary), extension, encoding: "base64" });
+      return window.desktop.exportFile({
+        content: btoa(binary),
+        extension,
+        encoding: "base64",
+        ...named,
+      });
     }
-    return window.desktop.exportFile({ content, extension });
+    return window.desktop.exportFile({ content, extension, ...named });
   }
   const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement("a");

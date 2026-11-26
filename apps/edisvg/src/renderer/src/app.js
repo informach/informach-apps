@@ -171,7 +171,7 @@ import {
 import "./assistant.css";
 import { animations, poseAt, transition } from "../../shared/animation.js";
 import { RASTER_FORMATS } from "../../shared/raster/profile";
-import { exportProject, exportWebPlayer } from "./export.js";
+import { exportNamePart, exportProject, exportWebPlayer } from "./export.js";
 import { createLottieExportControls } from "./lottie-export-panel";
 import { runLottieTask } from "./lottieTaskRunner";
 import { createPlayerWebExportControls } from "./player-web-export-controls";
@@ -3573,8 +3573,12 @@ function openExport() {
               ? "png-sequence"
               : $('input[name="format"]:checked').value,
           ...(currentFormat() === "alpha-webm" ? { deliver: "alpha-webm" } : {}),
-          // A pipeline's animation is saved as itself, with where it starts in the lesson.
-          suggestedName: narrationExportName(clip?.id),
+          // A pipeline's animation is saved as itself, with where it starts in the lesson; with
+          // more than one animation, the animation's name. The main process puts the project's
+          // file name first (exportFileName).
+          suggestedName:
+            narrationExportName(clip?.id) ??
+            (state.motion.animations.length > 1 ? exportNamePart(clip?.name) : undefined),
           alt: $("#alt-text").value,
           reduced: $("#reduced").checked,
           offscreen: $("#offscreen").checked,
