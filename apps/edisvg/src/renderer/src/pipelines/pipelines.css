@@ -5,6 +5,16 @@ dialog.pipelines-dialog {
   display: flex;
   flex-direction: column;
 }
+/* Nova janela beside the close button: another run in another window while this one goes. */
+.pipeline-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dialog-heading .pipeline-new-window {
+  font-size: 12px;
+  padding: 5px 10px;
+}
 dialog.pipelines-dialog > .help-content {
   min-height: 0;
   overflow-y: auto;

@@ -60,6 +60,8 @@ export interface PipelinesDesktop extends PipelineBridge {
   pipelineRunClear(projectId: string): Promise<void>;
   /** The end of a run, for the phone notice the main process sends when it is set up. */
   pipelineNotify(notice: { ok: boolean; recipe: string; seconds: number }): Promise<void>;
+  /** Opens another EdiSVG window (main/index.js openWindow), for another run at the same time. */
+  newWindow(): Promise<void>;
 }
 
 /**
@@ -853,15 +855,29 @@ function PipelinesPanel({ desktop, editor, handed, report, close, setBusy }: Pro
     <>
       <div className="dialog-heading">
         <h2>{title}</h2>
-        <button
-          type="button"
-          aria-label="Fechar pipelines"
-          title={running ? "Cancele o pipeline para fechar" : undefined}
-          disabled={running}
-          onClick={close}
-        >
-          ×
-        </button>
+        <div className="pipeline-heading-actions">
+          {/* The dialog covers the editor's menu and stays open while a run goes: another run
+              starts in another window from here (Arquivo › Nova janela, Ctrl+Shift+N). */}
+          <button
+            type="button"
+            className="pipeline-new-window"
+            title="Abre outra janela do EdiSVG para rodar outro pipeline ao mesmo tempo (Ctrl+Shift+N)"
+            onClick={() => {
+              desktop.newWindow().catch((error: unknown) => report(failureText(error)));
+            }}
+          >
+            Nova janela
+          </button>
+          <button
+            type="button"
+            aria-label="Fechar pipelines"
+            title={running ? "Cancele o pipeline para fechar" : undefined}
+            disabled={running}
+            onClick={close}
+          >
+            ×
+          </button>
+        </div>
       </div>
       {!store ? (
         <div className="help-content">
