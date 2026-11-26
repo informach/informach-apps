@@ -14,6 +14,7 @@ import { useApp } from "@/state/app";
 import { liveEdit } from "@/state/liveEdit";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
+import { AlignControls } from "./AlignControls";
 import { Slider } from "./ClipVisual";
 
 /**
@@ -142,6 +143,7 @@ export function BatchSection({ clips }: { clips: Clip[] }): ReactNode {
           {motionRow("Saída", "exit")}
         </div>
       )}
+      {pictures.length > 0 && <AlignControls ids={ids} />}
       {sounds.length > 0 && (
         <div className="props-section">
           <h3>Som: {sounds.length === 1 ? "1 clipe" : `${sounds.length} clipes`}</h3>

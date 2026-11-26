@@ -542,6 +542,19 @@ export const AI_TOOLS = {
       fade_out: z.number().min(0).max(5).optional(),
     }),
   },
+  align_clips: {
+    title: "Alinhar e espaçar clipes",
+    permission: "write",
+    description:
+      'Lines up or spaces what is on screen (clip ids from get_overview: texts, images, videos), by the box of what each one draws at the playhead (a text by its strip and letters, not the transparent border of its picture). Give align or distribute. align = "left" | "center" | "right" (horizontal) or "top" | "middle" | "bottom" (vertical); to = "selection" lines them up with each other (the box around them, the default with 2+ clips) or "frame" puts them on an edge or the center of the video (always for one clip). distribute = "horizontal" | "vertical": the same space between neighbours in their order on screen; without gap the first and the last stay and the space is shared equally (3+ clips); with gap (pixels of the video) the first stays and each next one starts gap after the end of the one before (2+ clips). A clip that travels (keyframes) moves its whole travel. Groups go along; locked tracks are left out. Undoable.',
+    input: z.object({
+      clip_ids: z.array(z.string()).min(1),
+      align: z.enum(["left", "center", "right", "top", "middle", "bottom"]).optional(),
+      to: z.enum(["selection", "frame"]).optional(),
+      distribute: z.enum(["horizontal", "vertical"]).optional(),
+      gap: z.number().min(0).max(4000).optional(),
+    }),
+  },
   set_background_removal: {
     title: "Remover fundo do avatar",
     permission: "write",
@@ -1370,7 +1383,7 @@ Recording scripts (roteiros): when get_overview says a script is attached, read 
 - The alignment reads spoken Portuguese: "pra" and "pro" are "para" and "para o", "tá" is "está", numbers match written or spoken ("x 208" and "xis duzentos e oito"), hyphenated words match joined or apart, and names close in sound to a glossary term match it.
 - The section of the recording is picked automatically; when the match is weak, get_script says it is not confirmed: ask the person to confirm it in the Roteiro tab before proposing cuts.
 - What was said outside the script is usually a false start or an earlier take of a line: offer propose_off_script (the last take of a repeated passage is the one kept).
-- Avatar lines (Debinha, Dedé… marked "avatar") come from a separate render of the presenter; place them with place_insert by insert id, or all at once with place_inserts. The avatar enters, speaks and leaves before the teacher's answer and next gesture, never over another voice, and must not cover controls, blocks, readouts or results; if it would, move it with set_clip_layout (left, corner-right…).
+- Avatar lines (Debinha, Dedé… marked "avatar") come from a separate render of the presenter; place them with place_insert by insert id, or all at once with place_inserts. To line texts and pictures up (left, center, right, top…) or give them the same space between them, use align_clips. The avatar enters, speaks and leaves before the teacher's answer and next gesture, never over another voice, and must not cover controls, blocks, readouts or results; if it would, move it with set_clip_layout (left, corner-right…).
 - Compare the edit with the section's target duration and report it; never speed up gestures to fit.
 
 Screen recordings made in EdiAula have no pointer in the video: it is drawn by the editor from the saved mouse data (set_cursor) and can get automatic zooms on the clicks (auto_zoom). For Blockly demos, zooms on block drags help children follow; avoid zooming while the teacher explains the whole screen.

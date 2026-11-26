@@ -143,6 +143,7 @@ import {
 } from "@/state/project";
 import { actions } from "./actions";
 import { endAiCall, startAiCall, updateAiCall } from "./aiActivity";
+import { arrangeable, arrangeClips } from "./align";
 import {
   addAnnotation,
   addCard,
@@ -1934,6 +1935,37 @@ ${r.message}`);
       }),
     }));
     return `${plural(ids.size, "clipe ajustado", "clipes ajustados")}.${target.note}`;
+  },
+
+  async align_clips({ clip_ids, align, to, distribute, gap }, { commit }) {
+    requireNoStructuralDraft();
+    const p = requireProject();
+    if (!align === !distribute)
+      throw new ToolError(
+        "Nada foi feito: diga align (uma borda ou centro) ou distribute (um eixo), um dos dois.",
+      );
+    const target = editableClips(p, clip_ids);
+    const clips = arrangeable(p, target.ids);
+    if (!clips.length)
+      throw new ToolError(
+        "Nada foi feito: nenhum desses clipes é algo na tela (sons, zoom e efeitos de região não se alinham).",
+      );
+    if (distribute && gap === undefined && clips.length < 3)
+      throw new ToolError(
+        "Nada foi feito: espaço igual sem gap precisa de 3 clipes ou mais. Para dois, dê gap em pixels.",
+      );
+    if (distribute && clips.length < 2)
+      throw new ToolError("Nada foi feito: espaçar precisa de 2 clipes ou mais.");
+    const moved = await arrangeClips(
+      clips.map((c) => c.id),
+      align
+        ? { align, to: to ?? (clips.length > 1 ? "selection" : "frame") }
+        : { distribute: distribute ?? "horizontal", ...(gap !== undefined ? { gap } : {}) },
+      commit,
+    );
+    return moved
+      ? `${plural(moved, "clipe mudou de lugar", "clipes mudaram de lugar")}.${target.note}`
+      : `Já estavam assim: nada mudou de lugar.${target.note}`;
   },
 
   async set_background_removal(

@@ -1733,6 +1733,17 @@ Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
 - **Ajustar vários de uma vez:** com vários clipes selecionados, Propriedades mostra opacidade, posição
   (com as posições prontas), entrada e saída, volume e velocidade; cada mudança vale para todos, num único
   Ctrl+Z.
+- **Alinhar e espaçar:** em Propriedades, **Alinhar** põe os selecionados à esquerda, no centro ou à
+  direita (e no topo, no meio ou na base), **Entre eles** (pela caixa em volta dos selecionados) ou **Ao
+  vídeo** (pelas bordas e pelo centro do quadro); com um clipe só, alinha ao vídeo, dentro de Posição e
+  tamanho. **Espaçamento** dá o mesmo espaço entre vizinhos na horizontal ou na vertical, na ordem em que
+  estão na tela: os botões de espaço igual mantêm o primeiro e o último no lugar (três ou mais clipes), e
+  **Espaço N px** com as setas mantém o primeiro e põe cada próximo N pixels do vídeo depois do anterior
+  (dois ou mais). Conta a caixa do que cada clipe desenha no ponto da agulha: um texto se alinha pela
+  faixa e pelas letras, não pela borda transparente da imagem dele (medida desenhando a anotação como o
+  editor desenha, `lib/align.ts`). Um clipe com keyframes leva o trajeto inteiro junto. Sons, zoom,
+  efeitos de região e faixas travadas ficam de fora; cada botão é um Ctrl+Z. A geometria fica em
+  `shared/align.ts`, e a IA faz o mesmo com `align_clips`.
 - **Reordenar faixas:** arraste o rótulo da faixa (F1, F2…) para outro lugar da pilha, use **Alt+↑** e
   **Alt+↓** com o rótulo em foco, ou **Subir a faixa** e **Descer a faixa** no botão direito. A de cima
   continua na frente; uma faixa travada não sai do lugar. Uma faixa de vídeo nova (a tela de uma gravação)

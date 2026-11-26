@@ -41,6 +41,7 @@ import { liveEdit } from "@/state/liveEdit";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
+import { AlignControls } from "./AlignControls";
 import { KeyDialog } from "./KeyDialog";
 import { AutoSoundToggle } from "./SoundEffects";
 import { ColorButton, Swatches } from "./Swatches";
@@ -232,6 +233,7 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
           ))}
         </div>
       )}
+      <AlignControls ids={[clip.id]} />
       <span className="field-label">Máscara</span>
       <div className="chip-row">
         {(

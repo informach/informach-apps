@@ -1597,3 +1597,26 @@
 .user-guide-label.is-snapped {
   color: #22d3ee;
 }
+/* Alinhar e Espaçamento (AlignControls): a row of icon buttons, the space field beside them. */
+.align-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+.align-gap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.align-gap input {
+  width: 56px;
+}
+/* Inside Posição e tamanho of a single clip: part of that section, not a section of its own. */
+.props-section .align-controls {
+  padding: 0;
+  border-bottom: 0;
+}

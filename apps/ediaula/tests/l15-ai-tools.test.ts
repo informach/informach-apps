@@ -1377,3 +1377,48 @@ test("edição automática: animação no lugar da tela, apresentadora em trecho
   assert.equal(undo.ok, true, undo.text);
   assert.deepEqual(now().clips, original);
 });
+
+test("align_clips: alinha pela borda entre eles, espaça com N px, recusa sem pedido e desfaz num passo", async () => {
+  const p = lesson("p1");
+  p.clips = p.clips.map((c) =>
+    c.id === "s"
+      ? { ...c, transform: { x: 0.3, y: 0.3, scale: 0.25, opacity: 1 } }
+      : c.id === "cam"
+        ? { ...c, transform: { x: 0.6, y: 0.7, scale: 0.5, opacity: 1 } }
+        : c,
+  );
+  open(p);
+  const left = (id: string): number => {
+    const t = clip(id)?.transform;
+    assert.ok(t);
+    return Math.round(t.x * 1920 - (1920 * t.scale) / 2);
+  };
+  const r = await call("align_clips", { clip_ids: ["s", "cam", "m"], align: "left" });
+  assert.equal(r.ok, true, r.text);
+  assert.equal(left("s"), left("cam"));
+  assert.equal(left("s"), 336, "the leftmost one stays");
+  assert.equal(clip("cam")?.transform?.y, 0.7, "only the horizontal axis moves");
+  assert.equal(clip("m")?.transform, undefined, "the sound is left out");
+  assert.equal(useProject.getState().past.length, 1);
+
+  const spaced = await call("align_clips", {
+    clip_ids: ["s", "cam"],
+    distribute: "vertical",
+    gap: 20,
+  });
+  assert.equal(spaced.ok, true, spaced.text);
+  const s = clip("s")?.transform;
+  const cam = clip("cam")?.transform;
+  assert.ok(s && cam);
+  // s (270 px high) ends where cam (540 px high) starts, minus 20 px.
+  assert.equal(Math.round(cam.y * 1080 - 270 - (s.y * 1080 + 135)), 20);
+
+  const neither = await call("align_clips", { clip_ids: ["s"] });
+  assert.equal(neither.ok, false);
+  const equalTwo = await call("align_clips", { clip_ids: ["s", "cam"], distribute: "horizontal" });
+  assert.equal(equalTwo.ok, false);
+  assert.match(equalTwo.text, /3 clipes/);
+  const frame = await call("align_clips", { clip_ids: ["cam"], align: "right" });
+  assert.equal(frame.ok, true, frame.text);
+  assert.equal(Math.round((clip("cam")?.transform?.x ?? 0) * 1920 + 480), 1920);
+});
