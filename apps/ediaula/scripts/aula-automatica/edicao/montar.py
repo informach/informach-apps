@@ -145,6 +145,9 @@ apresentados = set()  # blocos que já ganharam o destaque com escurecimento
 gestos = [g for g in dec["gestos"] if de <= g["acao"] < ate]
 na_anim = lambda t: any(a - 0.2 <= t <= b + 0.2 for a, b in ANIM)
 ARRASTOS = []  # (início, fim) de cada arrasto que sai da paleta ou vai à lixeira: sem zoom durante
+# Coisas da interface que a fala nomeia: o apontar por texto do EdiAula e os do palco com contorno.
+NOMEADA = re.compile(r'^apontar\s*"|^apontar objetivo cumprido')
+NOMEADAS_FEITAS = set()  # gestos de "apontar \"…\"" já tratados junto com o anterior
 grupo = None
 for gi, g in enumerate(gestos):
     regs_g = caixa_de(g)
@@ -183,16 +186,37 @@ for gi, g in enumerate(gestos):
             cmds[-1]["papel"] = "balao"
             cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
         continue
-    if re.match(r'^apontar\s*"', v):
+    if NOMEADA.match(v):
         # Uma coisa da interface que a fala nomeia ("Objetivo cumprido!", "Salvo", "Seu projeto no Estúdio"):
         # zoom nela e a moldura amarela, na palavra (REGRAS.md, seção 10: toda coisa nomeada é mostrada).
-        if t0 >= 3.0:
-            alvo = regs_g[0]["alvo"] if regs_g else None
-            if not alvo and g.get("x") is not None:
-                alvo = [g["x"] - 90, g["y"] - 26, g["x"] + 90, g["y"] + 26]
+        # Nomeadas em seguida (menos de 3 s uma da outra), um zoom só cobre todas, ou nenhum se não couberem:
+        # o zoom da segunda empurrava a moldura da primeira para fora da tela (Cadê A1P4, 27/11/2026).
+        if gi in NOMEADAS_FEITAS or t0 < 3.0:
+            continue
+        serie = [(g, regs_g)]
+        for g2 in gestos[gi + 1:]:
+            if not NOMEADA.match(g2["verbo"]) or g2["ini"] - serie[-1][0]["fim"] > 3.0:
+                break
+            serie.append((g2, caixa_de(g2)))
+            NOMEADAS_FEITAS.add(gestos.index(g2))
+        alvos = []
+        for gx, rx in serie:
+            alvo = rx[0]["alvo"] if rx else None
+            if not alvo and gx.get("x") is not None:
+                # Sem contorno registrado (o apontar por texto do EdiAula): a mão descansa logo abaixo do texto.
+                alvo = [gx["x"] - 100, gx["y"] - 64, gx["x"] + 100, gx["y"] - 8]
             if alvo:
-                zoom(t0 - 0.3, max(t1 + 1.2, ta + 2.2), alvo, f"zoom no que a fala nomeia ({v})")
-                destaque(ta, 2.2, alvo, f"moldura no que a fala nomeia ({v})", pad=12)
+                alvos.append((gx, alvo))
+        if alvos:
+            uniao = [min(a[0] for _, a in alvos), min(a[1] for _, a in alvos),
+                     max(a[2] for _, a in alvos), max(a[3] for _, a in alvos)]
+            ultimo = alvos[-1][0]
+            # Longe uma da outra (como o Objetivo cumprido embaixo e o Salvo em cima), o zoom deixaria as molduras
+            # na beira da tela: fica sem zoom, cada moldura no seu lugar.
+            if uniao[3] - uniao[1] <= 0.4 * H and uniao[2] - uniao[0] <= 0.5 * W:
+                zoom(t0 - 0.3, max(ultimo["fim"] + 1.2, ultimo["acao"] + 2.2), uniao, f"zoom no que a fala nomeia ({v})")
+            for gx, alvo in alvos:
+                destaque(gx["acao"], 2.2, alvo, f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
         continue
     if g["tipo"] == "aponta" and FORA_DO_PALCO and g.get("x") is not None:
         # Gravação fora do palco (a área dos pais, sem os contornos que a ponte do palco registra):
