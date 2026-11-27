@@ -263,7 +263,7 @@ export async function runGuided(
    * The actions done late since then: video second and the narration second each may not come
    * before. A lapse may take them in, sped up, but never brings one before its own second.
    */
-  let lateActs: { at: number; due: number }[] = [];
+  let lateActs: { at: number; due: number; onWords: boolean }[] = [];
   /** Video second the last lapse ended: a stretch is never sped up twice. */
   let lapsed = Number.NEGATIVE_INFINITY;
   /**
@@ -291,9 +291,16 @@ export async function runGuided(
       // The piece's speed, and the late action it would bring before its word, if any: then
       // that one is a stop, the piece before it lands it on its word and the one after goes on.
       const ratio = Math.max(0, endDue - start) / (end - begin);
-      const binding = late
-        .filter((a) => a.at > begin && a.at < end && a.due - start > (a.at - begin) * ratio)
-        .sort((a, b) => (b.due - start) / (b.at - begin) - (a.due - start) / (a.at - begin))[0];
+      const dentro = late.filter((a) => a.at > begin && a.at < end);
+      // Also a stop: a late action the even speed would still leave late for its word. The piece
+      // before it lands it on its word, as far as the floor allows (Moedas A2P2, 27/11/2026: the
+      // list rolled to "moeda" and the option was clicked 4 s after "escolha moeda", because the
+      // stretch was sped up only for the next step).
+      const binding =
+        dentro
+          .filter((a) => a.due - start > (a.at - begin) * ratio)
+          .sort((a, b) => (b.due - start) / (b.at - begin) - (a.due - start) / (a.at - begin))[0] ??
+        dentro.find((a) => a.onWords && (a.at - begin) * ratio - (a.due - start) > ON_TIME);
       if (binding) {
         piece(begin, binding.at, binding.due);
         piece(binding.at, end, endDue);
@@ -334,10 +341,14 @@ export async function runGuided(
   const log = options.log;
   /** Interactions go in the log on the video's seconds, as every other line of it does. */
   const logAct = (kind: GuidedInteraction, from: number, until: number, s: PlannedStep): void => {
-    // On its word: at most ON_TIME after the narration second it was due.
+    // On its word: at most ON_TIME after the narration second it was due. A roll of the wheel only
+    // gets the page ready (the list to the option): it neither holds a lapse back nor is a stop.
     const due = s.due ?? s.actAt;
-    if (from <= due + ON_TIME) onTime = Math.max(onTime, from + shift);
-    else lateActs.push({ at: from + shift, due });
+    if (kind === "wheel") {
+      // Nothing to keep on its word.
+    } else if (from <= due + ON_TIME) onTime = Math.max(onTime, from + shift);
+    else
+      lateActs.push({ at: from + shift, due, onWords: s.due === undefined || s.onWords === true });
     log?.act(kind, from + shift, until + shift, s.index);
   };
 
@@ -691,6 +702,7 @@ export async function runGuided(
           endAt: actAt + (last ? after : GESTURE_AFTER) + length,
           // Never sped up to before the step's own words.
           due: s.actAt,
+          ...(main ? { onWords: true } : {}),
         };
         if (main) onWords = false;
       }

@@ -709,6 +709,12 @@ export interface PlannedStep {
    */
   due?: number;
   /**
+   * Of those gestures, the one that does what the phrase says (the option chosen after the list
+   * rolled): when late, a lapse lands it on its word. The others (a click outside the block) only
+   * may not come before it.
+   */
+  onWords?: boolean;
+  /**
    * Lesson window: seconds the step before it still lasts when this one starts. The run does
    * them one after the other, and what does not fit goes in sped up ("Tela sem voz").
    */

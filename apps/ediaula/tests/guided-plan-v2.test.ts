@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FrameClock } from "../src/shared/frameClock.ts";
-import { alignedAt, type GuidedLapse, takeNotices } from "../src/shared/guidedLapse.ts";
+import {
+  alignedAt,
+  type GuidedLapse,
+  LAPSE_FLOOR,
+  takeNotices,
+} from "../src/shared/guidedLapse.ts";
 import {
   type GuidedCondition,
   type GuidedPlanV2,
@@ -694,6 +699,77 @@ test("a platform's action that prepares: the list rolls with the phrase, the cli
     assert.ok(at(i) >= due - 1 / 30 - 0.01, `click ${i + 1} at ${at(i)}, before ${due}`);
     assert.ok(at(i) <= due + 0.1, `click ${i + 1} at ${at(i)}, late for ${due}`);
   }
+});
+
+test("a list rolled with almost no time for it: the option still lands on its word, sped up", async () => {
+  // Moedas no caminho, aula 2, parte 2 (27/11/2026): "Clique em objeto e escolha moeda" gives the
+  // list 1 s to roll and the option 4 s were clicked after "moeda": the stretch went in sped up only
+  // for the next step. The option is a stop: the stretch before it lands it on its word.
+  // Cadê Todo Mundo, aula 1, parte 4 (09/11/2026): "desça até o fim da lista que abre e clique
+  // em escolhido". The roll waited for "escolhido", the click and the click outside the block came
+  // seconds after it, and "Clique no 50" and "troque por 0" came 4 to 5 seconds after their words.
+  const sim = simulation(30);
+  class BridgePage extends FakePage {
+    asked = 0;
+    async platform(action: string, id: string) {
+      this.asked++;
+      return this.asked === 1
+        ? [
+            {
+              id: `${id}-1`,
+              speech: "",
+              at: 0,
+              action: "scroll" as const,
+              delta: { x: 0, y: 300 },
+              target: on("Nome"),
+            },
+            { id: `${id}-2`, speech: "", at: 0, action: "platform" as const, platform: action },
+          ]
+        : [
+            // The option, then the hand clicks outside the block (twice, to take its time).
+            { id: `${id}-3`, speech: "", at: 0, action: "click" as const, target: on("Próxima") },
+            { id: `${id}-4`, speech: "", at: 0, action: "click" as const, target: on("Começar") },
+            { id: `${id}-5`, speech: "", at: 0, action: "click" as const, target: on("Nome") },
+          ];
+    }
+    async idle() {}
+  }
+  const page = new BridgePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    {
+      id: "a",
+      at: 4,
+      speechAt: 3.6,
+      speech: "desça até o fim da lista e clique em escolhido",
+      action: "platform",
+      platform: 'escolher "escolhido"',
+    },
+    { id: "b", at: 6, speech: "Clique no 50", action: "click", target: on("Próxima") },
+    { id: "c", at: 7.5, speech: "troque por 0", action: "click", target: on("Começar") },
+  ]);
+  const schedule = schedulePlan(plan);
+  const [a] = schedule.steps;
+  const controller = new AbortController();
+  const lapses: GuidedLapse[] = [];
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal, {
+      log: {
+        step: () => undefined,
+        act: () => undefined,
+        lapse: (from, to, narration, step) => lapses.push({ from, to, narration, step }),
+      },
+    }),
+  );
+  assert.ok(page.events.some((e) => e.op.startsWith("wheel")));
+  const clicks = page.events.filter((e) => e.op === "left-1");
+  assert.equal(clicks.length, 5);
+  const at = (i: number) => alignedAt(lapses, clicks[i].t);
+  // The option on "escolhido" (within the floor of a lapse), never before it.
+  assert.ok(
+    at(0) >= a.actAt - 1 / 30 - 0.01 && at(0) <= a.actAt + LAPSE_FLOOR,
+    `option at ${at(0)}`,
+  );
 });
 
 test("steps closer than their actions run one after the other, the excess sped up", async () => {
