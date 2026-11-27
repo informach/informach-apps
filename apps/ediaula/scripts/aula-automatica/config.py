@@ -31,6 +31,18 @@ def _titulo_da_capa(roteiro, n, titulo):
     return titulo
 
 
+def _ultima_com_video(roteiro):
+    """O número da última parte do roteiro que tem vídeo (a que tem fala para o ElevenLabs; o quiz do fim não
+    tem). Sem o roteiro, None."""
+    try:
+        texto = open(roteiro, encoding="utf8").read()
+    except OSError:
+        return None
+    partes = re.split(r"(?m)^## Parte (\d+)\.", texto)
+    com_video = [int(n) for n, corpo in zip(partes[1::2], partes[2::2]) if "Fala para ElevenLabs" in corpo]
+    return max(com_video) if com_video else None
+
+
 def carregar():
     arq = os.environ.get("AULA_CONFIG") or os.path.join(AQUI, "config.json")
     if not os.path.exists(arq):
@@ -100,6 +112,10 @@ def parte(curso, aula, n):
         "credenciais": _caminho(cfg.get("credenciaisPalco")),
         # A música do curso ("musica" no curso), ou a de todos.
         "musica": _caminho(c.get("musica") or cfg.get("musica")),
+        # O último vídeo da aula termina com a vinheta final (Helena, 27/11/2026): "vinhetaFinal" no curso ou
+        # no config, e a parte é a última do roteiro com vídeo.
+        "ultimaDaAula": _ultima_com_video(roteiro) == int(n),
+        "vinhetaFinal": _caminho(c.get("vinhetaFinal") or cfg.get("vinhetaFinal")),
         "perfil": perfil,
     }
 

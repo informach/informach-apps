@@ -7,6 +7,15 @@ apresentadora. Os tempos são segundos da aula (a voz): a animação entra na au
 
 Uso: veja exemplos/farol-a3p2-conceitos.py. Depois de salvar, confira com validar_svg.py e exporte o MP4
 pelo condutor do EdiSVG (acoes/exportar-svg.mjs).
+
+Direção de arte (Helena, 27/11/2026; REGRAS.md, seção 9). Quem escreve uma cena age como diretor de arte e
+designer: a animação tem que ficar bonita, organizada e profissional, nunca feita de qualquer jeito.
+- Um ponto de atenção por vez, alinhado numa grade: margem de 140 px, espaços iguais e respiro de 40 px.
+- O conteúdo fica equilibrado na área livre à esquerda da apresentadora.
+- As figuras do jogo ficam grandes o bastante para reconhecer, e o texto de apoio tem 30 px ou mais.
+- Cada coisa entra na palavra que a anuncia, em sequência; o que não vale mais, sai.
+- Antes de vincular, olhe os quadros em previa_cena.py e acerte o que estiver pequeno, desalinhado, vazio ou
+  disputando atenção.
 """
 
 import base64

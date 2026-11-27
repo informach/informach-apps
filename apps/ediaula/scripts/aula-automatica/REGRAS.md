@@ -148,3 +148,28 @@ Recorte do avatar: esquerda 2%, direita 2%, topo 2%, base 45%. Entrada e saída 
 - No relatório final, liste as peças "criadas sem .edisvg" e os ajustes que precisam de revisão humana.
 
 **Onde:** `revisao-final.mjs`, que escreve `edicao/relatorio.md`.
+
+## 9. Direção de arte das animações (Helena, 27/11/2026)
+
+Quem escreve uma cena age como **diretor de arte e designer**, não como quem só põe as peças na tela. A animação precisa ficar bonita, organizada e profissional. Nada de fazer de qualquer jeito.
+
+**Composição:**
+- **Um ponto de atenção por vez.** O que a fala diz agora é o maior e o mais forte da tela. O resto fica menor, mais claro ou sai.
+- **Grade e alinhamento.** Cartões, caixas e figuras se alinham entre si e com o título: mesma margem esquerda (140 px), mesmos espaços entre os itens e linhas de base iguais. Nada solto "mais ou menos ali".
+- **Equilíbrio na área livre.** O conteúdo ocupa a área à esquerda da apresentadora (x < 1320), centrado nela e na altura útil (entre o subtítulo e a base). Sem um canto vazio enquanto o outro está cheio.
+- **Respiro.** Pelo menos 40 px entre peças vizinhas e entre peça e borda. Texto nunca encosta na borda do cartão, e nenhuma peça passa por cima de outra sem querer.
+- **Tamanho que se lê.** Figura do jogo grande o bastante para reconhecer de longe (moeda, baú, personagem com 150 px ou mais), texto de apoio com 30 px ou mais e números do placar bem grandes.
+
+**Hierarquia e estilo:**
+- O style guide "Zero Kids · Kit de slides" vale para tudo: Azul jogo no fundo, título na pílula branca, subtítulo em Nunito branco, caixa branca para termo e verde com texto amarelo para reação, e no máximo três caixas na tela.
+- Use as artes de verdade do jogo do curso (os renders 3D, os sprites 2D e os blocos recortados da gravação), na mesma escala entre si.
+- Cores só da paleta. O vermelho fica para o errado, e o verde para o certo e para a reação.
+
+**Movimento:**
+- Tudo que entra tem um motivo e entra **na palavra** que o anuncia: o pop do item, o personagem andando, a moeda sumindo e o baú abrindo.
+- Entradas em sequência com um pequeno intervalo, de 0,3 a 0,5 s, nunca tudo de uma vez nem tudo parado. Uma cena longa ganha uma mudança a cada frase.
+- Saídas limpas: o que não vale mais para a fala sai com fade, sem acumular peças na tela.
+
+**Conferir antes de vincular:** gere a prévia da cena (`edicao/previa_cena.py <cena.edisvg> <folha.jpg>`) e olhe os quadros como um diretor de arte. Procure figura pequena, texto passando da borda, peça desalinhada, área vazia e duas coisas disputando atenção. Acerte e gere de novo. Só vincule a cena na aula quando ela estiver bonita.
+
+**Onde:** os scripts de cenas (`edicao/exemplos/<curso>-conceitos.py`) e as peças (`edisvg_cena.py` e `<curso>_cena.py`).

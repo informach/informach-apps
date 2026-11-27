@@ -4,6 +4,7 @@
   "credenciaisPalco": "~/credenciais-palco-staging.txt",
   "palco": "https://palco-gravacao-staging.up.railway.app",
   "musica": "~/Downloads/Lighthouse Adventure.mp3",
+  "vinhetaFinal": "~/Downloads/vinheta-final.mp4",
   "styleGuide": "~/Downloads/style guide.png",
   "cursos": {
     "farol": {

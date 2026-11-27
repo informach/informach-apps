@@ -170,7 +170,8 @@ $S/gravar-aula.sh moedas 1 1 2 3 4 5 6 7 8   # em segundo plano; leva mais ou me
 - a parte de experiência é toda em animação, nunca a tela da experiência;
 - o conceito que a parte de blocos relembra no começo também vira animação;
 - vale o style guide "Zero Kids · Kit de slides";
-- as animações usam as artes do jogo do curso.
+- as animações usam as artes do jogo do curso;
+- **direção de arte (Helena, 27/11/2026):** quem escreve as cenas age como diretor de arte e designer. O layout é caprichado, organizado, bonito e profissional, com um ponto de atenção por vez, alinhamento, respiro e figuras grandes. Antes de vincular, olhe os quadros com `edicao/previa_cena.py <cena.edisvg> <folha.jpg>` e acerte o que estiver feio. Os critérios estão em [REGRAS.md](REGRAS.md), seção 9.
 
 **Script de cenas do curso.** Cada curso tem um, em `edicao/exemplos/<curso>-conceitos.py`. O modelo mais novo é o `jardim-conceitos.py`, com o `edicao/jardim_cena.py`; a Ilha tem um por parte.
 - Ele gera `<parte>/pecas/conceito-K-<nome>.edisvg`.
@@ -181,7 +182,16 @@ $S/gravar-aula.sh moedas 1 1 2 3 4 5 6 7 8   # em segundo plano; leva mais ou me
 
 **Validar:** `python -X utf8 $S/edicao/validar_svg.py <parte>/pecas`.
 
-**Moedas:** o script de cenas ainda não existe. Ele precisa ser feito depois da gravação e antes da edição.
+**Moedas (27/11/2026):** a Aula 2 tem `edicao/exemplos/moedas-conceitos.py`, com as peças em `edicao/moedas_cena.py`. São onze cenas, sempre onde a professora só explica:
+- Parte 1: a regra que vem da Aula 1;
+- Parte 2: o cofrinho, o grupo das moedas e o nome moeda;
+- Parte 3: a cada quadro, e as moedas que já saíram da cena;
+- Parte 4: a pergunta do baú, o "pelo menos 5" e a animação abrir;
+- Parte 5: as duas respostas do aviso e o fecho.
+
+**Renders e base:**
+- Os renders saem de `edicao/exemplos/moedas-render-modelos.py`, rodado com o bpy de `~/blender-venv`: o aventureiro, a moeda e o baú fechado, abrindo e aberto, na mesma medida por pixel.
+- A base é a do Jardim, que tem as mesmas fontes. As duas ficam em `<parte>/edicao/animacao/`.
 
 ## 7. Editar
 
@@ -196,6 +206,7 @@ $S/empacotar-edicao.sh moedas 1 3                             # depois de confer
 3. **Põe na cópia a apresentadora, a música e o personagem.** O personagem entra no segundo da fala dele, sem calar a frase seguinte da professora (`edicao/personagem.py`, que lê o `Falas.txt`).
 4. **Aplica os comandos** e pede ao EdiSVG o render de cada peça.
 5. **Faz o acabamento:** planos da apresentadora, faixas e música.
+   - **Vinheta final (Helena, 27/11/2026):** no último vídeo de cada aula (a última parte do roteiro com fala; o quiz do fim não conta), a vinheta entra na faixa da tela logo depois do último clipe, com o som dela. O arquivo é o `"vinhetaFinal"` do `config.json`, hoje `~/Downloads/vinheta-final.mp4` (4,4 s). Sem o arquivo, a edição avisa e segue.
 6. **Transcreve e revisa,** e escreve `<parte>/edicao/relatorio.md`. Leia a seção "Para revisão humana".
 
 **Refazer a edição:** rode de novo. Sai uma cópia nova, e a gravação não muda.
