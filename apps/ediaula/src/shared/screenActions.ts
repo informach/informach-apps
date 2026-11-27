@@ -181,6 +181,9 @@ export interface ScriptPart {
 export const followGap = (tempos: GuidedTempos): number =>
   tempos.move + Math.max(tempos.dwell, tempos.anticipation) + 0.3;
 
+/** Seconds between letting a held key go and the next gesture, which needs no hand to move. */
+export const KEY_RELEASE_GAP = 0.1;
+
 /**
  * The plan the script's brackets make with this voice: the hand leaves for the first bracket of a
  * phrase when the phrase starts and acts when the voice finishes the words quoted (a plain
@@ -273,10 +276,15 @@ export function planFromScript(
         steps.push({ ...step, at: hundredth, speechAt });
         last = hundredth;
         // The next one when the hand can be there (a step with nothing to reach comes sooner),
-        // after what this one holds has been let go.
+        // after what this one holds has been let go. A key of the keyboard let go needs no hand:
+        // the next key goes right after (Moedas A2P4, 27/11/2026: nine arrows in a row, each with
+        // a second of rest, took the character to the chest seconds after "o baú abre").
         at +=
-          (needsTarget(step, "web") || step.action === "platform" ? followGap(tempos) : 1) +
-          heldFor(text);
+          (needsTarget(step, "web") || step.action === "platform"
+            ? followGap(tempos)
+            : step.action === "hold" && step.chord
+              ? KEY_RELEASE_GAP
+              : 1) + heldFor(text);
       }
     }
   }

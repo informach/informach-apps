@@ -8,6 +8,7 @@ import {
   editNoteOf,
   followGap,
   heldFor,
+  KEY_RELEASE_GAP,
   planFromScript,
   screenActions,
 } from "../src/shared/screenActions.ts";
@@ -265,6 +266,26 @@ test("segurar prende o botão ou a tecla pelo tempo do colchete, e o gesto segui
   assert.equal(steps.length, 2);
   // The second one comes after the hand's time and the 2 s the first one holds.
   assert.equal(steps[1].at, Math.round((steps[0].at + followGap(DEFAULT_TEMPOS) + 2) * 100) / 100);
+});
+
+test("teclas seguradas em sequência vão uma logo depois da outra, sem o tempo da mão", () => {
+  // Moedas A2P4 (27/11/2026): o caminho até o farol e a volta ao baú são nove setas do teclado;
+  // com um segundo entre elas, o personagem chegava ao baú segundos depois de "o baú abre".
+  const lines = ["Depois caminhe pela trilha até o farol."];
+  const notes = [
+    {
+      before: 0,
+      text: 'No "Depois caminhe", [segurar tecla ArrowDown por 0,2 s] [segurar tecla ArrowRight por 1,7 s] [apontar prévia].',
+    },
+  ];
+  const words = lines[0]
+    .split(/\s+/)
+    .map((text, k) => ({ text, start: 1 + k * 0.4, end: 1.3 + k * 0.4 }));
+  const { steps } = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
+  assert.equal(steps.length, 3);
+  assert.equal(steps[1].at, Math.round((steps[0].at + KEY_RELEASE_GAP + 0.2) * 100) / 100);
+  // O gesto seguinte, que não é tecla, espera soltar a seta e vai logo depois.
+  assert.equal(steps[2].at, Math.round((steps[1].at + KEY_RELEASE_GAP + 1.7) * 100) / 100);
 });
 
 test("o bloco Se ouvido como a letra c ainda é a citação", () => {
