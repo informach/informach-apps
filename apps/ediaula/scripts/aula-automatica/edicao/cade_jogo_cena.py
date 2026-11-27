@@ -11,7 +11,7 @@ As medidas vêm do script.js do projeto final: palco de 640 x 360, esconderijos 
 em (18, 34) com 24 px e a mensagem em (174, 72) com 27 px. O EdiSVG aceita uma trilha por propriedade em cada
 nó: cada peça recebe todos os seus tempos de uma vez (vis() com os intervalos visíveis).
 """
-from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VAIVEM, VERDE, nid, tf
+from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VAIVEM, VERDE, mao_toque, nid, tf
 from ilha_cena import circulo, estrela, figura
 from jardim_cena import caixa_em, vis
 
@@ -128,16 +128,8 @@ def toque(c, cx, cy, t):
 
 
 def dedo(c, cx, cy, t0, t_toca, t1):
-    """Um dedo de desenho que desce até (cx, cy) e toca em t_toca."""
-    pele, borda = "#F6C9A0", "#D99A6C"
-    filhos = [c.rect("dedo", -22, -10, 44, 120, pele, rx=22, stroke=borda, sw=5),
-              c.rect("unha", -13, -4, 26, 26, "#FBE3CE", rx=10),
-              c.rect("mão", -46, 90, 92, 120, pele, rx=40, stroke=borda, sw=5)]
-    g = c.grupo("Dedo", cx, cy, filhos, op=0)
-    c.nos.append(g)
-    vis(c, g, [(t0, t1)])
-    c.trilha(g, "y", [(t0, cy + 140, SUAVE), (t_toca - 0.15, cy + 10, VAIVEM), (t_toca, cy, VAIVEM),
-                      (t_toca + 0.25, cy + 40, None)])
+    """A mão de desenho que toca em (cx, cy) em t_toca, com o anel e a estrelinha do toque."""
+    g = mao_toque(c, [(t_toca, cx, cy)], t0, t1)
     toque(c, cx, cy, t_toca)
     return g
 

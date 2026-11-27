@@ -173,3 +173,32 @@ Quem escreve uma cena age como **diretor de arte e designer**, não como quem s�
 **Conferir antes de vincular:** gere a prévia da cena (`edicao/previa_cena.py <cena.edisvg> <folha.jpg>`) e olhe os quadros como um diretor de arte. Procure figura pequena, texto passando da borda, peça desalinhada, área vazia e duas coisas disputando atenção. Acerte e gere de novo. Só vincule a cena na aula quando ela estiver bonita.
 
 **Onde:** os scripts de cenas (`edicao/exemplos/<curso>-conceitos.py`) e as peças (`edisvg_cena.py` e `<curso>_cena.py`).
+
+## 10. Didática para criança (Helena, 27/11/2026)
+
+O público é criança. A edição existe para a criança entender, então tudo tem que ser o mais didático, ilustrado, animado e sinalizado possível. Uma cena que um adulto entende "porque já sabe" não serve. O padrão que saiu no Moedas de 27/11 (título, rótulos e figuras paradas, com cara de slide) ficou "medíocre", nas palavras dela.
+
+**A cena mostra acontecendo, não escreve:**
+- Criança não lê. Rótulo de texto é apoio curto, nunca a explicação. "Condição", "o bloco Se" e "maior ou igual" escritos numa caixa não ensinam nada.
+- Cada ideia vira uma pequena história com causa e efeito: o personagem do curso anda, pega a moeda, a moeda voa até o contador e o número pula. O baú tenta abrir, treme e fica fechado, ou abre com brilho.
+- O bloco de verdade da plataforma aparece, grande, e se encaixa na hora em que a fala o nomeia. Uma seta ou um círculo liga o bloco ao que ele faz no jogo.
+- Comparações lado a lado, animadas uma de cada vez (4 moedas: fecha; 5: abre; 6: abre), com o personagem reagindo.
+- A cena ocupa a área livre com figuras grandes. Um quadro com três caixinhas no meio do azul está vazio.
+
+**Na tela gravada, tudo sinalizado:**
+- Antes de cada clique ou arraste, a criança vê **onde**: zoom no lugar, contorno ou círculo pulsando no botão ou bloco, e o resto escurecido quando ajuda.
+- Arraste com seta mostrando de onde sai e para onde vai. Ao soltar, um destaque curto no bloco encaixado.
+- Número que se digita ou campo que muda fica em destaque até a fala seguinte.
+- O resultado no jogo (moeda somando, placar, baú abrindo) aparece com zoom e com tempo para ver.
+
+**Conferir como criança:** antes de vincular, olhe os quadros da prévia e pergunte, em cada frase da fala: uma criança de 8 anos, sem ler nada, entende o que está acontecendo e onde está cada coisa? Se a resposta depende de ler um rótulo, refaça a cena.
+
+**Toda coisa da interface nomeada na fala é mostrada (Cadê A1P4, 27/11/2026):**
+- Quando a fala diz o nome de um botão, aviso ou número da tela ("Salvo", "Objetivo cumprido!", Expandir, Reduzir, Verificar projeto, Enviar, Concluir aula, Achados), o cursor vai até ele na palavra (`[apontar "Salvo"]` no Na tela) e a edição põe uma anotação curta apontando para ele.
+- O Estúdio começa pequeno na aula. Antes de pedir qualquer coisa no jogo ou nos blocos, a gravação aponta o Expandir, a edição anota "Expandir" e o clique acontece na frente da criança. No fim, o mesmo com o Reduzir. Nunca expandir escondido antes da primeira fala.
+- Desenhos caprichados: mão de desenho com o indicador apontando e os outros dedos dobrados, nunca um dedo comprido sozinho (parece o dedo do meio).
+
+**Vídeo ilustrando, com as sinalizações por cima (Helena, 27/11/2026):** quando a ilustração não fica boa, sobretudo nas analogias do Cadê, a cena usa um vídeo e põe por cima, no EdiSVG ou nas anotações do EdiAula, o que a fala ensina: a seta e o rótulo "ação" no gesto, "reação" na resposta, o "+1" no placar. Os vídeos ficam em `edicao/artes/videos/`:
+- `cocegas-acao-e-reacao.mp4` (8 s, 1280x720): a mãe faz cócegas e a menina ri. Vai na analogia das cócegas do Cadê A1P3 ("A cócega é a ação, e a risada é a reação"): "ação" nas mãos fazendo cócegas, "reação" no rosto rindo, uma seta da ação até a reação.
+- `placar-de-futebol.mp4` (8 s, 1280x720): o menino chuta, o placar vai de 0 a 1 e depois a 2, a família comemora. Vai no placar de futebol do Cadê A2P2 ("Quando sai outro gol, o número aumenta em um"): "placar" no telão e "+1" a cada gol, na palavra.
+- Quando o vídeo é mais curto que a fala ou o momento não cai na palavra, congele o quadro do gesto (cócega, gol) para pôr o rótulo; nunca corte a voz.

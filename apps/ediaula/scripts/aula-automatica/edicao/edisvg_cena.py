@@ -27,6 +27,12 @@ import struct
 import uuid
 
 FPS = 30
+# Artes comuns a todo curso, desenhadas com capricho (REGRAS.md, seção 10): as mãos do toque são os emojis do
+# Noto Color Emoji (licença OFL), renderizados por artes/render_maos.py e recortados rente.
+ARTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artes")
+# Ponta do dedo de cada mão, em pixels do PNG, e o tamanho do PNG.
+MAOS = {"mao-indicador": ((238, 6), (296, 479)), "mao-baixo": ((222, 458), (380, 464)),
+        "mao-esquerda": ((6, 158), (465, 380)), "mao-direita": ((458, 157), (465, 380))}
 AZUL_JOGO, TINTA, BRANCO, VERDE, AMARELO, NOITE = "#6E9BFF", "#0F1A33", "#FFFFFF", "#0B7A54", "#FFC02E", "#121A30"
 AREA_ESTUDIO, AREA_GAVETA = "#E7EDF5", "#EEF2F8"
 SUAVE = {"kind": "cubic-bezier", "points": [0.22, 1, 0.36, 1]}
@@ -97,7 +103,11 @@ class Cena:
                 "visible": True, "locked": False, "children": filhos}
 
     def imagem(self, arq):
-        dados = open(f"{self.blocos}/{arq}.png", "rb").read()
+        # A pasta de blocos da parte primeiro; as artes comuns a todo curso (a mão do toque) ficam em artes/.
+        caminho = f"{self.blocos}/{arq}.png"
+        if not os.path.exists(caminho):
+            caminho = os.path.join(ARTES, f"{arq}.png")
+        dados = open(caminho, "rb").read()
         w, h = struct.unpack(">II", dados[16:24])
         aid = "asset-" + hashlib.sha256(dados).hexdigest()
         if not any(a["id"] == aid for a in self.d["assets"]):
@@ -312,3 +322,33 @@ class Cena:
             raise SystemExit(f"{self.nome}: os recursos não cabem no EdiSVG nem reduzidos; tire imagens da cena")
 
 
+
+
+def mao_toque(c, toques, t0, t1, altura=220, nome="Mão"):
+    """A mão de desenho (punho com o indicador para cima, nunca um dedo comprido sozinho) que toca cada ponto.
+
+    toques: [(t, x, y)] em ordem; a ponta do dedo chega em (x, y) no segundo t, aperta e sobe um pouco. A mão entra
+    de baixo antes do primeiro toque, vai de um ponto ao seguinte e sai com fade em t1. altura: altura da mão em px.
+    """
+    (px, py), (w, h) = MAOS["mao-indicador"]
+    s = altura / h
+    img_aid, _, _ = c.imagem("mao-indicador")
+    img = {"id": nid(), "name": "mão", "tag": "image", "assetId": img_aid,
+           "attrs": {"x": "0", "y": "0", "width": str(w), "height": str(h)},
+           "text": "", "children": [], "transform": tf(-px, -py), "visible": True, "locked": False}
+    t_1, x_1, y_1 = toques[0]
+    g = c.grupo(nome, x_1 + 40, y_1 + altura, [img], op=0, s=s)
+    c.nos.append(g)
+    c.trilha(g, "opacity", [(t0, 0, None), (t0 + 0.25, 100, None), (t1 - 0.25, 100, None), (t1, 0, None)])
+    xs, ys, ss = [(t0, x_1 + 40, SUAVE)], [(t0, y_1 + altura, SUAVE)], [(t0, s, None)]
+    for k, (t, x, y) in enumerate(toques):
+        # Chega um pouco acima do ponto, desce e aperta (encolhe 6 %), e volta a subir 30 px.
+        chega = max(t - 0.35, (toques[k - 1][0] + 0.3) if k else t0 + 0.2)
+        xs += [(chega, x, VAIVEM), (t + 0.3, x, VAIVEM)]
+        ys += [(chega, y + 24, VAIVEM), (t, y, VAIVEM), (t + 0.3, y + 30, VAIVEM)]
+        ss += [(t - 0.05, s, VAIVEM), (t + 0.08, s * 0.94, VAIVEM), (t + 0.25, s, None)]
+    c.trilha(g, "x", xs)
+    c.trilha(g, "y", ys)
+    c.trilha(g, "sx", ss)
+    c.trilha(g, "sy", ss)
+    return g
