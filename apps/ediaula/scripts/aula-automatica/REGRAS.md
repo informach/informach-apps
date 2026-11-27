@@ -227,3 +227,5 @@ O público é criança. A edição existe para a criança entender, então tudo 
 - Amarelo sobre o verde dava 3,3: a reação, o "+1" e o "Achou!" vão em branco no verde (5,4).
 - Etiqueta sobre imagem clara (a capa) ganha um fundo escuro atrás.
 - O `validar_svg.py` mede o contraste de cada texto com o retângulo ou o fundo atrás dele e barra abaixo de 4,5.
+
+**Um fundo por curso (Helena, 27/11/2026):** a estrutura do fundo e as peças do kit são iguais em todo curso; a cor e os detalhes do fundo vêm da capa de cada um (`edicao/artes/fundos_cursos.py`: Cadê azul de céu com folhinhas e flores, Farol azul de mar com ondinhas e gaivotas, Moedas laranja de pôr do sol com moedinhas, Jardim verde-folha com pétalas). Curso novo ganha a sua entrada em CURSOS, com o branco passando de 4,5. As cores com significado nunca mudam (amarelo é ação, verde é reação, vermelho é erro); num fundo verde, a pílula verde da reação ganha borda branca.
