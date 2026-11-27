@@ -182,7 +182,13 @@ $S/gravar-aula.sh moedas 1 1 2 3 4 5 6 7 8   # em segundo plano; leva mais ou me
 
 **Validar:** `python -X utf8 $S/edicao/validar_svg.py <parte>/pecas`.
 
-**Moedas (27/11/2026):** a Aula 2 tem `edicao/exemplos/moedas-conceitos.py`, com as peças em `edicao/moedas_cena.py`. São onze cenas, sempre onde a professora só explica:
+**Moedas (27/11/2026):** as duas aulas têm `edicao/exemplos/moedas-conceitos.py`, com as peças em `edicao/moedas_cena.py`.
+
+**Aula 1 (o Farol 2D):** dezessete cenas, desenhadas na classe `Painel` com as artes do projeto do curso. Essas artes saem em PNG com `edicao/exemplos/moedas-artes-2d.py <moedas-2d.szproject.json> <blocos>`.
+- A Parte 3, da experiência, é toda em animação, de ponta a ponta da fala.
+- A Parte 2, do Passo a passo, mostra a tela.
+
+**Aula 2 (a ilha 3D):** onze cenas, sempre onde a professora só explica:
 - Parte 1: a regra que vem da Aula 1;
 - Parte 2: o cofrinho, o grupo das moedas e o nome moeda;
 - Parte 3: a cada quadro, e as moedas que já saíram da cena;
