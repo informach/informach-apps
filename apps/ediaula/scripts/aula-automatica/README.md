@@ -198,7 +198,7 @@ Animações de conceito que ainda não existem: uma cena por trecho, com `edicao
 - **Entrada com pop:** `c.mostra(no, t, pop=True)` respeita a escala do nó (um grupo em 0,4 fica em 0,4). Uma tecla apertada várias vezes leva todos os toques num `ilha_cena.aperta(c, tecla, (t1, t2, …))`: o EdiSVG aceita uma trilha só por propriedade, e o `validar_svg.py` acusa a repetida.
 - **Personagem por cima:** a Debinha e o Dedé falam por cima da animação, à esquerda. Deixe a metade esquerda da cena livre nesse trecho (o que importa à direita do meio, longe da apresentadora) e a cabeça dela à vista.
 - **Prévias:** o `exportar-svg.mjs` só abre a prévia se a janela principal do EdiSVG não estiver com uma peça vinculada. Depois de um `aplicar`, feche as janelas do EdiSVG e abra o condutor de novo antes de exportar prévias.
-- **Validar:** confira com `edicao/validar_svg.py <pasta>`.
+- **Validar:** confira com `edicao/validar_svg.py <pasta>`: o técnico e o desenho (REGRAS.md, seções 9 e 10), com o segundo e o nome de cada problema. As peças comuns ficam no kit `edicao/kit_cena.py`; a conta do quadro, igual na prévia e no validador, em `edicao/cena_layout.py`.
 - **Uma fonte por cena:** depois de vinculada, a cena é editada no EdiSVG. O script não reescreve um `.edisvg` que já existe (`AULA_REFAZER_CENAS=1` reescreve e apaga o que foi feito lá). Os ids saem do nome do arquivo, então reescrever mantém o vínculo.
 - **Nunca achatar:** a peça entra vinculada, não como MP4 ou PNG. O `exportar-svg.mjs` serve só para conferir quadros com o ffmpeg.
 

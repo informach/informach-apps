@@ -14,6 +14,7 @@ designer: a animação tem que ficar bonita, organizada e profissional, nunca fe
 - O conteúdo fica equilibrado na área livre à esquerda da apresentadora.
 - As figuras do jogo ficam grandes o bastante para reconhecer, e o texto de apoio tem 30 px ou mais.
 - Cada coisa entra na palavra que a anuncia, em sequência; o que não vale mais, sai.
+- As peças comuns (rótulo, seta, anotação, anel, foco, selo, "+1") vêm do kit, kit_cena.py (REGRAS.md, seção 10).
 - Antes de vincular, olhe os quadros em previa_cena.py e acerte o que estiver pequeno, desalinhado, vazio ou
   disputando atenção.
 """

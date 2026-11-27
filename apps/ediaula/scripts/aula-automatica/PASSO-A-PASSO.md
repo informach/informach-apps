@@ -180,7 +180,11 @@ $S/gravar-aula.sh moedas 1 1 2 3 4 5 6 7 8   # em segundo plano; leva mais ou me
 
 **Base:** um `.edisvg` com as fontes e as artes do jogo no grupo "Jogo". Para montá-la, use `edicao/base_jogo.py`, descrito no README.
 
-**Validar:** `python -X utf8 $S/edicao/validar_svg.py <parte>/pecas`.
+**Kit:** monte as cenas com as peças de `edicao/kit_cena.py` (rótulo, linha, coluna, seta, anel, anotação, foco, selo, "+1", cartão, encaixar) e a mão do toque `edisvg_cena.mao_toque`. Elas já saem no tamanho, na cor, no respiro e no movimento do kit; não redesenhe essas peças no script do curso. A vitrine `edicao/exemplos/kit-vitrine.py` mostra todas.
+
+**Prévia:** `python -X utf8 $S/edicao/previa_cena.py <cena.edisvg> <folha.jpg> 8 --grande` e olhe cada quadro como criança (REGRAS.md, seção 10).
+
+**Validar:** `python -X utf8 $S/edicao/validar_svg.py <parte>/pecas`. Além do técnico, barra o desenho: texto em minúscula, fonte fora do kit, texto pequeno ou estourando a pílula, conteúdo na faixa da apresentadora, rótulos sobrepostos ou quase alinhados, quadro vazio, texto demais e cena parada. Só vincule com "ok". `--so-tecnico` é só para peça antiga que não vai ser refeita.
 
 **Moedas (27/11/2026):** as duas aulas têm `edicao/exemplos/moedas-conceitos.py`, com as peças em `edicao/moedas_cena.py`.
 
