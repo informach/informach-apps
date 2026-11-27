@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cade_jogo_cena import bicho, centro, esconderijo, gx, gy, painel, placar  # noqa: E402
 from edisvg_cena import Cena, mao_toque  # noqa: E402
-from kit_cena import anotacao, encaixar, foco, linha, mais_um, seta, selo  # noqa: E402
+from kit_cena import anotacao, encaixar, foco, linha, mais_um, moldura, seta, selo  # noqa: E402
 
 BASE, BLOCOS, SAIDA = sys.argv[1:4]
 
@@ -40,7 +40,8 @@ g, destaque = c.bloco("bloco-quando-tocar", BX, BY, E)
 c.mostra(g, 0.4, 9)
 encaixar(c, g, (BX, BY + 100), (BX, BY), 0.4)
 em = lambda px, py: (BX + px * E, BY + py * E)
-anotacao(c, "Fazer", "A reação vai aqui", em(200, 92), 1.8, 9, centro=(BX + 200 * E, 740), estilo="reacao", anel_r=56)
+moldura(c, "Fazer", *em(66, 68), *em(770, 116), 1.8, 9)
+anotacao(c, "Fazer", "A reação vai aqui", em(300, 116), 2.0, 9, centro=(BX + 300 * E, 740), estilo="reacao")
 anotacao(c, "Escolhido", "escolhido", em(707, 40), 3.0, 9, centro=(BX + 707 * E, 740), estilo="codigo")
 pecas = linha(c, "Corrente", ["Toque", "Some", "Aparece"], 730, 930, 4.6, 9, estilo="termo", gap=110, passo=0.6)
 for k, (a, b) in enumerate(zip(pecas, pecas[1:])):

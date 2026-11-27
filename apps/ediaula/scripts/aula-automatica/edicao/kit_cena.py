@@ -6,8 +6,9 @@ saem no tamanho, na cor, no respiro e no movimento do kit. Assim a qualidade nã
 - rotulo: a pílula com texto, na largura do texto medido com a fonte da cena. Texto começa com maiúscula (a peça
   recusa "coleta"); nome de variável ou de sprite vai no estilo "codigo", que pode começar em minúscula.
 - linha / coluna: rótulos de um mesmo grupo, todos com a mesma largura, alinhados e com o mesmo espaço entre eles.
-- seta: grossa, com contorno escuro, cresce da origem até o alvo.
-- anel: o círculo amarelo que pulsa em volta do lugar (o "é aqui").
+- seta: amarela, grossa, de pontas redondas, com o degrau do Zero Kids embaixo; cresce da origem até o alvo.
+- anel: o círculo amarelo que pulsa em volta de uma coisa redonda do jogo (o "é aqui").
+- moldura: o retângulo amarelo de um espaço retangular (o vazio do bloco, um botão), cobrindo o espaço inteiro.
 - anotacao: rótulo + seta + anel, o jeito de dizer "isto aqui é a ação" em cima de um vídeo, de um jogo ou de
   uma tela.
 - foco: escurece tudo menos o retângulo que importa.
@@ -38,7 +39,6 @@ PAD = {"g": 44, "m": 38, "p": 30}
 LARG_MIN = {"g": 220, "m": 180, "p": 140}
 # A área livre da cena, à esquerda da apresentadora (x >= 1320 é dela), abaixo do título.
 AREA = (96, 300, 1272, 1020)
-CONTORNO = 5
 
 _fontes = {}
 
@@ -151,30 +151,39 @@ def coluna(c, nome, itens, cx, y0, t0, t1=None, estilo="termo", tam="m", gap=32,
     return pecas
 
 
+AMARELO_DEGRAU = "#C98F00"
+
+
 def seta(c, nome, de, para, t0, t1=None, cor=AMARELO, esp=18, cresce=0.45):
-    """Seta grossa com contorno escuro, que cresce de `de` até a ponta em `para`."""
+    """Seta amarela grossa, de pontas redondas, com o degrau do Zero Kids embaixo (o mesmo desenho em amarelo
+    escuro, 5 px abaixo). Sem contorno preto: ficava pesado (Helena, 27/11/2026). Cresce de `de` até `para`."""
     (x0, y0), (x1, y1) = de, para
     L = math.hypot(x1 - x0, y1 - y0)
-    hl, hw = esp * 2.4, esp * 3.0
-    k = CONTORNO
-    corpo = c.grupo("corpo", 0, 0, [
-        c.rect("contorno", 0, -esp / 2 - k, max(1.0, L - hl + 4), esp + 2 * k, NOITE, rx=esp / 2 + k),
-        c.rect("haste", 0, -esp / 2, max(1.0, L - hl + 4), esp, cor, rx=esp / 2)], op=100)
-    ponta = c.grupo("ponta", L, 0, [
-        c.poly("contorno", [(k * 1.6, 0), (-hl - k, -hw / 2 - k * 1.3), (-hl - k, hw / 2 + k * 1.3)], NOITE),
-        c.poly("ponta", [(0, 0), (-hl, -hw / 2), (-hl, hw / 2)], cor)], op=100)
-    g = c.grupo(f"Seta · {nome}", x0, y0, [corpo, ponta])
+    hl, hw = esp * 2.6, esp * 3.0
+    r = esp * 0.18  # arredonda as pontas da cabeça
+
+    def desenho(nome_, cor_, dy):
+        corpo = c.grupo("corpo", 0, dy, [c.rect("haste", 0, -esp / 2, max(1.0, L - hl + 4), esp, cor_, rx=esp / 2)], op=100)
+        ponta = c.grupo("ponta", L, dy, [c.poly("ponta", [(0, 0), (-hl, -hw / 2 + r), (-hl + r, -hw / 2),
+                                                         (-hl + r, hw / 2), (-hl, hw / 2 - r)], cor_)], op=100)
+        return c.grupo(nome_, 0, 0, [corpo, ponta], op=100), corpo, ponta
+
+    degrau, c_d, p_d = desenho("degrau", AMARELO_DEGRAU, 5)
+    frente, c_f, p_f = desenho("frente", cor, 0)
+    g = c.grupo(f"Seta · {nome}", x0, y0, [degrau, frente])
     g["transform"]["rotation"] = round(math.degrees(math.atan2(y1 - y0, x1 - x0)), 2)
     c.nos.append(g)
     c.mostra(g, t0, t1)
-    c.trilha(corpo, "sx", [(t0, 0.02, SUAVE), (t0 + cresce, 1, None)])
-    c.trilha(ponta, "x", [(t0, hl, SUAVE), (t0 + cresce, L, None)])
+    for corpo, ponta in ((c_d, p_d), (c_f, p_f)):
+        c.trilha(corpo, "sx", [(t0, 0.02, SUAVE), (t0 + cresce, 1, None)])
+        c.trilha(ponta, "x", [(t0, hl, SUAVE), (t0 + cresce, L, None)])
     return g
 
 
 def anel(c, nome, x, y, r, t0, t1=None, cor=AMARELO, esp=10, pulsos=3):
-    """O círculo que pulsa em volta do lugar: "é aqui"."""
-    filhos = [c.rect("contorno", -r, -r, 2 * r, 2 * r, "none", rx=r, stroke=NOITE, sw=esp + 2 * CONTORNO, op=45),
+    """O círculo que pulsa em volta de uma coisa redonda do jogo (um esconderijo, um personagem): "é aqui".
+    Espaço de bloco ou botão retangular usa a moldura."""
+    filhos = [c.rect("degrau", -r, -r + 5, 2 * r, 2 * r, "none", rx=r, stroke=AMARELO_DEGRAU, sw=esp),
               c.rect("anel", -r, -r, 2 * r, 2 * r, "none", rx=r, stroke=cor, sw=esp)]
     g = c.grupo(f"Anel · {nome}", x, y, filhos)
     c.nos.append(g)
@@ -189,6 +198,18 @@ def anel(c, nome, x, y, r, t0, t1=None, cor=AMARELO, esp=10, pulsos=3):
     c.trilha(g, "sx", ch)
     c.trilha(g, "sy", ch)
     return g
+
+
+def moldura(c, nome, x0, y0, x1, y1, t0, t1=None, cor=AMARELO, esp=7, rx=14, piscadas=3):
+    """O retângulo amarelo que marca um espaço retangular: o vazio ao lado de "fazer" num bloco, um botão do
+    Estúdio, um número. Cobre o espaço inteiro (Helena, 27/11/2026: o anel no bloco ficava estranho)."""
+    w, h = x1 - x0, y1 - y0
+    filhos = [c.rect("degrau", 0, 5, w, h, "none", rx=rx, stroke=AMARELO_DEGRAU, sw=esp),
+              c.rect("moldura", 0, 0, w, h, "none", rx=rx, stroke=cor, sw=esp)]
+    g = c.grupo(f"Moldura · {nome}", x0, y0, filhos)
+    c.nos.append(g)
+    c.pisca(g, t0, t1 or (t0 + 0.5 + piscadas * 0.5 + 0.3), vezes=piscadas)
+    return Peca(g, x0, y0, x1, y1)
 
 
 DIRECOES = {"cima": (0, -1), "baixo": (0, 1), "esquerda": (-1, 0), "direita": (1, 0),
