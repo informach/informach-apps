@@ -220,8 +220,19 @@ for gi, g in enumerate(gestos):
             # na beira da tela: fica sem zoom, cada moldura no seu lugar.
             if uniao[3] - uniao[1] <= 0.4 * H and uniao[2] - uniao[0] <= 0.5 * W:
                 zoom(t0 - 0.3, max(ultimo["fim"] + 1.2, ultimo["acao"] + 2.2), uniao, f"zoom no que a fala nomeia ({v})")
-            for gx, alvo in alvos:
-                destaque(gx["acao"], 2.2, alvo, f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
+                for gx, alvo in alvos:
+                    destaque(gx["acao"], 2.2, alvo, f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
+            else:
+                # Longe uma da outra: um zoom em cada, em sequência, e a moldura de cada uma dentro do seu zoom
+                # (sem zoom o texto ficava pequeno demais para a criança ler).
+                ini = t0 - 0.3
+                for k, (gx, alvo) in enumerate(alvos):
+                    prox = alvos[k + 1][0] if k + 1 < len(alvos) else None
+                    fim = prox["acao"] - 0.45 if prox else max(gx["fim"] + 1.2, gx["acao"] + 2.2, ini + ZOOM_CURTO + 0.2)
+                    zoom(ini, fim, alvo, f"zoom no que a fala nomeia ({gx['verbo']})")
+                    destaque(gx["acao"], max(1.2, min(2.2, fim - gx["acao"] - 0.2)), alvo,
+                             f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
+                    ini = fim
         continue
     if g["tipo"] == "aponta" and FORA_DO_PALCO and g.get("x") is not None:
         # Gravação fora do palco (a área dos pais, sem os contornos que a ponte do palco registra):
