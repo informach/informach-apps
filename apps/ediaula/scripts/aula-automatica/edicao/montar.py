@@ -202,6 +202,11 @@ for gi, g in enumerate(gestos):
         alvos = []
         for gx, rx in serie:
             alvo = rx[0]["alvo"] if rx else None
+            if alvo and alvo[2] - alvo[0] > 600 and rx[0].get("ponto"):
+                # O contorno é a linha inteira (a mensagem do quadro dos objetivos) e o texto fica no começo dela,
+                # onde a mão foi: a moldura abraça só o texto, em volta do ponto.
+                px = rx[0]["ponto"][0]
+                alvo = [alvo[0], alvo[1], min(alvo[2], alvo[0] + 2 * (px - alvo[0]) + 24), alvo[3]]
             if not alvo and gx.get("x") is not None:
                 # Sem contorno registrado (o apontar por texto do EdiAula): a mão descansa logo abaixo do texto.
                 alvo = [gx["x"] - 100, gx["y"] - 64, gx["x"] + 100, gx["y"] - 8]
