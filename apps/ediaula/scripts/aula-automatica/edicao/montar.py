@@ -209,7 +209,8 @@ for gi, g in enumerate(gestos):
                 alvo = [alvo[0], alvo[1], min(alvo[2], alvo[0] + 2 * (px - alvo[0]) + 24), alvo[3]]
             if not alvo and gx.get("x") is not None:
                 # Sem contorno registrado (o apontar por texto do EdiAula): a mão descansa logo abaixo do texto.
-                alvo = [gx["x"] - 100, gx["y"] - 64, gx["x"] + 100, gx["y"] - 8]
+                # Do tamanho de uma etiqueta como o "Salvo" (a moldura não pega o vizinho).
+                alvo = [gx["x"] - 52, gx["y"] - 60, gx["x"] + 52, gx["y"] - 16]
             if alvo:
                 alvos.append((gx, alvo))
         if alvos:
