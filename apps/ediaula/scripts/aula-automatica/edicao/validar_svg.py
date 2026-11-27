@@ -18,7 +18,8 @@ cada meio segundo, com a conta da prévia (cena_layout.py), e barra o que a Hele
 - rótulos quase alinhados (centros ou bordas a menos de 14 px, sem coincidir): "mais ou menos ali";
 - quadro vazio: no momento mais cheio, o conteúdo ocupa menos de 30 % da área livre;
 - texto demais ao mesmo tempo (mais de 14 palavras fora o título): criança não lê;
-- cena parada: mais de 4 s sem nada se mexer.
+- cena parada: mais de 4 s sem nada se mexer;
+- contraste do texto com o que está atrás dele abaixo de 4,5 (o branco no azul antigo dava 2,4).
 Cada problema sai com o segundo da cena e o nome do nó. Com algum problema, sai com erro.
 """
 import glob
@@ -33,6 +34,9 @@ FAIXA_APRESENTADORA = 1320
 AREA_LIVRE = (96, 300, 1272, 1020)
 QUASE = 14
 MAX_PALAVRAS = 14
+# Contraste do texto com o que está atrás dele (WCAG AA): o branco no azul antigo dava 2,4 (Helena, 27/11/2026).
+CONTRASTE_MINIMO = 4.5
+AZUL_FUNDO = "#3D6BE1"
 
 
 def tecnico(f, d):
@@ -90,6 +94,46 @@ def e_fundo_ou_titulo(no, lay):
     return n.startswith("Fundo") or n.startswith("Título") or n.startswith("Subtítulo") or n.startswith("Foco")
 
 
+def _lum(hexcor):
+    h = hexcor.lstrip("#")[:6]
+    if len(h) != 6:
+        return None
+    c = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+
+def contraste(a, b):
+    la, lb = _lum(a), _lum(b)
+    if la is None or lb is None:
+        return None
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def fundo_do_texto(item, itens):
+    """A cor que está atrás do texto: o último retângulo cheio (ou o fundo da cena) que contém o meio dele, na ordem
+    de pintura. Uma imagem atrás (o jogo, um vídeo) deixa a cor desconhecida: None."""
+    x0, y0, x1, y1 = item["caixa"]
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    cor = None
+    for i in itens:
+        if i is item:
+            break
+        if i["op"] < 0.5 or i["no"].get("name") in ("sombra", "degrau"):
+            continue
+        bx0, by0, bx1, by1 = i["caixa"]
+        if not (bx0 <= cx <= bx1 and by0 <= cy <= by1):
+            continue
+        no = i["no"]
+        if no.get("name", "").startswith("Fundo"):
+            cor = AZUL_FUNDO if no.get("tag") == "image" else no.get("attrs", {}).get("fill", cor)
+        elif no.get("tag") == "rect" and no.get("attrs", {}).get("fill", "none") not in ("none", ""):
+            cor = no["attrs"]["fill"]
+        elif no.get("tag") == "image":
+            cor = None
+    return cor
+
+
 def desenho(f, d):
     lay = Layout(d)
     probs = {}
@@ -125,6 +169,13 @@ def desenho(f, d):
         itens = lay.quadro(q)
         conteudo = [i for i in itens if not e_fundo_ou_titulo(i["no"], lay)]
         txts = [i for i in conteudo if i["no"].get("tag") == "text" and i["op"] > 0.5]
+        todos_txts = [i for i in itens if i["no"].get("tag") == "text" and i["op"] > 0.5]
+        for i in todos_txts:
+            fundo = fundo_do_texto(i, itens)
+            cr = contraste(i["no"]["attrs"].get("fill", "#000000"), fundo) if fundo else None
+            if cr is not None and cr < CONTRASTE_MINIMO:
+                prob(("contraste", i["no"]["id"]), t, f'"{i["no"]["text"]}" com contraste {cr:.1f} contra o fundo {fundo} '
+                                                     f"(mínimo {CONTRASTE_MINIMO}): troque a cor do texto ou do fundo")
         for i in txts:
             tam = float(i["no"]["attrs"].get("font-size", 0)) * i["escala"]
             if tam < 29.5 and i["escala"] > 0.97:

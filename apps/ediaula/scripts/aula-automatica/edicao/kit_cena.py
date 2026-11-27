@@ -18,7 +18,7 @@ saem no tamanho, na cor, no respiro e no movimento do kit. Assim a qualidade nã
 - encaixar: o bloco desliza até o lugar e assenta com um pulinho.
 
 Tamanhos: "g" (48 px, rótulo principal), "m" (40 px, o padrão) e "p" (34 px, apoio). Nada abaixo de 30 px.
-Estilos: "termo" (branco, texto escuro), "acao" (amarelo, texto escuro), "reacao" (verde, texto amarelo),
+Estilos: "termo" (branco, texto escuro), "acao" (amarelo, texto escuro), "reacao" (verde, texto branco: o amarelo no verde dava só 3,3 de contraste),
 "escuro" (noite, texto branco), "aviso" (vermelho, texto branco) e "codigo" (noite, texto amarelo).
 """
 import base64
@@ -31,7 +31,7 @@ from PIL import ImageFont
 from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VAIVEM, VERDE
 
 VERMELHO = "#E5484D"
-ESTILOS = {"termo": (BRANCO, TINTA), "acao": (AMARELO, TINTA), "reacao": (VERDE, AMARELO),
+ESTILOS = {"termo": (BRANCO, TINTA), "acao": (AMARELO, TINTA), "reacao": (VERDE, BRANCO),
            "escuro": (NOITE, BRANCO), "aviso": (VERMELHO, BRANCO), "codigo": (NOITE, AMARELO)}
 TAM = {"g": 48, "m": 40, "p": 34}
 ALTURA = {"g": 108, "m": 92, "p": 78}
@@ -280,7 +280,7 @@ def selo(c, nome, x, y, t0, t1=None, ok=True, r=46):
 def mais_um(c, nome, x, y, t, texto="+1", r=58, sobe=60):
     """O "+1" que pula e sobe quando um número aumenta, e some em 1,2 s."""
     filhos = [c.rect("fundo", -r, -r, 2 * r, 2 * r, VERDE, rx=r, stroke=BRANCO, sw=6),
-              c.texto("texto", texto, 0, linha_de_base(c, 56), 56, AMARELO, ancora="middle")]
+              c.texto("texto", texto, 0, linha_de_base(c, 56), 56, BRANCO, ancora="middle")]
     g = c.grupo(f"Mais um · {nome}", x, y, filhos)
     c.nos.append(g)
     c.trilha(g, "opacity", [(t - 0.01, 0, None), (t, 100, None), (t + 0.9, 100, None), (t + 1.2, 0, None)])

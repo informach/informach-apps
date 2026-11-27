@@ -220,3 +220,10 @@ O público é criança. A edição existe para a criança entender, então tudo 
 - **Destaque:** raios amarelos em volta do que acabou de acontecer; a etiqueta inclinada diz o quê.
 - **Sequência:** cada passo num quadradinho colorido com o desenho, ligados por uma trilha de pontinhos.
 - **Ponta do balão:** nasce do corpo com os lados curvos e se inclina para o personagem; nunca um triângulo reto saindo para fora.
+
+**Contraste do texto (Helena, 27/11/2026):** todo texto tem contraste de pelo menos 4,5 com o que está atrás dele (WCAG AA). Medido, não no olho:
+- O azul antigo do fundo (#6E9BFF) dava 2,4 com o branco: o fundo agora vai de #3D6BE1 a #3160D8 (4,8 a 5,5), com as ondas claras só no topo, acima dos títulos, e as nuvens longe dos textos.
+- Amarelo sobre o azul dava 1,4: a palavra-chave do título vai em tinta escura num marca-texto amarelo (10,5).
+- Amarelo sobre o verde dava 3,3: a reação, o "+1" e o "Achou!" vão em branco no verde (5,4).
+- Etiqueta sobre imagem clara (a capa) ganha um fundo escuro atrás.
+- O `validar_svg.py` mede o contraste de cada texto com o retângulo ou o fundo atrás dele e barra abaixo de 4,5.

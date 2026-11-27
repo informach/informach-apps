@@ -35,6 +35,8 @@ ARTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artes")
 MAOS = {"mao-indicador": ((238, 6), (296, 479)), "mao-baixo": ((222, 458), (380, 464)),
         "mao-esquerda": ((6, 158), (465, 380)), "mao-direita": ((458, 157), (465, 380))}
 AZUL_JOGO, TINTA, BRANCO, VERDE, AMARELO, NOITE = "#6E9BFF", "#0F1A33", "#FFFFFF", "#0B7A54", "#FFC02E", "#121A30"
+# O azul do fundo das cenas (o mais claro do degradê de artes/fundo-cena.png): branco sobre ele passa de 4,5.
+AZUL_FUNDO = "#3D6BE1"
 AREA_ESTUDIO, AREA_GAVETA = "#E7EDF5", "#EEF2F8"
 SUAVE = {"kind": "cubic-bezier", "points": [0.22, 1, 0.36, 1]}
 VAIVEM = {"kind": "cubic-bezier", "points": [0.42, 0, 0.58, 1]}
@@ -68,7 +70,13 @@ class Cena:
         self.cena["name"] = nome
         jogo = next(n for n in self.cena["scene"]["nodes"] if n["name"] == "Jogo")
         self.arte = {n["name"]: n for n in jogo["children"]}
-        self.nos = [self.rect("Fundo · Azul jogo", 0, 0, 1920, 1080, AZUL_JOGO)]
+        # O fundo com detalhes (artes/fundo-cena.png, de artes/fundo_cena.py): azul mais fundo que o antigo #6E9BFF,
+        # para o texto branco passar de 4,5 de contraste (Helena, 27/11/2026), com ondas, nuvens e brilhos nas bordas.
+        aid, fw, fh = self.imagem("fundo-cena")
+        self.nos = [self.rect("Fundo · Azul jogo", 0, 0, 1920, 1080, AZUL_FUNDO),
+                    {"id": nid(), "name": "Fundo · detalhes", "tag": "image", "assetId": aid,
+                     "attrs": {"x": "0", "y": "0", "width": "1920", "height": "1080"}, "text": "", "children": [],
+                     "transform": tf(), "visible": True, "locked": False}]
         self.trilhas = []
         self.pilula = self.rect("Título · fundo", 96, 60, 1170, 128, BRANCO, rx=36, op=0)
         self.nos.append(self.pilula)
