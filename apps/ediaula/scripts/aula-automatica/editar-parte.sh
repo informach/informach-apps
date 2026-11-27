@@ -63,31 +63,8 @@ fi
 # A primeira animação começa debaixo da capa: sem transição.
 PRIM=$(./comando.sh ia get_overview '{}' | grep -o "\[c[a-z0-9]\{8,\}\] Conceito · [^;]* 0:00\.[0-9]" | head -1 | grep -o "^\[c[a-z0-9]*" | tr -d '[' || true)
 if [ -n "$PRIM" ]; then ./comando.sh ia set_transition "{\"clip_ids\": [\"$PRIM\"], \"kind\": \"none\"}" | head -1; fi
-# O último vídeo da aula termina com a vinheta final (Helena, 27/11/2026): na faixa da tela, logo depois do último
-# clipe, com o som dela. O fim exato sai do projeto salvo (o resumo arredonda a 0,1 s, e a vinheta não cobre nada:
-# encostada num clipe que passa 0,03 s dela, iria para outra faixa).
-if [ "$(v ultimaDaAula)" = "True" ]; then
-  VIN="$(v vinhetaFinal)"
-  if [ -n "$VIN" ] && [ -f "$VIN" ]; then
-    ./comando.sh acao salvar.mjs >/dev/null
-    FIM=$(python -X utf8 -c "
-import json, sys
-d = json.load(open(sys.argv[1], encoding='utf8'))
-print(round(max(c['start'] + c['duration'] for c in d['clips']), 3))" "$C")
-    LV=$(TIMEOUT=300 ./comando.sh acao importar.mjs "{\"arquivos\": [\"$VIN\"]}" | python -X utf8 -c "import json,sys; r=json.load(sys.stdin)['result']; print('\n'.join(l for l in r.splitlines() if l.startswith('- [a')))")
-    VNOME="$(basename "${VIN%.*}")"
-    VID=$(echo "$LV" | grep -F "] $VNOME" | head -1 | grep -o "^- \[a[a-z0-9]*\]" | grep -o "a[a-z0-9]*")
-    O=$(./comando.sh ia get_overview '{}')
-    # A importação que já pôs a vinheta em algum lugar: sai, e ela entra no fim.
-    JA=$(echo "$O" | grep "^- \[t" | grep -o "\[c[a-z0-9]\{8,\}\] $VNOME [0-9]" | grep -o "c[a-z0-9]\{8,\}" | paste -sd, | sed 's/,/", "/g' || true)
-    if [ -n "$JA" ]; then ./comando.sh ia remove_clips "{\"clip_ids\": [\"$JA\"], \"revision\": $(rev)}" | head -1; fi
-    TELA=$(echo "$O" | grep "^- \[t" | grep "\] Tela " | head -1 | grep -o "^- \[t[a-z0-9]*\]" | grep -o "t[a-z0-9]*")
-    ./comando.sh ia add_clip "{\"media_id\": \"$VID\", \"track_id\": \"$TELA\", \"at\": $FIM}" | head -1
-    ./comando.sh acao salvar.mjs >/dev/null
-  else
-    echo "AVISO: esta é a última parte da aula, mas a vinheta final não foi achada (\"vinhetaFinal\" no config.json: $VIN)"
-  fi
-fi
+# O último vídeo da aula termina com a vinheta final (Helena, 27/11/2026): vinheta.sh, que só age na última parte.
+./vinheta.sh "$CURSO" "$AULA" "$N" "$C"
 TIMEOUT=600 ./comando.sh ia transcribe '{"language": "pt"}' | head -1
 ./parte.sh "$CURSO" "$AULA" "$N" revisao 2>&1 | tail -1
 sed -n '/Para revisão humana/,/Marcações/p' "$PASTA/edicao/relatorio.md"
