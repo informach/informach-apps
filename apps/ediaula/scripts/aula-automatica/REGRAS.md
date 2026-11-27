@@ -212,3 +212,11 @@ O público é criança. A edição existe para a criança entender, então tudo 
 - **Zappy nas cenas:** o mascote animado do Sistema Zero (feito no EdiSVG) entra nas animações. Em vez de um texto solto, o Zappy aparece com um balão de fala apontando para ele.
 
 **Balão de fala é o do EdiAula (Helena, 27/11/2026):** o balão do Zappy (e de qualquer personagem) usa o desenho já validado no EdiAula (`apps/ediaula/src/shared/annotation.ts`, `balloonPath`): corpo e ponta num traçado só, cantos de 30 px, sem contorno, sombra suave, texto em Nunito 800. A ponta é curta e larga e sai reta de baixo; o balão é que se posiciona para a ponta cair no personagem (na cabeça, sem cobrir a antena). Como é uma peça só, aparece e some inteira; nunca uma ponta desenhada à parte, que fica desalinhada e para no lugar quando o balão anima.
+
+**Fundo, textos e balão no jeito novo (Helena, 27/11/2026, a partir do guia do app Eureka, sem copiar o desenho):**
+- **Fundo com detalhes:** o Azul jogo nunca é chapado. Degradê leve, onda clara em cima e escura embaixo, nuvens, brilhos e raminhos só nas bordas, centro livre (`edicao/artes/fundo-cena.svg`, gerado por `edicao/artes/fundo_cena.py`; um curso pode trocar os raminhos pelo motivo dele).
+- **Título solto:** grande (Baloo 2, 92 px), branco com degrau de sombra, a palavra-chave em amarelo; sai a pílula branca.
+- **Texto em cartão:** cartão branco bem redondo com degrau, etiqueta colorida levemente inclinada em cima e o personagem saindo da moldura.
+- **Destaque:** raios amarelos em volta do que acabou de acontecer; a etiqueta inclinada diz o quê.
+- **Sequência:** cada passo num quadradinho colorido com o desenho, ligados por uma trilha de pontinhos.
+- **Ponta do balão:** nasce do corpo com os lados curvos e se inclina para o personagem; nunca um triângulo reto saindo para fora.
