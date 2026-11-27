@@ -183,6 +183,17 @@ for gi, g in enumerate(gestos):
             cmds[-1]["papel"] = "balao"
             cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
         continue
+    if re.match(r'^apontar\s*"', v):
+        # Uma coisa da interface que a fala nomeia ("Objetivo cumprido!", "Salvo", "Seu projeto no Estúdio"):
+        # zoom nela e a moldura amarela, na palavra (REGRAS.md, seção 10: toda coisa nomeada é mostrada).
+        if t0 >= 3.0:
+            alvo = regs_g[0]["alvo"] if regs_g else None
+            if not alvo and g.get("x") is not None:
+                alvo = [g["x"] - 90, g["y"] - 26, g["x"] + 90, g["y"] + 26]
+            if alvo:
+                zoom(t0 - 0.3, max(t1 + 1.2, ta + 2.2), alvo, f"zoom no que a fala nomeia ({v})")
+                destaque(ta, 2.2, alvo, f"moldura no que a fala nomeia ({v})", pad=12)
+        continue
     if g["tipo"] == "aponta" and FORA_DO_PALCO and g.get("x") is not None:
         # Gravação fora do palco (a área dos pais, sem os contornos que a ponte do palco registra):
         # apontar um campo ou uma opção, ou escrever num campo, amplia em volta do ponto da mão para

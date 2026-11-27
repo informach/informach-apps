@@ -36,9 +36,22 @@ from cade_jogo_cena import (  # noqa: E402
     toque,
     visibilidade,
 )
-from edisvg_cena import AMARELO, BRANCO, TINTA, VAIVEM, VERDE, Cena  # noqa: E402
+from edisvg_cena import AMARELO, BRANCO, TINTA, VAIVEM, VERDE, Cena, mao_toque  # noqa: E402
 from ilha_cena import mao, variavel  # noqa: E402
 from jardim_cena import caixa_em, vis, zappy  # noqa: E402
+from kit_cena import (  # noqa: E402
+    anotacao,
+    balao_fala,
+    icone,
+    largura_comum,
+    moldura,
+    raios,
+    rotulo,
+    selo,
+    titulo,
+    trilha,
+)
+from kit_cena import zappy as zappy_kit  # noqa: E402
 from tempos_da_voz import Voz  # noqa: E402
 
 AULA, PARTE = int(sys.argv[1]), int(sys.argv[2])
@@ -52,7 +65,7 @@ def cena(nome, comeco, final):
     global fim_anterior
     t0, t1 = voz.trecho(comeco, final, depois=fim_anterior)
     fim_anterior = t1
-    return Cena(f"Conceito · {nome}", t0, t1, BASE, BLOCOS, SAIDA), t0, t1
+    return Cena(f"Conceito · {nome}", t0, t1, BASE, BLOCOS, SAIDA, fundo="fundo-cade"), t0, t1
 
 
 def salvar(c, slug):
@@ -177,45 +190,64 @@ def a1p3():
 
 
 def a1p4():
+    """Cadê A1P4 no kit aprovado (27/11/2026): fundo do Cadê, título solto com marca-texto, o Zappy com o balão do
+    EdiAula, molduras e raios. Cada coisa entra na palavra que a fala diz."""
+    x0, y0 = centro(0)
+    # 1. Lembra da experiência: a mão toca o arbusto, ele some e o coelho aparece; ação e reação apontadas.
     c, t0, t1 = cena("Lembra da experiência", "Lembra da experiência da parte anterior", "esconderijos do seu jogo!")
     t_so = p("O toque só deixava", t0)
     t_inv = p("invisível", t_so)
     t_agora = p("Agora a gente vai fazer isso", t_inv)
-    c.ideia("Lembra?", t0 + 0.05, t_agora - 0.05, "o toque e a reação ligada a ele")
-    c.ideia("Agora no seu jogo", t_agora, t1, None)
-    jardim(c, t0, t1, toques=[(t_inv, 0)])
-    caixa_em(c, "Toque", "toque", 330, 1010, 300, t_so, t1, num=1)
-    caixa_em(c, "Invisível", "fica invisível", 850, 1010, 460, t_inv + 0.2, t1, fill=VERDE, cor=AMARELO, num=2)
-    ligacao(c, 480, 1010, 620, t_inv + 0.4, t1)
+    titulo(c, [("Lembra da ", False), ("experiência", True), ("?", False)], t0 + 0.05, t_agora - 0.05)
+    titulo(c, [("Agora no ", False), ("seu jogo", True)], t_agora, t1)
+    painel(c, t0, t1)
+    for k in range(3):
+        bicho(c, k, t0 + 0.05, t1)
+        esconderijo(c, k, t0 + 0.05, t_inv if k == 0 else None, t1)
+    mao_toque(c, [(t_inv - 0.25, x0, y0 + 30)], t_so, t_inv + 1.0)
+    larg = largura_comum(c, ["Ação: o toque", "Reação: sumir"])
+    anotacao(c, "Ação", "Ação: o toque", (x0 + 40, y0 + 120), t_so + 0.3, t1, estilo="acao", centro=(x0 + 400, y0 + 200),
+             largura=larg)
+    anotacao(c, "Reação", "Reação: sumir", (x0, y0 - 30), t_inv + 0.2, t1, estilo="reacao", centro=(x0 + 400, y0 - 220),
+             largura=larg)
     salvar(c, "lembra-da-experiencia")
 
+    # 2. Comandos: o Zappy explica no balão e o bloco de verdade aparece.
     c, t0, t1 = cena("Comandos", "Para fazer isso, a gente precisa dizer", "servem os comandos")
-    c.ideia("Comandos", t0 + 0.05, t1, "dizem ao jogo o que fazer")
-    caixa_em(c, "Comando", "comando = uma ordem", 660, 520, 620, t0 + 0.6, t1, fill=AMARELO, tam=48)
-    caixa_em(c, "Bloco", "aqui, cada comando é um bloco", 660, 680, 760, p("É para isso", t0), t1)
+    t_isso = p("É para isso", t0)
+    titulo(c, [("Os ", False), ("comandos", True)], t0 + 0.05, t1)
+    _, cabeca = zappy_kit(c, "zappy-falando", 130, 330, 540, t0 + 0.1, t1)
+    balao_fala(c, "Comando", "Comando é uma ordem para o jogo!", cabeca, t0 + 0.4, t1, tam=54, maxw=560)
+    g, _ = c.bloco("bloco-quando-tocar", 500, 760, 0.98)
+    c.mostra(g, t_isso, t1, pop=True)
     salvar(c, "comandos")
 
+    # 3. Quem percebe o toque, o sprite e o escolhido.
     c, t0, t1 = cena("Sprite e escolhido", "É ele que percebe", "esconderijo que você tocar.")
     t_sprite = p("Cada esconderijo é um sprite", t0)
     t_esc = p("E escolhido é o nome", t_sprite)
-    t_toca = t_esc + 0.3
-    c.ideia("Quem percebe o toque", t0 + 0.05, t_sprite - 0.05, None)
-    if tem_bloco("bloco-quando-tocar"):
-        g, _ = c.bloco("bloco-quando-tocar", 130, 420, 1.42)
-        vis(c, g, [(t0 + 0.1, t_sprite)])
-    c.ideia("Sprite", t_sprite, t_esc - 0.05, "um objeto do jogo")
-    c.ideia("Escolhido", t_esc, t1, "o esconderijo que você tocar")
-    jardim(c, t_sprite, t1, toques=[(t_toca, 1)], bichos=False)
+    titulo(c, [("Quem ", False), ("percebe", True), (" o toque", False)], t0 + 0.05, t_sprite - 0.05)
+    E, BX, BY = 1.4, 150, 420
+    g, _ = c.bloco("bloco-quando-tocar", BX, BY, E)
+    c.mostra(g, t0 + 0.1, t_sprite - 0.05)
+    moldura(c, "Quando tocar", BX + 2 * E, BY + 10 * E, BX + 382 * E, BY + 64 * E, t0 + 0.6, t_sprite - 0.05)
+    titulo(c, [("Cada esconderijo é um ", False), ("sprite", True)], t_sprite, t_esc - 0.05, tam=80)
+    painel(c, t_sprite, t1)
     for k in range(3):
+        esconderijo(c, k, t_sprite, None, t1)
         cx, cy = centro(k)
-        caixa_em(c, f"Sprite {k + 1}", "sprite", cx, cy + 190, 200, t_sprite + 0.3 + 0.3 * k, t_esc, tam=36)
-    cx, cy = centro(1)
-    caixa_em(c, "Escolhido", "escolhido", cx, cy - 150, 280, t_toca + 0.15, t1, fill=AMARELO, tam=40)
+        rotulo(c, f"Sprite {k + 1}", "Sprite", cx, cy - 175, t_sprite + 0.4 + 0.3 * k, t_esc - 0.05, tam="p")
+    titulo(c, [("O ", False), ("escolhido", True)], t_esc, t1)
+    x1, y1 = centro(1)
+    mao_toque(c, [(t_esc + 0.4, x1, y1 + 30)], t_esc, t_esc + 1.4)
+    raios(c, "Escolhido", x1, y1, 150, t_esc + 0.5, t1)
+    anotacao(c, "Escolhido", "escolhido", (x1, y1 - 120), t_esc + 0.6, t1, estilo="codigo", centro=(x1 + 340, y1 - 230))
     salvar(c, "sprite-e-escolhido")
 
+    # 4. Zero de visibilidade: o número desce de 100 a 0 e o coelho aparece.
     c, t0, t1 = cena("Zero de visibilidade", "Com zero de visibilidade, o esconderijo fica invisível", "que está atrás dele.")
     t_ver = p("e aí dá para ver", t0)
-    c.ideia("Visibilidade 0%", t0 + 0.05, t1, "o esconderijo fica invisível")
+    titulo(c, [("Zero", True), (" de visibilidade", False)], t0 + 0.05, t1)
     painel(c, t0, t1)
     bicho(c, 0, t0 + 0.05, t1)
     g = esconderijo(c, 0, t0 + 0.05, None, t1, trilha=False)
@@ -224,30 +256,53 @@ def a1p4():
     for k in (1, 2):
         bicho(c, k, t0 + 0.05, t1)
         esconderijo(c, k, t0 + 0.05, None, t1)
-    visibilidade(c, 660, 1010, t0 + 0.2, t1, [(t0 + 0.2, 100), (t0 + 1.3, 50), (t0 + 2.4, 0)])
-    caixa_em(c, "Atrás", "o coelho aparece", 380, 360 + 0, 420, t_ver, t1, fill=VERDE, cor=AMARELO, tam=38)
+    for valor, ta, tb in (("100%", t0 + 0.2, t0 + 1.3), ("50%", t0 + 1.3, t0 + 2.4), ("0%", t0 + 2.4, t1)):
+        rotulo(c, f"Visibilidade {valor}", valor, x0, y0 - 230, ta, tb, estilo="escuro", tam="g", largura=230)
+    bx, by = x0, y0 + 40
+    raios(c, "Coelho", bx, by, 110, t_ver, t1)
+    rotulo(c, "Apareceu", "Apareceu!", bx + 330, by - 250, t_ver + 0.3, t1, estilo="reacao")
     salvar(c, "zero-de-visibilidade")
 
+    # 5. Confira: cada parte do bloco ganha a moldura, e o item igual embaixo ganha o certo.
     c, t0, t1 = cena("Confira", "volte aos blocos e confira", "o número é 0.")
     t_dentro = p("o bloco está dentro", t0)
     t_sprite = p("o sprite é escolhido", t_dentro)
     t_num = p("o número é 0", t_sprite)
-    c.ideia("Confira", t0 + 0.05, t1, None)
-    if tem_bloco("bloco-montado-a1"):
-        g, _ = c.bloco("bloco-montado-a1", 130, 300, 1.3)
-        vis(c, g, [(t0 + 0.1, t1)])
-    for k, (t, texto) in enumerate(((t_dentro, "dentro de Quando clicar ou tocar"), (t_sprite, "o sprite é escolhido"),
-                                    (t_num, "o número é 0"))):
-        caixa_em(c, f"Item {k + 1}", texto, 640, 640 + 130 * k, 860, t, t1, num=k + 1, tam=38)
-        check(c, 1110, 640 + 130 * k, t + 0.4, t1)
+    titulo(c, [("Confira", True), (" os blocos", False)], t0 + 0.05, t1)
+    E, BX, BY = 1.4, 150, 380
+    g, _ = c.bloco("bloco-montado-a1", BX, BY, E)
+    c.mostra(g, t0 + 0.1, t1)
+    em = lambda px, py: (BX + px * E, BY + py * E)
+    itens = (("Dentro", "termo", t_dentro, em(66, 74), em(610, 144)),
+             ("escolhido", "codigo", t_sprite, em(214, 84), em(332, 132)),
+             ("0", "escuro", t_num, em(378, 86), em(440, 130)))
+    larg = largura_comum(c, [(t, e) for t, e, *_ in itens])
+    for k, (texto, estilo, t, a, b) in enumerate(itens):
+        moldura(c, texto, *a, *b, t, t1)
+        cx = 690 - (len(itens) * larg + (len(itens) - 1) * 80) / 2 + larg / 2 + k * (larg + 80)
+        rotulo(c, f"Item {texto}", texto, cx, 860, t, t1, estilo=estilo, largura=larg)
+        selo(c, f"Certo {texto}", cx + larg / 2 - 8, 812, t + 0.4, t1, r=36)
     salvar(c, "confira")
 
+    # 6. A primeira regra (o Zappy comemora, e a sequência da regra) e a surpresa que está chegando.
     c, t0, t1 = cena("A primeira regra", "Pronto, você já programou", "o que é.")
     t_lembra = p("E lembra da surpresa", t0)
-    c.ideia("A primeira regra", t0 + 0.05, t_lembra - 0.05, "o toque deixa o esconderijo invisível")
-    jardim(c, t0, t_lembra, toques=[(t0 + 0.6, 0), (t0 + 1.4, 1), (t0 + 2.2, 2)])
-    c.ideia("A surpresa está chegando", t_lembra, t1, "na próxima aula você descobre")
-    surpresa(c, t_lembra, t1)
+    titulo(c, [("A primeira ", False), ("regra", True)], t0 + 0.05, t_lembra - 0.05)
+    _, cabeca = zappy_kit(c, "zappy-celebrando", 110, 420, 460, t0 + 0.1, t_lembra - 0.05)
+    balao_fala(c, "Programou", "Você programou!", cabeca, t0 + 0.4, t_lembra - 0.05, tam=50, maxw=420)
+    passos = (("Toque", "mao-indicador", "#FFC02E", "#C98F00", 100, 120), ("Some", "arbusto", "#FFFFFF", "#B9C6D9", 30, 110),
+              ("Aparece", "coelho", "#0B7A54", "#075A3D", 100, 120))
+    for k, (nome, arte, cor, deg, op, alt) in enumerate(passos):
+        x = 560 + k * 250
+        icone(c, nome, x, 560, 190, cor, deg, arte, int(alt * 1.25), t0 + 0.8 + 0.4 * k, t_lembra - 0.05, op_arte=op)
+        rotulo(c, f"Passo {nome}", nome, x + 95, 840, t0 + 0.9 + 0.4 * k, t_lembra - 0.05, largura=210)
+    trilha(c, "Regra 1", (762, 655), (780, 615), (798, 655), t0 + 1.2, t_lembra - 0.05, n=3)
+    trilha(c, "Regra 2", (1012, 655), (1030, 615), (1048, 655), t0 + 1.6, t_lembra - 0.05, n=3)
+    titulo(c, [("A ", False), ("surpresa", True), (" está chegando", False)], t_lembra, t1)
+    _, cabeca = zappy_kit(c, "zappy-pensando", 130, 470, 400, t_lembra, t1)
+    balao_fala(c, "Surpresa", "Na próxima aula!", cabeca, t_lembra + 0.3, t1, tam=44, maxw=360)
+    presente(c, 940, 680, t_lembra + 0.2, t1)
+    raios(c, "Presente", 940, 680, 230, t_lembra + 0.6, t1)
     salvar(c, "a-primeira-regra")
 
 

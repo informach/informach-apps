@@ -127,7 +127,7 @@ def fundo_do_texto(item, itens):
         no = i["no"]
         if no.get("name", "").startswith("Fundo"):
             cor = AZUL_FUNDO if no.get("tag") == "image" else no.get("attrs", {}).get("fill", cor)
-        elif no.get("tag") == "rect" and no.get("attrs", {}).get("fill", "none") not in ("none", ""):
+        elif no.get("tag") in ("rect", "polygon") and no.get("attrs", {}).get("fill", "none") not in ("none", ""):
             cor = no["attrs"]["fill"]
         elif no.get("tag") == "image":
             cor = None
@@ -148,10 +148,21 @@ def desenho(f, d):
         for c in no.get("children", []):
             yield from textos(c)
 
+    def continua_frase(no):
+        """Texto que continua uma frase de um título em pedaços ou de um balão de várias linhas: não é começo."""
+        pai = lay.pais.get(no["id"])
+        if not pai or not pai.get("name", "").startswith(("Título", "Balão")):
+            return False
+        irmaos = [f for f in pai.get("children", []) if f.get("tag") == "text" and f.get("name") != "sombra"
+                  and not f.get("name", "").startswith("selo")]
+        return bool(irmaos) and irmaos[0] is not no
+
     for raiz in lay.nos:
         for no in textos(raiz):
             t = no.get("text", "")
             letra = next((ch for ch in t if ch.isalpha()), "")
+            if no.get("name") == "sombra" or continua_frase(no):
+                continue
             if letra.islower() and not e_codigo(no, lay):
                 prob(("min", no["id"]), 0, f'"{t}" começa com minúscula ({nome_de(no, lay)})')
             fam = no.get("attrs", {}).get("font-family", "")
@@ -168,8 +179,8 @@ def desenho(f, d):
         t = q / FPS
         itens = lay.quadro(q)
         conteudo = [i for i in itens if not e_fundo_ou_titulo(i["no"], lay)]
-        txts = [i for i in conteudo if i["no"].get("tag") == "text" and i["op"] > 0.5]
-        todos_txts = [i for i in itens if i["no"].get("tag") == "text" and i["op"] > 0.5]
+        txts = [i for i in conteudo if i["no"].get("tag") == "text" and i["op"] > 0.5 and i["no"].get("name") != "sombra"]
+        todos_txts = [i for i in itens if i["no"].get("tag") == "text" and i["op"] > 0.5 and i["no"].get("name") != "sombra"]
         for i in todos_txts:
             fundo = fundo_do_texto(i, itens)
             cr = contraste(i["no"]["attrs"].get("fill", "#000000"), fundo) if fundo else None
@@ -238,7 +249,8 @@ def desenho(f, d):
             area = len(cob) * cel * cel / ((ax1 - ax0) * (ay1 - ay0))
             if area > area_max:
                 area_max, t_max = area, t
-    if area_max < 0.30:
+    # A abertura tem a capa do curso inteira no fundo: não está vazia.
+    if area_max < 0.30 and not d.get("name", "").startswith("Capa"):
         prob(("vazio",), t_max, f"quadro vazio: no momento mais cheio o conteúdo cobre {area_max:.0%} da área livre "
                                 "(mínimo 30 %); use figuras grandes")
     # Cena parada.

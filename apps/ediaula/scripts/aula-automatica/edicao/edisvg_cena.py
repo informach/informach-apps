@@ -55,7 +55,7 @@ def tf(x=0, y=0, op=100, s=1):
 
 
 class Cena:
-    def __init__(self, nome, ini, fim, base, blocos, saida):
+    def __init__(self, nome, ini, fim, base, blocos, saida, fundo="fundo-cena"):
         """base: .edisvg do curso (fontes da aula e as artes do jogo numa cena "Jogo"); blocos: pasta dos PNG
         recortados da gravação (recortar.sh); saida: pasta onde o .edisvg é salvo. ini/fim em segundos da aula."""
         self.nome, self.ini, self.fim = nome, ini, fim
@@ -72,7 +72,8 @@ class Cena:
         self.arte = {n["name"]: n for n in jogo["children"]}
         # O fundo com detalhes (artes/fundo-cena.png, de artes/fundo_cena.py): azul mais fundo que o antigo #6E9BFF,
         # para o texto branco passar de 4,5 de contraste (Helena, 27/11/2026), com ondas, nuvens e brilhos nas bordas.
-        aid, fw, fh = self.imagem("fundo-cena")
+        # Um fundo por curso (artes/fundos_cursos.py): fundo="fundo-cade", "fundo-farol", ...
+        aid, fw, fh = self.imagem(fundo)
         self.nos = [self.rect("Fundo · Azul jogo", 0, 0, 1920, 1080, AZUL_FUNDO),
                     {"id": nid(), "name": "Fundo · detalhes", "tag": "image", "assetId": aid,
                      "attrs": {"x": "0", "y": "0", "width": "1920", "height": "1080"}, "text": "", "children": [],
@@ -346,10 +347,11 @@ def mao_toque(c, toques, t0, t1, altura=220, nome="Mão"):
            "attrs": {"x": "0", "y": "0", "width": str(w), "height": str(h)},
            "text": "", "children": [], "transform": tf(-px, -py), "visible": True, "locked": False}
     t_1, x_1, y_1 = toques[0]
-    g = c.grupo(nome, x_1 + 40, y_1 + altura, [img], op=0, s=s)
+    # Entra de um pouco abaixo do primeiro ponto (sem sair da tela) com fade.
+    g = c.grupo(nome, x_1 + 30, y_1 + 70, [img], op=0, s=s)
     c.nos.append(g)
     c.trilha(g, "opacity", [(t0, 0, None), (t0 + 0.25, 100, None), (t1 - 0.25, 100, None), (t1, 0, None)])
-    xs, ys, ss = [(t0, x_1 + 40, SUAVE)], [(t0, y_1 + altura, SUAVE)], [(t0, s, None)]
+    xs, ys, ss = [(t0, x_1 + 30, SUAVE)], [(t0, y_1 + 70, SUAVE)], [(t0, s, None)]
     for k, (t, x, y) in enumerate(toques):
         # Chega um pouco acima do ponto, desce e aperta (encolhe 6 %), e volta a subir 30 px.
         chega = max(t - 0.35, (toques[k - 1][0] + 0.3) if k else t0 + 0.2)

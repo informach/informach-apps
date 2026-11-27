@@ -28,7 +28,7 @@ from dataclasses import dataclass
 
 from PIL import ImageFont
 
-from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VAIVEM, VERDE
+from edisvg_cena import AMARELO, BRANCO, NOITE, SUAVE, TINTA, VAIVEM, VERDE, nid, tf
 
 VERMELHO = "#E5484D"
 ESTILOS = {"termo": (BRANCO, TINTA), "acao": (AMARELO, TINTA), "reacao": (VERDE, BRANCO),
@@ -227,14 +227,14 @@ def _borda(p, para):
 
 
 def anotacao(c, nome, texto, alvo, t0, t1=None, lado="cima", dist=230, estilo="acao", tam="m", anel_r=None,
-             centro=None):
+             centro=None, largura=None):
     """Rótulo a `dist` px do alvo, do `lado` escolhido, com a seta até o alvo e, com anel_r, o anel nele.
     centro=(x, y) põe o rótulo num lugar exato (para alinhar duas anotações pela mesma linha ou coluna).
     Devolve (rótulo, seta, anel)."""
     ux, uy = DIRECOES[lado]
     ax, ay = alvo
     cx, cy = centro or (ax + ux * dist, ay + uy * dist)
-    rot = rotulo(c, nome, texto, cx, cy, t0, t1, estilo=estilo, tam=tam)
+    rot = rotulo(c, nome, texto, cx, cy, t0, t1, estilo=estilo, tam=tam, largura=largura)
     de = _borda(rot, alvo)
     folga = (anel_r + 16) if anel_r else 20
     n = math.hypot(ax - de[0], ay - de[1]) or 1
@@ -305,3 +305,187 @@ def encaixar(c, g, de, para, t, dur=0.6):
     c.trilha(g, "x", [(t, de[0], SUAVE), (t + dur, para[0], None)])
     c.trilha(g, "y", [(t, de[1], SUAVE), (t + dur, para[1] - 10, VAIVEM), (t + dur + 0.15, para[1], None)])
     g["transform"]["x"], g["transform"]["y"] = para
+
+
+# ── Peças aprovadas no canvas do kit (27/11/2026): título solto, Zappy com balão, cartão, raios, trilha, ícones ──
+
+
+def titulo(c, partes, t0, t1, sub=None, t_sub=None, tam=92, x=96, y=148):
+    """O título solto (sem a pílula): branco com degrau de sombra, e as palavras-chave em tinta escura num
+    marca-texto amarelo levemente inclinado. partes: [("A ", False), ("ação", True), ...]. sub: o subtítulo."""
+    if c.pilula in c.nos:
+        c.nos.remove(c.pilula)
+        c.trilhas = [t for t in c.trilhas if t["targetId"] != c.pilula["id"]]
+    filhos, cx = [], 0.0
+    for texto, marca in partes:
+        w = medir(c, texto, tam)
+        if marca:
+            # O marca-texto começa depois do espaço do pedaço anterior e o texto entra com o respiro dele dentro.
+            pad = tam * 0.16
+            degrau = c.rect("degrau", cx, -tam * 0.78 + 6, w + 2 * pad, tam * 1.02, AMARELO_DEGRAU, rx=tam * 0.18)
+            fundo = c.rect("marca", cx, -tam * 0.78, w + 2 * pad, tam * 1.02, AMARELO, rx=tam * 0.18)
+            for r in (degrau, fundo):
+                r["transform"]["rotation"] = -2
+            filhos += [degrau, fundo, c.texto("texto", texto, cx + pad, 0, tam, TINTA)]
+            cx += w + 2 * pad + tam * 0.06
+        else:
+            filhos += [c.texto("sombra", texto, cx, 6, tam, "#0A1432", op=30), c.texto("texto", texto, cx, 0, tam, BRANCO)]
+            cx += w
+    g = c.grupo("Título", x, y, filhos)
+    c.nos.append(g)
+    c.mostra(g, t0, t1, sobe=12)
+    if sub:
+        s = c.texto("Subtítulo", sub, x + 4, y + 82, 42, BRANCO, familia="Nunito", peso=700, op=0)
+        c.nos.append(s)
+        c.mostra(s, t_sub or t0, t1, sobe=10)
+    return g
+
+
+def _q(p0, p1, p2, n=6):
+    return [((1 - u) ** 2 * p0[0] + 2 * (1 - u) * u * p1[0] + u * u * p2[0],
+             (1 - u) ** 2 * p0[1] + 2 * (1 - u) * u * p1[1] + u * u * p2[1]) for u in (k / n for k in range(1, n + 1))]
+
+
+def _cb(p0, p1, p2, p3, n=10):
+    return [((1 - u) ** 3 * p0[0] + 3 * (1 - u) ** 2 * u * p1[0] + 3 * (1 - u) * u * u * p2[0] + u ** 3 * p3[0],
+             (1 - u) ** 3 * p0[1] + 3 * (1 - u) ** 2 * u * p1[1] + 3 * (1 - u) * u * u * p2[1] + u ** 3 * p3[1])
+            for u in (k / n for k in range(1, n + 1))]
+
+
+def _contorno_balao(w, h, along=0.16, curta=38, base=26, inclina=-22, r=30):
+    """O balão do EdiAula (shared/annotation.ts balloonPath), com a ponta curva e inclinada aprovada no canvas, como
+    polígono em volta de (0, 0) = canto de cima à esquerda do corpo. Devolve (pontos, ponta)."""
+    r = min(r, w / 4, h / 4)
+    tx, ty = w * along, h + curta
+    bx = tx - inclina
+    pts = [(r, 0), (w - r, 0)] + _q((w - r, 0), (w, 0), (w, r)) + [(w, h - r)] + _q((w, h - r), (w, h), (w - r, h))
+    pts += [(bx + base + 10, h)]
+    pts += _cb((bx + base + 10, h), (bx + base * 0.55, h), (tx + inclina * 0.15 + 6, ty - curta * 0.45), (tx, ty))
+    pts += _cb((tx, ty), (tx - 2, ty - curta * 0.55), (bx - base * 0.7, h + 2), (bx - base - 6, h))
+    pts += [(r, h)] + _q((r, h), (0, h), (0, h - r)) + [(0, r)] + _q((0, r), (0, 0), (r, 0))
+    return [(round(x, 1), round(y, 1)) for x, y in pts], (tx, ty)
+
+
+def balao_fala(c, nome, texto, ponta, t0, t1=None, tam=40, maxw=380, fill=BRANCO, cor=TINTA, along=0.16):
+    """O balão de fala do EdiAula, corpo e ponta numa peça só (nunca um triângulo à parte), posto para a ponta cair
+    em `ponta` (a cabeça do personagem). Entra inteiro com um pulinho a partir da ponta."""
+    _maiuscula(texto, "termo")
+    f = _fonte(c, "Nunito", 800, tam)
+    linhas, atual = [], ""
+    for pal in texto.split():
+        tt = (atual + " " + pal).strip()
+        if f.getlength(tt) <= maxw or not atual:
+            atual = tt
+        else:
+            linhas.append(atual)
+            atual = pal
+    linhas.append(atual)
+    larg = max(f.getlength(lin) for lin in linhas)
+    lh = round(tam * 1.2)
+    w, h = round(larg + 60), round(len(linhas) * lh + 40)
+    pts, (tx, ty) = _contorno_balao(w, h, along=along)
+    sombra = c.poly("sombra", [(x - tx, y - ty + 5) for x, y in pts], "#0A1432")
+    sombra["transform"]["opacity"] = 22
+    filhos = [sombra, c.poly("fundo", [(x - tx, y - ty) for x, y in pts], fill)]
+    base = linha_de_base(c, tam, "Nunito", 800)
+    for k, lin in enumerate(linhas):
+        filhos.append(c.texto("texto", lin, w / 2 - tx, 20 + lh * (k + 0.5) + base - ty, tam, cor,
+                              familia="Nunito", ancora="middle"))
+    g = c.grupo(f"Balão · {nome}", ponta[0], ponta[1], filhos)
+    c.nos.append(g)
+    c.mostra(g, t0, t1, pop=True)
+    return g
+
+
+# Onde fica o lado de cima da cabeça, em fração do PNG recortado: a ponta do balão cai aí, sem cobrir a antena.
+ZAPPY_CABECA = {"zappy-falando": (0.8, 0.3), "zappy-pensando": (0.8, 0.28), "zappy-celebrando": (0.82, 0.3),
+                "zappy-saudacao": (0.82, 0.3), "zappy-alivio": (0.8, 0.3)}
+
+
+def zappy(c, pose, x, y, altura, t0, t1=None, voa=True):
+    """O Zappy (as poses do EdiSVG do Sistema Zero, em artes/) com o canto de cima à esquerda em (x, y), `altura` px.
+    Voa de leve para cima e para baixo. Devolve (grupo, ponto ao lado da cabeça para a ponta do balão)."""
+    aid, w, h = c.imagem(pose)
+    s = altura / h
+    img = {"id": nid(), "name": pose, "tag": "image", "assetId": aid,
+           "attrs": {"x": "0", "y": "0", "width": str(w), "height": str(h)}, "text": "", "children": [],
+           "transform": tf(), "visible": True, "locked": False}
+    g = c.grupo(f"Zappy · {pose}", x, y, [img], op=0, s=s)
+    c.nos.append(g)
+    c.mostra(g, t0, t1)
+    if voa:
+        ch, t = [], t0
+        fim = t1 or (t0 + 8)
+        while t + 2.6 < fim:
+            ch += [(t, y, VAIVEM), (t + 1.3, y - 12, VAIVEM)]
+            t += 2.6
+        ch.append((fim, y, None))
+        c.trilha(g, "y", ch)
+    fx, fy = ZAPPY_CABECA.get(pose, (0.8, 0.3))
+    return g, (round(x + w * s * fx + 16), round(y + h * s * fy))
+
+
+def cartao_texto(c, nome, x, y, w, h, linha1, linha2=None, etiqueta=None, t0=0, t1=None):
+    """Texto num cartão branco bem redondo com degrau, e uma etiqueta amarela inclinada em cima (opcional)."""
+    _maiuscula(linha1, "termo")
+    filhos = [c.rect("degrau", 0, 8, w, h, "#B9C6D9", rx=40), c.rect("fundo", 0, 0, w, h, BRANCO, rx=40),
+              c.texto("texto", linha1, 48, 108, 58, "#1B5CF3")]
+    if linha2:
+        filhos.append(c.texto("texto2", linha2, 48, 170, 34, TINTA, familia="Nunito"))
+    g = c.grupo(f"Cartão · {nome}", x, y, filhos)
+    c.nos.append(g)
+    c.mostra(g, t0, t1, sobe=20)
+    if etiqueta:
+        _maiuscula(etiqueta, "termo")
+        ew = medir(c, etiqueta, 30) + 56
+        e = c.grupo(f"Etiqueta · {nome}", x + 28, y - 30, [
+            c.rect("degrau", 0, 5, ew, 58, AMARELO_DEGRAU, rx=29), c.rect("fundo", 0, 0, ew, 58, AMARELO, rx=29),
+            c.texto("texto", etiqueta, ew / 2, 29 + linha_de_base(c, 30), 30, TINTA, ancora="middle")])
+        e["transform"]["rotation"] = -5
+        c.nos.append(e)
+        c.mostra(e, t0 + 0.25, t1, pop=True)
+    return Peca(g, x, y, x + w, y + h)
+
+
+def raios(c, nome, cx, cy, r, t0, t1=None, cor=AMARELO, n=12, comp=34, esp=12):
+    """Raios em volta do que acabou de acontecer: entram crescendo e pulsam de leve."""
+    filhos = []
+    for k in range(n):
+        barra = c.rect("raio", r, -esp / 2, comp, esp, cor, rx=esp / 2)
+        g = c.grupo("raio", 0, 0, [barra], op=100)
+        g["transform"]["rotation"] = round(360 * k / n, 2)
+        filhos.append(g)
+    g = c.grupo(f"Raios · {nome}", cx, cy, filhos)
+    c.nos.append(g)
+    c.mostra(g, t0, t1)
+    ch = [(t0, 0.6, SUAVE), (t0 + 0.35, 1.08, VAIVEM), (t0 + 0.55, 1.0, None)]
+    t = t0 + 1.0
+    fim = t1 or (t0 + 4)
+    while t + 0.8 < fim:
+        ch += [(t, 1.0, VAIVEM), (t + 0.4, 1.06, VAIVEM), (t + 0.8, 1.0, None)]
+        t += 1.2
+    c.trilha(g, "sx", ch)
+    c.trilha(g, "sy", ch)
+    return g
+
+
+def icone(c, nome, x, y, tam, cor, degrau, arte, arte_alt, t0, t1=None, op_arte=100):
+    """Um passo num quadradinho colorido com o desenho dentro (arte: PNG da pasta de blocos ou de artes)."""
+    aid, w, h = c.imagem(arte)
+    s = arte_alt / h
+    img = {"id": nid(), "name": arte, "tag": "image", "assetId": aid,
+           "attrs": {"x": "0", "y": "0", "width": str(w), "height": str(h)}, "text": "", "children": [],
+           "transform": tf((tam - w * s) / 2, (tam - h * s) / 2, op_arte, s), "visible": True, "locked": False}
+    g = c.grupo(f"Ícone · {nome}", x, y, [c.rect("degrau", 0, 7, tam, tam, degrau, rx=tam * 0.21),
+                                          c.rect("fundo", 0, 0, tam, tam, cor, rx=tam * 0.21), img])
+    c.nos.append(g)
+    c.mostra(g, t0, t1, pop=True)
+    return Peca(g, x, y, x + tam, y + tam)
+
+
+def trilha(c, nome, p0, p1, p2, t0, t1=None, n=9, r=6):
+    """Uma trilha de pontinhos brancos numa curva de p0 a p2 (p1 puxa a curva), que aparecem um a um."""
+    for k, (x, y) in enumerate([p0] + _q(p0, p1, p2, n)):
+        d = c.rect(f"Trilha · {nome} {k + 1}", x - r, y - r, 2 * r, 2 * r, BRANCO, rx=r, op=0)
+        c.nos.append(d)
+        c.mostra(d, t0 + 0.05 * k, t1)

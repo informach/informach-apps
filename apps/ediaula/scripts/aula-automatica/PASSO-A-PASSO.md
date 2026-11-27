@@ -234,3 +234,13 @@ O pacote sai em `Parte N - Edição automática.zip`, e o anterior vai para `Ver
   - Etapa 4: produção.
 
   Só quando ela pedir. O adulto e a produção vêm só depois de o Kids de staging estar todo conferido.
+
+## Edição com o kit aprovado (27/11/2026)
+
+O kit das animações foi aprovado no canvas (https://claude.ai/artifact/66TaKzk6pmBVA1HAjKa1mH). Toda parte reeditada usa:
+
+- **Cenas** feitas com `edicao/kit_cena.py`: `titulo` (solto, com marca-texto), `zappy` + `balao_fala` (o balão do EdiAula), `cartao_texto`, `anotacao`, `moldura`, `anel`, `raios`, `icone`, `trilha`, `selo`, `mais_um` e a mão `edisvg_cena.mao_toque`. O fundo é o do curso: `Cena(..., fundo="fundo-cade")` (ver `edicao/artes/fundos_cursos.py`).
+- **Abertura**: `edicao/capa_kit.py` gera `pecas/capa-abertura.edisvg` com a capa do curso (`edicao/artes/capa-<curso>.png`), o cartão verde com o título e o personagem chamando no balão; o `pecas.py` põe no lugar do template.
+- **Tela gravada**: quando a fala nomeia uma coisa da interface, o roteiro aponta (`[apontar "Salvo"]`) e o `montar.py` dá zoom e a moldura amarela na palavra.
+- **Um comando**: `./editar-kit.sh <curso> <aula> <parte> <script das cenas> <arte da capa> "<fala da abertura>"` gera as cenas e a abertura, valida (o validador barra desenho e contraste) e edita.
+- **Regravar só a tela** quando a ação precisa mudar de lugar (o Expandir na frente da criança): roteiro local com o Na tela novo (`roteiroLocal` no config), renomear o projeto antigo para "(tomada de <data>)" e `./gravar-aula.sh <curso> <aula> <parte>`. A voz e o HeyGen continuam os mesmos.

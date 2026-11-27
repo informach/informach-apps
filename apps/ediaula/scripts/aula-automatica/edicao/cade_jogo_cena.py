@@ -138,7 +138,9 @@ def presente(c, cx, cy, t0, t1, abre=None, s=1.0):
     """O presente da surpresa: caixa roxa com laço amarelo e um ponto de interrogação; abre=t levanta a tampa."""
     roxo, roxo2 = "#6D3BF5", "#5326D6"
     caixa = [c.rect("caixa", -150, -40, 300, 220, roxo, rx=22), c.rect("fita", -26, -40, 52, 220, AMARELO),
-             c.texto("interrogação", "?", 0, 120, 150, BRANCO, ancora="middle")]
+             # O "?" num círculo branco: branco sobre a fita amarela dava 1,6 de contraste (27/11/2026).
+             c.rect("fundo", -74, -6, 148, 148, BRANCO, rx=74),
+             c.texto("interrogação", "?", 0, 120, 150, roxo, ancora="middle")]
     g = c.grupo("Presente", cx, cy, caixa, op=0, s=s)
     c.nos.append(g)
     c.mostra(g, t0, t1, pop=True)
