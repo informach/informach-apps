@@ -96,10 +96,17 @@ def com_apresentadora(ini, fim):
     return any(a < fim and ini < b for a, b in PRES)
 
 
+def cabe_no_zoom(caixa, s=1.15, margem=60):
+    """O que é mostrado cabe no quadro ampliado (a menor ampliação é 1,15x)? Dois botões em cantos opostos (Voltar à
+    aula no alto e Próxima parte embaixo, Cadê A1P3, 28/11/2026) não cabem: com zoom, as molduras saíam da tela."""
+    x0, y0, x1, y1 = caixa
+    return (x1 - x0) + 2 * margem <= W / s and (y1 - y0) + 2 * margem <= H / s
+
+
 def zoom(ini, fim, caixa, nota, maxs=1.6):
     x0, y0, x1, y1 = caixa
-    if (x1 - x0) * (y1 - y0) > 0.45 * W * H:
-        return  # a professora mostra a tela inteira: sem zoom
+    if (x1 - x0) * (y1 - y0) > 0.45 * W * H or not cabe_no_zoom(caixa):
+        return False  # a professora mostra a tela inteira, ou o que é mostrado não cabe ampliado: sem zoom
     # Região livre: a tela inteira, ou só à esquerda da apresentadora quando ela está à vista.
     rx0, rx1 = (40, AREA_AP) if com_apresentadora(ini, fim) else (40, W - 40)
     w, h = max(x1 - x0, 80) * 1.25, max(y1 - y0, 60) * 1.3
@@ -114,6 +121,7 @@ def zoom(ini, fim, caixa, nota, maxs=1.6):
         CONFLITO.append([ini, fim])  # não cabe à esquerda dela: ela sai nesse trecho
     add("add_zoom", {"at": round(ini, 2), "duration": round(max(1.5, fim - ini), 2), "scale": s,
                      "x": round(cxp / W, 4), "y": round(cyp / H, 4), "ease": EASE, "track_id": "$ZOOM"}, nota)
+    return True
 
 
 def destaque(t, dur, caixa, nota, pad=10, cor=AMARELO, escurecer=False, alvo=None):
@@ -208,7 +216,7 @@ for gi, g in enumerate(gestos):
             if grupos_c and ck["t"] - grupos_c[-1][-1]["t"] < 2.5:
                 u = [min(c_["alvo"][0] for c_ in grupos_c[-1] + [ck]), min(c_["alvo"][1] for c_ in grupos_c[-1] + [ck]),
                      max(c_["alvo"][2] for c_ in grupos_c[-1] + [ck]), max(c_["alvo"][3] for c_ in grupos_c[-1] + [ck])]
-                if (u[2] - u[0]) * (u[3] - u[1]) <= 0.4 * W * H:
+                if (u[2] - u[0]) * (u[3] - u[1]) <= 0.4 * W * H and cabe_no_zoom(u):
                     grupos_c[-1].append(ck)
                     continue
             grupos_c.append([ck])
@@ -233,9 +241,10 @@ for gi, g in enumerate(gestos):
                 prox_grupo = grupos_c[gi_c + 1][0]["t"] - 1.0 if gi_c + 1 < len(grupos_c) else fim
                 fim = min(fim, max(t_fim + 0.5, prox_grupo))
                 fechando = fim
-            else:
-                zoom(ini, fim, uniao, f"zoom no botão ({v})")
+            elif zoom(ini, fim, uniao, f"zoom no botão ({v})"):
                 fechando = fim - EASE
+            else:
+                fechando = fim  # não coube ampliado: só as marcações, na tela inteira
             LIVRE[0] = max(LIVRE[0], fim)
             # As marcações são uma de cada vez (a faixa das marcações): para cada clique, primeiro a moldura sozinha,
             # mostrando onde fica (pelo menos 0,6 s), e o balão com o nome logo antes do clique; a marcação seguinte
@@ -247,12 +256,14 @@ for gi, g in enumerate(gestos):
                     inicio = max(inicio + 0.6, tk - 1.2)
                 if inicio > fechando - 0.5:
                     break  # a animação seguinte já entra: sem lugar para a marcação
-                destaque(inicio, 1.5, alvo, f"moldura no botão ({v})", pad=10, alvo=f"botão {v} {k}")
-                if ck.get("balao") and tk <= fechando - 0.2:
+                destaque(inicio, 1.5, alvo, f"moldura no botão ({v})", pad=10, alvo=f"botão {v} {tk:.2f}")  # o instante: dois grupos do mesmo gesto não viram "o mesmo bloco"
+                at_b = max(inicio + 0.55, tk - 0.6)
+                # O balão entra antes do clique: basta caber 0,5 s antes de o zoom fechar. Antes pedia o clique 0,2 s
+                # antes disso, e o Baixar logo antes da cena Guardar ficava sem balão (Cadê A1P2, 28/11/2026).
+                if ck.get("balao") and at_b + 0.5 <= fechando:
                     bx, by = centro(alvo)
                     # O balão entra antes do clique e sai logo depois dele (0,5 s): depois do clique a tela muda (o
                     # Estúdio expande, a janela de confirmação abre) e o balão ficava apontando para o nada.
-                    at_b = max(inicio + 0.55, tk - 0.6)
                     tem_prox = k + 1 < len(grp)
                     fim_b = min(tk + 0.5, fechando, max(at_b + 0.6, grp[k + 1]["t"] - 1.2) if tem_prox else 1e9)
                     # Nunito 28 (pedido dela, 22/11/2026). O lugar e a ponta saem no fim, depois do zoom e de caber
@@ -263,6 +274,9 @@ for gi, g in enumerate(gestos):
                                            "font": FONTE_BALAO, "font_size": TAMANHO_BALAO}, f"balão ({v})")
                     cmds[-1]["papel"] = "balao"
                     cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
+                    # Onde o cursor clicou, na tela sem o zoom: a ponta do balão cai nele (o EdiAula conta o zoom).
+                    px_, py_ = (ck["x"] / W, ck["y"] / H) if ck.get("x") is not None else (bx, by)
+                    cmds[-1]["alvo_tela"] = {"x": round(px_, 4), "y": round(py_, 4)}
                     inicio = fim_b - 0.6
                     marca_livre = fim_b
         continue
@@ -303,7 +317,11 @@ for gi, g in enumerate(gestos):
             if uniao[3] - uniao[1] <= 0.4 * H and uniao[2] - uniao[0] <= 0.5 * W:
                 zoom(t0 - 0.3, max(ultimo["fim"] + 1.2, ultimo["acao"] + 2.2), uniao, f"zoom no que a fala nomeia ({v})")
                 for gx, alvo in alvos:
-                    destaque(gx["acao"], 2.2, alvo, f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
+                    # Na fala que nomeia (o gesto começa na palavra), assim que o zoom abre; o fim da mão gravada
+                    # chegava 0,5 s depois da palavra ("repare no número Achados", Cadê A1P1, 28/11/2026).
+                    na_palavra = min(gx["acao"], max(gx["ini"] + 0.35, t0 - 0.3 + EASE + 0.05))
+                    destaque(na_palavra, 2.2 + gx["acao"] - na_palavra, alvo,
+                             f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
             else:
                 # Longe uma da outra: um zoom em cada, em sequência, e a moldura de cada uma dentro do seu zoom
                 # (sem zoom o texto ficava pequeno demais para a criança ler).
@@ -312,7 +330,8 @@ for gi, g in enumerate(gestos):
                     prox = alvos[k + 1][0] if k + 1 < len(alvos) else None
                     fim = prox["acao"] - 0.45 if prox else max(gx["fim"] + 1.2, gx["acao"] + 2.2, ini + ZOOM_CURTO + 0.2)
                     zoom(ini, fim, alvo, f"zoom no que a fala nomeia ({gx['verbo']})")
-                    destaque(gx["acao"], max(1.2, min(2.2, fim - gx["acao"] - 0.2)), alvo,
+                    na_palavra = min(gx["acao"], max(gx["ini"] + 0.35, ini + EASE + 0.05))
+                    destaque(na_palavra, max(1.2, min(2.2 + gx["acao"] - na_palavra, fim - na_palavra - 0.2)), alvo,
                              f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
                     ini = fim
         continue
@@ -687,6 +706,12 @@ for c in MARCA:
     if alvo:
         vertical = "top-" if ty < i["y"] - hh * 0.6 else "bottom-" if ty > i["y"] + hh * 0.6 else ""
         i["tail"] = vertical + ("right" if tx > i["x"] else "left")
+    if c.get("alvo_tela"):
+        # A ponta no ponto do clique (o canto do rabo só chegava perto: ficava a uns 115 px do botão, e a
+        # verificação antes de exportar pedia "Apontar para o clique" em toda parte, 28/11/2026). O corpo fica
+        # onde foi posto acima; o rabo sai do lado virado para o botão.
+        i["target"] = c["alvo_tela"]
+        i.pop("tail", None)
 
 # Mesmo bloco destacado de novo em menos de 2 s: estende o anterior em vez de repetir.
 repetidos = []

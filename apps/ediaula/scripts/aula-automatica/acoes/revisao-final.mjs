@@ -181,7 +181,11 @@ export default async function revisaoFinal(ctx) {
         revisar.push(
           `${a.name}: o render do EdiSVG ainda não chegou (abra o condutor do EdiSVG e salve a peça)`,
         );
-    } else if (PECA.test(basename(a.path ?? "")) || PECA.test(a.name)) {
+    } else if (
+      (PECA.test(basename(a.path ?? "")) || PECA.test(a.name)) &&
+      // A cena com um vídeo de verdade (edicao/cena_video.py) é um MP4 de propósito: o EdiSVG não guarda vídeo.
+      !(/^conceito-\d+-/i.test(basename(a.path ?? "")) && /\.mp4$/i.test(a.path ?? ""))
+    ) {
       revisar.push(
         `${a.name}: peça sem vínculo (imagem ou vídeo achatado); ponha o .edisvg vinculado no lugar`,
       );

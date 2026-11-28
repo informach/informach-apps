@@ -210,7 +210,7 @@ def a1p3():
     numero += 1
     video = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "artes", "videos",
                          "cocegas-acao-e-reacao.mp4")
-    video_conceito("Cócegas", "cocegas", t0, round(t_cocega - 0.08, 2), video, BASE, BLOCOS, SAIDA, numero,
+    video_conceito("Cócegas", "cocegas", t0, round(t_cocega, 2), video, BASE, BLOCOS, SAIDA, numero,
                    titulos=[([("As ", False), ("cócegas", True)], p("cócegas", t0)),
                             ([("Não para de ", False), ("rir", True)], p("parar de rir", t0))])
     fim_anterior = t_cocega - 0.08
@@ -272,6 +272,13 @@ def a1p3():
     t_zappy = p("vai te mostrando", t_nao)
     t_rep = p("você pode repetir", t_zappy)
     titulo(c, [("Hora de ", False), ("investigar", True)], t_inv, t1)
+    # "o que um toque faz no jardim": o toque e a pergunta, antes de Ligada e Sem ligar (a cena ficava vazia ali).
+    t_toque = p("o que um toque faz", t_inv)
+    icone(c, "Toque", 470, 330, 300, "#FFC02E", "#C98F00", "mao-indicador", 215, t_toque, t_ligada - 0.1)
+    rotulo(c, "Toque", "Toque", 620, 700, t_toque + 0.1, t_ligada - 0.1, estilo="acao", largura=240)
+    q = c.texto("Pergunta", "?", 900, 560, 220, BRANCO, ancora="middle", op=0)  # branco: o amarelo some no azul
+    c.nos.append(q)
+    c.mostra(q, p("faz", t_toque), t_ligada - 0.1, pop=True)
     icone(c, "Ligada", 340, 330, 300, "#0B7A54", "#075A3D", "coelho", 235, t_ligada, t_zappy - 0.1)
     rotulo(c, "Com ligação", "Ligada", 490, 700, t_ligada + 0.1, t_zappy - 0.1, estilo="reacao", largura=260)
     selo(c, "Funciona", 620, 345, t_ligada + 0.5, t_zappy - 0.1)

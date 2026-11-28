@@ -45,7 +45,7 @@ As marcações ficam acima do zoom, por isso não crescem com ele. Cada uma é p
 - **Balões (Helena, 22/11/2026):**
   - **Fonte:** Nunito, tamanho 28, sem crescer com o zoom.
   - **Lugar:** o balão vai do lado em que cabe (acima de um botão de baixo, abaixo de um de cima, puxado para o meio da tela) e fora da apresentadora só quando ela está de fato à vista (a lista final, depois dos conflitos).
-  - **Ponta:** aponta para o botão ou a área mostrada. Ela é escolhida depois de o balão caber na tela: em cima ou embaixo, à direita ou à esquerda, ou só de lado quando o botão está na altura do balão.
+  - **Ponta:** cai no ponto do clique gravado (`target` do `add_annotation`, na tela sem o zoom; o EdiAula conta o zoom e tira o rabo do lado virado para o botão). O corpo vai do lado em que cabe. Antes só se escolhia o canto do rabo, e a ponta ficava a uns 115 px do botão: a verificação pedia "Apontar para o clique" em toda parte (28/11/2026).
   - **Paleta:** a paleta "Sistema Zero" com as fontes do tema troca os balões para Baloo 2, e o acabamento os devolve para Nunito.
   - **Verificação do EdiAula:** ela acusa "letra pequena" (28 px é 2,6% da altura; o mínimo dela é 3,3%). É a escolha da Helena.
 
@@ -240,4 +240,9 @@ O público é criança. A edição existe para a criança entender, então tudo 
 - **Bloco é o destaque:** grande, inteiro na área livre (nunca perto da apresentadora, parecendo atrás dela), com o Zappy ao lado.
 - **Caixa-surpresa caprichada e viva** (`kit_cena.caixa_surpresa`): laço de alças em gota com dobra e nó (dois círculos pareciam orelhas de Mickey); entra fechada, chacoalha quando a fala diz que está chegando, e a tampa pula e abre com luz e brilhos quando diz "na próxima aula", sem mostrar o que é.
 - **Fundo do curso é o que a Helena define:** ela manda o fundo de cada curso e ele se repete em todas as animações do curso. O do Cadê é a paisagem azul com colinas (`artes/fontes-de-fundo/cade.png`, escurecida a 0,93 para o branco passar de 4,5 na nuvem). Os desenhados em `fundos_cursos.py` são provisórios até ela mandar o do curso. O validador mede o contraste no pixel do fundo atrás de cada texto.
+- **Botões longe um do outro não dividem zoom (28/11/2026):** cliques a menos de 2,5 s só dividem um zoom quando os dois botões cabem juntos no quadro ampliado (`montar.cabe_no_zoom`); Voltar à aula no alto e Próxima parte embaixo ficam sem zoom, cada um com a sua moldura e o seu balão. Um zoom que não cabe nem a 1,15x não é feito, porque as marcações cairiam fora da tela.
+- **Balão do botão mesmo com a cena logo depois:** o balão entra antes do clique e basta caber 0,5 s antes de o zoom fechar. O "Baixar" seguido da cena "Guardar" ficava só com a moldura.
+- **Moldura do que a fala nomeia entra na palavra:** assim que o zoom abre, dentro da fala que nomeia ("repare no número Achados"), e não no fim do movimento da mão gravada, que chegava meio segundo depois.
+- **Cena com vídeo emenda na seguinte:** a peça de vídeo (`cena_video.py`) termina na palavra em que a cena seguinte começa; um vão de 0,1 s mostra a tela por 3 quadros. A peça de vídeo é MP4 de propósito, e a revisão final não a acusa como "peça sem vínculo".
+- **Nenhum trecho vazio na cena:** se a fala diz algo entre duas coisas mostradas ("o que um toque faz no jardim"), a cena mostra isso também (o cartão do toque com um "?"). Texto sobre o fundo do curso passa pelo contraste do validador: amarelo no azul do Cadê não passa, branco passa.
 - **Vinheta final no volume da voz:** a vinheta entra 1 dB abaixo da voz da parte, medida em LUFS (`vinheta.sh`); a do Cadê vinha 11 dB acima.
