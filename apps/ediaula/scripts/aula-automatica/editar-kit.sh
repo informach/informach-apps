@@ -32,12 +32,10 @@ done
 python -X utf8 validar_svg.py "$P/pecas" | tail -1
 # E com o leitor do próprio EdiSVG: peça recusada por ele nunca vira render.
 (cd "$AQUI/../../../edisvg" && node_modules/.bin/tsx "$AQUI/edicao/validar_edisvg.ts" "$P"/pecas/*.edisvg) | tail -3
-# Render velho de peça refeita: o vinculos.json mais antigo que o .edisvg sai, e a peça renderiza de novo. Sem isso,
-# a edição usava o render da versão anterior da cena (Cadê A1P1, 27/11/2026: as cenas saíram no visual antigo).
-for f in "$P"/pecas/*.edisvg; do
-  m="${f%.edisvg} · renders/vinculos.json"
-  if [ -f "$m" ] && [ "$f" -nt "$m" ]; then rm -f "$m"; echo "render antigo descartado: $(basename "$f")"; fi
-done
+# Render velho de peça refeita: sai do vinculos.json o render da peça mais nova que ele, e ela renderiza de novo. Sem
+# isso, a edição usava o render da versão anterior da cena (Cadê A1P1, 27/11/2026). O vínculo fica (apagar o arquivo
+# fazia o salvamento não renderizar mais, Cadê A1P3, 28/11/2026).
+python -X utf8 "$AQUI/edicao/render_velho.py" "$P/pecas"
 T=$(echo "$OUT" | python -X utf8 -c "
 import sys, re, json
 t = []

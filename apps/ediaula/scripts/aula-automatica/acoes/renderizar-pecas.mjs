@@ -3,7 +3,8 @@
 // cima do outro; desde a fila de renders do EdiSVG, cada um entra na fila e todos renderizam, um por vez. Esta
 // ação fica como garantia: abre cada peça ainda sem render, salva (salvar põe o projeto na fila) e espera o
 // render aparecer no vinculos.json da pasta "<peça> · renders".
-// Estado: svgArquivos = [caminhos dos .edisvg] (os que já têm render são pulados).
+// Estado: svgArquivos = [caminhos dos .edisvg] (os que já têm render são pulados); semPedido = true quando nenhum
+// pedido de vínculo foi feito (não espera a janela do pedido).
 // Devolve { renderizadas, ja_tinham, falharam }.
 import { existsSync, readFileSync } from "node:fs";
 
@@ -23,7 +24,9 @@ export default async function renderizarPecas(ctx) {
     // Cada pedido de vínculo abre a peça numa janela própria do EdiSVG, que renderiza sozinha. Abrir a mesma
     // peça aqui antes disso tira dela a peça ("já está aberto em outra janela"): a janela do pedido fica vazia
     // e o render daqui não entra no vinculos.json (Ilha A1P4, 22/11/2026). Primeiro espera o da janela.
-    for (let i = 0; i < 45 && !temRender(arq); i++) await ctx.delay(2000);
+    // Sem pedido de vínculo (só as cenas refeitas, retocar-cenas: semPedido), não há janela para esperar.
+    const espera = ctx.state.semPedido ? 0 : 45;
+    for (let i = 0; i < espera && !temRender(arq); i++) await ctx.delay(2000);
     if (temRender(arq)) {
       res.ja_tinham.push(nome);
       continue;
