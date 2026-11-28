@@ -1127,7 +1127,7 @@ export const AI_TOOLS = {
     title: "Listar biblioteca",
     permission: "read",
     description:
-      'Lists what can be put in the lesson: the media of this project (id, name, kind, duration, whether it is on the timeline) and the sound effects (id "sfx:<id>" for the ones that come with EdiAula, "lib:<id>" for the person\'s own sounds kept in the library of every lesson as "Efeito sonoro"), with category and Portuguese tags such as clique, sucesso, pop, whoosh, erro, comemoração, digitação, notificação. kind filters (video, audio, image, sfx); search matches names and tags. Read-only.',
+      'Lists what can be put in the lesson: the media of this project (id, name, kind, duration, whether it is on the timeline) and the sound effects (id "sfx:<id>" for the ones that come with EdiAula, "lib:<id>" for the person\'s own sounds kept in the library of every lesson as "Efeito sonoro"), with category and Portuguese tags such as clique, sucesso, pop, whoosh, erro, comemoração, digitação, notificação, moeda. kind filters (video, audio, image, sfx); search matches names and tags. Read-only.',
     input: z.object({
       kind: z.enum(["video", "audio", "image", "sfx"]).optional(),
       search: z.string().max(200).optional(),
@@ -1153,7 +1153,7 @@ export const AI_TOOLS = {
     title: "Colocar efeitos sonoros",
     permission: "write",
     description:
-      'Puts several short sound effects at once on the "Efeitos sonoros" track, without ripple and without touching other tracks. Each item: sfx (an id or a Portuguese tag: "sucesso", "comemoração", "pop", "whoosh", "erro", "notificação", "clique", "digitação"; or "lib:<id>" from list_library) and when: at (timeline seconds), near_text (exact words spoken, from the transcript) or on_annotation (an annotation clip id: plays as it comes in); volume 0..1 (default 0.8). A sound never covers speech for more than 0.3 s above 30% volume: it is lowered and the answer says so. Keep them few: more than 3 within 2 s is flagged by check_before_export. By default it is a draft the person reviews item by item in the review bar, as add_annotations.',
+      'Puts several short sound effects at once on the "Efeitos sonoros" track, without ripple and without touching other tracks. Each item: sfx (an id or a Portuguese tag: "sucesso", "comemoração", "pop", "whoosh", "erro", "notificação", "moeda", "clique", "digitação"; or "lib:<id>" from list_library) and when: at (timeline seconds), near_text (exact words spoken, from the transcript) or on_annotation (an annotation clip id: plays as it comes in); volume 0..1 (default 0.8). A sound never covers speech for more than 0.3 s above 30% volume: it is lowered and the answer says so. Keep them few: more than 3 within 2 s is flagged by check_before_export. By default it is a draft the person reviews item by item in the review bar, as add_annotations.',
     input: z.object({
       items: z
         .array(

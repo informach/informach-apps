@@ -29,6 +29,7 @@ que um bloco de 400 ms), sem passar de −1 dBFS de pico. Os mais curtos e espa�
 | `sucesso` | Sucesso | Destaques | 0,75 s | sucesso, acerto, publicação, pronto | próprio (sintetizado) |
 | `comemoracao` | Comemoração | Destaques | 1,80 s | comemoração, vitória, festa, parabéns | próprio (sintetizado) |
 | `notificacao` | Notificação | Destaques | 0,60 s | notificação, alerta, mensagem, aviso | próprio (sintetizado) |
+| `moeda` | Moeda | Destaques | 0,60 s | moeda, coin, dinheiro, ponto, pontuação, recompensa, ganhar | próprio (sintetizado) |
 
 ## Sons da própria pessoa
 

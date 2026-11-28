@@ -36,6 +36,7 @@ export const SOUND_EFFECT_IDS = [
   "sucesso",
   "comemoracao",
   "notificacao",
+  "moeda",
 ] as const;
 export type SoundEffectId = (typeof SOUND_EFFECT_IDS)[number];
 
@@ -203,6 +204,15 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     seconds: 0.6,
     peak: 0,
   },
+  {
+    id: "moeda",
+    name: "Moeda",
+    group: "destaque",
+    hint: "Moeda brilhante pegando: um ponto ganho, uma recompensa",
+    tags: ["moeda", "coin", "dinheiro", "ponto", "pontuação", "recompensa", "ganhar"],
+    seconds: 0.6,
+    peak: 0.07,
+  },
 ];
 
 const BY_ID = new Map(SOUND_EFFECTS.map((s) => [s.id, s]));
@@ -238,7 +248,7 @@ export function findSoundEffect(query: string): SoundEffect | undefined {
 }
 
 /** Bump when a sound changes, so files and cached tracks made from the old one are made again. */
-export const SOUND_VERSION = 2;
+export const SOUND_VERSION = 3;
 /** Sample rate the sounds are made at for the export and the library files. */
 export const SOUND_RATE = CLICK_RATE;
 
@@ -609,6 +619,33 @@ const MAKERS: Record<SoundEffectId, (rate: number) => Float32Array<ArrayBuffer>>
     tone(out, rate, 0.13, 1046.5, 0.16, 0.8);
     edges(out, rate, 0.01);
     return normalize(out, 0.75);
+  },
+  moeda: (rate) => {
+    const out = empty("moeda", rate);
+    // Two quick strikes of a small metal disc, the second a fourth up and left ringing: the
+    // partials of a struck plate over a bright tick of metal at each strike.
+    for (const [at, base, ring, gain] of [
+      [0, 2093, 0.035, 0.6],
+      [0.07, 2793.8, 0.16, 1],
+    ] as const) {
+      for (const [ratio, decay, g] of [
+        [1, ring, 1],
+        [2.32, ring * 0.45, 0.3],
+        [4.25, ring * 0.25, 0.12],
+      ] as const)
+        tone(out, rate, at, base * ratio, decay, gain * g);
+      tap(out, rate, at, {
+        seed: 0xc014 + Math.round(base),
+        tone: 6500,
+        fall: 9000,
+        decay: 0.002,
+        body: 0.0015,
+        lp: 0.85,
+        gain: 0.35 * gain,
+      });
+    }
+    edges(out, rate, 0.01);
+    return normalize(out, 0.8);
   },
 };
 

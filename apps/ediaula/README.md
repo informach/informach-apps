@@ -1828,9 +1828,9 @@ Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
 
 - **Os sons são feitos pelo próprio app** (`src/shared/soundEffects.ts`), como o clique do cursor: números fixos e
   ruído de semente fixa, então o som é o mesmo em qualquer computador, na prévia e na exportação, sem arquivo de
-  terceiros nem licença. São 16: cliques (Clique, Clique suave, Clique de mouse, Clique mecânico, Pop), wooshes
+  terceiros nem licença. São 17: cliques (Clique, Clique suave, Clique de mouse, Clique mecânico, Pop), wooshes
   (Woosh curto, Woosh longo, Swoosh de entrada, Swoosh de saída) e destaques (Ding de acerto, Erro, Digitação,
-  Tchan, Sucesso, Comemoração, Notificação). Todos saem a cerca de −18 LUFS sem passar de −1 dBFS de pico, e
+  Tchan, Sucesso, Comemoração, Notificação, Moeda). Todos saem a cerca de −18 LUFS sem passar de −1 dBFS de pico, e
   cada um tem tags em português ("sucesso", "comemoração", "pop", "whoosh"…) para a IA e a busca. Origem e
   licença de cada um em `sfx/LICENSES.md`. Mudou um som? Suba `SOUND_VERSION`: os arquivos e as faixas
   guardadas são feitos de novo.
