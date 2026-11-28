@@ -218,6 +218,8 @@ $S/empacotar-edicao.sh moedas 1 3                             # depois de confer
 5. **Faz o acabamento:** planos da apresentadora, faixas e música.
    - **Vinheta final (Helena, 27/11/2026):** no último vídeo de cada aula (a última parte do roteiro com fala; o quiz do fim não conta), a vinheta entra na faixa da tela logo depois do último clipe, com o som dela. O arquivo é o `"vinhetaFinal"` do `config.json`, hoje `~/Downloads/vinheta-final.mp4` (4,4 s). Sem o arquivo, a edição avisa e segue.
 6. **Transcreve e revisa,** e escreve `<parte>/edicao/relatorio.md`. Leia a seção "Para revisão humana".
+   - **Música:** vai até o fim da aula e some aos poucos bem no finalzinho; se acabar antes, a revisão avisa.
+   - **Emendas:** a revisão fecha os espacinhos entre os clipes da tela (gravação, animação, capa, vinheta), que piscam no corte. Para conferir uma edição pronta: `python -X utf8 $S/edicao/emendas_video.py "<projeto> · edição automática.ediaula"` (0 vãos é o certo).
 
 **Refazer a edição:** rode de novo. Sai uma cópia nova, e a gravação não muda.
 

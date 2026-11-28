@@ -325,6 +325,18 @@ export default async function acabamento(ctx) {
     if (m) feito.push(await ia("spread_music", { media_id: m.id }));
     else feito.push(`música "${st.musica}" não está na biblioteca: importe antes`);
   }
+  // A música vai até o finalzinho da aula e some aos poucos, até o silêncio, bem no fim (Helena, 28/11/2026):
+  // a última cópia termina no último quadro com fade (o spread_music põe 3 s; a exportação garante 1,5 s).
+  proj = await ler();
+  {
+    const musica = new Set(proj.d.tracks.filter((t) => t.music).map((t) => t.id));
+    const fimMusica = Math.max(0, ...proj.d.clips.filter((c) => musica.has(c.trackId)).map(fimDe));
+    const fimAula = Math.max(0, ...proj.d.clips.map(fimDe));
+    if (musica.size && fimAula - fimMusica > 0.1)
+      revisar.push(
+        `a música acaba em ${fimMusica.toFixed(1)} s e a aula em ${fimAula.toFixed(1)} s: ela tem de ir até o fim, sumindo aos poucos`,
+      );
+  }
 
   // 6. Balões em Nunito (pedido dela, 22/11/2026). A paleta com as fontes do tema põe Baloo 2 em todas as
   // anotações, inclusive nos balões que o montar.py pediu em Nunito 28; o tamanho e a ponta ficam.

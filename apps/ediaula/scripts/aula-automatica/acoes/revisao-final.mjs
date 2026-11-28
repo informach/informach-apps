@@ -58,7 +58,9 @@ export default async function revisaoFinal(ctx) {
       const fimAntes = Math.max(
         0,
         ...proj.d.clips
-          .filter((c) => c.trackId === m.trackId && !migalhas.includes(c) && fimDe(c) <= m.start + 0.02)
+          .filter(
+            (c) => c.trackId === m.trackId && !migalhas.includes(c) && fimDe(c) <= m.start + 0.02,
+          )
           .map(fimDe),
       );
       const inicio = Math.round(Math.max(m.start, fimAntes) * 1000) / 1000;
@@ -78,44 +80,68 @@ export default async function revisaoFinal(ctx) {
     }
   }
 
-  // 1b. Buracos de menos de 3 quadros na faixa da gravação, entre dois clipes: quadros pretos com a fala por
-  // cima (Ilha A3P7, 0:23.6: a gravação acabava em 23,567 e a animação começava em 23,633). Estica o clipe de
-  // antes, se a mídia dele continua; senão, o de depois volta a começar no fim do de antes.
-  proj = await ler();
-  const faixaTela = gravacao(proj).trackId;
-  const naFaixa = proj.d.clips
-    .filter((c) => c.trackId === faixaTela)
-    .sort((a, b) => a.start - b.start);
-  for (let k = 1; k < naFaixa.length; k++) {
-    const antes = naFaixa[k - 1];
-    const depois = naFaixa[k];
-    const buraco = depois.start - fimDe(antes);
-    if (buraco < 0.005 || buraco >= 3 * quadro - 1e-6) continue;
-    const midia = proj.asset(antes);
-    const sobra = midia?.duration
-      ? midia.duration - (antes.in ?? 0) - antes.duration * (antes.speed ?? 1)
-      : 0;
-    try {
-      if (!midia?.link && sobra >= buraco * (antes.speed ?? 1) + 0.01)
-        await ia("trim_clip", {
-          clip_id: antes.id,
-          end: Math.round(depois.start * 1000) / 1000,
-          revision: await revisao(),
-        });
-      else if ((depois.in ?? 0) >= buraco * (depois.speed ?? 1) + 0.001)
-        await ia("trim_clip", {
-          clip_id: depois.id,
-          start: Math.round(fimDe(antes) * 1000) / 1000,
-          revision: await revisao(),
-        });
-      else throw new Error("nenhum dos dois clipes tem mídia para cobrir");
-      feito.push(`${tempo(fimDe(antes))}: buraco de ${buraco.toFixed(2)} s fechado na faixa da gravação`);
-    } catch (e) {
-      revisar.push(
-        `${tempo(fimDe(antes))}: buraco de ${buraco.toFixed(2)} s na faixa da gravação (${e.message ?? e})`,
-      );
+  // 1b. Vãos entre os clipes que cobrem a tela inteira (gravação, animações, capa, vinheta), em qualquer faixa:
+  // quadros vazios (branco ou preto) que piscam na emenda de um corte. Ilha A3P7, 0:23.6: a gravação acabava em
+  // 23,567 e a animação começava em 23,633; Cadê A1P4, 2:59.5: um vão de 7 ms entre a gravação acelerada e a
+  // animação (Helena, 28/11/2026: "fica um espacozinho mínimo ali em branco e aí dá umas piscadas"). Estica o
+  // clipe de antes, se a mídia dele continua; senão, o de depois volta a começar no fim do de antes. Roda aqui e
+  // de novo no fim, porque os passos seguintes ainda mexem nas pontas dos clipes.
+  const POR_CIMA = /HeyGen|Debinha|Ded[ée]/;
+  const fecharVaos = async () => {
+    proj = await ler();
+    const base = proj.d.clips
+      .filter((c) => {
+        const m = proj.asset(c);
+        const faixa = proj.trilha(c.trackId);
+        return (
+          m &&
+          faixa?.kind === "video" &&
+          !faixa.hidden &&
+          !c.annotation &&
+          !c.zoomLayer &&
+          (m.kind === "video" || m.kind === "image") &&
+          !POR_CIMA.test(m.name ?? "")
+        );
+      })
+      .sort((a, b) => a.start - b.start);
+    let antes = base[0];
+    for (const depois of base.slice(1)) {
+      const buraco = depois.start - fimDe(antes);
+      if (buraco > 0.0005 && buraco < 0.3) {
+        const midia = proj.asset(antes);
+        const sobra = midia?.duration
+          ? midia.duration - (antes.in ?? 0) - antes.duration * (antes.speed ?? 1)
+          : 0;
+        try {
+          if (!midia?.link && sobra >= buraco * (antes.speed ?? 1) + 0.001)
+            await ia("trim_clip", {
+              clip_id: antes.id,
+              end: depois.start,
+              revision: await revisao(),
+            });
+          else if (
+            !proj.asset(depois)?.link &&
+            (depois.in ?? 0) >= buraco * (depois.speed ?? 1) + 0.001
+          )
+            await ia("trim_clip", {
+              clip_id: depois.id,
+              start: fimDe(antes),
+              revision: await revisao(),
+            });
+          else throw new Error("nenhum dos dois clipes tem mídia para cobrir");
+          feito.push(
+            `${tempo(fimDe(antes))}: vão de ${(buraco * 1000).toFixed(0)} ms fechado entre ${proj.nome(antes)} e ${proj.nome(depois)}`,
+          );
+        } catch (e) {
+          revisar.push(
+            `${tempo(fimDe(antes))}: vão de ${(buraco * 1000).toFixed(0)} ms entre ${proj.nome(antes)} e ${proj.nome(depois)} (${e.message ?? e})`,
+          );
+        }
+      }
+      if (fimDe(depois) > fimDe(antes)) antes = depois;
     }
-  }
+  };
+  await fecharVaos();
 
   // 1c. A aula acaba no último quadro com imagem: um zoom, uma marcação ou a música que passam dele deixam tela
   // preta no fim (Ilha A3P3: a gravação acabava em 46,633, e o zoom e a música iam até 46,79).
@@ -230,6 +256,9 @@ export default async function revisaoFinal(ctx) {
       revisar.push(`faixa vazia ${t.name}: ${String(err.message ?? err)}`);
     }
   }
+
+  // 5b. Os vãos de novo: os passos de cima mexeram nas pontas dos clipes.
+  await fecharVaos();
 
   // 6. Verificação antes de exportar.
   const verif = await chamar(ctx, "check_before_export", { measure_volume: true });
