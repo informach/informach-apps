@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Edição automática de uma parte já gravada, numa cópia nova do projeto ("<projeto> · edição automática").
-# Uso: editar-parte.sh <curso> <aula> <parte> '<trechos json>'
+# Uso: editar-parte.sh <curso> <aula> <parte> '<trechos json>' [--desde acabamento]
+#   --desde acabamento: um ajuste do acabamento em diante (cursor, clique, música, apresentadora, vinheta,
+#            revisão) no projeto já editado, sem copiar o projeto, importar, aplicar as marcações nem esperar
+#            renders de novo (Helena, 28/11/2026: um ajuste não pode refazer tudo).
 #   trechos: os [ini, fim] das animações de <parte>/pecas, na ordem dos números das peças (conceito-1-…,
 #            conceito-2-…), o que o script de cenas do curso imprime (edicao/exemplos/<curso>-conceitos.py).
 #            '[]' quando a parte não tem animação.
@@ -10,11 +13,20 @@
 set -euo pipefail
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$AQUI"
-CURSO="$1"; AULA="$2"; N="$3"; TRECHOS="$4"
+CURSO="$1"; AULA="$2"; N="$3"; TRECHOS="$4"; DESDE=""
+[ "${5:-}" = "--desde" ] && DESDE="${6:-}"
+case "$DESDE" in ""|acabamento) ;; *) echo "--desde: só 'acabamento'" >&2; exit 2 ;; esac
 INFO="$(./parte.sh "$CURSO" "$AULA" "$N" info)"
 v() { python -X utf8 -c "import json,sys; print(json.loads(sys.argv[1])[sys.argv[2]] or '')" "$INFO" "$1"; }
 PW="$(v pasta)"; PASTA="$(cygpath -u "$PW")"; MUSICA="$(v musica)"
 [ -f "$MUSICA" ] || { echo "a música do curso não existe: $MUSICA (\"musica\" no config.json)" >&2; exit 1; }
+if [ "$DESDE" = acabamento ]; then
+  # O projeto já editado (a cópia que o "copia" fez da última vez), aberto no estado em que ficou.
+  C="$(python -X utf8 -c "import sys; print(sys.argv[1][:-len('.ediaula')] + ' · edição automática.ediaula')" "$(v projeto)")"
+  [ -f "$C" ] || { echo "não há edição para retomar: $C" >&2; exit 1; }
+  echo "retomando do acabamento: $C"
+  ./comando.sh acao abrir-projeto.mjs "{\"arquivo\": \"$C\"}" | grep result
+else
 PERS=()
 SAIDA="$(python -X utf8 edicao/personagem.py "$CURSO" "$AULA" "$N")"  # para aqui se a fala não for achada
 while IFS= read -r linha; do [ -n "$linha" ] && PERS+=("$linha"); done <<<"$SAIDA"
@@ -91,6 +103,7 @@ if ls "$PEC"/*.edisvg >/dev/null 2>&1; then
 fi
 ./comando.sh ia set_palette '{"palette": "Sistema Zero", "fonts": true, "mode": "apply"}' | head -1
 ./comando.sh acao salvar.mjs >/dev/null
+fi
 ./parte.sh "$CURSO" "$AULA" "$N" acabamento 2>&1 | tail -4
 # A primeira animação começa debaixo da capa: sem transição.
 PRIM=$(./comando.sh ia get_overview '{}' | grep -o "\[c[a-z0-9]\{8,\}\] Conceito · [^;]* 0:00\.[0-9]" | head -1 | grep -o "^\[c[a-z0-9]*" | tr -d '[' || true)

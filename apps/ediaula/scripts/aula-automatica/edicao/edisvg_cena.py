@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import struct
+import re
 import uuid
 
 FPS = 30
@@ -45,6 +46,16 @@ VAIVEM = {"kind": "cubic-bezier", "points": [0.42, 0, 0.58, 1]}
 # packages/edi-motion/src/assets/limits.ts): "Catálogo excede orçamento de bytes" ao abrir, e o render nunca
 # chega (Ilha A3P8, 23/11/2026, a cena do jogo pronto com doze artes de 600 × 800). A folga cobre o base64.
 ORCAMENTO_BYTES, ORCAMENTO_PIXELS = 3_900_000, 15_500_000
+
+
+_UUID = re.compile(r"\b([a-z]+(?:-[a-z]+)*)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
+
+
+def _sem_ids(texto):
+    """O documento com cada id sorteado trocado pela ordem em que aparece: duas gerações da mesma cena ficam
+    iguais (os ids de nós, trilhas e chaves mudam a cada vez)."""
+    vistos = {}
+    return _UUID.sub(lambda m: vistos.setdefault(m.group(0), f"{m.group(1)}-#{len(vistos)}"), texto)
 
 
 def nid():
@@ -248,9 +259,15 @@ class Cena:
             "id": fixo("animation"), "name": self.nome, "fps": FPS, "frames": self.total,
             "mode": "once", "tracks": self.trilhas}] + self.anims_extra}
         self._caber_no_orcamento()
-        json.dump(self.d, open(caminho, "w", encoding="utf8"), ensure_ascii=False)
-        print(caminho, "| nós", len(self.nos), "| trilhas", len(self.trilhas), "| quadros", self.total,
-              f"| {self.ini}-{self.fim}")
+        novo = json.dumps(self.d, ensure_ascii=False)
+        info = f"| nós {len(self.nos)} | trilhas {len(self.trilhas)} | quadros {self.total} | {self.ini}-{self.fim}"
+        # A cena igual à que já está na pasta não é regravada: o render dela continua valendo e só a cena que
+        # mudou renderiza de novo (Helena, 28/11/2026: refazer tudo por um ajuste que não toca as cenas).
+        if os.path.exists(caminho) and _sem_ids(open(caminho, encoding="utf8").read()) == _sem_ids(novo):
+            print(caminho, info, "| igual: fica como está")
+            return caminho
+        open(caminho, "w", encoding="utf8").write(novo)
+        print(caminho, info)
         return caminho
 
     def _escalas(self):

@@ -49,6 +49,7 @@ import {
 } from "@shared/compose";
 import { type CourseTemplate, parseCourseTemplate } from "@shared/courseTemplate";
 import { type CursorFx, DEFAULT_CURSOR_FX } from "@shared/cursor";
+import { ZOOM_RANGE_PREFIX, zoomCursorRanges } from "@shared/cursorZoom";
 import { buildEditingTemplate } from "@shared/editingTemplate";
 import {
   checkParts,
@@ -2056,7 +2057,10 @@ ${r.message}`);
     return `${plural(total, "zoom automático", "zooms automáticos")} em ${plural(clips.length - skipped.length, "clipe", "clipes")}.${skipped.length ? ` Sem dados de clique: ${skipped.join(", ")}.` : ""}${target?.note ?? ""}`;
   },
 
-  async set_cursor({ media, size, smooth, clicks, halo, hide_idle, hidden }, { commit }) {
+  async set_cursor(
+    { media, size, size_in_zoom, smooth, clicks, halo, hide_idle, hidden },
+    { commit },
+  ) {
     const p = requireProject();
     const a =
       p.assets.find((x) => x.id === media) ??
@@ -2078,7 +2082,13 @@ ${r.message}`);
       },
       commit,
     );
-    return `Cursor de ${a.name} ajustado.`;
+    if (size_in_zoom === undefined) return `Cursor de ${a.name} ajustado.`;
+    // The stretches under the zooms, against the size just set (shared/cursorZoom.ts).
+    const fx = { ...DEFAULT_CURSOR_FX, ...a.cursorFx, ...(size !== undefined ? { size } : {}) };
+    const ranges = zoomCursorRanges(p, a, fx, size_in_zoom);
+    setCursorFx(a.id, { ranges: ranges.length ? ranges : undefined }, commit);
+    const under = ranges.filter((r) => r.id.startsWith(ZOOM_RANGE_PREFIX)).length;
+    return `Cursor de ${a.name} ajustado: ${fx.size} na tela inteira e ${size_in_zoom} dentro dos zooms (${under} trechos).`;
   },
 
   async add_annotation(

@@ -331,6 +331,18 @@ export default async function acabamento(ctx) {
   proj = await ler();
   const baloes = proj.d.clips.filter((c) => c.annotation?.kind === "balloon").map((c) => c.id);
   if (baloes.length) feito.push(await ia("set_style", { clip_ids: baloes, font: "Nunito" }));
+
+  // 7. Cursor e clique (Helena, 28/11/2026): sem zoom o cursor ficava pequeno demais; o zoom já o
+  // aumenta, então ele é maior na tela inteira (2,2) e fica com o tamanho de antes dentro dos zooms
+  // (1,6, que vira 2,6 num zoom de 1,6x), passando aos poucos de um para o outro. Os trechos seguem
+  // os zooms e os clipes de agora, por isso vem no fim. E o som de clique do EdiAula em cada clique.
+  proj = await ler();
+  const telaClipe = proj.d.clips.find((c) => proj.nome(c).startsWith("Tela"));
+  if (telaClipe) {
+    const media = proj.asset(telaClipe)?.name ?? proj.nome(telaClipe);
+    feito.push(await ia("set_cursor", { media, size: 2.2, size_in_zoom: 1.6 }));
+    feito.push(await ia("set_click_sound", { media, enabled: true }));
+  }
   await ler();
   return { feito, revisar };
 }

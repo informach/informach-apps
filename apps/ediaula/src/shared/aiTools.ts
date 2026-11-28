@@ -589,10 +589,11 @@ export const AI_TOOLS = {
     title: "Ajustar o cursor da gravação",
     permission: "write",
     description:
-      "How the recorded mouse pointer is drawn on a screen recording made in EdiAula (media name or id): size (0.8–4, default 1.6; 2–2.5 reads well for children), smooth (0–0.95), click rings, yellow halo, hide when idle, or hidden entirely. Undoable.",
+      "How the recorded mouse pointer is drawn on a screen recording made in EdiAula (media name or id): size (0.8–4, default 1.6; 2–2.5 reads well for children), smooth (0–0.95), click rings, yellow halo, hide when idle, or hidden entirely. size_in_zoom: the pointer size inside the zooms (zoom layers and the recording's own zooms), since a zoom magnifies the pointer too: the pointer can be bigger on the whole screen and keep its size inside a zoom (e.g. size 2.2 and size_in_zoom 1.6); while a zoom opens and closes the size goes between the two, so it never jumps. It follows the zooms and clips as they are now: call again after moving zooms or clips. Undoable.",
     input: z.object({
       media: z.string().min(1),
       size: z.number().min(0.8).max(4).optional(),
+      size_in_zoom: z.number().min(0.3).max(4).optional(),
       smooth: z.number().min(0).max(0.95).optional(),
       clicks: z.boolean().optional(),
       halo: z.boolean().optional(),

@@ -95,7 +95,11 @@ sys.exit(f'o projeto já tem uma tomada ({n} clipes): renomeie-o antes de gravar
 import json, sys
 r = json.load(sys.stdin).get('result') or {}
 print(len(r.get('renderizadas', [])), 'peças renderizadas agora |', len(r.get('ja_tinham', [])), 'já tinham render')
-[print('falhou:', f) for f in r.get('falharam', [])]" ;;
+[print('falhou:', f) for f in r.get('falharam', [])]"
+    # Cada pedido de vínculo que acha o EdiSVG ocupado abre uma janela própria (--pedido), que fica aberta
+    # depois do render: numa tarde foram oito, e a falta de memória derrubou os condutores (28/11/2026).
+    # Com os renders prontos, essas janelas fecham; a do condutor (sem --pedido) fica.
+    powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"name='electron.exe'\" | Where-Object { \$_.CommandLine -match 'apps.edisvg' -and \$_.CommandLine -match '--pedido' -and \$_.CommandLine -notmatch '--type=' } | ForEach-Object { taskkill /PID \$_.ProcessId /T /F | Out-Null; 1 } | Measure-Object | ForEach-Object { if (\$_.Count) { 'janelas de pedido do EdiSVG fechadas: ' + \$_.Count } }" 2>/dev/null || true ;;
   copia)
     python -X utf8 "$AQUI/edicao/copiar_projeto.py" "$(v projeto)" ;;
   acabamento)

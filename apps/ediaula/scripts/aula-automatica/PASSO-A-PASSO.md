@@ -221,7 +221,13 @@ $S/empacotar-edicao.sh moedas 1 3                             # depois de confer
 
 **Refazer a edição:** rode de novo. Sai uma cópia nova, e a gravação não muda.
 
-**Peça vinculada que não renderiza:** feche as janelas extras do EdiSVG, que ficam com as peças da parte anterior (veja "Limites conhecidos" no README).
+**Ajuste sem refazer tudo (Helena, 28/11/2026):** um ajuste refaz só a etapa que ele toca, nunca a parte inteira.
+- **Uma ferramenta do EdiAula** (cursor, som de clique, um balão, a música): abra a edição pronta (`comando.sh acao abrir-projeto.mjs '{"arquivo": "<projeto> · edição automática.ediaula"}'`), chame só a ferramenta (`comando.sh ia set_cursor '…'`), salve (`comando.sh acao salvar.mjs`) e empacote. Leva segundos.
+- **Do acabamento em diante** (apresentadora, faixas, vinheta, revisão, ou um acabamento que parou no meio): `editar-parte.sh <curso> <aula> <parte> '<trechos>' --desde acabamento`. Abre a edição pronta e não copia o projeto, não importa nem espera renders: cerca de 1 min em vez de 8.
+- **Marcações** (zoom, molduras, balões que o `montar.py` decide): `editar-parte.sh` inteiro. As peças não são geradas de novo e os renders que já existem valem.
+- **Uma cena:** `editar-kit.sh`. A cena que sai igual à que está na pasta não é regravada (`Cena.salvar` compara sem os ids sorteados), então só a cena que mudou renderiza de novo.
+
+**Peça vinculada que não renderiza:** feche as janelas extras do EdiSVG, que ficam com as peças da parte anterior (veja "Limites conhecidos" no README). Desde 28/11/2026 o `parte.sh aplicar` fecha sozinho, depois dos renders, as janelas abertas para um pedido (`--pedido`); a do condutor fica.
 
 O pacote sai em `Parte N - Edição automática.zip`, e o anterior vai para `Versão anterior/`.
 
