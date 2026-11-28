@@ -219,25 +219,27 @@ for gi, g in enumerate(gestos):
             inicio = max(ini + EASE, 3.0)
             for k, ck in enumerate(grp):
                 tk, alvo = ck["t"], ck["alvo"]
-                if tk > fechando - 0.2:
-                    break  # o clique já está saindo do zoom (a animação seguinte entra): sem marcação
                 if k:
-                    inicio = max(inicio + 0.8, tk - 0.7)
+                    inicio = max(inicio + 0.6, tk - 1.2)
+                if inicio > fechando - 0.5:
+                    break  # a animação seguinte já entra: sem lugar para a marcação
                 destaque(inicio, 1.5, alvo, f"moldura no botão ({v})", pad=10, alvo=f"botão {v} {k}")
-                if ck.get("balao"):
+                if ck.get("balao") and tk <= fechando - 0.2:
                     bx, by = centro(alvo)
-                    at_b = max(inicio + 0.6, tk - 0.2)
-                    tem_prox = k + 1 < len(grp) and grp[k + 1]["t"] <= fechando - 0.2
-                    prox_ini = max(at_b + 0.8, grp[k + 1]["t"] - 0.7) if tem_prox else fechando
+                    # O balão entra antes do clique e sai logo depois dele (0,5 s): depois do clique a tela muda (o
+                    # Estúdio expande, a janela de confirmação abre) e o balão ficava apontando para o nada.
+                    at_b = max(inicio + 0.55, tk - 0.6)
+                    tem_prox = k + 1 < len(grp)
+                    fim_b = min(tk + 0.5, fechando, max(at_b + 0.6, grp[k + 1]["t"] - 1.2) if tem_prox else 1e9)
                     # Nunito 28 (pedido dela, 22/11/2026). O lugar e a ponta saem no fim, depois do zoom e de caber
                     # na tela, para a ponta apontar para o botão de verdade (BALAO_W, mais abaixo).
                     add("add_annotation", {"kind": "balloon", "text": ck["balao"], "at": round(at_b, 2),
-                                           "duration": round(max(0.8, min(2.2, prox_ini - at_b)), 2),
+                                           "duration": round(max(0.6, fim_b - at_b), 2),
                                            "x": round(bx, 4), "y": round(by, 4), "tail": "top-right", "fill": AMARELO,
                                            "font": FONTE_BALAO, "font_size": TAMANHO_BALAO}, f"balão ({v})")
                     cmds[-1]["papel"] = "balao"
                     cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
-                    inicio = at_b
+                    inicio = fim_b - 0.6
         continue
     if NOMEADA.match(v):
         # Uma coisa da interface que a fala nomeia ("Objetivo cumprido!", "Salvo", "Seu projeto no Estúdio"):
@@ -586,7 +588,7 @@ for c in MARCA:
         seguinte = next((x for x in ZOOMS if ini < x["at"] < fim), None)
         if seguinte:
             fim = seguinte["at"]
-    if fim - ini < 0.8 and z and i.get("kind") == "balloon":
+    if fim - ini < 0.6 and z and i.get("kind") == "balloon":
         # O balão explica o botão antes do clique: se não cabe depois, entra o mais tarde que dá, deixando 0,6 s
         # para a moldura que mostra onde fica o botão (antes entrava assim que o zoom abria e tirava a moldura).
         ini = max(aberto + 0.6, fechando - 1.2) if fechando - aberto >= 1.2 else aberto
