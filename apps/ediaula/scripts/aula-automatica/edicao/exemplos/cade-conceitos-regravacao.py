@@ -197,7 +197,7 @@ def a1p3():
     titulo(c, [("Uma ", False), ("ideia importante", True)], t0 + 0.05, t_acao - 0.05)
     titulo(c, [("Ação", True), (" e ", False), ("reação", True)], t_acao, t1)
     zappy_vivo(c, "pensando", 100, 480, 340, t0 + 0.1, t1)
-    icone(c, "Ação", 470, 360, 290, "#FFC02E", "#C98F00", "mao-indicador", 215, t_acao, t1)
+    icone(c, "Ação", 470, 360, 290, "#FFFFFF", "#B9C6D9", "mao-indicador", 215, t_acao, t1)
     rotulo(c, "Ação", "Ação", 615, 720, t_acao + 0.1, t1, estilo="acao", largura=240)
     trilha(c, "Ação para reação", (790, 505), (855, 450), (920, 505), t_acao + 0.4, t1, n=5)
     icone(c, "Reação", 940, 360, 290, "#0B7A54", "#075A3D", "coelho", 225, t_reacao, t1)
@@ -256,7 +256,7 @@ def a1p3():
     anotacao(c, "Reação", "Reação: ficar invisível", (x0, y0 - 30), t_inv + 0.2, t_essa - 0.05, estilo="reacao",
              centro=(x0 + 470, y0 - 220), largura=larg)
     raios(c, "Apareceu", x0, y0 + 40, 110, t_apar, t_essa - 0.05)
-    icone(c, "Toque", 330, 400, 230, "#FFC02E", "#C98F00", "mao-indicador", 170, t_essa + 0.1, t1)
+    icone(c, "Toque", 330, 400, 230, "#FFFFFF", "#B9C6D9", "mao-indicador", 170, t_essa + 0.1, t1)
     rotulo(c, "Toque", "Toque", 445, 700, t_essa + 0.2, t1, estilo="acao", largura=220)
     icone(c, "Some", 900, 400, 230, "#FFFFFF", "#B9C6D9", "arbusto", 170, t_essa + 0.4, t1, op_arte=30)
     rotulo(c, "Some", "Some", 1015, 700, t_essa + 0.5, t1, estilo="reacao", largura=220)
@@ -274,7 +274,7 @@ def a1p3():
     titulo(c, [("Hora de ", False), ("investigar", True)], t_inv, t1)
     # "o que um toque faz no jardim": o toque e a pergunta, antes de Ligada e Sem ligar (a cena ficava vazia ali).
     t_toque = p("o que um toque faz", t_inv)
-    icone(c, "Toque", 470, 330, 300, "#FFC02E", "#C98F00", "mao-indicador", 215, t_toque, t_ligada - 0.1)
+    icone(c, "Toque", 470, 330, 300, "#FFFFFF", "#B9C6D9", "mao-indicador", 215, t_toque, t_ligada - 0.1)
     rotulo(c, "Toque", "Toque", 620, 700, t_toque + 0.1, t_ligada - 0.1, estilo="acao", largura=240)
     q = c.texto("Pergunta", "?", 900, 560, 220, BRANCO, ancora="middle", op=0)  # branco: o amarelo some no azul
     c.nos.append(q)
@@ -413,7 +413,7 @@ def a1p4():
     titulo(c, [("A primeira ", False), ("regra", True)], t_regra, t_lembra - 0.05)
     _, cabeca = zappy_vivo(c, "celebrando", 110, 480, 320, t0 + 0.1, t_lembra - 0.05)
     balao_fala(c, "Programou", "Você programou!", cabeca, t_prog, t_lembra - 0.05, tam=50, maxw=420)
-    passos = (("Toque", "mao-indicador", "#FFC02E", "#C98F00", 100, 120), ("Some", "arbusto", "#FFFFFF", "#B9C6D9", 30, 110),
+    passos = (("Toque", "mao-indicador", "#FFFFFF", "#B9C6D9", 100, 120), ("Some", "arbusto", "#FFFFFF", "#B9C6D9", 30, 110),
               ("Aparece", "coelho", "#0B7A54", "#075A3D", 100, 120))
     for k, (nome, arte, cor, deg, op, alt) in enumerate(passos):
         x = 560 + k * 250

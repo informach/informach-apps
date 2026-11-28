@@ -19,7 +19,9 @@ cada meio segundo, com a conta da prévia (cena_layout.py), e barra o que a Hele
 - quadro vazio: no momento mais cheio, o conteúdo ocupa menos de 30 % da área livre;
 - texto demais ao mesmo tempo (mais de 14 palavras fora o título): criança não lê;
 - cena parada: mais de 4 s sem nada se mexer;
-- contraste do texto com o que está atrás dele abaixo de 4,5 (o branco no azul antigo dava 2,4).
+- contraste do texto com o que está atrás dele abaixo de 4,5 (o branco no azul antigo dava 2,4);
+- desenho recortado que some no que está atrás dele: mais de 60% da imagem com contraste abaixo de 1,5 contra a cor
+  de trás (a mão amarela no cartão amarelo).
 Cada problema sai com o segundo da cena e o nome do nó. Com algum problema, sai com erro.
 """
 import glob
@@ -144,6 +146,40 @@ def _cor_mais_clara(no, caixa_texto, caixa_img):
     return cor
 
 
+_imagens_rgba = {}
+
+
+def parte_sem_contraste(no, fundo):
+    """A fração do desenho (pixels opacos da imagem) com contraste menor que 1,5 contra a cor de trás: a mão
+    amarela no cartão amarelo dava quase tudo (Cadê A1P3, 28/11/2026)."""
+    a = DOC_ATUAL.get("assets", {}).get(no.get("assetId"))
+    if not a or not a.get("data"):
+        return None
+    if a["id"] not in _imagens_rgba:
+        import base64
+        import io
+
+        from PIL import Image
+        im = Image.open(io.BytesIO(base64.b64decode(a["data"]))).convert("RGBA")
+        im.thumbnail((96, 96))
+        _imagens_rgba[a["id"]] = list(im.getdata())
+    lf = _lum(fundo)
+    if lf is None:
+        return None
+    todos = _imagens_rgba[a["id"]]
+    opacos = [p for p in todos if p[3] > 128]
+    # Só o desenho recortado (com transparência em volta), que se mistura com o cartão. Uma figura retangular
+    # (o jardim, as páginas do material) tem a própria borda separando do fundo.
+    if len(opacos) < 20 or len(opacos) > 0.85 * len(todos):
+        return None
+    ruins = 0
+    for r, g, b_, _ in opacos:
+        lp = _lum("#%02x%02x%02x" % (r, g, b_))
+        if (max(lp, lf) + 0.05) / (min(lp, lf) + 0.05) < 1.5:
+            ruins += 1
+    return ruins / len(opacos)
+
+
 def fundo_do_texto(item, itens):
     """A cor que está atrás do texto: o último retângulo cheio (ou o fundo da cena) que contém o meio dele, na ordem
     de pintura. Uma imagem atrás (o jogo, um vídeo) deixa a cor desconhecida: None."""
@@ -240,6 +276,16 @@ def desenho(f, d):
             if cr is not None and cr < CONTRASTE_MINIMO:
                 prob(("contraste", i["no"]["id"]), t, f'"{i["no"]["text"]}" com contraste {cr:.1f} contra o fundo {fundo} '
                                                      f"(mínimo {CONTRASTE_MINIMO}): troque a cor do texto ou do fundo")
+        # Imagem com contraste contra o que está atrás dela, como o texto: o desenho não some no cartão.
+        for i in itens:
+            no = i["no"]
+            if no.get("tag") != "image" or i["op"] < 0.5 or no.get("name", "").startswith(("Fundo", "sombra")):
+                continue
+            fundo = fundo_do_texto(i, itens)
+            ruim = parte_sem_contraste(no, fundo) if fundo else None
+            if ruim is not None and ruim > 0.6:
+                prob(("contraste-imagem", no["id"]), t, f'desenho "{no.get("name", "")}" some no fundo {fundo}: '
+                                                         f"{ruim:.0%} dele com contraste abaixo de 1,5; troque a cor do cartão")
         # A caixa do marca-texto não encosta nas letras de outra linha (de cima ou de baixo).
         for m in itens:
             if m["no"].get("name") != "marca" or m["op"] < 0.5:
