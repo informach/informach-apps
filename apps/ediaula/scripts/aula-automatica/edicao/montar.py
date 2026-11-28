@@ -143,6 +143,17 @@ apresentados = set()  # blocos que já ganharam o destaque com escurecimento
 
 # 2. Gestos do trecho: zoom acompanhando, destaque no bloco, balão no botão.
 gestos = [g for g in dec["gestos"] if de <= g["acao"] < ate]
+# Botões clicados em seguida, em gestos diferentes (Voltar à aula e Próxima parte, a 1,5 s um do outro): um gesto só,
+# com os cliques dos dois, para as marcações de um não apagarem as do outro (Cadê A1P3, 27/11/2026).
+_juntos = []
+for _g in gestos:
+    _a = _juntos[-1] if _juntos else None
+    if (_a and _g["tipo"] == "botao" and _a["tipo"] == "botao" and _g.get("cliques") and _a.get("cliques")
+            and _g["cliques"][0]["t"] - _a["cliques"][-1]["t"] < 2.5):
+        _juntos[-1] = dict(_a, cliques=_a["cliques"] + _g["cliques"], fim=_g["fim"])
+        continue
+    _juntos.append(_g)
+gestos = _juntos
 na_anim = lambda t: any(a - 0.2 <= t <= b + 0.2 for a, b in ANIM)
 ARRASTOS = []  # (início, fim) de cada arrasto que sai da paleta ou vai à lixeira: sem zoom durante
 # Coisas da interface que a fala nomeia: o apontar por texto do EdiAula e os do palco com contorno.
@@ -201,22 +212,35 @@ for gi, g in enumerate(gestos):
                     grupos_c[-1].append(ck)
                     continue
             grupos_c.append([ck])
-        for grp in grupos_c:
+        marca_livre = 0.0  # onde a marcação do grupo anterior termina
+        for gi_c, grp in enumerate(grupos_c):
             t_ini, t_fim = grp[0]["t"], grp[-1]["t"]
+            # Outro botão longe, clicado menos de 2 s antes ou depois: sem zoom (dois zooms seguidos se cortariam), só
+            # a moldura e o balão em cada botão, na tela inteira.
+            vizinho = (gi_c and t_ini - grupos_c[gi_c - 1][-1]["t"] < 2.0) or (
+                gi_c + 1 < len(grupos_c) and grupos_c[gi_c + 1][0]["t"] - t_fim < 2.0)
             uniao = [min(c_["alvo"][0] for c_ in grp), min(c_["alvo"][1] for c_ in grp),
                      max(c_["alvo"][2] for c_ in grp), max(c_["alvo"][3] for c_ in grp)]
             # O zoom pode começar embaixo da capa (até 3 s ela cobre a tela): o Expandir logo depois dela já entra com
             # o zoom aberto. Termina antes da animação seguinte, que tira a tela.
-            ini = max(2.4, t_ini - 1.7)
+            # Nunca antes do fim da animação de antes (ela cobre a tela; o zoom só abriria depois e a moldura caía).
+            fim_anim = max([b0 for _, b0 in ANIM if b0 <= t_ini] or [0.0])
+            ini = max(2.4, t_ini - 1.7, fim_anim + 0.05)
             prox_anim = min([a0 for a0, _ in ANIM if a0 >= t_ini] or [1e9])
             fim = min(t_fim + 1.8, prox_anim)
-            zoom(ini, fim, uniao, f"zoom no botão ({v})")
+            if vizinho:
+                ini = max(fim_anim + 0.05, t_ini - 1.2, marca_livre)
+                prox_grupo = grupos_c[gi_c + 1][0]["t"] - 1.0 if gi_c + 1 < len(grupos_c) else fim
+                fim = min(fim, max(t_fim + 0.5, prox_grupo))
+                fechando = fim
+            else:
+                zoom(ini, fim, uniao, f"zoom no botão ({v})")
+                fechando = fim - EASE
             LIVRE[0] = max(LIVRE[0], fim)
-            fechando = fim - EASE
             # As marcações são uma de cada vez (a faixa das marcações): para cada clique, primeiro a moldura sozinha,
             # mostrando onde fica (pelo menos 0,6 s), e o balão com o nome logo antes do clique; a marcação seguinte
             # tira a anterior (antes, o balão entrava junto e a moldura era descartada: Enviar e Concluir aula).
-            inicio = max(ini + EASE, 3.0)
+            inicio = max(ini + (0 if vizinho else EASE), 3.0)
             for k, ck in enumerate(grp):
                 tk, alvo = ck["t"], ck["alvo"]
                 if k:
@@ -240,6 +264,7 @@ for gi, g in enumerate(gestos):
                     cmds[-1]["papel"] = "balao"
                     cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
                     inicio = fim_b - 0.6
+                    marca_livre = fim_b
         continue
     if NOMEADA.match(v):
         # Uma coisa da interface que a fala nomeia ("Objetivo cumprido!", "Salvo", "Seu projeto no Estúdio"):

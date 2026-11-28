@@ -70,7 +70,7 @@ for p in "${PERS[@]}"; do
   fi
 done
 for f in "${VIDEOS[@]}"; do
-  nome="$(basename "${f%.mp4}")"; k="$(echo "$nome" | sed -E 's/^conceito-([0-9]+)-.*//')"
+  nome="$(basename "${f%.mp4}")"; k="$(echo "$nome" | sed -E 's/^conceito-([0-9]+)-.*/\1/')"
   at=$(python -X utf8 -c "import json,sys; print(json.loads(sys.argv[1])[int(sys.argv[2]) - 1][0])" "$TRECHOS" "$k")
   ./comando.sh ia add_clip "{\"media_id\": \"$(midk "$nome" video)\", \"at\": $at}" | head -1
 done

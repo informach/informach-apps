@@ -88,7 +88,7 @@ def video_conceito(nome, slug, t0, t1, video, base, blocos, saida, numero, inici
     ImageDraw.Draw(mascara).rounded_rectangle((0, 0, w - 1, h - 1), radius=26, fill=255)
     mascara.save(os.path.join(tmp, "mascara.png"))
     os.makedirs(saida, exist_ok=True)
-    destino = os.path.join(saida, f"conceito-{numero}-{slug}.mp4")
+    destino = f"{saida}/conceito-{numero}-{slug}.mp4"  # barra normal: o editar-kit.sh lê o trecho da linha
     entradas = ["-loop", "1", "-t", str(dur), "-i", os.path.join(tmp, "fundo.png"),
                 "-ss", str(inicio_video), "-i", video,
                 "-loop", "1", "-t", str(dur), "-i", os.path.join(tmp, "mascara.png")]

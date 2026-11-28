@@ -63,9 +63,15 @@ fim_anterior = 0.0
 numero = 0
 
 
+# A capa cobre os primeiros 3 s. Uma cena que começasse embaixo dela encurtava a capa no EdiAula (as duas na mesma
+# faixa: Cadê A1P1, a capa ficou com 0,5 s); ela começa no fim da capa.
+FIM_DA_CAPA = 3.0
+
+
 def cena(nome, comeco, final):
     global fim_anterior
     t0, t1 = voz.trecho(comeco, final, depois=fim_anterior)
+    t0 = max(t0, FIM_DA_CAPA)
     fim_anterior = t1
     return Cena(f"Conceito · {nome}", t0, t1, BASE, BLOCOS, SAIDA, fundo="fundo-cade"), t0, t1
 
@@ -101,15 +107,15 @@ def a1p1():
     c, t0, t1 = cena("Cadê Todo Mundo", "Oi! Você vai construir", "vamos ver como ele funciona.")
     t_antes = p("Antes de montar o seu", t0)
     t_ver = p("vamos ver como ele funciona", t_antes)
-    titulo(c, [("Cadê ", False), ("Todo Mundo", True), ("?", False)], max(t0, 3.05), t1)
-    painel(c, 3.05, t1)
+    titulo(c, [("Cadê ", False), ("Todo Mundo", True), ("?", False)], t0 + 0.05, t1)
+    painel(c, t0 + 0.05, t1)
     for k in range(3):
-        b = bicho(c, k, 3.1, t1)
+        b = bicho(c, k, t0 + 0.1, t1)
         y = b["transform"]["y"]
         ti = t_antes + 0.45 * k
         c.trilha(b, "y", [(ti, y, None), (ti + 0.3, y - 125, VAIVEM), (ti + 0.9, y - 125, None), (ti + 1.2, y, None)])
     for k in range(3):
-        esconderijo(c, k, 3.1, None, t1)
+        esconderijo(c, k, t0 + 0.1, None, t1)
     x2, y2 = centro(2)
     mao_toque(c, [(t_ver + 0.9, x2, y2 + 30)], t_ver, t1)
     salvar(c, "cade-todo-mundo")
@@ -188,9 +194,9 @@ def a1p3():
     c, t0, t1 = cena("Ação e reação", "Nesta parte, a gente vai entender", "a ação e a reação.")
     t_acao = p("a ação", t0)
     t_reacao = p("e a reação", t_acao)
-    titulo(c, [("Uma ", False), ("ideia importante", True)], max(t0, 3.05), t_acao - 0.05)
+    titulo(c, [("Uma ", False), ("ideia importante", True)], t0 + 0.05, t_acao - 0.05)
     titulo(c, [("Ação", True), (" e ", False), ("reação", True)], t_acao, t1)
-    zappy_vivo(c, "pensando", 100, 480, 340, 3.1, t1)
+    zappy_vivo(c, "pensando", 100, 480, 340, t0 + 0.1, t1)
     icone(c, "Ação", 470, 360, 290, "#FFC02E", "#C98F00", "mao-indicador", 215, t_acao, t1)
     rotulo(c, "Ação", "Ação", 615, 720, t_acao + 0.1, t1, estilo="acao", largura=240)
     trilha(c, "Ação para reação", (790, 505), (855, 450), (920, 505), t_acao + 0.4, t1, n=5)
