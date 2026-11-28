@@ -24,6 +24,11 @@ C=$(./parte.sh "$CURSO" "$AULA" "$N" copia 2>&1 | tail -1)
 echo "cópia: $C"
 ./comando.sh acao abrir-projeto.mjs "{\"arquivo\": \"$C\"}" | grep result
 ARQS="\"$PW/Parte $N - HeyGen.mp4\", \"$MUSICA\""
+# As peças com vídeo de verdade (pecas/conceito-K-*.mp4, cena_video.py) entram na biblioteca junto e vão para o
+# K-ésimo trecho; o acabamento as põe no lugar da tela como as outras animações.
+VIDEOS=()
+for f in "$PASTA"/pecas/conceito-*.mp4; do [ -f "$f" ] && VIDEOS+=("$(cygpath -m "$f")"); done
+for f in "${VIDEOS[@]}"; do ARQS="$ARQS, \"$f\""; done
 # O vídeo do personagem pode vir sem som (Cadê A1P4, 27/11/2026: o HeyGen da Debinha só com a imagem, a voz dela
 # no .wav ao lado). Sem som no clipe, a regra "personagem silencia a professora" não acha voz de personagem e a
 # professora continuava falando por cima da Debinha: o .wav entra junto, no mesmo lugar e com o mesmo corte.
@@ -44,6 +49,7 @@ rev() { ./comando.sh ia get_overview '{}' | grep -o "Revisão do projeto: [0-9]*
 # os personagens no lugar da fala.
 NOMES="$(basename "${MUSICA%.*}")\|Parte $N - HeyGen"
 for p in "${PERS[@]}"; do arq="${p%%@*}"; NOMES="$NOMES\|${arq%.mp4}"; done
+for f in "${VIDEOS[@]}"; do v="$(basename "${f%.mp4}")"; NOMES="$NOMES\|$v"; done
 O=$(./comando.sh ia get_overview '{}')
 AUTO=$(echo "$O" | grep "^- \[t" | grep -o "\[c[a-z0-9]\{8,\}\] \($NOMES\) [0-9]" | grep -o "c[a-z0-9]\{8,\}" | paste -sd, | sed 's/,/", "/g' || true)
 if [ -n "$AUTO" ]; then ./comando.sh ia remove_clips "{\"clip_ids\": [\"$AUTO\"], \"revision\": $(rev)}" | head -1; fi
@@ -62,6 +68,11 @@ for p in "${PERS[@]}"; do
     ./comando.sh ia trim_clip "{\"clip_id\": \"$VID\", \"start\": $ini, \"end\": $fim, \"revision\": $(rev)}" | head -1
     echo "voz de ${arq%.mp4}: o .wav no lugar do vídeo sem som"
   fi
+done
+for f in "${VIDEOS[@]}"; do
+  nome="$(basename "${f%.mp4}")"; k="$(echo "$nome" | sed -E 's/^conceito-([0-9]+)-.*//')"
+  at=$(python -X utf8 -c "import json,sys; print(json.loads(sys.argv[1])[int(sys.argv[2]) - 1][0])" "$TRECHOS" "$k")
+  ./comando.sh ia add_clip "{\"media_id\": \"$(midk "$nome" video)\", \"at\": $at}" | head -1
 done
 ./comando.sh acao salvar.mjs >/dev/null
 # O parte.sh aplicar também abre e salva no EdiSVG, uma de cada vez, as peças sem render (os pedidos de vínculo

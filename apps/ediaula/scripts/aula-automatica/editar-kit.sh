@@ -24,7 +24,7 @@ T=$(echo "$OUT" | python -X utf8 -c "
 import sys, re, json
 t = []
 for linha in sys.stdin:
-    m = re.search(r'/(conceito-(\d+)-[^/]*)\.edisvg \|.*\| ([\d.]+)-([\d.]+)\s*$', linha)
+    m = re.search(r'/(conceito-(\d+)-[^/]*)\.(?:edisvg|mp4) \|.*\| ([\d.]+)-([\d.]+)\s*$', linha)
     if m: t.append((int(m.group(2)), float(m.group(3)), float(m.group(4))))
 t.sort()
 assert [k for k, _, _ in t] == list(range(1, len(t) + 1)), t

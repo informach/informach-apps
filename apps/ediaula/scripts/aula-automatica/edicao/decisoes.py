@@ -79,13 +79,44 @@ BOTOES = {
     "rodar de novo": "Clique para começar uma partida nova",
     "verificar projeto": "Clique em Verificar projeto",
     "enviar projeto": "Clique em Enviar meu projeto",
-    "próxima parte": "Clique para ir para a próxima parte",
-    "concluir aula": "Clique para concluir a aula",
+    "próxima parte": "Clique em Próxima parte",
+    "concluir aula": "Clique em Concluir aula",
     "compartilhar": "Clique para publicar no Mural",
-    "ampliar experiência": "Clique para ampliar a experiência",
-    "voltar à aula": "Clique para voltar ao tamanho da aula",
+    "ampliar experiência": "Clique em Ampliar experiência",
+    "ampliar jogo": "Clique em Ampliar jogo",
+    "voltar à aula": "Clique em Voltar à aula",
+    "livro tela cheia": "Clique aqui para ver em tela cheia",
+    "livro sair da tela cheia": "Clique aqui para sair da tela cheia",
+    "baixar": "Clique em Baixar",
 }
 CONFIRMA = {"enviar projeto": ["Confirme em Enviar"]}
+
+
+def contorno_do_texto(tela, t, x, y):
+    """O texto que a mão aponta no quadro t da gravação (o "Achados: 1" do jogo): a mão descansa logo abaixo dele.
+    Junta os pixels escuros de uma janela acima do ponto e devolve a caixa deles, ou None."""
+    import io
+    import subprocess
+
+    from PIL import Image
+    try:
+        png = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.3f}", "-i", tela, "-frames:v", "1",
+                              "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True, check=True).stdout
+        im = Image.open(io.BytesIO(png)).convert("L")
+    except Exception:
+        return None
+    s = im.width / 1920
+    X, Y = round(x * s), round(y * s)
+    x0, y0, x1, y1 = max(0, X - round(280 * s)), max(0, Y - round(120 * s)), min(im.width, X + round(280 * s)), Y
+    px = im.load()
+    escuros = [(i, j) for j in range(y0, y1) for i in range(x0, x1) if px[i, j] < 90]
+    if len(escuros) < 40:
+        return None
+    xs, ys = [p[0] for p in escuros], [p[1] for p in escuros]
+    caixa = [min(xs) / s, min(ys) / s, (max(xs) + 1) / s, (max(ys) + 1) / s]
+    if caixa[2] - caixa[0] > 520 or caixa[3] - caixa[1] > 120:
+        return None
+    return [round(v) for v in caixa]
 
 
 def contorno_do_botao(tela, t, x, y):
@@ -150,6 +181,10 @@ for s in run["steps"]:
     balao = BOTOES.get(v) or (f"Clique em {v[8:-1]}" if v.startswith("clicar \"") else None)
     gestos.append({"verbo": v, "tipo": tipo, "ini": s["start"], "acao": s["act"], "fim": s["end"],
                    "x": round(p["x"]) if p else None, "y": round(p["y"]) if p else None, "balao": balao})
+    if re.match(r"^apontar jogo \d+ \d+$", v) and p:
+        # Um número do jogo que a fala nomeia ("repare no número Achados"): o contorno do texto, para o zoom e a
+        # moldura pegarem o número inteiro.
+        gestos[-1]["caixa_texto"] = contorno_do_texto(f"{pasta}/tela.mp4", pts[-1]["until"] + 0.3, p["x"], p["y"])
     if tipo == "botao":
         # Cada clique do gesto (o envio tem dois: o botão e a confirmação), no segundo da voz, com o contorno do botão
         # medido na gravação da tela, um instante antes do clique.

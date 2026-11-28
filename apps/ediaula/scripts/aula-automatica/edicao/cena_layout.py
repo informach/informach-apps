@@ -76,6 +76,10 @@ class Layout:
         """A caixa do nó no espaço dele (sem a própria transformação), ou None."""
         a = no.get("attrs", {})
         tag = no.get("tag")
+        if "instance" in no:
+            # Um componente (o Zappy): a caixa dele, para a área ocupada e as sobreposições contarem com ele.
+            ins = no["instance"]
+            return 0.0, 0.0, float(ins.get("width", 0)), float(ins.get("height", 0))
         if tag in ("rect", "image"):
             x, y = float(a.get("x", 0)), float(a.get("y", 0))
             return x, y, x + float(a.get("width", 0)), y + float(a.get("height", 0))

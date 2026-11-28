@@ -146,7 +146,7 @@ gestos = [g for g in dec["gestos"] if de <= g["acao"] < ate]
 na_anim = lambda t: any(a - 0.2 <= t <= b + 0.2 for a, b in ANIM)
 ARRASTOS = []  # (início, fim) de cada arrasto que sai da paleta ou vai à lixeira: sem zoom durante
 # Coisas da interface que a fala nomeia: o apontar por texto do EdiAula e os do palco com contorno.
-NOMEADA = re.compile(r'^apontar\s*"|^apontar objetivo cumprido')
+NOMEADA = re.compile(r'^apontar\s*"|^apontar objetivo cumprido|^apontar jogo \d+ \d+$')
 NOMEADAS_FEITAS = set()  # gestos de "apontar \"…\"" já tratados junto com o anterior
 LIVRE = [0.0]  # até quando vai o zoom do último botão
 grupo = None
@@ -256,8 +256,9 @@ for gi, g in enumerate(gestos):
             NOMEADAS_FEITAS.add(gestos.index(g2))
         alvos = []
         for gx, rx in serie:
-            alvo = rx[0]["alvo"] if rx else None
-            if alvo and alvo[2] - alvo[0] > 600 and rx[0].get("ponto"):
+            # Um número do jogo ("Achados: 1"): o contorno do texto medido na gravação (decisoes.py).
+            alvo = gx.get("caixa_texto") or (rx[0]["alvo"] if rx else None)
+            if alvo and not gx.get("caixa_texto") and alvo[2] - alvo[0] > 600 and rx and rx[0].get("ponto"):
                 # O contorno é a linha inteira (a mensagem do quadro dos objetivos) e o texto fica no começo dela,
                 # onde a mão foi: a moldura abraça só o texto, em volta do ponto.
                 px = rx[0]["ponto"][0]

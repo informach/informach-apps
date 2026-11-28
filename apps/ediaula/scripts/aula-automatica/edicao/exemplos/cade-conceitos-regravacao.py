@@ -36,7 +36,7 @@ from cade_jogo_cena import (  # noqa: E402
     toque,
     visibilidade,
 )
-from edisvg_cena import AMARELO, BRANCO, TINTA, VAIVEM, VERDE, Cena, mao_toque  # noqa: E402
+from edisvg_cena import AMARELO, BRANCO, SUAVE, TINTA, VAIVEM, VERDE, Cena, mao_toque  # noqa: E402
 from ilha_cena import mao, variavel  # noqa: E402
 from jardim_cena import caixa_em, vis, zappy  # noqa: E402
 from kit_cena import (  # noqa: E402
@@ -51,8 +51,9 @@ from kit_cena import (  # noqa: E402
     titulo,
     trilha,
 )
-from kit_cena import caixa_surpresa  # noqa: E402
+from kit_cena import AMARELO_DEGRAU, anel, caixa_surpresa, seta  # noqa: E402
 from zappy_kit import zappy_vivo  # noqa: E402
+from cena_video import video_conceito  # noqa: E402
 from tempos_da_voz import Voz  # noqa: E402
 
 AULA, PARTE = int(sys.argv[1]), int(sys.argv[2])
@@ -94,99 +95,187 @@ def surpresa(c, t0, t1, cx=660, cy=640):
 
 # ── Aula 1 ─────────────────────────────────────────────────────────────────────────────────────────────────
 def a1p1():
-    # "Do Oi até o funciona": o título sobre o jardim, com os bichos espiando atrás dos esconderijos.
+    """Cadê A1P1 no kit (27/11/2026): o jogo apresentado com os bichos espiando, e depois os outros dois escondidos e
+    a surpresa do fim do curso. Cada coisa na palavra que a fala diz; o Zappy de verdade, do EdiSVG."""
+    # 1. O jogo (a capa cobre os primeiros 3 s): o título, o jardim e os bichos espiando atrás dos esconderijos.
     c, t0, t1 = cena("Cadê Todo Mundo", "Oi! Você vai construir", "vamos ver como ele funciona.")
     t_antes = p("Antes de montar o seu", t0)
-    c.ideia("Cadê Todo Mundo", t0 + 0.05, t1, "o jogo que você vai construir", ts=t0 + 0.4)
-    painel(c, t0, t1)
+    t_ver = p("vamos ver como ele funciona", t_antes)
+    titulo(c, [("Cadê ", False), ("Todo Mundo", True), ("?", False)], max(t0, 3.05), t1)
+    painel(c, 3.05, t1)
     for k in range(3):
-        b = bicho(c, k, t0 + 0.1, t1)
-        # O bicho espia acima do esconderijo e volta, um depois do outro.
+        b = bicho(c, k, 3.1, t1)
         y = b["transform"]["y"]
-        ti = t_antes + 0.5 * k
-        c.trilha(b, "y", [(ti, y, None), (ti + 0.3, y - 125, None), (ti + 0.9, y - 125, None), (ti + 1.2, y, None)])
+        ti = t_antes + 0.45 * k
+        c.trilha(b, "y", [(ti, y, None), (ti + 0.3, y - 125, VAIVEM), (ti + 0.9, y - 125, None), (ti + 1.2, y, None)])
     for k in range(3):
-        esconderijo(c, k, t0 + 0.1, None, t1)
+        esconderijo(c, k, 3.1, None, t1)
+    x2, y2 = centro(2)
+    mao_toque(c, [(t_ver + 0.9, x2, y2 + 30)], t_ver, t1)
     salvar(c, "cade-todo-mundo")
-    # Depois da Debinha: a surpresa do fim do curso.
+
+    # 2. Os outros dois ficam para a criança; e a surpresa do fim do curso, numa caixa que chacoalha.
     c, t0, t1 = cena("A surpresa", "Esses eu deixo para você descobrir", "ainda mais seu.")
-    t_tem = p("Ah, e tem mais uma coisa", t0)
-    c.ideia("Descubra você", t0 + 0.05, t_tem - 0.05, "os outros dois estão escondidos")
-    jardim(c, t0, t_tem, toques=[(t0 + 0.4, 0)])
-    interrogacao(c, centro(1)[0], centro(1)[1] - 160, t0 + 0.6, t_tem)
-    interrogacao(c, centro(2)[0], centro(2)[1] - 160, t0 + 0.9, t_tem)
-    c.ideia("Uma surpresa no fim do curso", t_tem, t1, "vai deixar o seu jogo ainda mais seu")
-    surpresa(c, t_tem, t1)
+    t_desc = p("descobrir", t0)
+    t_coisa = p("Ah, e tem mais uma coisa", t_desc)
+    t_fim = p("No fim do curso", t_coisa)
+    t_surpresa = p("surpresa", t_fim)
+    t_esperando = p("esperando", t_surpresa)
+    t_seu = p("Ela vai deixar o seu jogo", t_esperando)
+    titulo(c, [("E os ", False), ("outros dois", True), ("?", False)], t0 + 0.05, t_desc - 0.05)
+    titulo(c, [("Para você ", False), ("descobrir", True)], t_desc, t_coisa - 0.05)
+    painel(c, t0, t_coisa - 0.05)
+    bicho(c, 0, t0, t_coisa - 0.05)
+    for k in (1, 2):
+        bicho(c, k, t0, t_coisa - 0.05)
+        esconderijo(c, k, t0, None, t_coisa - 0.05)
+        cx, cy = centro(k)
+        rotulo(c, f"Quem? {k}", "?", cx, cy - 190, t0 + 0.4 + 0.3 * k, t_coisa - 0.05, estilo="escuro", tam="g",
+               largura=110)
+    x0, y0 = centro(0)
+    raios(c, "Achado", x0, y0 + 40, 110, t0 + 0.3, t_coisa - 0.05)
+    titulo(c, [("Mais uma ", False), ("coisa", True)], t_coisa, t_surpresa - 0.05)
+    titulo(c, [("Uma ", False), ("surpresa", True), (" no fim", False)], t_surpresa, t1)
+    _, cabeca = zappy_vivo(c, "falando", 110, 500, 300, t_coisa, t1, falas=[(t_seu, t1 - 0.2)])
+    rotulo(c, "No fim do curso", "No fim do curso", 860, 470, t_fim, t1, estilo="termo")
+    caixa_surpresa(c, 860, 930, t_surpresa, t1, chacoalha=[t_esperando, t_seu + 0.8])
+    balao_fala(c, "Mais seu", "Seu jogo ainda mais seu!", cabeca, t_seu, t1, tam=40, maxw=360)
     salvar(c, "a-surpresa")
 
 
 def a1p2():
+    """Cadê A1P2 no kit (27/11/2026): o material do passo a passo com os recortes da página de verdade."""
+    # 1. Esqueceu um passo? Volte ao material: a capa de verdade, a mão abre e aparecem as páginas.
     c, t0, t1 = cena("Volte aqui", "Então, se você esquecer algum passo", "abrir o material.")
-    c.ideia("Esqueceu um passo?", t0 + 0.05, t1, "volte aqui e abra o material")
-    caixa_em(c, "Os passos", "os passos do jogo", 660, 470, 640, t0 + 0.4, t1, num=1)
-    caixa_em(c, "Os blocos", "os blocos e o lugar de cada um", 660, 620, 760, t0 + 0.9, t1, num=2)
+    t_esq = p("esquecer algum passo", t0)
+    t_volta = p("é só voltar aqui", t_esq)
+    t_abrir = p("abrir o material", t_volta)
+    titulo(c, [("Esqueceu um ", False), ("passo", True), ("?", False)], t_esq, t_volta - 0.05)
+    titulo(c, [("Volte ao ", False), ("material", True)], t_volta, t1)
+    zappy_vivo(c, "pensando", 110, 520, 300, t0 + 0.1, t1)
+    capa, _ = c.bloco("material-cade-capa", 640, 300, 1.25, fundo=BRANCO, pad=12)
+    c.mostra(capa, t_volta + 0.1, t_abrir + 0.35, pop=True)
+    mao_toque(c, [(t_abrir, 640 + 137 * 1.25, 300 + 250 * 1.25)], t_volta + 0.4, t_abrir + 0.6)
+    paginas, _ = c.bloco("material-cade-paginas", 470, 300, 0.62, fundo=BRANCO, pad=12)
+    c.mostra(paginas, t_abrir + 0.3, t1, pop=True)
     salvar(c, "volte-aqui")
-    c, t0, t1 = cena("Guardar", "para guardar o material", "consultar onde quiser.")
-    c.ideia("Baixar", t0 + 0.05, t1, "para guardar e ler onde quiser")
-    seta = c.poly("Seta de baixar", [(610, 380), (710, 380), (710, 520), (780, 520), (660, 650), (540, 520), (610, 520)], AMARELO)
-    seta["transform"]["opacity"] = 0
-    c.nos.append(seta)
-    c.mostra(seta, t0 + 0.2, t1, sobe=-40)
-    pasta = c.grupo("Pasta", 660, 760, [c.rect("aba", -170, -90, 140, 50, "#F2B33D", rx=14),
-                                        c.rect("pasta", -190, -60, 380, 200, AMARELO, rx=24)], op=0)
+
+    # 2. Baixado: o material vai para a pasta, para ler onde quiser.
+    c, t0, t1 = cena("Guardar", "o material e consultar onde quiser", "consultar onde quiser.")
+    t_onde = p("onde quiser", t0)
+    titulo(c, [("Leia ", False), ("onde quiser", True)], t0 + 0.05, t1)
+    capa, _ = c.bloco("material-cade-capa", 300, 330, 1.0, fundo=BRANCO, pad=10)
+    c.mostra(capa, t0 + 0.05, t1)
+    c.trilha(capa, "x", [(t0 + 0.4, 300, SUAVE), (t0 + 1.0, 560, None)])
+    c.trilha(capa, "y", [(t0 + 0.4, 330, SUAVE), (t0 + 1.0, 420, None)])
+    for prop in ("sx", "sy"):
+        c.trilha(capa, prop, [(t0 + 0.4, 1.0, SUAVE), (t0 + 1.0, 0.55, None)])
+    seta(c, "Baixar", (900, 330), (900, 560), t0 + 0.1, t1)
+    pasta = c.grupo("Pasta", 900, 760, [c.rect("degrau", -200, -84, 400, 220, AMARELO_DEGRAU, rx=26),
+                                         c.rect("aba", -180, -112, 150, 56, "#F2B33D", rx=16),
+                                         c.rect("pasta", -200, -90, 400, 220, AMARELO, rx=26)], op=0)
     c.nos.append(pasta)
-    c.mostra(pasta, t0 + 0.4, t1, pop=True)
+    c.mostra(pasta, t0 + 0.2, t1, pop=True)
+    selo(c, "Guardado", 1060, 650, t_onde, t1)
     salvar(c, "guardar")
 
 
 def a1p3():
-    """A parte de experiência: toda em animação, sem a tela da experiência."""
+    """Cadê A1P3 no kit (27/11/2026): parte de experiência, toda em animação. A analogia das cócegas usa o vídeo de
+    verdade (cena_video.py) e depois os dois quadros dele lado a lado, com Ação e Reação apontadas."""
+    global fim_anterior, numero
+    # 1. Uma ideia importante: ação e reação.
     c, t0, t1 = cena("Ação e reação", "Nesta parte, a gente vai entender", "a ação e a reação.")
-    t_acao = p("a ação e a reação", t0)
-    c.ideia("Ação e reação", t0 + 0.05, t1, "para o seu jogo responder")
-    caixa_em(c, "Ação", "ação", 450, 600, 380, t_acao, t1, fill=BRANCO, num=1, tam=52)
-    caixa_em(c, "Reação", "reação", 950, 600, 380, t_acao + 0.6, t1, fill=VERDE, cor=AMARELO, num=2, tam=52)
+    t_acao = p("a ação", t0)
+    t_reacao = p("e a reação", t_acao)
+    titulo(c, [("Uma ", False), ("ideia importante", True)], max(t0, 3.05), t_acao - 0.05)
+    titulo(c, [("Ação", True), (" e ", False), ("reação", True)], t_acao, t1)
+    zappy_vivo(c, "pensando", 100, 480, 340, 3.1, t1)
+    icone(c, "Ação", 470, 360, 290, "#FFC02E", "#C98F00", "mao-indicador", 215, t_acao, t1)
+    rotulo(c, "Ação", "Ação", 615, 720, t_acao + 0.1, t1, estilo="acao", largura=240)
+    trilha(c, "Ação para reação", (790, 505), (855, 450), (920, 505), t_acao + 0.4, t1, n=5)
+    icone(c, "Reação", 940, 360, 290, "#0B7A54", "#075A3D", "coelho", 225, t_reacao, t1)
+    rotulo(c, "Reação", "Reação", 1085, 720, t_reacao + 0.1, t1, estilo="reacao", largura=240)
     salvar(c, "acao-e-reacao")
 
-    c, t0, t1 = cena("Cócegas", "Sabe quando alguém faz cócegas", "a risada é a reação.")
-    t_acao = p("A cócega é a ação", t0)
-    t_reacao = p("e a risada é a reação", t_acao)
-    c.ideia("Cócegas e risada", t0 + 0.05, t1, None)
-    coelho = sprite(c, "Coelho", "coelho", 0, 0, 72)
-    coelho["transform"].update({"x": 560, "y": 300, "sx": 1.6, "sy": 1.6})
-    vis(c, coelho, [(t0 + 0.2, t1)])
-    m = mao(c, "Mão", 520, 700, s=1.1)
-    vis(c, m, [(t0 + 0.5, t1)])
-    # As cócegas: a mão vai e volta na barriga do coelho, e o coelho balança de rir.
-    vai = [(t0 + 0.6 + 0.25 * k, 520 if k % 2 == 0 else 590, None) for k in range(12)]
-    c.trilha(m, "x", vai)
-    c.trilha(coelho, "y", [(t0 + 1.0 + 0.18 * k, (300 if k % 2 else 278), None) for k in range(16)] + [(t0 + 4.0, 300, None)])
-    risada = c.balao("Risada", "Ha ha ha!", 1050, 360, 340, 60)
-    c.mostra(risada, t0 + 1.4, t1, pop=True)
-    caixa_em(c, "A cócega", "ação: a cócega", 420, 960, 460, t_acao, t1, num=1)
-    caixa_em(c, "A risada", "reação: a risada", 960, 960, 480, t_reacao, t1, fill=VERDE, cor=AMARELO, num=2)
-    salvar(c, "cocegas")
+    # 2. As cócegas: o vídeo de verdade (a mãe faz cócegas e a menina ri).
+    t0, _ = voz.trecho("Sabe quando alguém faz cócegas", "parar de rir?", depois=fim_anterior)
+    t_cocega = p("A cócega é a ação", t0)
+    numero += 1
+    video = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "artes", "videos",
+                         "cocegas-acao-e-reacao.mp4")
+    video_conceito("Cócegas", "cocegas", t0, round(t_cocega - 0.08, 2), video, BASE, BLOCOS, SAIDA, numero,
+                   titulos=[([("As ", False), ("cócegas", True)], p("cócegas", t0)),
+                            ([("Não para de ", False), ("rir", True)], p("parar de rir", t0))])
+    fim_anterior = t_cocega - 0.08
 
+    # 3. A cócega é a ação, a risada é a reação: os dois quadros do vídeo lado a lado.
+    c, t0, t1 = cena("Cócega e risada", "A cócega é a ação", "a risada é a reação.")
+    t_acao = p("é a ação", t0)
+    t_risada = p("e a risada é a reação", t_acao)
+    t_reacao = p("é a reação", t_risada)
+    titulo(c, [("A cócega é a ", False), ("ação", True)], t0 + 0.05, t_risada - 0.05)
+    titulo(c, [("A risada é a ", False), ("reação", True)], t_risada, t1)
+    E = 560 / 960
+    g, _ = c.bloco("cocegas-acao", 80, 360, E, fundo=BRANCO, pad=12)
+    c.mostra(g, t0 + 0.05, t1, pop=True)
+    anel(c, "Mãos", 80 + 0.40 * 560, 360 + 0.68 * 315, 62, t_acao, t1)
+    rotulo(c, "Ação", "Ação: a cócega", 80 + 280, 740, t_acao + 0.1, t1, estilo="acao")
+    g, _ = c.bloco("cocegas-reacao", 700, 360, E, fundo=BRANCO, pad=12)
+    c.mostra(g, t_risada, t1, pop=True)
+    anel(c, "Risada", 700 + 0.36 * 560, 360 + 0.40 * 315, 78, t_reacao, t1)
+    rotulo(c, "Reação", "Reação: a risada", 700 + 280, 740, t_reacao + 0.1, t1, estilo="reacao")
+    trilha(c, "Cócega para risada", (600, 330), (660, 280), (720, 330), t_risada + 0.2, t1, n=5)
+    salvar(c, "cocega-e-risada")
+
+    # 4. No seu jogo: o toque é a ação; a reação que a gente quer é o esconderijo ficar invisível; ligada ao toque.
     c, t0, t1 = cena("O toque", "No seu jogo, o toque é a ação", "ligada ao toque para acontecer.")
     t_toque = p("o toque é a ação", t0)
-    t_reacao = p("A reação que a gente quer", t_toque)
-    t_inv = p("ficar invisível", t_reacao)
-    t_lig = p("Essa reação precisa estar ligada", t_inv)
-    c.ideia("No seu jogo", t0 + 0.05, t1, None)
-    jardim(c, t0, t1, toques=[(t_inv, 0)])
-    caixa_em(c, "Ação", "ação: o toque", 330, 1010, 420, t_toque + 0.2, t1, num=1)
-    caixa_em(c, "Reação", "reação: ficar invisível", 900, 1010, 560, t_reacao + 0.4, t1, fill=VERDE, cor=AMARELO, num=2)
-    ligacao(c, 545, 1010, 615, t_lig, t1)
+    t_quer = p("A reação que a gente quer", t_toque)
+    t_inv = p("ficar invisível", t_quer)
+    t_apar = p("para aparecer quem está atrás dele", t_inv)
+    t_essa = p("Essa reação precisa estar ligada", t_apar)
+    t_lig = p("ligada ao toque", t_essa)
+    titulo(c, [("No seu ", False), ("jogo", True)], t0 + 0.05, t_essa - 0.05)
+    titulo(c, [("Ligada ao ", False), ("toque", True)], t_essa, t1)
+    painel(c, t0, t_essa - 0.05)
+    x0, y0 = centro(0)
+    for k in range(3):
+        bicho(c, k, t0, t_essa - 0.05)
+        esconderijo(c, k, t0, t_inv if k == 0 else None, t_essa - 0.05)
+    mao_toque(c, [(t_toque + 0.3, x0, y0 + 30), (t_inv - 0.3, x0, y0 + 30)], t_toque - 0.2, t_inv + 0.5)
+    larg = largura_comum(c, ["Ação: o toque", "Reação: ficar invisível"])
+    anotacao(c, "Ação", "Ação: o toque", (x0 + 40, y0 + 120), t_toque + 0.4, t_essa - 0.05, estilo="acao",
+             centro=(x0 + 470, y0 + 200), largura=larg)
+    anotacao(c, "Reação", "Reação: ficar invisível", (x0, y0 - 30), t_inv + 0.2, t_essa - 0.05, estilo="reacao",
+             centro=(x0 + 470, y0 - 220), largura=larg)
+    raios(c, "Apareceu", x0, y0 + 40, 110, t_apar, t_essa - 0.05)
+    icone(c, "Toque", 330, 400, 230, "#FFC02E", "#C98F00", "mao-indicador", 170, t_essa + 0.1, t1)
+    rotulo(c, "Toque", "Toque", 445, 700, t_essa + 0.2, t1, estilo="acao", largura=220)
+    icone(c, "Some", 900, 400, 230, "#FFFFFF", "#B9C6D9", "arbusto", 170, t_essa + 0.4, t1, op_arte=30)
+    rotulo(c, "Some", "Some", 1015, 700, t_essa + 0.5, t1, estilo="reacao", largura=220)
+    seta(c, "Ligada", (590, 515), (870, 515), t_lig, t1)
+    rotulo(c, "Ligada", "Ligada", 730, 440, t_lig + 0.3, t1, estilo="escuro")
     salvar(c, "o-toque")
 
+    # 5. Agora você investiga: ligada, o bicho aparece; sem ligar, nada acontece. O Zappy mostra o que testar.
     c, t0, t1 = cena("Investigue", "Agora você vai investigar", "repetir quando quiser.")
-    t_zappy = p("O Zappy vai te mostrando", t0)
-    c.ideia("Investigue", t0 + 0.05, t1, "o que um toque faz no jardim")
-    jardim(c, t0, t1)
-    interrogacao(c, centro(0)[0], centro(0)[1] - 170, t0 + 0.5, t1)
-    caixa_em(c, "Com a reação", "com a reação ligada", 420, 1010, 520, t0 + 1.0, t1, num=1)
-    caixa_em(c, "Sem a reação", "sem a reação ligada", 960, 1010, 520, t0 + 1.6, t1, num=2)
-    zappy(c, t_zappy, t1, px=1160, py=960, s=0.42)
+    t_inv = p("investigar", t0)
+    t_ligada = p("quando a reação está ligada a ele", t_inv)
+    t_nao = p("e quando não está", t_ligada)
+    t_zappy = p("vai te mostrando", t_nao)
+    t_rep = p("você pode repetir", t_zappy)
+    titulo(c, [("Hora de ", False), ("investigar", True)], t_inv, t1)
+    icone(c, "Ligada", 340, 330, 300, "#0B7A54", "#075A3D", "coelho", 235, t_ligada, t_zappy - 0.1)
+    rotulo(c, "Com ligação", "Ligada", 490, 700, t_ligada + 0.1, t_zappy - 0.1, estilo="reacao", largura=260)
+    selo(c, "Funciona", 620, 345, t_ligada + 0.5, t_zappy - 0.1)
+    icone(c, "Sem ligar", 820, 330, 300, "#FFFFFF", "#B9C6D9", "arbusto", 220, t_nao, t_zappy - 0.1)
+    rotulo(c, "Sem ligação", "Sem ligar", 970, 700, t_nao + 0.1, t_zappy - 0.1, estilo="escuro", largura=260)
+    selo(c, "Nada", 1100, 345, t_nao + 0.4, t_zappy - 0.1, ok=False)
+    _, cabeca = zappy_vivo(c, "falando", 300, 460, 360, t_zappy - 0.1, t1,
+                           falas=[(t_zappy, t_rep - 0.1), (t_rep, t1 - 0.2)])
+    balao_fala(c, "Testar", "Eu te mostro o que testar!", cabeca, t_zappy, t_rep - 0.05, tam=42, maxw=420)
+    balao_fala(c, "Repetir", "Pode repetir quando quiser!", cabeca, t_rep, t1, tam=42, maxw=420)
     salvar(c, "investigue")
 
 

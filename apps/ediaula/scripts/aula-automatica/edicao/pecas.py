@@ -124,6 +124,10 @@ for c in cmds:
 # Animações de conceito: a N-ésima peça vai no N-ésimo trecho (o acabamento a põe no lugar da tela).
 for k, (a, b) in enumerate(ANIM, start=1):
     peca = pecas.pop(("conceito", k), None)
+    if not peca and glob.glob(os.path.join(args.pasta, f"conceito-{k}-*.mp4")):
+        # A peça com vídeo de verdade (cena_video.py): o editar-parte.sh importa o MP4 e o põe no trecho.
+        relatorio["vinculadas"].append(f"conceito {k} (vídeo)")
+        continue
     if not peca:
         relatorio["criadas_sem_edisvg"].append(f"{a:.1f}s: conceito {k} (sem conceito-{k}-*.edisvg)")
         continue
