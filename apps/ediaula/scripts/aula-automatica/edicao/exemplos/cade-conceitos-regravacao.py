@@ -25,6 +25,8 @@ from cade_jogo_cena import (  # noqa: E402
     check,
     dedo,
     esconderijo,
+    gx,
+    gy,
     interrogacao,
     jardim,
     ligacao,
@@ -51,7 +53,7 @@ from kit_cena import (  # noqa: E402
     titulo,
     trilha,
 )
-from kit_cena import AMARELO_DEGRAU, anel, caixa_surpresa, seta  # noqa: E402
+from kit_cena import AMARELO_DEGRAU, anel, caixa_surpresa, mais_um, seta  # noqa: E402
 from zappy_kit import zappy_vivo  # noqa: E402
 from cena_video import video_conceito  # noqa: E402
 from tempos_da_voz import Voz  # noqa: E402
@@ -433,223 +435,398 @@ def a1p4():
 
 
 # ── Aula 2 ─────────────────────────────────────────────────────────────────────────────────────────────────
+def pulo(c, g, t, alto=1.18):
+    """O pulinho de uma peça (cresce e volta) em t, para apontar "este aqui"."""
+    for eixo in ("sx", "sy"):
+        e = g["transform"][eixo]
+        c.trilha(g, eixo, [(t, e, VAIVEM), (t + 0.2, alto * e, VAIVEM), (t + 0.45, e, None)])
+    return g
+
+
+def toques_contando(c, ts, t1, valores_antes=0, mais=True):
+    """A mão toca cada esconderijo num tempo de `ts` e o placar sobe um a cada toque, com o "+1" e os raios no
+    personagem que aparece. Devolve os valores do placar para quem quiser usar."""
+    pontos = []
+    for k, t in enumerate(ts):
+        x, y = centro(k)
+        pontos.append((t, x, y + 30))
+        toque(c, x, y, t)
+        raios(c, f"Achado {k + 1}", x, y + 40, 110, t + 0.35, min(t + 1.4, t1))
+        if mais:
+            mais_um(c, f"Achado {k + 1}", x, y - 150, t + 0.35)  # em cima de quem apareceu: nunca dois juntos
+    if ts:
+        mao_toque(c, pontos, ts[0] - 0.4, min(ts[-1] + 0.8, t1))
+    return [(t + 0.15, valores_antes + k + 1) for k, t in enumerate(ts)]
+
+
 def a2p1():
+    """Cadê A2P1 no kit (28/11/2026): hoje o jogo vai contar; o jardim do jeito que ficou na Aula 1, com o número
+    parado no zero (a pergunta do Dedé por cima); e por que ele não conta ainda. Cada coisa na sua palavra."""
+    # 1. Hoje: contar os personagens (a capa cobre os 3 primeiros segundos).
+    # A frase quase toda fica debaixo da capa (sobra menos de 2 s): sem mão, só o placar subindo e os esconderijos
+    # abrindo, um a um, até o fim da frase.
     c, t0, t1 = cena("Contar", "Hoje você vai ensinar", "que você encontra.")
-    c.ideia("Hoje: contar", t0 + 0.05, t1, "os personagens que você encontra")
-    jardim(c, t0, t1, achados=[(t0, 0), (t0 + 1.2, 1), (t0 + 2.0, 2), (t0 + 2.8, 3)],
-           toques=[(t0 + 1.2, 0), (t0 + 2.0, 1), (t0 + 2.8, 2)])
+    titulo(c, [("Hoje: ", False), ("contar", True)], t0 + 0.05, t1)
+    painel(c, t0 + 0.05, t1)
+    for k in range(3):
+        bicho(c, k, t0 + 0.05, t1)
+    passo = max(0.3, (t1 - t0 - 0.5) / 3)
+    ts = [t0 + 0.25 + passo * k for k in range(3)]
+    for k in range(3):
+        esconderijo(c, k, t0 + 0.05, ts[k], t1, sumir=0.25)
+    placar(c, [(t0 + 0.05, 0)] + [(t + 0.15, k + 1) for k, t in enumerate(ts)], t1)
     salvar(c, "contar")
-    # O jardim do jeito que ficou na Aula 1: o toque na palavra, o personagem aparece e Achados fica no zero.
-    c, t0, t1 = cena("O jardim da Aula 1", "Olha aqui o jardim", "e o personagem aparece.")
-    # No jogo a reação é na hora do toque: o dedo toca em "esconderijo" e ele some ali mesmo; "invisível" e "o
-    # personagem aparece" ganham o destaque cada um na sua palavra.
+
+    # 2. O jardim da Aula 1: o toque no "esconderijo", ele fica invisível, o personagem aparece; e o número parado
+    # no zero, que o Dedé pergunta (ele aparece por cima, à esquerda; o anel fica no número).
+    c, t0, t1 = cena("O jardim da Aula 1", "Olha aqui o jardim", "ficou no zero?")
     t_toca = p("esconderijo", p("eu toco num esconderijo", t0))
     t_inv = p("invisível", t_toca)
     t_aparece = p("o personagem aparece", t_inv)
-    c.ideia("O jardim da Aula 1", t0 + 0.05, t1, None)
-    painel(c, t0, t1)
-    coelho = None
+    t_zero = p("ficou no zero", t_aparece)
+    titulo(c, [("O jardim da ", False), ("Aula 1", True)], t0 + 0.05, t_aparece + 0.8)
+    titulo(c, [("E o ", False), ("número", True), ("?", False)], t_aparece + 0.85, t1)
+    painel(c, t0 + 0.05, t1)
+    x0, y0 = centro(0)
     for k in range(3):
-        b = bicho(c, k, t0 + 0.05, t1)
-        coelho = coelho or b
-        esconderijo(c, k, t0 + 0.05, t_toca if k == 0 else None, t1)
-    for p_ in ("sx", "sy"):
-        e = coelho["transform"]["sx"]
-        c.trilha(coelho, p_, [(t_aparece, e, VAIVEM), (t_aparece + 0.2, 1.18 * e, VAIVEM), (t_aparece + 0.45, e, None)])
-    dedo(c, *centro(0), t0 + 0.3, t_toca, t_toca + 0.9)
-    cx, cy = centro(0)
-    caixa_em(c, "Invisível", "invisível", cx, cy - 190, 280, t_inv, t1, fill=VERDE, cor=AMARELO, tam=40)
-    placar(c, [(t0, 0)], t1, destaque=(t_aparece + 0.4, t1))
+        bicho(c, k, t0 + 0.1, t1)
+        esconderijo(c, k, t0 + 0.1, t_toca if k == 0 else None, t1)
+    toque(c, x0, y0, t_toca)
+    mao_toque(c, [(t_toca, x0, y0 + 30)], t0 + 0.4, t_toca + 0.8)
+    anotacao(c, "Invisível", "Ficou invisível", (x0, y0 - 40), t_inv, t_aparece + 0.8, estilo="reacao",
+             centro=(x0 + 420, y0 - 220))
+    raios(c, "Apareceu", x0, y0 + 40, 110, t_aparece, t_aparece + 1.2)
+    placar(c, [(t0 + 0.1, 0)], t1, destaque=(t_aparece + 0.9, t1))
+    rotulo(c, "Ainda zero", "Ainda zero", gx(330), gy(30), t_zero, t1, estilo="escuro")
     salvar(c, "o-jardim-da-aula-1")
-    # Depois do Dedé: o número ainda não conta.
+
+    # 3. O jogo ainda não conta; agora a gente vai fazer o número contar cada personagem encontrado.
     c, t0, t1 = cena("Ainda não conta", "É que o jogo ainda não conta", "cada personagem encontrado.")
     t_agora = p("Então, agora a gente vai fazer", t0)
-    c.ideia("O jogo ainda não conta", t0 + 0.05, t_agora - 0.05, None)
-    c.ideia("Agora: contar cada um", t_agora, t1, None)
-    painel(c, t0, t1)
+    t_cada = p("cada personagem encontrado", t_agora)
+    titulo(c, [("Ainda não ", False), ("conta", True)], t0 + 0.05, t_agora - 0.05)
+    titulo(c, [("Agora: ", False), ("contar", True), (" cada um", False)], t_agora, t1)
+    painel(c, t0 + 0.05, t1)
+    selo(c, "Não conta", gx(225), gy(30), t0 + 0.6, t_agora - 0.05, ok=False)
     for k in range(3):
-        bicho(c, k, t0 + 0.05, t1)
-        if k:
-            esconderijo(c, k, t0 + 0.05, t_agora + 0.8 * k, t1)
-    placar(c, [(t0, 0), (t_agora + 0.3, 1), (t_agora + 1.1, 2), (t_agora + 1.9, 3)], t1)
+        bicho(c, k, t0 + 0.1, t1)
+    passo = max(0.45, min(0.7, (t1 - t_agora - 0.8) / 3))
+    ts = [max(t_agora + 0.4, t_cada - 0.6) + passo * k for k in range(3)]
+    for k in range(3):
+        esconderijo(c, k, t0 + 0.1, ts[k], t1)
+    placar(c, [(t0 + 0.1, 0)] + toques_contando(c, ts, t1), t1, destaque=(t0 + 0.5, t_agora - 0.05))
     salvar(c, "ainda-nao-conta")
 
 
 def a2p2():
-    """A parte de experiência: toda em animação."""
+    """Cadê A2P2 no kit (28/11/2026), parte de experiência, toda em animação: a variável guarda um valor que muda,
+    o placar do futebol, a variável achados no jardim e a investigação com o Zappy."""
+    # 1. Guardar um número: a variável.
     c, t0, t1 = cena("Variável", "Para contar os personagens", "um valor que pode mudar.")
-    t_var = p("A gente chama esse lugar de variável", t0)
-    t_muda = p("que pode mudar", t_var)
-    c.ideia("Variável", t0 + 0.05, t1, "guarda um valor que pode mudar", ts=t_var)
-    variavel(c, "Variável", "achados", 660, 640, [(t_var + 0.3, "0", TINTA), (t_muda, "1", VERDE)], w=480,
-             t0=t_var, t1=t1)
+    t_num = p("guardar um número", t0)
+    t_var = p("variável", p("A gente chama esse lugar", t_num))
+    t_guarda = p("Ela guarda um valor", t_var)
+    t_muda = p("que pode mudar", t_guarda)
+    titulo(c, [("Guardar um ", False), ("número", True)], t0 + 0.05, t_var - 0.05)
+    titulo(c, [("Uma ", False), ("variável", True)], t_var, t1)
+    zappy_vivo(c, "pensando", 110, 520, 300, t0 + 0.1, t1)
+    variavel(c, "Variável", "Achados", 760, 600, [(t_num + 0.4, "0", TINTA), (t_muda + 0.2, "1", VERDE)], w=480,
+             t0=t_num, t1=t1, cor_nome=TINTA)
+    mais_um(c, "Muda", 1060, 520, t_muda + 0.2)
+    rotulo(c, "Guarda", "Guarda um valor", 760, 800, t_guarda + 0.1, t1, estilo="termo")
     salvar(c, "variavel")
 
+    # 2. O placar do futebol: mostra quantos gols; saiu outro gol, aumenta em um.
     c, t0, t1 = cena("Placar", "Sabe o placar de um jogo de futebol", "aumenta em um.")
-    t_outro = p("Quando sai outro gol", t0)
+    t_mostra = p("Ele mostra quantos gols", t0)
+    t_outro = p("Quando sai outro gol", t_mostra)
     t_aumenta = p("o número aumenta em um", t_outro)
-    c.ideia("O placar", t0 + 0.05, t1, "mostra quantos gols já aconteceram")
-    placar_futebol(c, 660, 560, t0 + 0.2, t1, [(t0 + 0.2, 1, 0), (t_aumenta, 2, 0)])
-    bola(c, 300, 900, t_outro - 0.3, t_aumenta + 0.3, para=(t_aumenta, 480, 600))
-    caixa_em(c, "Mais um", "+1", 480, 830, 160, t_aumenta + 0.1, t1, fill=VERDE, cor=AMARELO, tam=52)
+    titulo(c, [("O ", False), ("placar", True)], t0 + 0.05, t1)
+    placar_futebol(c, 680, 600, t0 + 0.2, t1, [(t0 + 0.2, 1, 0), (t_aumenta, 2, 0)], s=1.45)
+    anel(c, "Gols", 680 - 261, 600 + 87, 130, t_mostra + 0.2, t_outro)
+    bola(c, 200, 960, t_outro - 0.2, t_aumenta + 0.4, para=(t_aumenta, 420, 720))
+    mais_um(c, "Gol", 420, 420, t_aumenta + 0.1)
+    raios(c, "Gol", 420, 690, 170, t_aumenta, t1)
     salvar(c, "placar")
 
+    # 3. No jardim: a variável achados guarda quantos personagens; o placar mostra; cada novo soma um.
     c, t0, t1 = cena("Achados", "No jardim, a variável achados", "que já estava guardado.")
-    t_placar = p("O placar mostra esse valor", t0)
+    t_quantos = p("guarda quantos personagens", t0)
+    t_placar = p("O placar mostra esse valor", t_quantos)
     t_cada = p("Cada novo personagem", t_placar)
-    c.ideia("A variável achados", t0 + 0.05, t1, None)
-    jardim(c, t0, t1, toques=[(t_cada + 0.6, 0)], achados=[(t_placar, 0), (t_cada + 0.6, 1)])
-    variavel(c, "Variável", "achados", 1010, 1000, [(t0 + 0.3, "0", TINTA), (t_cada + 0.6, "1", VERDE)], w=300,
-             t0=t0 + 0.2, t1=t1)
+    t_guardado = p("que já estava guardado", t_cada)
+    titulo(c, [("A variável ", False), ("achados", True)], t0 + 0.05, t1)
+    painel(c, t0 + 0.05, t1)
+    for k in range(3):
+        bicho(c, k, t0 + 0.1, t1)
+    t_toca = t_cada + 0.5
+    for k in range(3):
+        esconderijo(c, k, t0 + 0.1, t_toca if k == 0 else None, t1)
+    # A variável no céu do jardim (à direita fica a apresentadora): a seta leva o valor dela ao placar.
+    variavel(c, "Variável", "Achados", gx(500), gy(75), [(t_quantos, "0", TINTA), (t_toca + 0.15, "1", VERDE)],
+             w=280, t0=t0 + 0.3, t1=t1, cor_nome=TINTA)
+    seta(c, "Mostra", (gx(500) - 160, gy(75)), (gx(200), gy(40)), t_placar, t1)
+    placar(c, [(t0 + 0.1, 0)] + toques_contando(c, [t_toca], t1), t1, destaque=(t_placar, t_cada))
+    rotulo(c, "Soma um", "Soma 1 ao que já estava", 660, 1010, t_guardado, t1, estilo="reacao")
     salvar(c, "achados")
 
+    # 4. Agora você investiga: quando o número muda e quando continua igual; o Zappy mostra o que testar.
     c, t0, t1 = cena("Investigue", "Agora você vai investigar", "repetir quando quiser.")
-    t_zappy = p("O Zappy vai te mostrando", t0)
-    c.ideia("Investigue", t0 + 0.05, t1, "quando o número muda e quando fica igual")
-    jardim(c, t0, t1, achados=[(t0, 0)])
-    interrogacao(c, 300, 420, t0 + 0.5, t1)
-    zappy(c, t_zappy, t1, px=1160, py=960, s=0.42)
+    t_inv = p("investigar", t0)
+    t_muda = p("quando esse número muda", t_inv)
+    t_igual = p("quando continua igual", t_muda)
+    t_zappy = p("vai te mostrando", t_igual)
+    t_rep = p("você pode repetir", t_zappy)
+    titulo(c, [("Hora de ", False), ("investigar", True)], t_inv, t1)
+    icone(c, "Muda", 340, 330, 300, "#0B7A54", "#075A3D", "coelho", 235, t_muda, t_zappy - 0.1)
+    rotulo(c, "Muda", "Muda: +1", 490, 700, t_muda + 0.1, t_zappy - 0.1, estilo="reacao", largura=260)
+    icone(c, "Igual", 820, 330, 300, "#FFFFFF", "#B9C6D9", "arbusto", 220, t_igual, t_zappy - 0.1, op_arte=30)
+    rotulo(c, "Igual", "Fica igual", 970, 700, t_igual + 0.1, t_zappy - 0.1, estilo="escuro", largura=260)
+    _, cabeca = zappy_vivo(c, "falando", 300, 460, 360, t_zappy - 0.1, t1,
+                           falas=[(t_zappy, t_rep - 0.1), (t_rep, t1 - 0.2)])
+    balao_fala(c, "Testar", "Eu te mostro o que testar!", cabeca, t_zappy, t_rep - 0.05, tam=42, maxw=420)
+    balao_fala(c, "Repetir", "Pode repetir quando quiser!", cabeca, t_rep, t1, tam=42, maxw=420)
     salvar(c, "investigue")
 
 
 def a2p3():
+    """Cadê A2P3 no kit (28/11/2026): o que o jogo vai fazer (contar como na experiência), o 1 do bloco, a contagem
+    que faz a mensagem, o mesmo lugar que não conta duas vezes e como conferir os blocos."""
+    # 1. Lembra da experiência: cada personagem somava um. Agora no seu jogo.
     c, t0, t1 = cena("Lembra da experiência", "Lembra da experiência da parte anterior", "contar do mesmo jeito!")
     t_cada = p("Cada personagem encontrado", t0)
     t_agora = p("Agora a gente vai fazer", t_cada)
-    c.ideia("Lembra?", t0 + 0.05, t_agora - 0.05, "cada personagem somava um")
-    c.ideia("Agora no seu jogo", t_agora, t1, None)
-    passo = max(0.6, (t_agora - t_cada) / 3.2)
+    titulo(c, [("Lembra da ", False), ("experiência", True), ("?", False)], t0 + 0.05, t_agora - 0.05)
+    titulo(c, [("Agora no ", False), ("seu jogo", True)], t_agora, t1)
+    painel(c, t0 + 0.05, t1)
+    for k in range(3):
+        bicho(c, k, t0 + 0.1, t1)
+    passo = max(0.5, min(0.75, (t_agora - t_cada - 0.3) / 3))
     ts = [t_cada + 0.3 + passo * k for k in range(3)]
-    jardim(c, t0, t1, toques=[(t, k) for k, t in enumerate(ts)], achados=[(t0, 0)] + [(t, k + 1) for k, t in enumerate(ts)])
+    for k in range(3):
+        esconderijo(c, k, t0 + 0.1, ts[k], t1)
+    placar(c, [(t0 + 0.1, 0)] + toques_contando(c, ts, t1), t1)
     salvar(c, "lembra-da-experiencia")
 
+    # 2. O 1 do bloco já está certo: cada personagem vale um achado.
     c, t0, t1 = cena("Um achado", "O número 1 já está certo", "cada personagem vale um achado.")
-    c.ideia("Somar 1", t0 + 0.05, t1, "cada personagem vale um achado")
-    variavel(c, "Variável", "achados", 660, 660, [(t0 + 0.3, "0", TINTA), (t0 + 1.0, "1", VERDE)], w=420,
-             t0=t0 + 0.2, t1=t1)
-    caixa_em(c, "Mais um", "+1", 1000, 560, 160, t0 + 0.9, t1, fill=VERDE, cor=AMARELO, tam=52)
+    t_cada = p("cada personagem vale um achado", t0)
+    titulo(c, [("Somar ", False), ("1", True)], t0 + 0.05, t_cada - 0.05)
+    titulo(c, [("Cada um vale ", False), ("um achado", True)], t_cada, t1)
+    if tem_bloco("somar-1"):
+        g, _ = c.bloco("somar-1", 160, 380, 2.6)
+        c.mostra(g, t0 + 0.1, t1, pop=True)
+        anel(c, "O 1", 160 + 75.5 * 2.6, 380 + 29 * 2.6, 46, t0 + 0.5, t1)  # o campo do 1 no recorte
+    bicho(c, 0, t_cada, t1)
+    variavel(c, "Variável", "Achados", 1000, 700, [(t_cada, "0", TINTA), (t_cada + 0.6, "1", VERDE)], w=360,
+             t0=t_cada, t1=t1, cor_nome=TINTA)
+    mais_um(c, "Um", 1230, 620, t_cada + 0.6)
     salvar(c, "um-achado")
 
-    c, t0, t1 = cena("A mensagem", "E quem faz essa mensagem aparecer", "Achados chega a 3.")
+    # 3. A contagem faz a mensagem: ela aparece quando Achados chega a 3 (o toque na mensagem fica na tela antes).
+    c, t0, t1 = cena("A mensagem", "a contagem que você acabou de montar", "Achados chega a 3.")
     t_chega = p("quando Achados chega a 3", t0)
-    c.ideia("A contagem faz a mensagem", t0 + 0.05, t1, None)
-    jardim(c, t0, t1, achados_antes=(0, 1, 2), mensagem=t0 + 0.2)
-    placar(c, [(t0, 3)], t1, destaque=(t_chega, t1))
-    caixa_em(c, "Quando 3", "Achados chega a 3", 660, 1010, 520, t_chega, t1, fill=AMARELO, tam=42)
+    titulo(c, [("A ", False), ("contagem", True), (" faz a mensagem", False)], t0 + 0.05, t1)
+    jardim(c, t0, t1, achados_antes=(0, 1, 2), mensagem=t_chega)
+    placar(c, [(t0, 2), (t_chega - 0.4, 3)], t1, destaque=(t_chega - 0.4, t1))
+    mais_um(c, "Três", gx(235), gy(30), t_chega - 0.4)
+    moldura(c, "Mensagem", gx(174) - 14, gy(72) - 52, gx(174) + 560, gy(72) + 18, t_chega + 0.2, t1)
     salvar(c, "a-mensagem")
 
+    # 4. O mesmo lugar não conta duas vezes: o esconderijo invisível não recebe outro toque.
     c, t0, t1 = cena("Mesmo lugar", "É que o esconderijo invisível", "não conta duas vezes.")
-    t_mesmo = p("então o mesmo personagem", t0)
-    c.ideia("Não conta duas vezes", t0 + 0.05, t1, "o esconderijo invisível não recebe toque")
-    painel(c, t0, t1)
+    t_nao = p("não recebe outro toque", t0)
+    t_mesmo = p("então o mesmo personagem", t_nao)
+    titulo(c, [("Não conta ", False), ("duas vezes", True)], t0 + 0.05, t1)
+    painel(c, t0 + 0.05, t1)
     for k in range(3):
-        bicho(c, k, t0 + 0.05, t1)
-    placar(c, [(t0, 3)], t1, destaque=(t_mesmo, t1))
-    toque(c, *centro(0), t0 + 0.8)
-    caixa_em(c, "Continua 3", "continua em 3", 660, 1010, 420, t_mesmo, t1, fill=VERDE, cor=AMARELO, tam=42)
+        bicho(c, k, t0 + 0.1, t1)
+    x0, y0 = centro(0)
+    toque(c, x0, y0, t_nao)
+    mao_toque(c, [(t_nao, x0, y0 + 30)], t0 + 0.4, t_nao + 0.9)
+    anotacao(c, "Sem toque", "Invisível: não recebe toque", (x0 + 30, y0 + 40), t_nao + 0.2, t1, estilo="escuro",
+             centro=(x0 + 480, y0 + 190))
+    placar(c, [(t0 + 0.1, 3)], t1, destaque=(t_mesmo, t1))
+    rotulo(c, "Continua 3", "Continua em 3", gx(330), gy(30), t_mesmo + 0.2, t1, estilo="reacao")
     salvar(c, "mesmo-lugar")
 
+    # 5. Confira os blocos: os dois dentro de Quando clicar ou tocar, primeiro fica invisível, logo abaixo soma 1.
     c, t0, t1 = cena("Confira", "volte aos blocos e confira", "soma 1 em achados.")
     t_dois = p("os dois blocos estão dentro", t0)
     t_prim = p("primeiro o esconderijo", t_dois)
     t_abaixo = p("logo abaixo", t_prim)
-    c.ideia("Confira", t0 + 0.05, t1, None)
+    titulo(c, [("Confira os ", False), ("blocos", True)], t0 + 0.05, t1)
     if tem_bloco("bloco-montado-a2"):
-        g, _ = c.bloco("bloco-montado-a2", 170, 300, 2.0)
-        vis(c, g, [(t0 + 0.1, t1)])
-    for k, (t, texto) in enumerate(((t_dois, "os dois dentro de Quando clicar ou tocar"),
-                                    (t_prim, "primeiro: fica invisível"), (t_abaixo, "logo abaixo: soma 1 em achados"))):
-        caixa_em(c, f"Item {k + 1}", texto, 640, 660 + 130 * k, 980, t, t1, num=k + 1, tam=36)
-        check(c, 1170, 660 + 130 * k, t + 0.4, t1)
+        g, _ = c.bloco("bloco-montado-a2", 160, 290, 2.2)
+        c.mostra(g, t0 + 0.1, t1, pop=True)
+    larg = largura_comum(c, ["1. Os dois dentro", "2. Primeiro: invisível", "3. Depois: soma 1"]) + 24
+    for k, (t, texto) in enumerate(((t_dois, "1. Os dois dentro"), (t_prim, "2. Primeiro: invisível"),
+                                    (t_abaixo, "3. Depois: soma 1"))):
+        rotulo(c, f"Item {k + 1}", texto, 620, 700 + 120 * k, t, t1, estilo="termo", largura=larg)
+        selo(c, f"Certo {k + 1}", 620 + larg / 2 + 60, 700 + 120 * k, t + 0.4, t1)
     salvar(c, "confira")
 
 
 def a2p4():
+    """Cadê A2P4 no kit (28/11/2026): a surpresa abre; o Passo a passo com os bichos e os esconderijos, com o nome
+    de cada um; o desenho novo cabe no lugar do antigo; cada imagem no seu tipo; e o jogo com a cara da criança."""
+    novos_b, novos_e = ["gato", "sapo", "esquilo"], ["toco", "cogumelo", "folhas"]
+    # 1. Chegou a surpresa: a caixa chacoalha e abre; você escolhe quem se esconde e onde.
+    # "Chegou a surpresa! Agora você pode escolher" é dito debaixo da capa: a cena abre com a caixa já abrindo, e o
+    # jardim novo entra logo depois (as palavras são buscadas desde o começo da voz).
     c, t0, t1 = cena("A surpresa", "Chegou a surpresa", "onde cada um vai ficar.")
-    t_agora = p("Agora você pode escolher", t0)
-    c.ideia("Chegou a surpresa!", t0 + 0.05, t1, "você escolhe quem se esconde e onde", ts=t_agora)
-    presente(c, 660, 640, t0 + 0.1, t_agora + 0.6, abre=t0 + 0.6)
-    jardim(c, t_agora + 0.5, t1, artes_bicho=["gato", "sapo", "esquilo"], artes_esc=["toco", "cogumelo", "folhas"])
+    t_agora = max(t0 + 1.4, p("Agora você pode escolher", 0))
+    t_onde = p("onde cada um vai ficar", 0)
+    titulo(c, [("Chegou a ", False), ("surpresa", True), ("!", False)], t0 + 0.05, t_agora - 0.05)
+    titulo(c, [("Você ", False), ("escolhe", True)], t_agora, t1)
+    caixa_surpresa(c, 660, 880, t0 + 0.1, t_agora + 0.2, chacoalha=[t0 + 0.2], abre=t0 + 0.7)
+    jardim(c, t_agora + 0.3, t1, artes_bicho=novos_b, artes_esc=novos_e)
+    rotulo(c, "Quem", "Quem se esconde", gx(160), gy(30), t_agora + 0.6, t1, estilo="acao")
+    rotulo(c, "Onde", "E onde", gx(470), gy(30), t_onde, t1, estilo="acao")
     salvar(c, "a-surpresa")
 
+    # 2. No Passo a passo: os bichos e os esconderijos com o nome de cada um; a mensagem também; fica no seu jogo.
     c, t0, t1 = cena("Bichos e esconderijos", "No Passo a passo do projeto", "fica no seu jogo.")
-    t_msg = p("E a mensagem do final", t0)
+    t_bichos = p("os bichos", t0)
+    t_esc = p("e os esconderijos", t_bichos)
+    t_msg = p("E a mensagem do final", t_esc)
     t_tudo = p("Tudo o que você mudar", t_msg)
-    c.ideia("Bichos e esconderijos", t0 + 0.05, t_msg - 0.05, "com o nome de cada um")
+    titulo(c, [("No ", False), ("Passo a passo", True)], t0 + 0.05, t_msg - 0.05)
+    # Os bichos numa faixa azul (o coelho branco sumia no branco) e os esconderijos numa branca (o arbusto verde
+    # sumia no azul): contraste dos desenhos, 28/11/2026.
+    for nome_f, y_f, h_f, cor_f, deg_f in (("Bichos", 260, 300, "#9DBDE6", "#6F93C4"),
+                                           ("Esconderijos", 590, 340, BRANCO, "#B9C6D9")):
+        for no in (c.rect(f"Faixa · {nome_f} · degrau", 90, y_f + 10, 1150, h_f, deg_f, rx=36),
+                   c.rect(f"Faixa · {nome_f}", 90, y_f, 1150, h_f, cor_f, rx=36)):
+            c.nos.append(no)
+            c.mostra(no, t0 + 0.05, t_msg - 0.05, sobe=20)
     for k, nome in enumerate(("coelho", "raposa", "coruja", "gato", "sapo", "tartaruga", "esquilo")):
+        x = 165 + 155 * k
         g = sprite(c, nome, nome, 0, 0, 72)
-        g["transform"].update({"x": 130 + 165 * k, "y": 330, "sx": 0.42, "sy": 0.42})
-        c.mostra(g, t0 + 0.2 + 0.12 * k, t_msg, pop=True)
-        r = c.texto(f"Nome · {nome}", nome, 130 + 165 * k + 60, 525, 30, BRANCO, familia="Nunito", peso=800,
-                    ancora="middle", op=0)
+        g["transform"].update({"x": x - 50, "y": 300, "sx": 0.40, "sy": 0.40})
+        c.mostra(g, t_bichos + 0.1 * k, t_msg - 0.05, pop=True)
+        r = c.texto(f"Código · {nome}", nome, x, 505, 30, TINTA, familia="Nunito", peso=800, ancora="middle", op=0)
         c.nos.append(r)
-        vis(c, r, [(t0 + 0.4 + 0.12 * k, t_msg)])
+        c.mostra(r, t_bichos + 0.2 + 0.1 * k, t_msg - 0.05)
     for k, nome in enumerate(("arbusto", "pedras", "flores", "toco", "cogumelo", "folhas")):
+        x = 190 + 180 * k
         g = sprite(c, nome, nome, 0, 0, 161)
-        g["transform"].update({"x": 130 + 195 * k, "y": 600, "sx": 0.27, "sy": 0.27})
-        c.mostra(g, t0 + 0.9 + 0.12 * k, t_msg, pop=True)
-        r = c.texto(f"Nome · {nome}", nome, 130 + 195 * k + 87, 800, 30, BRANCO, familia="Nunito", peso=800,
-                    ancora="middle", op=0)
+        g["transform"].update({"x": x - 80, "y": 600, "sx": 0.26, "sy": 0.26})
+        c.mostra(g, t_esc + 0.1 * k, t_msg - 0.05, pop=True)
+        r = c.texto(f"Código · {nome}", nome, x, 860, 30, TINTA, familia="Nunito", peso=800, ancora="middle", op=0)
         c.nos.append(r)
-        vis(c, r, [(t0 + 1.1 + 0.12 * k, t_msg)])
-    c.ideia("A mensagem também", t_msg, t_tudo - 0.05, None)
-    caixa_em(c, "Mensagem", "Você achou todo mundo!", 660, 640, 760, t_msg + 0.2, t_tudo, fill=BRANCO, tam=46)
-    c.ideia("Fica no seu jogo", t_tudo, t1, None)
-    jardim(c, t_tudo, t1, artes_bicho=["gato", "sapo", "esquilo"], artes_esc=["toco", "cogumelo", "folhas"])
+        c.mostra(r, t_esc + 0.2 + 0.1 * k, t_msg - 0.05)
+    titulo(c, [("A ", False), ("mensagem", True), (" também", False)], t_msg, t_tudo - 0.05)
+    jardim(c, t_msg, t1, achados_antes=(0, 1, 2), mensagem=t_msg + 0.3, artes_bicho=novos_b)
+    rotulo(c, "Sua frase", "Sua frase", gx(310), gy(112), t_msg + 0.6, t1, estilo="acao")
+    titulo(c, [("Fica no ", False), ("seu jogo", True)], t_tudo, t1)
+    selo(c, "Fica", gx(620), gy(20), t_tudo + 0.3, t1)
     salvar(c, "bichos-e-esconderijos")
 
+    # 3. O desenho novo cabe no lugar do antigo: os bichos pulam um a um ("todos os bichos ... do mesmo tamanho"),
+    # depois os esconderijos, e o arbusto vira toco no mesmo lugar ("cabe certinho").
     c, t0, t1 = cena("Mesmo tamanho", "Isso acontece porque todos os bichos", "no lugar do antigo.")
-    c.ideia("Todos do mesmo tamanho", t0 + 0.05, t1, "o desenho novo cabe no lugar do antigo")
-    painel(c, t0, t1)
-    t_troca = t0 + 1.2
+    t_bichos = p("todos os bichos", t0)
+    t_mesmo = p("do mesmo tamanho", t_bichos)
+    t_esc = p("e todos os esconderijos também", t_mesmo)
+    t_cabe = p("o desenho novo cabe", t_esc)
+    titulo(c, [("Todos do ", False), ("mesmo tamanho", True)], t0 + 0.05, t1)
+    painel(c, t0 + 0.05, t1)
     for k in range(3):
-        bicho(c, k, t0 + 0.05, t1)
-    esconderijo(c, 0, t0 + 0.05, None, t_troca)
-    esconderijo(c, 0, t_troca, None, t1, arte="toco")
+        pulo(c, bicho(c, k, t0 + 0.1, t1), t_bichos + 0.25 * k)
+    esconderijo(c, 0, t0 + 0.1, None, t_cabe)
+    pulo(c, esconderijo(c, 0, t_cabe, None, t1, arte="toco"), t_cabe + 0.3)
     for k in (1, 2):
-        esconderijo(c, k, t0 + 0.05, None, t1)
+        pulo(c, esconderijo(c, k, t0 + 0.1, None, t1), t_esc + 0.25 * k)
+    rotulo(c, "Mesmo tamanho", "Mesmo tamanho", gx(330), gy(30), t_mesmo, t1, estilo="termo")
     x0, y0 = centro(0)
-    moldura = c.rect("Mesmo lugar", x0 - 145, y0 - 130, 290, 260, "none", rx=16, stroke=AMARELO, sw=7, op=0)
-    c.nos.append(moldura)
-    c.pisca(moldura, t0 + 0.5, t1)
+    moldura(c, "Mesmo lugar", x0 - 150, y0 - 135, x0 + 150, y0 + 135, t_cabe - 0.3, t1)
+    rotulo(c, "Cabe", "Cabe certinho", x0 + 120, y0 + 200, t_cabe + 0.4, t1, estilo="reacao")
     salvar(c, "mesmo-tamanho")
 
+    # 4. O tipo da imagem: o bicho que aparece antes do toque (um bicho no bloco do esconderijo) e o desenho grande
+    # demais (um esconderijo no bloco do bicho), cada um com o x na sua palavra; depois, cada um no seu tipo.
     c, t0, t1 = cena("O tipo da imagem", "Se algum bicho aparecer antes do toque", "esconderijo no bloco do esconderijo.")
-    t_aqui = p("Aí é só clicar de novo", t0)
-    c.ideia("Cada um no seu tipo", t0 + 0.05, t1, None)
-    painel(c, t0, t1)
-    # A imagem do tipo errado: um esconderijo no lugar de um bicho fica por cima, grande demais.
-    bicho(c, 0, t0 + 0.05, t1)
-    esconderijo(c, 0, t0 + 0.05, None, t1)
+    t_grande = p("ou se um desenho ficar grande demais", t0)
+    t_outro = p("do outro tipo", t_grande)
+    t_aqui = p("Aí é só clicar de novo", t_outro)
+    t_mesmo = p("escolher um desenho do mesmo tipo", t_aqui)
+    t_bicho = p("bicho no bloco do bicho", t_mesmo)
+    t_esc = p("esconderijo no bloco do esconderijo", t_bicho)
+    titulo(c, [("Tipo ", False), ("errado", True), ("?", False)], t0 + 0.05, t_aqui - 0.05)
+    titulo(c, [("Cada um no ", False), ("seu tipo", True)], t_aqui, t1)
+    painel(c, t0 + 0.05, t1)
+    for k in range(3):
+        bicho(c, k, t0 + 0.1, t1)
+    # Erro 1: um bicho no lugar do esconderijo 3 aparece antes do toque (à frente, pequeno).
+    esconderijo(c, 2, t0 + 0.1, None, t0 + 0.5)
+    bicho_fora = sprite(c, "Bicho no bloco do esconderijo", "gato", 447, 181, 72)
+    c.mostra(bicho_fora, t0 + 0.5, t_aqui, pop=True)
+    esconderijo(c, 2, t_aqui + 0.2, None, t1)
+    x2, y2 = centro(2)
+    selo(c, "Errado 1", x2 + 90, y2 - 110, t0 + 0.9, t_aqui, ok=False)
+    # Erro 2: um esconderijo no bloco do bicho fica grande, por cima do arbusto.
+    esconderijo(c, 0, t0 + 0.1, None, t1)
     errado = sprite(c, "Esconderijo no bloco do bicho", "cogumelo", 101 - 44, 181 - 40, 161)
-    vis(c, errado, [(t0 + 0.6, t_aqui)])
-    caixa_em(c, "Errado", "tipo errado", 300, 370, 320, t0 + 0.8, t_aqui, fill=AMARELO, tam=40)
-    for k in (1, 2):
-        bicho(c, k, t0 + 0.05, t1)
-        esconderijo(c, k, t0 + 0.05, None, t1)
-    caixa_em(c, "Bicho", "bicho no bloco do bicho", 420, 1010, 560, t_aqui + 0.3, t1, num=1, tam=36)
-    caixa_em(c, "Esconderijo", "esconderijo no do esconderijo", 960, 1010, 600, t_aqui + 0.9, t1, num=2, tam=36)
+    c.mostra(errado, t_grande, t_aqui, pop=True)
+    x0, y0 = centro(0)
+    selo(c, "Errado 2", x0 + 110, y0 - 150, t_grande + 0.4, t_aqui, ok=False)
+    esconderijo(c, 1, t0 + 0.1, None, t1)
+    rotulo(c, "Outro tipo", "Imagem do outro tipo", gx(330), gy(30), t_outro, t_aqui, estilo="escuro")
+    rotulo(c, "Mesmo tipo", "Desenho do mesmo tipo", gx(330), gy(30), t_mesmo, t1, estilo="reacao")
+    rotulo(c, "Bicho", "Bicho: bloco do bicho", 400, 1010, t_bicho, t1, estilo="termo")
+    rotulo(c, "Esconderijo", "Esconderijo: do esconderijo", 960, 1010, t_esc, t1, estilo="termo")
     salvar(c, "o-tipo-da-imagem")
 
+    # 5. Com a sua cara: o jogo novo encontrado de novo, com a mensagem; é essa versão que vai para o Mural.
     c, t0, t1 = cena("Com a sua cara", "O jogo ficou com a sua cara", "publicar no Mural.")
-    c.ideia("Com a sua cara!", t0 + 0.05, t1, "é essa versão que vai para o Mural")
-    jardim(c, t0, t1, toques=[(t0 + 0.4, 0), (t0 + 0.9, 1), (t0 + 1.4, 2)], achados=[(t0, 3)], mensagem=t0 + 1.6,
-           artes_bicho=["gato", "sapo", "esquilo"], artes_esc=["toco", "cogumelo", "folhas"])
+    t_mural = p("publicar no Mural", t0)
+    titulo(c, [("Com a ", False), ("sua cara", True), ("!", False)], t0 + 0.05, t1)
+    painel(c, t0 + 0.05, t1)
+    passo = max(0.35, min(0.55, (t_mural - t0 - 0.8) / 3))
+    ts = [t0 + 0.4 + passo * k for k in range(3)]
+    for k in range(3):
+        bicho(c, k, t0 + 0.1, t1, arte=novos_b[k])
+        esconderijo(c, k, t0 + 0.1, ts[k], t1, arte=novos_e[k])
+    placar(c, [(t0 + 0.1, 0)] + toques_contando(c, ts, t1, mais=False), t1)
+    m = c.texto("Mensagem do fim", "Achei todo mundo!", gx(174), gy(72), round(27 * 1.72), "#173844", op=0)
+    c.nos.append(m)
+    c.mostra(m, ts[-1] + 0.4, t1, pop=True)
+    rotulo(c, "Mural", "Vai para o Mural", 660, 1010, t_mural, t1, estilo="acao")
     salvar(c, "com-a-sua-cara")
 
 
 def a2p5():
+    """Cadê A2P5 no kit (28/11/2026): pronto, publicar ou concluir; e o jogo no Mural para a família e os amigos."""
+    # 1. Seu jogo está pronto: publicar no Mural (família e amigos) ou concluir sem publicar.
     c, t0, t1 = cena("Pronto", "Seu jogo está pronto", "continuar a jornada sem publicar.")
-    t_mural = p("você pode publicar no Mural", t0)
+    t_mural = max(t0 + 0.3, p("você pode publicar no Mural", 0))
     t_conc = p("Você também pode clicar em Concluir", t_mural)
-    c.ideia("Seu jogo está pronto!", t0 + 0.05, t1, None)
-    caixa_em(c, "Publicar", "publicar no Mural", 660, 520, 560, t_mural, t1, num=1)
-    caixa_em(c, "Concluir", "ou concluir sem publicar", 660, 680, 640, t_conc, t1, num=2)
+    titulo(c, [("Seu jogo está ", False), ("pronto", True), ("!", False)], t0 + 0.05, t1)
+    _, cabeca = zappy_vivo(c, "celebrando", 110, 520, 300, t0 + 0.1, t1)
+    t_se = max(t0 + 0.3, p("Se quiser", 0))  # dito debaixo da capa
+    t_familia = p("para a sua família", t_mural)
+    raios(c, "Pronto", 260, 640, 210, t0 + 0.5, t1)
+    larg = largura_comum(c, ["Publicar no Mural", "Família e amigos jogam", "Ou concluir a aula"], tam="g") + 24
+    rotulo(c, "Publicar", "Publicar no Mural", 820, 430, t_se, t1, estilo="acao", tam="g", largura=larg)
+    rotulo(c, "Família", "Família e amigos jogam", 820, 580, t_familia, t1, estilo="reacao", tam="g", largura=larg)
+    rotulo(c, "Concluir", "Ou concluir a aula", 820, 760, t_conc, t1, estilo="termo", tam="g", largura=larg)
     salvar(c, "pronto")
 
+    # 2. No Mural: você, a sua família e os seus amigos jogam o jogo que você criou.
     c, t0, t1 = cena("No Mural", "Seu jogo está no Mural", "o jogo que você criou.")
-    c.ideia("No Mural!", t0 + 0.05, t1, "família e amigos podem jogar")
-    jardim(c, t0, t1, toques=[(t0 + 0.8, 0), (t0 + 1.4, 1)], achados=[(t0, 0), (t0 + 0.8, 1), (t0 + 1.4, 2)])
+    t_familia = p("a sua família", t0)
+    t_criou = p("o jogo que você criou", t_familia)
+    titulo(c, [("No ", False), ("Mural", True), ("!", False)], t0 + 0.05, t1)
+    painel(c, t0 + 0.05, t1)
+    passo = max(0.4, min(0.6, (t1 - t_familia - 0.6) / 3))
+    ts = [t_familia + 0.2 + passo * k for k in range(3)]
+    for k in range(3):
+        bicho(c, k, t0 + 0.1, t1)
+        esconderijo(c, k, t0 + 0.1, ts[k], t1)
+    placar(c, [(t0 + 0.1, 0)] + toques_contando(c, ts, t1, mais=False), t1)
+    rotulo(c, "Família", "Família e amigos jogam", 660, 1010, t_familia, t1, estilo="reacao")
+    raios(c, "Criou", gx(320), gy(180), 260, t_criou, t1)
     salvar(c, "no-mural")
 
 

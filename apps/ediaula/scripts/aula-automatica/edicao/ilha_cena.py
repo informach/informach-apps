@@ -212,13 +212,13 @@ def mao(c, nome, cx, cy, espelho=False, op=0, s=1):
 LARANJA_VARIAVEL = "#E8893A"  # a cor da categoria Variáveis no Estúdio
 
 
-def variavel(c, nome, rotulo, cx, cy, valores, w=420, t0=None, t1=None):
+def variavel(c, nome, rotulo, cx, cy, valores, w=420, t0=None, t1=None, cor_nome=BRANCO):
     """Uma variável desenhada: uma caixa com o nome numa aba laranja e o valor dentro. valores = [(t, texto,
     cor do texto), ...]: cada valor entra no seu tempo e sai quando entra o seguinte. Devolve o grupo da caixa
     (sem os valores, que são nós próprios)."""
     h = 150
     filhos = [c.rect("aba", -w / 2, -h / 2 - 66, min(w, 40 + 30 * len(rotulo)), 80, LARANJA_VARIAVEL, rx=22),
-              c.texto("nome", rotulo, -w / 2 + 22, -h / 2 - 12, 44, BRANCO),
+              c.texto("nome", rotulo, -w / 2 + 22, -h / 2 - 12, 44, cor_nome),  # TINTA: branco no laranja dá 2,6
               c.rect("caixa", -w / 2, -h / 2, w, h, BRANCO, rx=30, stroke=LARANJA_VARIAVEL, sw=10)]
     g = c.grupo(nome, cx, cy, filhos)
     c.nos.append(g)

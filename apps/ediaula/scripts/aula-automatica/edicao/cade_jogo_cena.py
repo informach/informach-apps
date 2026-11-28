@@ -158,20 +158,22 @@ def presente(c, cx, cy, t0, t1, abre=None, s=1.0):
     return g
 
 
-def placar_futebol(c, cx, cy, t0, t1, gols):
-    """Um placar de estádio: dois times e os números; gols = [(t, a, b), ...] (cada placar até o seguinte)."""
+def placar_futebol(c, cx, cy, t0, t1, gols, s=1.0):
+    """Um placar de estádio: dois times e os números; gols = [(t, a, b), ...] (cada placar até o seguinte).
+    s: a escala do placar inteiro (os números acompanham)."""
     filhos = [c.rect("placar", -330, -120, 660, 240, NOITE, rx=28),
               c.rect("visor A", -290, -60, 220, 150, "#1E2A4A", rx=18), c.rect("visor B", 70, -60, 220, 150, "#1E2A4A", rx=18),
               c.texto("time A", "TIME A", -180, -78, 34, AMARELO, ancora="middle"),
               c.texto("time B", "TIME B", 180, -78, 34, AMARELO, ancora="middle"),
-              c.texto("x", "x", 0, 40, 60, BRANCO, ancora="middle")]
-    g = c.grupo("Placar de futebol", cx, cy, filhos, op=0)
+              c.texto("x", "×", 0, 40, 60, BRANCO, ancora="middle")]
+    g = c.grupo("Placar de futebol", cx, cy, filhos, op=0, s=s)
     c.nos.append(g)
     c.mostra(g, t0, t1, pop=True)
     for k, (t, a, b) in enumerate(gols):
         fim = gols[k + 1][0] if k + 1 < len(gols) else t1
         for lado, n, dx in (("A", a, -180), ("B", b, 180)):
-            v = c.texto(f"Placar {lado} · {n}", str(n), cx + dx, cy + 60, 120, BRANCO, ancora="middle", op=0)
+            v = c.texto(f"Placar {lado} · {n}", str(n), cx + dx * s, cy + 60 * s, round(120 * s), BRANCO, ancora="middle",
+                        op=0)
             c.nos.append(v)
             if k and str(n) != str(gols[k - 1][1 if lado == "A" else 2]):
                 c.mostra(v, t, fim, pop=True)

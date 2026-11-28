@@ -329,7 +329,8 @@ def desenho(f, d):
                 prob(("estoura", g["id"]), t, f'"{i["no"]["text"]}" encosta ou passa da borda da pílula '
                                                f'({nome_de(i["no"], lay)})')
         # Sobreposição e alinhamento entre pílulas.
-        rots = [(gid, cx, i) for gid, (cx, i) in caixas_rot.items() if i["escala"] > 0.97]
+        # Só as pílulas assentadas: no salto da entrada (pop) a escala passa de 1 e a largura engana.
+        rots = [(gid, cx, i) for gid, (cx, i) in caixas_rot.items() if abs(i["escala"] - 1) < 0.005]
         for k, (ga, a, ia) in enumerate(rots):
             for gb, b, ib in rots[k + 1:]:
                 if a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]:
