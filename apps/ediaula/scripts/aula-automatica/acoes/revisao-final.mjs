@@ -128,6 +128,14 @@ export default async function revisaoFinal(ctx) {
               start: fimDe(antes),
               revision: await revisao(),
             });
+          else if (buraco < 2 * quadro + 0.001)
+            // Dois renders vinculados (sem mídia sobrando) com até dois quadros entre eles, arredondamento do
+            // comprimento do render (Cadê A2P2: 1 ms; A2P1: 34 ms): o de depois encosta no de antes.
+            await ia("move_clips", {
+              clip_ids: [depois.id],
+              start: fimDe(antes),
+              revision: await revisao(),
+            });
           else throw new Error("nenhum dos dois clipes tem mídia para cobrir");
           feito.push(
             `${tempo(fimDe(antes))}: vão de ${(buraco * 1000).toFixed(0)} ms fechado entre ${proj.nome(antes)} e ${proj.nome(depois)}`,

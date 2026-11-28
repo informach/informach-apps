@@ -93,10 +93,13 @@ CONFIRMA = {"enviar projeto": ["Confirme em Enviar"]}
 
 
 def contorno_do_texto(tela, t, x, y):
-    """O texto que a mão aponta no quadro t da gravação (o "Achados: 1" do jogo): a mão descansa logo abaixo dele.
-    Junta os pixels escuros de uma janela acima do ponto e devolve a caixa deles, ou None."""
+    """O texto que a mão aponta no quadro t da gravação (o "Achados: 1" do jogo): a mão descansa em cima ou logo
+    abaixo dele. Os pixels escuros perto do ponto viram grupos (as letras de uma linha se juntam) e fica o grupo mais
+    perto do ponto, ou None. Antes era a caixa de todos os escuros de uma janela acima do ponto, e no Estúdio ela
+    pegava a beira do bloco ao lado do jogo (Cadê A2P3, 28/11/2026)."""
     import io
     import subprocess
+    from collections import deque
 
     from PIL import Image
     try:
@@ -107,13 +110,47 @@ def contorno_do_texto(tela, t, x, y):
         return None
     s = im.width / 1920
     X, Y = round(x * s), round(y * s)
-    x0, y0, x1, y1 = max(0, X - round(280 * s)), max(0, Y - round(120 * s)), min(im.width, X + round(280 * s)), Y
+    x0, y0 = max(0, X - round(280 * s)), max(0, Y - round(120 * s))
+    x1, y1 = min(im.width, X + round(280 * s)), min(im.height, Y + round(40 * s))
     px = im.load()
-    escuros = [(i, j) for j in range(y0, y1) for i in range(x0, x1) if px[i, j] < 90]
-    if len(escuros) < 40:
+    w, h = x1 - x0, y1 - y0
+    escuro = [[px[x0 + i, y0 + j] < 90 for i in range(w)] for j in range(h)]
+    # As letras de uma linha se juntam: um escuro alcança o vizinho até dx px de lado e dy px na vertical.
+    dx, dy = max(3, round(16 * s)), max(1, round(3 * s))
+    grupo = [[-1] * w for _ in range(h)]
+    caixas = []
+    for j in range(h):
+        for i in range(w):
+            if not escuro[j][i] or grupo[j][i] >= 0:
+                continue
+            k = len(caixas)
+            fila = deque([(i, j)])
+            grupo[j][i] = k
+            cx0 = cx1 = i
+            cy0 = cy1 = j
+            n = 0
+            while fila:
+                a, b = fila.popleft()
+                n += 1
+                cx0, cx1, cy0, cy1 = min(cx0, a), max(cx1, a), min(cy0, b), max(cy1, b)
+                for bb in range(max(0, b - dy), min(h, b + dy + 1)):
+                    for aa in range(max(0, a - dx), min(w, a + dx + 1)):
+                        if escuro[bb][aa] and grupo[bb][aa] < 0:
+                            grupo[bb][aa] = k
+                            fila.append((aa, bb))
+            caixas.append((cx0, cy0, cx1, cy1, n))
+    if not caixas:
         return None
-    xs, ys = [p[0] for p in escuros], [p[1] for p in escuros]
-    caixa = [min(xs) / s, min(ys) / s, (max(xs) + 1) / s, (max(ys) + 1) / s]
+    px_, py_ = X - x0, Y - y0
+
+    def distancia(c):
+        a0, b0, a1, b1, _ = c
+        return (max(a0 - px_, 0, px_ - a1) ** 2 + max(b0 - py_, 0, py_ - b1) ** 2) ** 0.5
+
+    a0, b0, a1, b1, n = min((c for c in caixas if c[4] >= 40), key=distancia, default=(0, 0, 0, 0, 0))
+    if n < 40:
+        return None
+    caixa = [(x0 + a0) / s, (y0 + b0) / s, (x0 + a1 + 1) / s, (y0 + b1 + 1) / s]
     if caixa[2] - caixa[0] > 520 or caixa[3] - caixa[1] > 120:
         return None
     return [round(v) for v in caixa]
@@ -181,7 +218,10 @@ for s in run["steps"]:
     balao = BOTOES.get(v) or (f"Clique em {v[8:-1]}" if v.startswith("clicar \"") else None)
     gestos.append({"verbo": v, "tipo": tipo, "ini": s["start"], "acao": s["act"], "fim": s["end"],
                    "x": round(p["x"]) if p else None, "y": round(p["y"]) if p else None, "balao": balao})
-    if re.match(r"^apontar jogo \d+ \d+$", v) and p:
+    texto_previa = re.match(r"^apontar prévia \d+ (\d+)$", v)
+    # "apontar prévia X Y" na faixa de cima do jogo (y < 100 no palco de 640 x 360) é o placar ou a mensagem: um
+    # texto, como o "apontar jogo" (Cadê A2P3, 28/11/2026: o "Achados continua em zero" ficava sem moldura).
+    if (re.match(r"^apontar jogo \d+ \d+$", v) or (texto_previa and int(texto_previa.group(1)) < 100)) and p:
         # Um número do jogo que a fala nomeia ("repare no número Achados"): o contorno do texto, para o zoom e a
         # moldura pegarem o número inteiro.
         gestos[-1]["caixa_texto"] = contorno_do_texto(f"{pasta}/tela.mp4", pts[-1]["until"] + 0.3, p["x"], p["y"])

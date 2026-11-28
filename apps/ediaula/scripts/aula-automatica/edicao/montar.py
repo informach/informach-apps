@@ -182,12 +182,29 @@ for gi, g in enumerate(gestos):
         continue
     if g["tipo"] == "jogo":
         jogo = next((r["alvo"] for r in regs_g if r["tag"] == "IFRAME"), None)
-        if jogo and (not grupo or grupo["tipo"] != "jogo"):
-            # Depois do zoom do botão de antes (o Expandir logo antes de tocar no jogo): sem cortar a moldura dele.
-            grupo = {"tipo": "jogo", "ini": max(t0, 3.0, LIVRE[0]), "fim": t1 + 1.5, "caixa": jogo}
-            # O jogo é alto: amplia a área de jogar (sem as setas de baixo), a 1,4x.
-            jx0, jy0, jx1, jy1 = jogo
-            zoom(grupo["ini"], 13.0 if ta < 13 else t1 + 2, [jx0, jy0, jx1, jy0 + (jx1 - jx0) * 0.75], f"zoom no jogo ({v})", maxs=1.4)
+        if jogo:
+            # Gestos no jogo a menos de 4 s um do outro dividem um zoom, que cresce até o último; um gesto mais longe
+            # abre outro. O zoom nunca passa do começo da animação seguinte (a camada de zoom ampliaria a cena). Antes,
+            # só o primeiro gesto da parte abria zoom, até 13 s: os toques do fim da Cadê A2P3 ("Achados vira 1")
+            # ficavam com o jogo pequeno (28/11/2026).
+            prox = min([a0 for a0, _ in ANIM if a0 > ta] or [1e9])
+            fim_j = min(t1 + 2.0, prox - 0.05)
+            if grupo and grupo["tipo"] == "jogo" and grupo.get("cmd") and t0 <= grupo["fim"] + 4 and grupo["fim"] < prox:
+                grupo["fim"] = max(grupo["fim"], fim_j)
+                grupo["cmd"]["input"]["duration"] = round(grupo["fim"] - grupo["cmd"]["input"]["at"], 2)
+            else:
+                # Depois do zoom do botão de antes (o Expandir logo antes de tocar no jogo): sem cortar a moldura dele.
+                grupo = {"tipo": "jogo", "ini": max(t0, 3.0, LIVRE[0]), "fim": fim_j, "caixa": jogo}
+                # O jogo é alto: amplia a área de jogar (sem as setas de baixo), a 1,4x.
+                jx0, jy0, jx1, jy1 = jogo
+                if fim_j - grupo["ini"] > 1.0 and zoom(grupo["ini"], fim_j, [jx0, jy0, jx1, jy0 + (jx1 - jx0) * 0.75],
+                                                         f"zoom no jogo ({v})", maxs=1.4):
+                    grupo["cmd"] = cmds[-1]
+        if g.get("caixa_texto") and ta >= 3.2:
+            # Um texto do jogo que a fala nomeia ("Achados continua em zero", "a mensagem"): a moldura nele, na palavra,
+            # dentro do zoom do jogo (Cadê A2P3, 28/11/2026).
+            na_palavra = max(t0 + 0.35, 3.05, (grupo["ini"] + EASE + 0.05) if grupo else 0)
+            destaque(min(ta, na_palavra), 2.2, g["caixa_texto"], f"moldura no que a fala nomeia ({v})", pad=12)
         continue
     if g["tipo"] == "botao" or g["balao"]:
         # Cada clique do botão (o envio tem dois: Enviar meu projeto e a confirmação em Enviar), com o contorno

@@ -568,8 +568,10 @@ def a2p2():
     for k in range(3):
         esconderijo(c, k, t0 + 0.1, t_toca if k == 0 else None, t1)
     # A variável no céu do jardim (à direita fica a apresentadora): a seta leva o valor dela ao placar.
-    variavel(c, "Variável", "Achados", gx(500), gy(75), [(t_quantos, "0", TINTA), (t_toca + 0.15, "1", VERDE)],
-             w=280, t0=t0 + 0.3, t1=t1, cor_nome=TINTA)
+    caixa_var = variavel(c, "Variável", "Achados", gx(500), gy(75), [(t0 + 0.4, "0", TINTA), (t_toca + 0.15, "1", VERDE)],
+                         w=280, t0=t0 + 0.3, t1=t1, cor_nome=TINTA)
+    # "guarda quantos personagens": um anel em volta da variável (a caixa já tem a trilha de escala da entrada).
+    anel(c, "Guarda", gx(500), gy(75), 175, t_quantos, t_placar)
     seta(c, "Mostra", (gx(500) - 160, gy(75)), (gx(200), gy(40)), t_placar, t1)
     placar(c, [(t0 + 0.1, 0)] + toques_contando(c, [t_toca], t1), t1, destaque=(t_placar, t_cada))
     rotulo(c, "Soma um", "Soma 1 ao que já estava", 660, 1010, t_guardado, t1, estilo="reacao")
@@ -621,7 +623,7 @@ def a2p3():
     if tem_bloco("somar-1"):
         g, _ = c.bloco("somar-1", 160, 380, 2.6)
         c.mostra(g, t0 + 0.1, t1, pop=True)
-        anel(c, "O 1", 160 + 75.5 * 2.6, 380 + 29 * 2.6, 46, t0 + 0.5, t1)  # o campo do 1 no recorte
+        anel(c, "O 1", 160 + 75.5 * 2.6, 380 + 29 * 2.6, 36, t0 + 0.5, t1)  # o campo do 1 no recorte
     bicho(c, 0, t_cada, t1)
     variavel(c, "Variável", "Achados", 1000, 700, [(t_cada, "0", TINTA), (t_cada + 0.6, "1", VERDE)], w=360,
              t0=t_cada, t1=t1, cor_nome=TINTA)

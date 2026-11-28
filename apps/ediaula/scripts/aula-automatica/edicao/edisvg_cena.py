@@ -264,7 +264,7 @@ class Cena:
         # A cena igual à que já está na pasta não é regravada: o render dela continua valendo e só a cena que
         # mudou renderiza de novo (Helena, 28/11/2026: refazer tudo por um ajuste que não toca as cenas).
         if os.path.exists(caminho) and _sem_ids(open(caminho, encoding="utf8").read()) == _sem_ids(novo):
-            print(caminho, info, "| igual: fica como está")
+            print(caminho, "| igual, fica como está", info)  # o trecho no fim: o editar-kit.sh lê dali
             return caminho
         open(caminho, "w", encoding="utf8").write(novo)
         print(caminho, info)
