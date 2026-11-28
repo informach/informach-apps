@@ -837,22 +837,39 @@ def a2p5():
 
 # ── Aula 3 (certificado) ───────────────────────────────────────────────────────────────────────────────────
 def a3p2():
-    # O jogo pronto sendo jogado, com os três personagens encontrados: cada toque na palavra da fala.
+    """Cadê A3P2 no kit (28/11/2026), o fim do curso: o jogo pronto sendo jogado, cada toque na sua palavra, as duas
+    regras que a criança programou e, no "Parabéns", o Zappy comemorando."""
     c, t0, t1 = cena("O seu jogo", "Você terminou", "Parabéns pelo seu jogo!")
-    t_olha = p("Olha só o que você programou", t0)
-    t_toque = p("o toque que faz cada personagem aparecer", t_olha)
-    t_cont = p("e a contagem dos achados", t_toque)
+    t_toque = p("o toque que faz cada personagem aparecer", 0)
+    t_toca1 = p("toque", t_toque)
+    t_toca2 = p("aparecer", t_toca1)
+    t_cont = p("e a contagem dos achados", t_toca2)
+    t_toca3 = p("contagem", t_cont)
     t_regras = p("São essas regras", t_cont)
     t_parab = p("Parabéns pelo seu jogo", t_regras)
-    c.ideia("Você terminou!", t0 + 0.05, t_olha - 0.05, "Cadê Todo Mundo")
-    c.ideia("O que você programou", t_olha, t_parab - 0.05, None)
-    c.ideia("Parabéns!", t_parab, t1, None)
-    # Primeiro toque no "toque", o segundo no "aparecer" e o último na "contagem", que chega a 3 com a mensagem.
-    toques = [p("toque", t_olha), p("aparecer", t_toque), p("contagem", t_cont)]
-    jardim(c, t0, t1, toques=[(t, k) for k, t in enumerate(toques)], achados=[(t0, 0)] + [(t, k + 1) for k, t in enumerate(toques)],
-           mensagem=toques[2] + 0.3)
-    caixa_em(c, "Regra 1", "toque: aparece", 380, 1010, 380, t_toque + 0.2, t1, num=1, tam=38)
-    caixa_em(c, "Regra 2", "contagem dos achados", 900, 1010, 520, t_cont + 0.2, t1, num=2, tam=38)
+    fim_jogo = t_parab - 0.05
+    # "Você terminou o Cadê Todo Mundo! Olha só" fica debaixo da capa: a cena abre no "o que você programou".
+    titulo(c, [("O que você ", False), ("programou", True)], t0 + 0.05, t_regras - 0.05)
+    titulo(c, [("As suas ", False), ("regras", True)], t_regras, fim_jogo)
+    titulo(c, [("Parabéns", True), (" pelo seu jogo!", False)], t_parab, t1)
+    painel(c, t0 + 0.05, fim_jogo)
+    ts = [t_toca1, t_toca2, t_toca3]
+    for k in range(3):
+        bicho(c, k, t0 + 0.1, fim_jogo)
+        esconderijo(c, k, t0 + 0.1, ts[k], fim_jogo)
+    placar(c, [(t0 + 0.1, 0)] + toques_contando(c, ts, fim_jogo), fim_jogo)
+    m = c.texto("Mensagem do fim", "Você achou todo mundo!", gx(174), gy(72), round(27 * 1.72), "#173844", op=0)
+    c.nos.append(m)
+    c.mostra(m, ts[-1] + 0.5, fim_jogo, pop=True)
+    r1 = rotulo(c, "Toque", "Toque: aparece", centro(0)[0], 1010, t_toca1 + 0.4, fim_jogo, estilo="acao")
+    r2 = rotulo(c, "Contagem", "Contagem dos achados", centro(2)[0], 1010, t_toca3 + 0.4, fim_jogo, estilo="reacao")
+    # O selo antes de cada regra, sem cobrir o texto (depois dela, o segundo ficava atrás da apresentadora).
+    selo(c, "Regra 1", r1.x0 - 58, 1010, t_regras + 0.2, fim_jogo, r=40)
+    selo(c, "Regra 2", r2.x0 - 58, 1010, t_regras + 0.5, fim_jogo, r=40)
+    # Parabéns: o Zappy comemora no meio da área livre, com raios.
+    _, cabeca = zappy_vivo(c, "celebrando", 380, 330, 520, t_parab, t1)
+    raios(c, "Parabéns", 640, 600, 330, t_parab + 0.2, t1, n=14, comp=46)
+    balao_fala(c, "Conseguiu", "Você conseguiu!", cabeca, t_parab + 0.4, t1, tam=46, maxw=420)
     salvar(c, "o-seu-jogo")
 
 

@@ -90,16 +90,21 @@ sys.exit(f'o projeto já tem uma tomada ({n} clipes): renomeie-o antes de gravar
     "$AQUI/edicao/aplicar.sh" "$ED/comandos.json" "$(python -X utf8 -c "import sys; print(sys.argv[1][:-len('.ediaula')] + ' · edição automática.ediaula')" "$(v projeto)")" "${1:-}"
     # Os pedidos de vínculo chegam juntos ao EdiSVG, e só o último vira render: as peças sem render são
     # abertas e salvas uma de cada vez no condutor do EdiSVG.
-    PECAS="$(python -X utf8 -c "import glob,json,os,sys; print(json.dumps({'svgArquivos': sorted(p.replace(os.sep, '/') for p in glob.glob(os.path.join(sys.argv[1], '*.edisvg')))}, ensure_ascii=False))" "$(v pasta)/pecas")"
+    # As janelas que os pedidos de vínculo abrem registram o vínculo (o vinculos.json) e seguram a peça: a janela do
+    # condutor não consegue abrir a mesma peça ("não abriu") e a peça refeita ficava sem render (Cadê A2P4 e A3P2,
+    # 28/11/2026). Depois de os pedidos registrarem os vínculos, essas janelas fecham e o condutor renderiza.
+    ping -n 9 127.0.0.1 >/dev/null
+    fechar_pedidos() {
+      powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"name='electron.exe'\" | Where-Object { \$_.CommandLine -match 'apps.edisvg' -and \$_.CommandLine -match '--pedido' -and \$_.CommandLine -notmatch '--type=' } | ForEach-Object { taskkill /PID \$_.ProcessId /T /F | Out-Null; 1 } | Measure-Object | ForEach-Object { if (\$_.Count) { 'janelas de pedido do EdiSVG fechadas: ' + \$_.Count } }" 2>/dev/null || true
+    }
+    fechar_pedidos
+    PECAS="$(python -X utf8 -c "import glob,json,os,sys; print(json.dumps({'semPedido': True, 'svgArquivos': sorted(p.replace(os.sep, '/') for p in glob.glob(os.path.join(sys.argv[1], '*.edisvg')))}, ensure_ascii=False))" "$(v pasta)/pecas")"
     TIMEOUT=1800 "$C" --svg acao renderizar-pecas.mjs "$PECAS" | python -X utf8 -c "
 import json, sys
 r = json.load(sys.stdin).get('result') or {}
 print(len(r.get('renderizadas', [])), 'peças renderizadas agora |', len(r.get('ja_tinham', [])), 'já tinham render')
 [print('falhou:', f) for f in r.get('falharam', [])]"
-    # Cada pedido de vínculo que acha o EdiSVG ocupado abre uma janela própria (--pedido), que fica aberta
-    # depois do render: numa tarde foram oito, e a falta de memória derrubou os condutores (28/11/2026).
-    # Com os renders prontos, essas janelas fecham; a do condutor (sem --pedido) fica.
-    powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"name='electron.exe'\" | Where-Object { \$_.CommandLine -match 'apps.edisvg' -and \$_.CommandLine -match '--pedido' -and \$_.CommandLine -notmatch '--type=' } | ForEach-Object { taskkill /PID \$_.ProcessId /T /F | Out-Null; 1 } | Measure-Object | ForEach-Object { if (\$_.Count) { 'janelas de pedido do EdiSVG fechadas: ' + \$_.Count } }" 2>/dev/null || true ;;
+    fechar_pedidos ;;
   copia)
     python -X utf8 "$AQUI/edicao/copiar_projeto.py" "$(v projeto)" ;;
   acabamento)
