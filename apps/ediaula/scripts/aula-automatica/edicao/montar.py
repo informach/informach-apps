@@ -200,10 +200,20 @@ for gi, g in enumerate(gestos):
                 if fim_j - grupo["ini"] > 1.0 and zoom(grupo["ini"], fim_j, [jx0, jy0, jx1, jy0 + (jx1 - jx0) * 0.75],
                                                          f"zoom no jogo ({v})", maxs=1.4):
                     grupo["cmd"] = cmds[-1]
+        ponto_previa = re.match(r"^apontar prévia (\d+) (\d+)$", v)
+        if jogo and ponto_previa and int(ponto_previa.group(2)) >= 100 and g.get("x") is not None and ta >= 3.2:
+            # Um esconderijo ou bicho que a fala nomeia ("Olha só: o esconderijo novo"): a moldura do tamanho de um
+            # esconderijo do jogo (161 x 144 no palco de 640), em volta do ponto, na escala da prévia (Cadê A2P4).
+            sc = (jogo[2] - jogo[0]) / 640
+            caixa_e = [g["x"] - 80.5 * sc, g["y"] - 72 * sc, g["x"] + 80.5 * sc, g["y"] + 72 * sc]
+            na_palavra = max(t0 + 0.35, 3.05, ta - 0.6, (grupo["ini"] + EASE + 0.05) if grupo else 0)
+            destaque(min(ta, na_palavra), 2.2, caixa_e, f"moldura no que a fala nomeia ({v})", pad=8)
         if g.get("caixa_texto") and ta >= 3.2:
             # Um texto do jogo que a fala nomeia ("Achados continua em zero", "a mensagem"): a moldura nele, na palavra,
             # dentro do zoom do jogo (Cadê A2P3, 28/11/2026).
-            na_palavra = max(t0 + 0.35, 3.05, (grupo["ini"] + EASE + 0.05) if grupo else 0)
+            # No máximo 0,6 s antes de a mão chegar: num gesto longo ("Olha só: ... Achados vira 1") o começo dele
+            # ficava longe da palavra e a moldura acabava antes dela.
+            na_palavra = max(t0 + 0.35, 3.05, ta - 0.6, (grupo["ini"] + EASE + 0.05) if grupo else 0)
             destaque(min(ta, na_palavra), 2.2, g["caixa_texto"], f"moldura no que a fala nomeia ({v})", pad=12)
         continue
     if g["tipo"] == "botao" or g["balao"]:
@@ -336,7 +346,7 @@ for gi, g in enumerate(gestos):
                 for gx, alvo in alvos:
                     # Na fala que nomeia (o gesto começa na palavra), assim que o zoom abre; o fim da mão gravada
                     # chegava 0,5 s depois da palavra ("repare no número Achados", Cadê A1P1, 28/11/2026).
-                    na_palavra = min(gx["acao"], max(gx["ini"] + 0.35, t0 - 0.3 + EASE + 0.05))
+                    na_palavra = min(gx["acao"], max(gx["ini"] + 0.35, gx["acao"] - 0.6, t0 - 0.3 + EASE + 0.05))
                     destaque(na_palavra, 2.2 + gx["acao"] - na_palavra, alvo,
                              f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
             else:
@@ -347,7 +357,7 @@ for gi, g in enumerate(gestos):
                     prox = alvos[k + 1][0] if k + 1 < len(alvos) else None
                     fim = prox["acao"] - 0.45 if prox else max(gx["fim"] + 1.2, gx["acao"] + 2.2, ini + ZOOM_CURTO + 0.2)
                     zoom(ini, fim, alvo, f"zoom no que a fala nomeia ({gx['verbo']})")
-                    na_palavra = min(gx["acao"], max(gx["ini"] + 0.35, ini + EASE + 0.05))
+                    na_palavra = min(gx["acao"], max(gx["ini"] + 0.35, gx["acao"] - 0.6, ini + EASE + 0.05))
                     destaque(na_palavra, max(1.2, min(2.2 + gx["acao"] - na_palavra, fim - na_palavra - 0.2)), alvo,
                              f"moldura no que a fala nomeia ({gx['verbo']})", pad=12)
                     ini = fim

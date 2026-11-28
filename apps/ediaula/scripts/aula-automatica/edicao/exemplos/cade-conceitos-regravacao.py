@@ -765,10 +765,8 @@ def a2p4():
     painel(c, t0 + 0.05, t1)
     for k in range(3):
         bicho(c, k, t0 + 0.1, t1)
-    # Erro 1: um bicho no lugar do esconderijo 3 aparece antes do toque (à frente, pequeno).
+    # Erro 1: o esconderijo 3 virou um bicho (a imagem do outro tipo), e a coruja aparece antes do toque.
     esconderijo(c, 2, t0 + 0.1, None, t0 + 0.5)
-    bicho_fora = sprite(c, "Bicho no bloco do esconderijo", "gato", 447, 181, 72)
-    c.mostra(bicho_fora, t0 + 0.5, t_aqui, pop=True)
     esconderijo(c, 2, t_aqui + 0.2, None, t1)
     x2, y2 = centro(2)
     selo(c, "Errado 1", x2 + 90, y2 - 110, t0 + 0.9, t_aqui, ok=False)
