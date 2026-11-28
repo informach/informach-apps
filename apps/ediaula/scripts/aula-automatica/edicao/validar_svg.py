@@ -110,6 +110,40 @@ def contraste(a, b):
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
+_imagens_fundo = {}
+DOC_ATUAL = {}
+
+
+def _cor_mais_clara(no, caixa_texto, caixa_img):
+    """A cor mais clara da imagem de fundo atrás do texto (o pior caso para texto branco), lida no PNG da cena."""
+    a = DOC_ATUAL.get("assets", {}).get(no.get("assetId"))
+    if not a:
+        return None
+    if a["id"] not in _imagens_fundo:
+        import base64
+        import io
+
+        from PIL import Image
+        _imagens_fundo[a["id"]] = Image.open(io.BytesIO(base64.b64decode(a["data"]))).convert("RGB")
+    im = _imagens_fundo[a["id"]]
+    ix0, iy0, ix1, iy1 = caixa_img
+    sx, sy = im.width / max(1, ix1 - ix0), im.height / max(1, iy1 - iy0)
+    x0, y0, x1, y1 = caixa_texto
+    bx0, by0 = max(0, int((x0 - ix0) * sx)), max(0, int((y0 - iy0) * sy))
+    bx1, by1 = min(im.width, int((x1 - ix0) * sx) + 1), min(im.height, int((y1 - iy0) * sy) + 1)
+    if bx1 <= bx0 or by1 <= by0:
+        return None
+    px = im.load()
+    melhor, cor = -1, None
+    for y in range(by0, by1, 3):
+        for x in range(bx0, bx1, 3):
+            c = px[x, y]
+            v = _lum("#%02x%02x%02x" % c)
+            if v > melhor:
+                melhor, cor = v, "#%02x%02x%02x" % c
+    return cor
+
+
 def fundo_do_texto(item, itens):
     """A cor que está atrás do texto: o último retângulo cheio (ou o fundo da cena) que contém o meio dele, na ordem
     de pintura. Uma imagem atrás (o jogo, um vídeo) deixa a cor desconhecida: None."""
@@ -126,7 +160,7 @@ def fundo_do_texto(item, itens):
             continue
         no = i["no"]
         if no.get("name", "").startswith("Fundo"):
-            cor = AZUL_FUNDO if no.get("tag") == "image" else no.get("attrs", {}).get("fill", cor)
+            cor = (_cor_mais_clara(no, item["caixa"], i["caixa"]) or AZUL_FUNDO) if no.get("tag") == "image"                 else no.get("attrs", {}).get("fill", cor)
         elif no.get("tag") in ("rect", "polygon") and no.get("attrs", {}).get("fill", "none") not in ("none", ""):
             cor = no["attrs"]["fill"]
         elif no.get("tag") == "image":
@@ -136,6 +170,7 @@ def fundo_do_texto(item, itens):
 
 def desenho(f, d):
     lay = Layout(d)
+    DOC_ATUAL["assets"] = lay.assets
     probs = {}
 
     def prob(chave, t, msg):
@@ -150,12 +185,30 @@ def desenho(f, d):
 
     def continua_frase(no):
         """Texto que continua uma frase de um título em pedaços ou de um balão de várias linhas: não é começo."""
-        pai = lay.pais.get(no["id"])
-        if not pai or not pai.get("name", "").startswith(("Título", "Balão")):
+        # O grupo de cima que é título ou balão (o marca-texto é um grupo dentro do título).
+        pai, frase = lay.pais.get(no["id"]), None
+        while pai is not None:
+            if pai.get("name", "").startswith(("Título", "Balão")):
+                frase = pai
+            pai = lay.pais.get(pai["id"])
+        if frase is None:
             return False
-        irmaos = [f for f in pai.get("children", []) if f.get("tag") == "text" and f.get("name") != "sombra"
-                  and not f.get("name", "").startswith("selo")]
+        irmaos = [f for f in textos(frase) if f.get("name") != "sombra" and not f.get("name", "").startswith("selo")]
         return bool(irmaos) and irmaos[0] is not no
+
+    # O marca-texto: a palavra gira junto com a caixa amarela (Helena, 27/11/2026). Caixa inclinada com o texto reto
+    # do lado é o erro de antes.
+    def marcas(no):
+        if no.get("tag") == "rect" and no.get("name") == "marca":
+            yield no
+        for c in no.get("children", []):
+            yield from marcas(c)
+
+    for raiz in lay.nos:
+        for m in marcas(raiz):
+            if (m.get("transform") or {}).get("rotation", 0):
+                prob(("marca-reta", m["id"]), 0, f"marca-texto de {nome_de(m, lay)} inclinado com o texto reto: "
+                                                 "use kit_cena.marca_texto (a caixa e a palavra giram juntas)")
 
     for raiz in lay.nos:
         for no in textos(raiz):
@@ -187,6 +240,22 @@ def desenho(f, d):
             if cr is not None and cr < CONTRASTE_MINIMO:
                 prob(("contraste", i["no"]["id"]), t, f'"{i["no"]["text"]}" com contraste {cr:.1f} contra o fundo {fundo} '
                                                      f"(mínimo {CONTRASTE_MINIMO}): troque a cor do texto ou do fundo")
+        # A caixa do marca-texto não encosta nas letras de outra linha (de cima ou de baixo).
+        for m in itens:
+            if m["no"].get("name") != "marca" or m["op"] < 0.5:
+                continue
+            grupo = lay.pais.get(m["no"]["id"])
+            mx0, my0, mx1, my1 = m["caixa"]
+            for i in todos_txts:
+                if lay.pais.get(i["no"]["id"]) is grupo:
+                    continue
+                x0, y0, x1, y1 = i["caixa"]
+                # Só as letras de outra linha (a palavra do lado, na mesma linha, não conta).
+                if my0 <= (y0 + y1) / 2 <= my1:
+                    continue
+                if mx0 < x1 and x0 < mx1 and my0 - 4 < y1 and y0 < my1 + 4:
+                    prob(("marca-cobre", m["no"]["id"], i["no"]["id"]), t,
+                         f'o marca-texto de {nome_de(m["no"], lay)} encosta em "{i["no"]["text"]}": afaste as linhas')
         for i in txts:
             tam = float(i["no"]["attrs"].get("font-size", 0)) * i["escala"]
             if tam < 29.5 and i["escala"] > 0.97:

@@ -32,7 +32,8 @@ FPS = 30
 # Noto Color Emoji (licença OFL), renderizados por artes/render_maos.py e recortados rente.
 ARTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artes")
 # Ponta do dedo de cada mão, em pixels do PNG, e o tamanho do PNG.
-MAOS = {"mao-indicador": ((238, 6), (296, 479)), "mao-baixo": ((222, 458), (380, 464)),
+# A mão do toque é a de costas (👆; Helena, 27/11/2026): como a criança vê a própria mão tocando a tela.
+MAOS = {"mao-indicador": ((157, 8), (380, 465)), "mao-frente": ((238, 6), (296, 479)), "mao-baixo": ((222, 458), (380, 464)),
         "mao-esquerda": ((6, 158), (465, 380)), "mao-direita": ((458, 157), (465, 380))}
 AZUL_JOGO, TINTA, BRANCO, VERDE, AMARELO, NOITE = "#6E9BFF", "#0F1A33", "#FFFFFF", "#0B7A54", "#FFC02E", "#121A30"
 # O azul do fundo das cenas (o mais claro do degradê de artes/fundo-cena.png): branco sobre ele passa de 4,5.
@@ -79,6 +80,8 @@ class Cena:
                      "attrs": {"x": "0", "y": "0", "width": "1920", "height": "1080"}, "text": "", "children": [],
                      "transform": tf(), "visible": True, "locked": False}]
         self.trilhas = []
+        # Animações de componentes (o Zappy do EdiSVG, zappy_kit.py): vão para o arquivo junto com a da cena.
+        self.anims_extra = []
         self.pilula = self.rect("Título · fundo", 96, 60, 1170, 128, BRANCO, rx=36, op=0)
         self.nos.append(self.pilula)
         self.trilha(self.pilula, "opacity", [(ini, 0, None), (ini + 0.3, 100, None)])
@@ -189,9 +192,12 @@ class Cena:
         self.trilhas.append({"id": f"track-{uuid.uuid4()}", "targetId": no["id"], "property": prop, "keys": keys})
 
     def mostra(self, no, t0, t1=None, pop=False, sobe=0):
-        ch = [(t0, 0, None), (t0 + 0.3, 100, None)]
+        # Entra em 0,3 s e sai em 0,25 s. A peça que fica pouco na tela (entra perto do fim) entra e sai mais rápido:
+        # antes, a chave de saída caía antes da de entrada e a peça aparecia desde o começo da cena.
+        entra = min(t0 + 0.3, (t0 + t1) / 2) if t1 else t0 + 0.3
+        ch = [(t0, 0, None), (entra, 100, None)]
         if t1:
-            ch += [(t1 - 0.25, 100, None), (t1, 0, None)]
+            ch += [(max(entra, t1 - 0.25), 100, None), (t1, 0, None)]
         self.trilha(no, "opacity", ch)
         if pop:
             # Relativo à escala do próprio nó: um grupo em escala 0,4 entra de 0,28 a 0,42 e fica em 0,4.
@@ -240,7 +246,7 @@ class Cena:
         self.cena["scene"]["nodes"] = self.nos
         self.d["motion"] = {"version": self.d["motion"]["version"], "animations": [{
             "id": fixo("animation"), "name": self.nome, "fps": FPS, "frames": self.total,
-            "mode": "once", "tracks": self.trilhas}]}
+            "mode": "once", "tracks": self.trilhas}] + self.anims_extra}
         self._caber_no_orcamento()
         json.dump(self.d, open(caminho, "w", encoding="utf8"), ensure_ascii=False)
         print(caminho, "| nós", len(self.nos), "| trilhas", len(self.trilhas), "| quadros", self.total,
@@ -335,7 +341,8 @@ class Cena:
 
 
 def mao_toque(c, toques, t0, t1, altura=220, nome="Mão"):
-    """A mão de desenho (punho com o indicador para cima, nunca um dedo comprido sozinho) que toca cada ponto.
+    """A mão de desenho, de costas, com o indicador para cima e o polegar do lado (como a criança vê a própria mão;
+    nunca a palma para a câmera, nem um dedo comprido sozinho no meio, que parece o do meio), que toca cada ponto.
 
     toques: [(t, x, y)] em ordem; a ponta do dedo chega em (x, y) no segundo t, aperta e sobe um pouco. A mão entra
     de baixo antes do primeiro toque, vai de um ponto ao seguinte e sai com fade em t1. altura: altura da mão em px.

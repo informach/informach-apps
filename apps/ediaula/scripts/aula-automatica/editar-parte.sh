@@ -24,9 +24,21 @@ C=$(./parte.sh "$CURSO" "$AULA" "$N" copia 2>&1 | tail -1)
 echo "cópia: $C"
 ./comando.sh acao abrir-projeto.mjs "{\"arquivo\": \"$C\"}" | grep result
 ARQS="\"$PW/Parte $N - HeyGen.mp4\", \"$MUSICA\""
-for p in "${PERS[@]}"; do ARQS="$ARQS, \"$PW/${p%%@*}\""; done
+# O vídeo do personagem pode vir sem som (Cadê A1P4, 27/11/2026: o HeyGen da Debinha só com a imagem, a voz dela
+# no .wav ao lado). Sem som no clipe, a regra "personagem silencia a professora" não acha voz de personagem e a
+# professora continuava falando por cima da Debinha: o .wav entra junto, no mesmo lugar e com o mesmo corte.
+sem_som() { [ -z "$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$PASTA/$1")" ]; }
+for p in "${PERS[@]}"; do
+  arq="${p%%@*}"; ARQS="$ARQS, \"$PW/$arq\""
+  if sem_som "$arq"; then
+    [ -f "$PASTA/${arq%.mp4}.wav" ] || { echo "$arq não tem som e falta o ${arq%.mp4}.wav" >&2; exit 1; }
+    ARQS="$ARQS, \"$PW/${arq%.mp4}.wav\""
+  fi
+done
 L=$(TIMEOUT=300 ./comando.sh acao importar.mjs "{\"arquivos\": [$ARQS]}" | python -X utf8 -c "import json,sys; r=json.load(sys.stdin)['result']; print('\n'.join(l for l in r.splitlines() if l.startswith('- [a')))")
 mid() { echo "$L" | grep -F "$1" | head -1 | grep -o "^- \[a[a-z0-9]*\]" | grep -o "a[a-z0-9]*"; }
+# A mídia de um tipo (o vídeo e o .wav do personagem têm o mesmo nome): "- [id] <nome> · video|audio · ...".
+midk() { echo "$L" | grep -F "$1 · $2" | head -1 | grep -o "^- \[a[a-z0-9]*\]" | grep -o "a[a-z0-9]*"; }
 rev() { ./comando.sh ia get_overview '{}' | grep -o "Revisão do projeto: [0-9]*" | grep -o "[0-9]*$"; }
 # A música e os personagens que a importação já pôs na linha do tempo saem: a música entra pelo acabamento,
 # os personagens no lugar da fala.
@@ -38,9 +50,18 @@ if [ -n "$AUTO" ]; then ./comando.sh ia remove_clips "{\"clip_ids\": [\"$AUTO\"]
 ./comando.sh ia add_clip "{\"media_id\": \"$(mid "Parte $N - HeyGen")\", \"at\": 0}" | head -1
 for p in "${PERS[@]}"; do
   IFS=@ read -r arq at ini fim <<<"$p"
-  DC=$(./comando.sh ia add_clip "{\"media_id\": \"$(mid "${arq%.mp4}")\", \"at\": $at}" | head -1)
+  DC=$(./comando.sh ia add_clip "{\"media_id\": \"$(midk "${arq%.mp4}" video)\", \"at\": $at}" | head -1)
   DID=$(echo "$DC" | grep -o "\[c[a-z0-9]\{8,\}\]" | head -1 | tr -d '[]')
   ./comando.sh ia trim_clip "{\"clip_id\": \"$DID\", \"start\": $ini, \"end\": $fim, \"revision\": $(rev)}" | head -1
+  if sem_som "$arq"; then
+    # Numa faixa própria com o nome dele: sem track_id o som iria para "Efeitos sonoros", que não é voz de ninguém.
+    TID=$(./comando.sh ia get_overview '{}' | grep "^- \[t" | grep -F "[$DID]" | head -1 | grep -o "^- \[t[a-z0-9]*\]" | grep -o "t[a-z0-9]*")
+    NT=$(./comando.sh ia add_track "{\"position\": \"below\", \"track_id\": \"$TID\", \"kind\": \"audio\", \"label\": \"Voz · ${arq%.mp4}\", \"revision\": $(rev)}" | grep -o "\[t[a-z0-9]\{8,\}\]" | head -1 | tr -d '[]')
+    VC=$(./comando.sh ia add_clip "{\"media_id\": \"$(midk "${arq%.mp4}" audio)\", \"at\": $at, \"track_id\": \"$NT\"}" | head -1)
+    VID=$(echo "$VC" | grep -o "\[c[a-z0-9]\{8,\}\]" | head -1 | tr -d '[]')
+    ./comando.sh ia trim_clip "{\"clip_id\": \"$VID\", \"start\": $ini, \"end\": $fim, \"revision\": $(rev)}" | head -1
+    echo "voz de ${arq%.mp4}: o .wav no lugar do vídeo sem som"
+  fi
 done
 ./comando.sh acao salvar.mjs >/dev/null
 # O parte.sh aplicar também abre e salva no EdiSVG, uma de cada vez, as peças sem render (os pedidos de vínculo

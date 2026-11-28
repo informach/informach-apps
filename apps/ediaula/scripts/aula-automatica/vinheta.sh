@@ -36,5 +36,12 @@ print(round(max(c['start'] + c['duration'] for c in d['clips']), 3))" "$PROJ")
 O=$(./comando.sh ia get_overview '{}')
 TELA=$( (echo "$O" | grep "^- \[t" | grep "\] Tela "; echo "$O" | grep "^- \[t" | grep "\] Conceito · ") | head -1 | grep -o "^- \[t[a-z0-9]*\]" | grep -o "t[a-z0-9]*" || true)
 [ -n "$TELA" ] || { echo "vinheta: não achei a faixa da tela nem a das animações" >&2; exit 1; }
-./comando.sh ia add_clip "{\"media_id\": \"$VID\", \"track_id\": \"$TELA\", \"at\": $FIM}" | head -1
+# O volume da vinheta acompanha o da voz da parte (Helena, 27/11/2026: "o som dela tá muito alto, muito
+# desproporcional"): a vinheta do Cadê tinha -13,7 LUFS e a voz -24,7, 11 dB acima. Fica 1 dB abaixo da voz.
+lufs() { ffmpeg -hide_banner -nostats -i "$1" -af ebur128=framelog=quiet -f null - 2>&1 | grep -A2 "Integrated loudness" | grep -o "I: *-\?[0-9.]*" | grep -o "\-\?[0-9.]*$"; }
+PW="$(v pasta)"
+L_VOZ=$(lufs "$PW/Parte $N - Áudio.wav"); L_VIN=$(lufs "$VIN")
+VOL=$(python -X utf8 -c "import sys; v, n = float(sys.argv[1]), float(sys.argv[2]); print(round(min(1.0, max(0.05, 10 ** ((v - n - 1) / 20))), 3))" "$L_VOZ" "$L_VIN")
+echo "vinheta: voz $L_VOZ LUFS, vinheta $L_VIN LUFS, volume $VOL"
+./comando.sh ia add_clip "{\"media_id\": \"$VID\", \"track_id\": \"$TELA\", \"at\": $FIM, \"volume\": $VOL}" | head -1
 ./comando.sh acao salvar.mjs >/dev/null

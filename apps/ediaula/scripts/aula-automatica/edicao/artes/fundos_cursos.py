@@ -5,11 +5,19 @@ ação, verde é reação, vermelho é erro) ficam iguais em todo curso.
 
 Uso (dentro de edicao/artes): python fundos_cursos.py  ->  fundo-<curso>.svg para cada curso de CURSOS.
 Para a cena do EdiSVG, renderize o SVG em PNG 1920 x 1080 (fundo-<curso>.png).
+
+O fundo de cada curso é a Helena que define (27/11/2026: "Eu sempre defini esse fundo e aí você aplica e repete em
+todas as animações"). Os desenhados aqui são provisórios até ela mandar o do curso. Os que ela mandou ficam em
+fontes-de-fundo/<curso>.png e viram fundo-<curso>.png em 1920 x 1080, só escurecidos o mínimo para o texto branco
+passar de 4,5 de contraste em toda a área livre (FUNDOS_DADOS); este script não os reescreve.
 """
 import math
 import os
 
 W, H = 1920, 1080
+# Fundo dado pela Helena: curso -> (arquivo em fontes-de-fundo, brilho). Cadê: "Paisagem azul minimalista com colinas
+# suaves" (27/11/2026), brilho 0,93 (a nuvem pequena passava a 4,05 de contraste com o branco; com 0,93, 4,63).
+FUNDOS_DADOS = {"cade": ("cade.png", 0.93)}
 CURSOS = {
     # Céu e jardim da capa: o azul, com folhinhas e flores.
     "cade": dict(topo="#3D6BE1", base="#3160D8", onda1="#5D88EE", onda2="#7FA1F3", escura1="#2A55C8",
@@ -121,5 +129,12 @@ def svg(curso):
 if __name__ == "__main__":
     aqui = os.path.dirname(os.path.abspath(__file__))
     for k in CURSOS:
+        if k in FUNDOS_DADOS:
+            from PIL import Image, ImageEnhance
+
+            arq, brilho = FUNDOS_DADOS[k]
+            im = Image.open(os.path.join(aqui, "fontes-de-fundo", arq)).convert("RGB").resize((W, H), Image.LANCZOS)
+            ImageEnhance.Brightness(im).enhance(brilho).save(os.path.join(aqui, f"fundo-{k}.png"), optimize=True)
+            continue
         open(os.path.join(aqui, f"fundo-{k}.svg"), "w", encoding="utf8").write(svg(k))
     print("ok", ", ".join(CURSOS))

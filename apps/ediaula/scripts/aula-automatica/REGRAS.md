@@ -82,7 +82,7 @@ As peças gráficas da aula chegam prontas em `.edisvg`, na pasta `<parte>/pecas
 Use a caixa `.edisvg` recebida. Sem ela, o EdiAula cria a caixa no padrão:
 
 - **Quando:** a professora navega no menu de categorias do editor.
-- **Visual:** etiqueta amarela (#FFC02E, amarelo XP) com texto escuro e número no canto: 1 = categoria, 2 = item dentro dela. Exemplos: "Programação" (1) → "Lógica & Se" (2).
+- **Visual:** etiqueta amarela (#FFC02E, amarelo XP) com texto escuro e o número do passo no canto, na ordem em que a fala manda abrir: "Jogo 2D" (1) → "Sprites" (2) → "Aparência" (3). Nunca repetir número (o terceiro passo saía 2 de novo, Cadê A1P4, 27/11/2026).
 - **Posição:** encostada no item do menu clicado, sem cobrir o próximo item.
 - **Tempo:** entra no clique. A caixa 1 termina exatamente quando a caixa 2 entra, nunca as duas juntas. A caixa 2 fica 1,5 s, e o zoom das categorias fica aberto até ela sair.
 - **Texto:** o nome exato do item na tela, no glossário do curso.
@@ -126,6 +126,7 @@ Recorte do avatar: esquerda 2%, direita 2%, topo 2%, base 45%. Entrada e saída 
 
 - **Posição:** do lado oposto ao da professora, à esquerda, grande e cortada na cintura: x 0,24, y 0,83, escala 1,18. Entrada e saída com dissolve.
 - **Voz:** a regra "personagem silencia a professora" fica ligada. Enquanto o personagem fala, a voz da professora some e o avatar dela sai com fade. Nunca duas vozes juntas.
+- **A voz é a do personagem:** o vídeo da Debinha ou do Dedé às vezes vem sem som, com a voz dele no `.wav` ao lado (`Parte N - Debinha 1.wav`). O `editar-parte.sh` põe esse `.wav` numa faixa própria ("Voz · Parte N - Debinha 1"), no mesmo lugar e com o mesmo corte do vídeo. Sem isso, a regra não acha voz de personagem e fica a voz da professora (Cadê A1P4, 27/11/2026). Confira no `acabamento.json`: "Personagens na timeline" com os trechos, nunca "Nenhum clipe de personagem com som".
 - **Tempo:** o personagem entra, fala e sai antes da resposta da professora e do próximo gesto na tela.
 - **Duas personagens:** cada fala usa o seu clipe, e as duas nunca aparecem ao mesmo tempo. Se aparecerem, o relatório avisa.
 
@@ -229,3 +230,14 @@ O público é criança. A edição existe para a criança entender, então tudo 
 - O `validar_svg.py` mede o contraste de cada texto com o retângulo ou o fundo atrás dele e barra abaixo de 4,5.
 
 **Um fundo por curso (Helena, 27/11/2026):** a estrutura do fundo e as peças do kit são iguais em todo curso; a cor e os detalhes do fundo vêm da capa de cada um (`edicao/artes/fundos_cursos.py`: Cadê azul de céu com folhinhas e flores, Farol azul de mar com ondinhas e gaivotas, Moedas laranja de pôr do sol com moedinhas, Jardim verde-folha com pétalas). Curso novo ganha a sua entrada em CURSOS, com o branco passando de 4,5. As cores com significado nunca mudam (amarelo é ação, verde é reação, vermelho é erro); num fundo verde, a pílula verde da reação ganha borda branca.
+
+**Retorno da Parte 4 do Cadê (Helena, 27/11/2026, noite).** Vale para todas as aulas; o kit e o validador já fazem.
+- **Marca-texto:** a caixa amarela e a palavra dentro dela inclinam juntas, na mesma inclinação (-2°), girando em volta do meio da palavra (`kit_cena.marca_texto`). Texto reto dentro de caixa inclinada fica estranho, e girar em volta do começo do título desalinhava a caixa das palavras da direita. A caixa abraça as letras com respiro e nunca encosta na linha de cima nem na de baixo (entrelinha de 1,3 vez o tamanho). O validador barra caixa inclinada com texto reto e caixa encostando em outra linha.
+- **Botão que a fala manda clicar:** zoom no botão, moldura amarela nele antes do clique (mostra onde fica) e o balão com o nome do botão ("Clique em Expandir para ver o jogo grande", "Clique em Enviar meu projeto", "Confirme em Enviar"). O contorno do botão é medido na gravação da tela, no instante do clique (`decisoes.py`, `contorno_do_botao`). Cada clique do gesto ganha o seu zoom: o envio tem dois (o botão e a confirmação), e o cursor clicando fica sempre dentro do zoom. O Expandir do começo da aula vem logo depois da capa, sem cortar.
+- **Mão do toque de costas:** como a criança vê a própria mão tocando a tela (👆 do Noto, `artes/mao-indicador.png`), com o polegar do lado do indicador. Nunca a palma virada para a câmera.
+- **Zappy de verdade:** o Zappy das cenas é a prancheta dele feita no EdiSVG (Sistema Zero, `art/edisvg`), com as animações próprias: voa, bate as asas, acena e pisca; a boca mexe só enquanto ele fala no balão (`zappy_kit.zappy_vivo`, poses falando, pensando, celebrando e alivio em `artes/zappy/`). Nunca a imagem parada com a boca torta. Ele é complemento: de 260 a 320 px, num canto da área livre, menor que o assunto (o bloco, o jogo). Troca de pose cruzando, sem piscar.
+- **Cada coisa na sua palavra:** nada aparece antes de a fala dizer. Na cena dos comandos, o título "Os comandos", o bloco e o balão só entram em "comandos"; antes, o jogo esperando uma ordem e o Zappy pensando; a etiqueta "Bloco" entra em "aparecem como blocos". Aparece uma parte, depois outra, destacando uma de cada vez.
+- **Bloco é o destaque:** grande, inteiro na área livre (nunca perto da apresentadora, parecendo atrás dela), com o Zappy ao lado.
+- **Caixa-surpresa caprichada e viva** (`kit_cena.caixa_surpresa`): laço de alças em gota com dobra e nó (dois círculos pareciam orelhas de Mickey); entra fechada, chacoalha quando a fala diz que está chegando, e a tampa pula e abre com luz e brilhos quando diz "na próxima aula", sem mostrar o que é.
+- **Fundo do curso é o que a Helena define:** ela manda o fundo de cada curso e ele se repete em todas as animações do curso. O do Cadê é a paisagem azul com colinas (`artes/fontes-de-fundo/cade.png`, escurecida a 0,93 para o branco passar de 4,5 na nuvem). Os desenhados em `fundos_cursos.py` são provisórios até ela mandar o do curso. O validador mede o contraste no pixel do fundo atrás de cada texto.
+- **Vinheta final no volume da voz:** a vinheta entra 1 dB abaixo da voz da parte, medida em LUFS (`vinheta.sh`); a do Cadê vinha 11 dB acima.

@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from edisvg_cena import AMARELO, BRANCO, TINTA, VAIVEM, Cena, nid, tf  # noqa: E402
-from kit_cena import AMARELO_DEGRAU, balao_fala, linha_de_base, medir  # noqa: E402
+from kit_cena import AMARELO_DEGRAU, ENTRELINHA_MARCA, balao_fala, caixa_marca, linha_de_base, marca_texto, medir  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("base")
@@ -47,23 +47,21 @@ palavras = a.titulo.split()
 linha1, chave = " ".join(palavras[:-1]), palavras[-1]
 kicker = f"Aula {int(a.aula)} · Parte {int(a.parte)}"
 kw = medir(c, kicker, 28) + 60
-# O cartão na largura do título (mais o respiro), nunca passando da área livre.
-CX, CY, CH = 96, 652, 340
-CW = min(1180, max(700, 56 * 2 + max(medir(c, linha1, 104) if linha1 else 0, medir(c, chave, 104) + 34)))
+# O cartão na largura do título (mais o respiro), nunca passando da área livre. A palavra-chave no marca-texto fica
+# numa linha própria, com entrelinha que deixa a caixa amarela longe das letras de cima (Helena, 27/11/2026), e o
+# cartão cresce para caber a caixa inteira com respiro embaixo.
+tam = 104
+CX = 96
+CW = min(1180, max(700, 56 * 2 + max(medir(c, linha1, tam) if linha1 else 0, medir(c, chave, tam) + 34)))
+yk = 196 + (tam * ENTRELINHA_MARCA if linha1 else 0)
+CH = round(yk + caixa_marca(c, tam)[1] + 52)
+CY = 992 - CH
 filhos = [c.rect("degrau", 0, 9, CW, CH, "#075A3D", rx=36), c.rect("fundo", 0, 0, CW, CH, "#0B7A54", rx=36),
           c.rect("selo degrau", 56, 44, kw, 52, AMARELO_DEGRAU, rx=26), c.rect("selo", 56, 40, kw, 52, AMARELO, rx=26),
           c.texto("selo texto", kicker, 56 + kw / 2, 66 + linha_de_base(c, 28), 28, TINTA, ancora="middle")]
-tam = 104
 if linha1:
     filhos.append(c.texto("texto", linha1, 56, 196, tam, BRANCO))
-yk = 196 + (tam if linha1 else 0)
-ww = medir(c, chave, tam)
-pad = tam * 0.16
-for nome, cor, dy in (("marca degrau", AMARELO_DEGRAU, 6), ("marca", AMARELO, 0)):
-    r = c.rect(nome, 56 - pad, yk - tam * 0.78 + dy, ww + 2 * pad, tam * 1.02, cor, rx=tam * 0.18)
-    r["transform"]["rotation"] = -2
-    filhos.append(r)
-filhos.append(c.texto("texto chave", chave, 56, yk, tam, TINTA))
+filhos.append(marca_texto(c, chave, 56 - tam * 0.16, yk, tam, nome="Título · marca")[0])
 cartao = c.grupo("Título da parte", CX, CY, filhos)
 c.nos.append(cartao)
 c.mostra(cartao, 0.15, None, sobe=24)

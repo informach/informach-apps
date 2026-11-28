@@ -148,6 +148,7 @@ ARRASTOS = []  # (início, fim) de cada arrasto que sai da paleta ou vai à lixe
 # Coisas da interface que a fala nomeia: o apontar por texto do EdiAula e os do palco com contorno.
 NOMEADA = re.compile(r'^apontar\s*"|^apontar objetivo cumprido')
 NOMEADAS_FEITAS = set()  # gestos de "apontar \"…\"" já tratados junto com o anterior
+LIVRE = [0.0]  # até quando vai o zoom do último botão
 grupo = None
 for gi, g in enumerate(gestos):
     regs_g = caixa_de(g)
@@ -163,28 +164,80 @@ for gi, g in enumerate(gestos):
     if g["tipo"] == "jogo":
         jogo = next((r["alvo"] for r in regs_g if r["tag"] == "IFRAME"), None)
         if jogo and (not grupo or grupo["tipo"] != "jogo"):
-            grupo = {"tipo": "jogo", "ini": max(t0, 3.0), "fim": t1 + 1.5, "caixa": jogo}
+            # Depois do zoom do botão de antes (o Expandir logo antes de tocar no jogo): sem cortar a moldura dele.
+            grupo = {"tipo": "jogo", "ini": max(t0, 3.0, LIVRE[0]), "fim": t1 + 1.5, "caixa": jogo}
             # O jogo é alto: amplia a área de jogar (sem as setas de baixo), a 1,4x.
             jx0, jy0, jx1, jy1 = jogo
             zoom(grupo["ini"], 13.0 if ta < 13 else t1 + 2, [jx0, jy0, jx1, jy0 + (jx1 - jx0) * 0.75], f"zoom no jogo ({v})", maxs=1.4)
         continue
     if g["tipo"] == "botao" or g["balao"]:
-        if t0 < 3.0:
-            continue  # coberto pela abertura
-        alvo = regs_g[0]["alvo"] if regs_g else None
-        if not alvo and g.get("x") is not None:
-            # Botão sem contorno registrado (o clique veio depois do último registro): o ponto do gesto.
-            alvo = [g["x"] - 80, g["y"] - 22, g["x"] + 80, g["y"] + 22]
-        if alvo:
-            zoom(t0 - 0.3, t1 + 0.8, alvo, f"zoom no botão ({v})")
-            bx, by = centro(alvo)
-            # Nunito 28 (pedido dela, 22/11/2026). O lugar e a ponta saem no fim, depois do zoom e de caber na
-            # tela, para a ponta apontar para o botão de verdade (BALAO_W, mais abaixo).
-            add("add_annotation", {"kind": "balloon", "text": g["balao"], "at": round(ta - 0.6, 2), "duration": 2.0,
-                                   "x": round(bx, 4), "y": round(by, 4), "tail": "top-right", "fill": AMARELO,
-                                   "font": FONTE_BALAO, "font_size": TAMANHO_BALAO}, f"balão ({v})")
-            cmds[-1]["papel"] = "balao"
-            cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
+        # Cada clique do botão (o envio tem dois: Enviar meu projeto e a confirmação em Enviar), com o contorno
+        # medido na gravação da tela (decisoes.py): zoom no botão, a moldura amarela nele antes do clique (mostra
+        # onde fica, Helena 27/11/2026: "você clicou nele, mas não destacou nada") e o balão com o nome dele. O
+        # cursor está dentro do zoom quando clica. Antes, o gesto que começava durante a capa saía inteiro (o
+        # Expandir do começo da aula ficava sem nada) e o segundo clique do envio ficava fora do zoom.
+        cliques = g.get("cliques") or [{"t": ta, "x": g.get("x"), "y": g.get("y"), "caixa": None, "balao": g["balao"]}]
+        validos = []
+        for k, ck in enumerate(cliques):
+            tk = ck["t"]
+            if tk < 3.4 or na_anim(tk):
+                continue  # durante a capa ou embaixo de uma animação
+            alvo = ck.get("caixa")
+            if not alvo and k == 0 and regs_g:
+                r0 = regs_g[0]["alvo"]
+                alvo = r0 if r0 and r0[2] - r0[0] <= 480 and r0[3] - r0[1] <= 120 else None
+            if not alvo and ck.get("x") is not None:
+                alvo = [ck["x"] - 80, ck["y"] - 22, ck["x"] + 80, ck["y"] + 22]
+            if alvo:
+                validos.append(dict(ck, alvo=alvo))
+        # Cliques a menos de 2,5 s um do outro (Enviar meu projeto e a confirmação em Enviar) dividem um zoom só, que
+        # pega os dois botões; dois zooms seguidos cortavam um ao outro e o balão do primeiro ia para antes.
+        grupos_c = []
+        for ck in validos:
+            if grupos_c and ck["t"] - grupos_c[-1][-1]["t"] < 2.5:
+                u = [min(c_["alvo"][0] for c_ in grupos_c[-1] + [ck]), min(c_["alvo"][1] for c_ in grupos_c[-1] + [ck]),
+                     max(c_["alvo"][2] for c_ in grupos_c[-1] + [ck]), max(c_["alvo"][3] for c_ in grupos_c[-1] + [ck])]
+                if (u[2] - u[0]) * (u[3] - u[1]) <= 0.4 * W * H:
+                    grupos_c[-1].append(ck)
+                    continue
+            grupos_c.append([ck])
+        for grp in grupos_c:
+            t_ini, t_fim = grp[0]["t"], grp[-1]["t"]
+            uniao = [min(c_["alvo"][0] for c_ in grp), min(c_["alvo"][1] for c_ in grp),
+                     max(c_["alvo"][2] for c_ in grp), max(c_["alvo"][3] for c_ in grp)]
+            # O zoom pode começar embaixo da capa (até 3 s ela cobre a tela): o Expandir logo depois dela já entra com
+            # o zoom aberto. Termina antes da animação seguinte, que tira a tela.
+            ini = max(2.4, t_ini - 1.7)
+            prox_anim = min([a0 for a0, _ in ANIM if a0 >= t_ini] or [1e9])
+            fim = min(t_fim + 1.8, prox_anim)
+            zoom(ini, fim, uniao, f"zoom no botão ({v})")
+            LIVRE[0] = max(LIVRE[0], fim)
+            fechando = fim - EASE
+            # As marcações são uma de cada vez (a faixa das marcações): para cada clique, primeiro a moldura sozinha,
+            # mostrando onde fica (pelo menos 0,6 s), e o balão com o nome logo antes do clique; a marcação seguinte
+            # tira a anterior (antes, o balão entrava junto e a moldura era descartada: Enviar e Concluir aula).
+            inicio = max(ini + EASE, 3.0)
+            for k, ck in enumerate(grp):
+                tk, alvo = ck["t"], ck["alvo"]
+                if tk > fechando - 0.2:
+                    break  # o clique já está saindo do zoom (a animação seguinte entra): sem marcação
+                if k:
+                    inicio = max(inicio + 0.8, tk - 0.7)
+                destaque(inicio, 1.5, alvo, f"moldura no botão ({v})", pad=10, alvo=f"botão {v} {k}")
+                if ck.get("balao"):
+                    bx, by = centro(alvo)
+                    at_b = max(inicio + 0.6, tk - 0.2)
+                    tem_prox = k + 1 < len(grp) and grp[k + 1]["t"] <= fechando - 0.2
+                    prox_ini = max(at_b + 0.8, grp[k + 1]["t"] - 0.7) if tem_prox else fechando
+                    # Nunito 28 (pedido dela, 22/11/2026). O lugar e a ponta saem no fim, depois do zoom e de caber
+                    # na tela, para a ponta apontar para o botão de verdade (BALAO_W, mais abaixo).
+                    add("add_annotation", {"kind": "balloon", "text": ck["balao"], "at": round(at_b, 2),
+                                           "duration": round(max(0.8, min(2.2, prox_ini - at_b)), 2),
+                                           "x": round(bx, 4), "y": round(by, 4), "tail": "top-right", "fill": AMARELO,
+                                           "font": FONTE_BALAO, "font_size": TAMANHO_BALAO}, f"balão ({v})")
+                    cmds[-1]["papel"] = "balao"
+                    cmds[-1]["alvo_ponto"] = [round(bx, 4), round(by, 4)]
+                    inicio = at_b
         continue
     if NOMEADA.match(v):
         # Uma coisa da interface que a fala nomeia ("Objetivo cumprido!", "Salvo", "Seu projeto no Estúdio"):
@@ -269,9 +322,10 @@ for gi, g in enumerate(gestos):
             grupo["pts"].pop()
             continue
         n = len(grupo["pts"])
-        # 1 = a categoria, 2 = o item dentro dela. Entra no clique; a ponta encosta na paleta (a borda esquerda
+        # O número é o passo: 1, 2, 3 na ordem em que a fala manda abrir (Jogo 2D, Sprites, Aparência; antes o
+        # terceiro saía 2 de novo, Helena 27/11/2026). Entra no clique; a ponta encosta na paleta (a borda esquerda
         # da caixa em PALETA, acertada pelo aplicar.mjs com a largura de verdade).
-        add("add_annotation", {"kind": "box", "text": nome, "badge": str(min(n, 2)), "pointer": "left",
+        add("add_annotation", {"kind": "box", "text": nome, "badge": str(n), "pointer": "left",
                                "at": round(ta, 2), "duration": 1.5,
                                "x": 0.2, "y": round(pt[1] / H, 4), "color": XP, "scale": CAIXA_ESCALA},
             f"caixa numerada ({nome})")
@@ -406,8 +460,10 @@ for z in zs:
         a = junto[-1]["input"]
         fim_a = a["at"] + a["duration"]
         perto = abs(i["x"] - a["x"]) < 0.08 and abs(i["y"] - a["y"]) < 0.08 and abs(i["scale"] - a["scale"]) < 0.25
-        # Mesmo lugar logo em seguida: fica ampliado, sem sair e voltar.
-        if perto and i["at"] < fim_a + 4.5:
+        # Mesmo lugar logo em seguida: fica ampliado, sem sair e voltar. O zoom de um botão não se junta com o do
+        # que vem depois (o Expandir e o jogo logo em seguida): cada um no seu enquadramento.
+        botao = "botão" in z["nota"] or "botão" in junto[-1]["nota"]
+        if perto and not botao and i["at"] < fim_a + 4.5:
             a["duration"] = round(max(fim_a, i["at"] + i["duration"]) - a["at"], 2)
             continue
         if i["at"] < fim_a + 0.4:
@@ -531,9 +587,11 @@ for c in MARCA:
         if seguinte:
             fim = seguinte["at"]
     if fim - ini < 0.8 and z and i.get("kind") == "balloon":
-        # O balão explica o botão antes do clique: se não cabe depois, entra assim que o zoom abre.
-        ini, fim = aberto, min(fechando, aberto + 2.0)
-    if fim - ini < 0.8:
+        # O balão explica o botão antes do clique: se não cabe depois, entra o mais tarde que dá, deixando 0,6 s
+        # para a moldura que mostra onde fica o botão (antes entrava assim que o zoom abria e tirava a moldura).
+        ini = max(aberto + 0.6, fechando - 1.2) if fechando - aberto >= 1.2 else aberto
+        fim = min(fechando, ini + 2.0)
+    if fim - ini < (0.6 if i.get("kind") == "balloon" else 0.8):
         saem.append(c)
         REVISAR.append(f"{c['input']['at']:.1f}s: {c['nota']} saiu (não cabe num estado só do zoom)")
         continue

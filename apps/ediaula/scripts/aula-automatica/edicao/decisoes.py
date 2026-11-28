@@ -70,17 +70,67 @@ def montar_frases(quebras=()):
 frases = montar_frases()
 
 # Gestos com o ponto da tela (fim do último deslize dentro da etapa) e o tempo na voz.
+# O balão de cada botão diz o nome que a criança procura na tela (Helena, 27/11/2026: tudo que a fala nomeia é
+# mostrado e sinalizado, onde fica e como funciona). Os cliques seguintes do mesmo gesto (a confirmação de um envio)
+# ganham o balão de CONFIRMA, um por clique.
 BOTOES = {
-    "expandir estúdio": "Clique para ampliar a área dos blocos",
-    "reduzir estúdio": "Clique para voltar ao tamanho da aula",
+    "expandir estúdio": "Clique em Expandir para ver o jogo grande",
+    "reduzir estúdio": "Clique em Reduzir para voltar à aula",
     "rodar de novo": "Clique para começar uma partida nova",
-    "verificar projeto": "Clique para conferir o seu projeto",
+    "verificar projeto": "Clique em Verificar projeto",
+    "enviar projeto": "Clique em Enviar meu projeto",
     "próxima parte": "Clique para ir para a próxima parte",
     "concluir aula": "Clique para concluir a aula",
     "compartilhar": "Clique para publicar no Mural",
     "ampliar experiência": "Clique para ampliar a experiência",
     "voltar à aula": "Clique para voltar ao tamanho da aula",
 }
+CONFIRMA = {"enviar projeto": ["Confirme em Enviar"]}
+
+
+def contorno_do_botao(tela, t, x, y):
+    """O contorno do botão sob o ponto (x, y) no quadro t da gravação da tela (o cursor não está desenhado nela):
+    a região conexa da cor de fundo do botão em volta do ponto (o texto dentro não conta). None se não achar algo do
+    tamanho de um botão."""
+    import io
+    import subprocess
+
+    from PIL import Image
+    try:
+        png = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.3f}", "-i", tela, "-frames:v", "1",
+                              "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True, check=True).stdout
+        im = Image.open(io.BytesIO(png)).convert("RGB")
+    except Exception:
+        return None
+    s = im.width / 1920
+    X, Y = round(x * s), round(y * s)
+    x0, y0, x1, y1 = max(0, X - 260), max(0, Y - 80), min(im.width, X + 260), min(im.height, Y + 80)
+    px = im.load()
+    from collections import Counter
+    viz = Counter((px[i, j][0] // 12, px[i, j][1] // 12, px[i, j][2] // 12)
+                  for i in range(max(x0, X - 10), min(x1, X + 11)) for j in range(max(y0, Y - 10), min(y1, Y + 11)))
+    cor = [c * 12 + 6 for c in viz.most_common(1)[0][0]]
+    # Botão claro (cinza-azulado sobre o painel branco) pede tolerância menor, senão vaza para o painel.
+    tol = 9 if min(cor) > 200 else 22
+    perto = lambda c: max(abs(c[0] - cor[0]), abs(c[1] - cor[1]), abs(c[2] - cor[2])) <= tol
+    vistos, fila = set(), [(i, j) for i in range(X - 10, X + 11) for j in range(Y - 10, Y + 11)
+                          if x0 <= i < x1 and y0 <= j < y1 and perto(px[i, j])]
+    vistos.update(fila)
+    while fila:
+        i, j = fila.pop()
+        for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+            if x0 <= a < x1 and y0 <= b < y1 and (a, b) not in vistos and perto(px[a, b]):
+                vistos.add((a, b))
+                fila.append((a, b))
+    if not vistos:
+        return None
+    xs, ys = [p[0] for p in vistos], [p[1] for p in vistos]
+    bx0, by0, bx1, by1 = min(xs) / s, min(ys) / s, (max(xs) + 1) / s, (max(ys) + 1) / s
+    if not (40 <= bx1 - bx0 <= 480 and 18 <= by1 - by0 <= 90) or len(vistos) < 0.35 * (bx1 - bx0) * (by1 - by0) * s * s:
+        return None
+    return [round(bx0), round(by0), round(bx1), round(by1)]
+
+
 BLOCO = re.compile(r"^(encaixar|soltar|abrir campo|escolher|apontar bloco|apontar encaixe|apontar abaixo de|mostrar blocos|jogar na lixeira|apontar mais de|abrir \")")
 gestos = []
 for s in run["steps"]:
@@ -100,6 +150,17 @@ for s in run["steps"]:
     balao = BOTOES.get(v) or (f"Clique em {v[8:-1]}" if v.startswith("clicar \"") else None)
     gestos.append({"verbo": v, "tipo": tipo, "ini": s["start"], "acao": s["act"], "fim": s["end"],
                    "x": round(p["x"]) if p else None, "y": round(p["y"]) if p else None, "balao": balao})
+    if tipo == "botao":
+        # Cada clique do gesto (o envio tem dois: o botão e a confirmação), no segundo da voz, com o contorno do botão
+        # medido na gravação da tela, um instante antes do clique.
+        cliques = []
+        for k, gl in enumerate(pts):
+            tv = s["start"] + (gl["until"] - s["began"]) if k else s["act"]
+            cx_, cy_ = gl["to"]["x"], gl["to"]["y"]
+            cliques.append({"t": round(tv, 2), "x": round(cx_), "y": round(cy_),
+                            "caixa": contorno_do_botao(f"{pasta}/tela.mp4", gl["until"] - 0.05, cx_, cy_),
+                            "balao": balao if k == 0 else (CONFIRMA.get(v, [None] * k) + [None] * k)[k - 1]})
+        gestos[-1]["cliques"] = cliques
 
 # Debinha e Dedé: a fala exata da tabela, achada na voz.
 tab = open(roteiro, encoding="utf8").read()

@@ -51,7 +51,8 @@ from kit_cena import (  # noqa: E402
     titulo,
     trilha,
 )
-from kit_cena import zappy as zappy_kit  # noqa: E402
+from kit_cena import caixa_surpresa  # noqa: E402
+from zappy_kit import zappy_vivo  # noqa: E402
 from tempos_da_voz import Voz  # noqa: E402
 
 AULA, PARTE = int(sys.argv[1]), int(sys.argv[2])
@@ -212,14 +213,26 @@ def a1p4():
              largura=larg)
     salvar(c, "lembra-da-experiencia")
 
-    # 2. Comandos: o Zappy explica no balão e o bloco de verdade aparece.
-    c, t0, t1 = cena("Comandos", "Para fazer isso, a gente precisa dizer", "servem os comandos")
-    t_isso = p("É para isso", t0)
-    titulo(c, [("Os ", False), ("comandos", True)], t0 + 0.05, t1)
-    _, cabeca = zappy_kit(c, "zappy-falando", 130, 330, 540, t0 + 0.1, t1)
-    balao_fala(c, "Comando", "Comando é uma ordem para o jogo!", cabeca, t0 + 0.4, t1, tam=54, maxw=560)
-    g, _ = c.bloco("bloco-quando-tocar", 500, 760, 0.98)
-    c.mostra(g, t_isso, t1, pop=True)
+    # 2. Comandos (Helena, 27/11/2026): nada dos comandos antes de a fala dizer "comandos"; o destaque é o bloco, e o
+    # Zappy (o de verdade, do EdiSVG, menor) é complemento. Primeiro o jogo esperando uma ordem e o Zappy pensando;
+    # em "comandos", o título e o bloco de verdade, grande, e o Zappy fala; em "aparecem como blocos", a etiqueta
+    # Bloco aponta para ele.
+    c, t0, t1 = cena("Comandos", "Para fazer isso, a gente precisa dizer", "que aqui aparecem como blocos")
+    t_dizer = p("dizer ao jogo o que ele deve fazer", t0)
+    t_cmd = p("comandos", t_dizer)
+    t_blocos = p("aparecem como blocos", t_cmd)
+    titulo(c, [("Dizer ao jogo ", False), ("o que fazer", True)], t_dizer, t_cmd - 0.05)
+    titulo(c, [("Os ", False), ("comandos", True)], t_cmd, t1)
+    # A troca de pose cruza: o pensando só sai depois que o falando já entrou (sem piscar).
+    zappy_vivo(c, "pensando", 120, 560, 280, t0 + 0.1, t_cmd + 0.3)
+    icone(c, "Jogo esperando", 600, 330, 300, BRANCO, "#B9C6D9", "arbusto", 230, t0 + 0.3, t_cmd - 0.1)
+    rotulo(c, "Que faço?", "?", 930, 330, t0 + 0.8, t_cmd - 0.1, estilo="escuro", tam="g", largura=110)
+    _, cabeca = zappy_vivo(c, "falando", 120, 560, 280, t_cmd, t1, falas=[(t_cmd + 0.1, t_blocos - 0.1)], pop=False)
+    balao_fala(c, "Comando", "Comando é uma ordem para o jogo!", cabeca, t_cmd + 0.15, t1, tam=42, maxw=440)
+    BX, BY, E = 380, 290, 1.1
+    g, _ = c.bloco("bloco-quando-tocar", BX, BY, E)
+    c.mostra(g, t_cmd + 0.1, t1, pop=True)
+    anotacao(c, "Bloco", "Bloco", (BX + 560, BY + 150 * E + 18), t_blocos, t1, estilo="termo", centro=(BX + 640, BY + 330))
     salvar(c, "comandos")
 
     # 3. Quem percebe o toque, o sprite e o escolhido.
@@ -284,25 +297,36 @@ def a1p4():
         selo(c, f"Certo {texto}", cx + larg / 2 - 8, 812, t + 0.4, t1, r=36)
     salvar(c, "confira")
 
-    # 6. A primeira regra (o Zappy comemora, e a sequência da regra) e a surpresa que está chegando.
+    # 6. A primeira regra (o Zappy comemora, e a sequência da regra) e a surpresa que está chegando. Cada coisa na sua
+    # palavra (Helena, 27/11/2026): o balão em "programou", o título em "primeira regra"; a caixa-surpresa entra
+    # fechada em "surpresa", chacoalha em "quase chegando", o Zappy fala "Na próxima aula!" na hora em que a fala diz,
+    # e a tampa abre com luz logo depois.
     c, t0, t1 = cena("A primeira regra", "Pronto, você já programou", "o que é.")
-    t_lembra = p("E lembra da surpresa", t0)
-    titulo(c, [("A primeira ", False), ("regra", True)], t0 + 0.05, t_lembra - 0.05)
-    _, cabeca = zappy_kit(c, "zappy-celebrando", 110, 420, 460, t0 + 0.1, t_lembra - 0.05)
-    balao_fala(c, "Programou", "Você programou!", cabeca, t0 + 0.4, t_lembra - 0.05, tam=50, maxw=420)
+    t_prog = p("programou", t0)
+    t_regra = p("primeira regra", t_prog)
+    t_lembra = p("E lembra da surpresa", t_regra)
+    t_surpresa = p("surpresa", t_lembra)
+    t_quase = p("quase chegando", t_surpresa)
+    t_prox = p("Na próxima aula", t_quase)
+    titulo(c, [("A primeira ", False), ("regra", True)], t_regra, t_lembra - 0.05)
+    _, cabeca = zappy_vivo(c, "celebrando", 110, 480, 320, t0 + 0.1, t_lembra - 0.05)
+    balao_fala(c, "Programou", "Você programou!", cabeca, t_prog, t_lembra - 0.05, tam=50, maxw=420)
     passos = (("Toque", "mao-indicador", "#FFC02E", "#C98F00", 100, 120), ("Some", "arbusto", "#FFFFFF", "#B9C6D9", 30, 110),
               ("Aparece", "coelho", "#0B7A54", "#075A3D", 100, 120))
     for k, (nome, arte, cor, deg, op, alt) in enumerate(passos):
         x = 560 + k * 250
-        icone(c, nome, x, 560, 190, cor, deg, arte, int(alt * 1.25), t0 + 0.8 + 0.4 * k, t_lembra - 0.05, op_arte=op)
-        rotulo(c, f"Passo {nome}", nome, x + 95, 840, t0 + 0.9 + 0.4 * k, t_lembra - 0.05, largura=210)
-    trilha(c, "Regra 1", (762, 655), (780, 615), (798, 655), t0 + 1.2, t_lembra - 0.05, n=3)
-    trilha(c, "Regra 2", (1012, 655), (1030, 615), (1048, 655), t0 + 1.6, t_lembra - 0.05, n=3)
-    titulo(c, [("A ", False), ("surpresa", True), (" está chegando", False)], t_lembra, t1)
-    _, cabeca = zappy_kit(c, "zappy-pensando", 130, 470, 400, t_lembra, t1)
-    balao_fala(c, "Surpresa", "Na próxima aula!", cabeca, t_lembra + 0.3, t1, tam=44, maxw=360)
-    presente(c, 940, 680, t_lembra + 0.2, t1)
-    raios(c, "Presente", 940, 680, 230, t_lembra + 0.6, t1)
+        icone(c, nome, x, 560, 190, cor, deg, arte, int(alt * 1.25), t_regra + 0.2 + 0.4 * k, t_lembra - 0.05, op_arte=op)
+        rotulo(c, f"Passo {nome}", nome, x + 95, 840, t_regra + 0.3 + 0.4 * k, t_lembra - 0.05, largura=210)
+    trilha(c, "Regra 1", (762, 655), (780, 615), (798, 655), t_regra + 0.6, t_lembra - 0.05, n=3)
+    trilha(c, "Regra 2", (1012, 655), (1030, 615), (1048, 655), t_regra + 1.0, t_lembra - 0.05, n=3)
+    titulo(c, [("Lembra da ", False), ("surpresa", True), ("?", False)], t_surpresa, t_quase - 0.05)
+    titulo(c, [("Está ", False), ("chegando", True), ("!", False)], t_quase, t1)
+    zappy_vivo(c, "pensando", 110, 520, 300, t_lembra, t_prox + 0.3)
+    _, cabeca = zappy_vivo(c, "falando", 110, 520, 300, t_prox, t1, falas=[(t_prox, t_prox + 1.2)], pop=False)
+    balao_fala(c, "Surpresa", "Na próxima aula!", cabeca, t_prox, t1, tam=44, maxw=360)
+    # Abre quando a fala diz que vem na próxima aula (Helena: "quando eu falar que já tá chegando, que na próxima
+    # aula vai ter, às vezes ela abre"), com tempo para a luz e os brilhos antes do fim da cena.
+    caixa_surpresa(c, 860, 930, t_surpresa, t1, chacoalha=[t_quase, t_quase + 0.75], abre=t_prox + 0.5)
     salvar(c, "a-primeira-regra")
 
 

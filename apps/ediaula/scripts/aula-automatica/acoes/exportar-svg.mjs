@@ -24,6 +24,13 @@ export default async function exportarSvg(ctx) {
   await ctx.delay(1200);
   await e.getByText("Confirmo converter a animação em imagens").first().click();
   await ctx.delay(400);
+  // Cena com componente (o Zappy de zappy_kit.py, instância da prancheta dele): o EdiSVG pede a confirmação de
+  // exportar só a linha do tempo (máquinas de estado ficam de fora; o Zappy toca a animação sincronizada).
+  const soTimeline = e.getByText("Confirmo exportar somente a timeline");
+  if (await soTimeline.count()) {
+    await soTimeline.first().click();
+    await ctx.delay(400);
+  }
   await ctx.answer("save", ctx.state.svgSaida);
   await e.getByRole("button", { name: "↗ Exportar arquivo" }).click();
   let tam = -1;

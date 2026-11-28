@@ -105,8 +105,10 @@ export default async function acabamento(ctx) {
   // Personagem: vídeo de apresentador que não é a professora, ou mídia com o nome de um personagem (o
   // EdiAula reconhece Debinha e Dedé pelo nome, como na regra de voz; a importação pelo botão não marca
   // a origem).
+  // Só o vídeo: o .wav da voz dele (quando o vídeo veio sem som, editar-parte.sh) fica onde está, sem layout.
   const ehPersonagem = (c) =>
     !proj.nome(c).includes(apres) &&
+    proj.asset(c)?.kind !== "audio" &&
     (proj.asset(c)?.origin === "presenter" ||
       /(^|[^a-zà-ú])(debinha|ded[eé])([^a-zà-ú]|$)/i.test(proj.nome(c)));
   const falas = proj.d.clips.filter(ehPersonagem).map((c) => [c.start, fimDe(c)]);

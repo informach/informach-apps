@@ -14,12 +14,18 @@ FPS = 30
 
 
 class Layout:
-    def __init__(self, d):
+    def __init__(self, d, artboard=None, animacao=None):
+        """artboard/animacao: outra prancheta do arquivo e a animação dela (a instância de um componente, como o
+        Zappy de zappy_kit.py); sem eles, a cena (a prancheta padrão e a primeira animação)."""
         self.d = d
         self.assets = {a["id"]: a for a in d["assets"]}
-        art = next(a for a in d["artboards"] if a["id"] == d["defaultArtboardId"])
+        art = next(a for a in d["artboards"] if a["id"] == (artboard or d["defaultArtboardId"]))
+        self.viewbox = art["scene"].get("viewBox", [0, 0, 1920, 1080])
         self.nos = art["scene"]["nodes"]
-        self.anim = d["motion"]["animations"][0]
+        anims = d["motion"]["animations"]
+        self.anim = next((a for a in anims if a["id"] == animacao), None) if animacao else anims[0]
+        self.anim = self.anim or {"fps": FPS, "frames": 1, "tracks": [], "mode": "once"}
+        self._subs = {}
         self.total = self.anim["frames"]
         self.trilhas = {}
         for t in self.anim["tracks"]:
@@ -54,7 +60,7 @@ class Layout:
         tr = no.get("transform") or {}
         tk = self.trilhas.get(no["id"], {})
         return {p: self.valor(tk.get(p), f, tr.get(p, 1 if p in ("sx", "sy") else (100 if p == "opacity" else 0)))
-                for p in ("x", "y", "rotation", "sx", "sy", "opacity")}
+                for p in ("x", "y", "rotation", "sx", "sy", "opacity", "px", "py")}
 
     # Fontes e medidas.
     def fonte(self, familia, peso, tam):
@@ -109,8 +115,11 @@ class Layout:
             # m: matriz afim (a, b, c, d, e, f) do pai; a do nó = pai · translate · rotate · scale.
             a0, b0, c0, d0, e0, f0 = m
             la, lb, lc, ld = c * t["sx"], si * t["sx"], -si * t["sy"], c * t["sy"]
+            # O pivô (px, py) das artes do EdiSVG (o Zappy): edi-motion/src/affine.ts, transformMatrix.
+            tx = t["x"] + t["px"] - la * t["px"] - lc * t["py"]
+            ty = t["y"] + t["py"] - lb * t["px"] - ld * t["py"]
             nm = (a0 * la + c0 * lb, b0 * la + d0 * lb, a0 * lc + c0 * ld, b0 * lc + d0 * ld,
-                  a0 * t["x"] + c0 * t["y"] + e0, b0 * t["x"] + d0 * t["y"] + f0)
+                  a0 * tx + c0 * ty + e0, b0 * tx + d0 * ty + f0)
             escala = s * max(abs(t["sx"]), abs(t["sy"]))
             cx = self.caixa_local(no)
             if cx:
@@ -127,18 +136,56 @@ class Layout:
         return saida
 
     def svg(self, f):
-        """O quadro f como SVG (para a prévia)."""
+        """O quadro f como SVG (para a prévia). Degradês (gradients) e recortes (effects.clip) das artes do EdiSVG
+        entram como defs; o nó que serve de recorte não é desenhado."""
+        defs = []
+        por_id = {}
+
+        def indexa(no):
+            por_id[no["id"]] = no
+            for c in no.get("children", []):
+                indexa(c)
+
+        for no in self.nos:
+            indexa(no)
+        recortes = {n["effects"]["clip"]["sourceId"] for n in por_id.values()
+                    if isinstance(n.get("effects"), dict) and isinstance(n["effects"].get("clip"), dict)}
 
         def no_svg(no):
             t = self.transform(no, f)
-            if t["opacity"] <= 0.1 or no.get("visible") is False:
+            if t["opacity"] <= 0.1 or no.get("visible") is False or no["id"] in recortes:
                 return ""
             attrs = dict(no.get("attrs", {}))
             tag = no["tag"]
-            g = (f'<g transform="translate({t["x"]},{t["y"]}) rotate({t["rotation"]}) scale({t["sx"]},{t["sy"]})" '
+            gr = (no.get("gradients") or {}).get("fill")
+            if gr and gr.get("stops"):
+                gid = f"gr{len(defs)}"
+                stops = "".join(f'<stop offset="{st["offset"]}" stop-color="{st["color"]}" stop-opacity="{st.get("opacity", 1)}"/>'
+                                for st in gr["stops"])
+                if gr.get("kind") == "radial":
+                    defs.append(f'<radialGradient id="{gid}" gradientUnits="{gr.get("units", "objectBoundingBox")}" '
+                                f'cx="{gr.get("cx", 0.5)}" cy="{gr.get("cy", 0.5)}" r="{gr.get("r", 0.5)}" '
+                                f'fx="{gr.get("fx", gr.get("cx", 0.5))}" fy="{gr.get("fy", gr.get("cy", 0.5))}">{stops}</radialGradient>')
+                else:
+                    defs.append(f'<linearGradient id="{gid}" gradientUnits="{gr.get("units", "objectBoundingBox")}" '
+                                f'x1="{gr.get("x1", 0)}" y1="{gr.get("y1", 0)}" x2="{gr.get("x2", 1)}" y2="{gr.get("y2", 0)}">'
+                                f'{stops}</linearGradient>')
+                attrs["fill"] = f"url(#{gid})"
+            clip = (no.get("effects") or {}).get("clip") if isinstance(no.get("effects"), dict) else None
+            if clip and clip.get("sourceId") in por_id:
+                src = por_id[clip["sourceId"]]
+                cid = f"cl{len(defs)}"
+                sa = " ".join(f'{k}="{v}"' for k, v in src.get("attrs", {}).items() if k in ("d", "transform", "points"))
+                defs.append(f'<clipPath id="{cid}"><{src["tag"]} {sa}/></clipPath>')
+                attrs["clip-path"] = f"url(#{cid})"
+            px, py = t["px"], t["py"]
+            g = (f'<g transform="translate({t["x"] + px},{t["y"] + py}) rotate({t["rotation"]}) scale({t["sx"]},{t["sy"]}) '
+                 f'translate({-px},{-py})" '
                  f'opacity="{t["opacity"] / 100:.3f}">')
-            if tag == "g":
+            if tag == "g" and "instance" not in no:
                 inner = "".join(no_svg(c) for c in no.get("children", []))
+                if attrs.get("clip-path"):
+                    inner = f'<g clip-path="{attrs["clip-path"]}">{inner}</g>'
             elif tag == "image":
                 a = self.assets[no["assetId"]]
                 inner = (f'<image x="{attrs.get("x", 0)}" y="{attrs.get("y", 0)}" width="{attrs["width"]}" '
@@ -149,14 +196,29 @@ class Layout:
                     attrs["font-family"] = "'" + attrs["font-family"].strip("'\"") + "'"
                 at = " ".join(f'{k}="{v}"' for k, v in attrs.items())
                 inner = f'<text {at}>{no["text"].replace("&", "&amp;").replace("<", "&lt;")}</text>'
-            elif tag == "use" or "instance" in no:
+            elif "instance" in no:
+                # O componente: a prancheta dele no tempo da cena (velocidade, deslocamento e loop).
+                ins = no["instance"]
+                chave = (ins["artboardId"], ins.get("animationId"))
+                if chave not in self._subs:
+                    self._subs[chave] = Layout(self.d, *chave)
+                sub = self._subs[chave]
+                tempo = f / FPS * ins.get("speed", 1) + ins.get("offsetSeconds", 0)
+                fq = tempo * sub.anim.get("fps", FPS)
+                n = max(1, sub.anim.get("frames", 1))
+                fq = fq % n if sub.anim.get("mode") == "loop" else min(fq, n)
+                vb = " ".join(str(v) for v in sub.viewbox)
+                inner = (f'<svg x="0" y="0" width="{ins["width"]}" height="{ins["height"]}" viewBox="{vb}" '
+                         f'overflow="visible">{sub.svg(fq)}</svg>')
+            elif tag == "use":
                 inner = ""
             else:
                 at = " ".join(f'{k}="{v}"' for k, v in attrs.items())
                 inner = f"<{tag} {at}/>"
             return g + inner + "</g>"
 
-        return "".join(no_svg(no) for no in self.nos)
+        corpo = "".join(no_svg(no) for no in self.nos)
+        return (f"<defs>{''.join(defs)}</defs>" if defs else "") + corpo
 
     def css_fontes(self):
         css = []

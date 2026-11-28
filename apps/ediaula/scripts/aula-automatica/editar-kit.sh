@@ -18,6 +18,8 @@ echo "$OUT" | sed 's#.*/pecas/##'
 python -X utf8 capa_kit.py "$B/base.edisvg" "$B/blocos" "$P/pecas" --arte "$ARTE" --aula "$A" --parte "$N" \
   --titulo "$TIT" --fala "$FALA" | sed 's#.*/pecas/##'
 python -X utf8 validar_svg.py "$P/pecas" | tail -1
+# E com o leitor do próprio EdiSVG: peça recusada por ele nunca vira render.
+(cd "$AQUI/../../../edisvg" && node_modules/.bin/tsx "$AQUI/edicao/validar_edisvg.ts" "$P"/pecas/*.edisvg) | tail -3
 T=$(echo "$OUT" | python -X utf8 -c "
 import sys, re, json
 t = []

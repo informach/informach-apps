@@ -310,32 +310,63 @@ def encaixar(c, g, de, para, t, dur=0.6):
 # ── Peças aprovadas no canvas do kit (27/11/2026): título solto, Zappy com balão, cartão, raios, trilha, ícones ──
 
 
+# O marca-texto (Helena, 27/11/2026): a caixa amarela e a palavra dentro dela inclinadas juntas, na mesma
+# inclinação, girando em torno do meio da palavra (girar em torno do começo do título subia a caixa das palavras
+# mais à direita e a tirava da linha). A caixa abraça só as letras, com respiro, e nunca encosta na linha de cima
+# nem na de baixo: o entrelinha de quem empilha linhas com marca-texto é ENTRELINHA_MARCA vezes o tamanho.
+INCLINA_MARCA = -2
+ENTRELINHA_MARCA = 1.3
+
+
+def caixa_marca(c, tam, familia="Baloo 2", peso=800):
+    """(topo, base) da caixa do marca-texto em relação à linha de base: as letras de verdade (maiúscula com acento
+    e perna do g) mais um respiro de 10% do tamanho em cima e embaixo."""
+    f = _fonte(c, familia, peso, round(tam))
+    bb = f.getbbox("ÁgHy", anchor="ls")
+    return bb[1] - tam * 0.1, bb[3] + tam * 0.1
+
+
+def marca_texto(c, texto, x, y, tam, nome="Título · marca", cor=TINTA, inclina=INCLINA_MARCA):
+    """A palavra no marca-texto, com a linha de base em y e o começo da caixa em x. A caixa, o degrau e o texto
+    são um grupo só, girado em volta do meio da caixa. Devolve (grupo, largura da caixa)."""
+    w = medir(c, texto, tam)
+    pad = tam * 0.16
+    topo, base = caixa_marca(c, tam)
+    W, H = w + 2 * pad, base - topo
+    mx, my = x + W / 2, y + (topo + base) / 2
+    rx = min(tam * 0.18, H / 2)
+    filhos = [c.rect("degrau", -W / 2, -H / 2 + 6, W, H, AMARELO_DEGRAU, rx=rx),
+              c.rect("marca", -W / 2, -H / 2, W, H, AMARELO, rx=rx),
+              c.texto("texto", texto, -W / 2 + pad, y - my, tam, cor)]
+    g = c.grupo(nome, mx, my, filhos, op=100)
+    g["transform"]["rotation"] = inclina
+    return g, W
+
+
 def titulo(c, partes, t0, t1, sub=None, t_sub=None, tam=92, x=96, y=148):
     """O título solto (sem a pílula): branco com degrau de sombra, e as palavras-chave em tinta escura num
-    marca-texto amarelo levemente inclinado. partes: [("A ", False), ("ação", True), ...]. sub: o subtítulo."""
+    marca-texto amarelo levemente inclinado (a caixa e a palavra juntas). partes: [("A ", False), ("ação", True),
+    ...]. sub: o subtítulo, abaixo do marca-texto com respiro."""
     if c.pilula in c.nos:
         c.nos.remove(c.pilula)
         c.trilhas = [t for t in c.trilhas if t["targetId"] != c.pilula["id"]]
     filhos, cx = [], 0.0
     for texto, marca in partes:
-        w = medir(c, texto, tam)
         if marca:
-            # O marca-texto começa depois do espaço do pedaço anterior e o texto entra com o respiro dele dentro.
-            pad = tam * 0.16
-            degrau = c.rect("degrau", cx, -tam * 0.78 + 6, w + 2 * pad, tam * 1.02, AMARELO_DEGRAU, rx=tam * 0.18)
-            fundo = c.rect("marca", cx, -tam * 0.78, w + 2 * pad, tam * 1.02, AMARELO, rx=tam * 0.18)
-            for r in (degrau, fundo):
-                r["transform"]["rotation"] = -2
-            filhos += [degrau, fundo, c.texto("texto", texto, cx + pad, 0, tam, TINTA)]
-            cx += w + 2 * pad + tam * 0.06
+            g, W = marca_texto(c, texto, cx, 0, tam)
+            filhos.append(g)
+            cx += W + tam * 0.06
         else:
+            w = medir(c, texto, tam)
             filhos += [c.texto("sombra", texto, cx, 6, tam, "#0A1432", op=30), c.texto("texto", texto, cx, 0, tam, BRANCO)]
             cx += w
     g = c.grupo("Título", x, y, filhos)
     c.nos.append(g)
     c.mostra(g, t0, t1, sobe=12)
     if sub:
-        s = c.texto("Subtítulo", sub, x + 4, y + 82, 42, BRANCO, familia="Nunito", peso=700, op=0)
+        # O subtítulo começa abaixo da caixa do marca-texto (com a inclinação) mais 24 px de respiro.
+        desce = caixa_marca(c, tam)[1] + 24 + 42 * 0.75
+        s = c.texto("Subtítulo", sub, x + 4, y + max(82, desce), 42, BRANCO, familia="Nunito", peso=700, op=0)
         c.nos.append(s)
         c.mostra(s, t_sub or t0, t1, sobe=10)
     return g
@@ -489,3 +520,90 @@ def trilha(c, nome, p0, p1, p2, t0, t1=None, n=9, r=6):
         d = c.rect(f"Trilha · {nome} {k + 1}", x - r, y - r, 2 * r, 2 * r, BRANCO, rx=r, op=0)
         c.nos.append(d)
         c.mostra(d, t0 + 0.05 * k, t1)
+
+
+# ── A caixa-surpresa (Helena, 27/11/2026: "o laço ficou parecendo um Mickey Mouse... ela começa fechada... dá uma
+# balançadinha... às vezes ela abre... mais animação, mais emoção") ──
+ROXO, ROXO_ESCURO, ROXO_TAMPA = "#6D3BF5", "#4E22CC", "#7C4DFF"
+
+
+def _no_path(c, nome, d, fill, op=100):
+    return {"id": nid(), "name": nome, "tag": "path", "attrs": {"d": d, "fill": fill}, "text": "",
+            "transform": tf(op=op), "visible": True, "locked": False}
+
+
+def _alca(lado):
+    """Uma alça do laço em gota (sai do nó, abre para o lado e volta), e a dobra de dentro, mais escura."""
+    k = -1 if lado == "esq" else 1
+    fora = (f"M0,0 C{k * 24},-58 {k * 112},-86 {k * 124},-40 C{k * 134},-4 {k * 70},10 0,0 Z")
+    dentro = (f"M{k * 8},-6 C{k * 30},-44 {k * 88},-62 {k * 98},-36 C{k * 104},-16 {k * 62},-6 {k * 8},-6 Z")
+    return fora, dentro
+
+
+def caixa_surpresa(c, cx, base, t0, t1=None, chacoalha=(), abre=None, s=1.0, nome="Surpresa"):
+    """O presente da surpresa, com a base em (cx, base): caixa roxa com fita amarela, tampa e um laço de alças em
+    gota (nunca dois círculos, que pareciam orelhas). Entra fechado com um pulinho; chacoalha = [t, ...] balança
+    para um lado e para o outro em volta da base (a caixa está viva); abre = t: a tampa pula, inclina e fica
+    entreaberta, e de dentro sai luz (raios) e brilhos, sem mostrar o que é."""
+    W, H = 300, 210
+    corpo = [c.rect("degrau", -W / 2, -H + 10, W, H, ROXO_ESCURO, rx=24),
+             c.rect("caixa", -W / 2, -H, W, H, ROXO, rx=24),
+             c.rect("fita degrau", -22, -H, 44, H, AMARELO_DEGRAU),
+             c.rect("fita", -26, -H, 44, H, AMARELO),
+             c.rect("brilho", -W / 2 + 22, -H + 22, 18, H - 70, "#FFFFFF", rx=9, op=22)]
+    # A tampa é um grupo com o ponto de giro na quina de trás à esquerda (abre como uma tampa de verdade).
+    tw, th = W + 36, 70
+    laco_f_e, laco_d_e = _alca("esq")
+    laco_f_d, laco_d_d = _alca("dir")
+    laco = c.grupo("Laço", tw / 2, -th + 6, [
+        _no_path(c, "alça esquerda", laco_f_e, AMARELO), _no_path(c, "dobra esquerda", laco_d_e, AMARELO_DEGRAU),
+        _no_path(c, "alça direita", laco_f_d, AMARELO), _no_path(c, "dobra direita", laco_d_d, AMARELO_DEGRAU),
+        _no_path(c, "ponta esquerda", "M-6,6 L-34,52 L-18,50 L-10,62 L6,10 Z", AMARELO_DEGRAU),
+        _no_path(c, "ponta direita", "M6,6 L34,52 L18,50 L10,62 L-6,10 Z", AMARELO_DEGRAU),
+        c.rect("nó degrau", -22, -18, 44, 40, AMARELO_DEGRAU, rx=14),
+        c.rect("nó", -22, -22, 44, 38, AMARELO, rx=14)], op=100)
+    tampa_filhos = [c.rect("tampa degrau", 0, -th + 8, tw, th, ROXO_ESCURO, rx=20),
+                    c.rect("tampa", 0, -th, tw, th, ROXO_TAMPA, rx=20),
+                    c.rect("fita da tampa", tw / 2 - 26, -th, 52, th, AMARELO), laco]
+    yt = -H + 4
+    tampa = c.grupo("Tampa", -tw / 2, yt, tampa_filhos, op=100)
+    # A luz de dentro: entra quando a tampa abre, atrás dela.
+    # Uma luz suave em leque (três fachos claros, transparentes), nunca um bloco cheio.
+    luz = c.grupo("Luz", 0, -H, [c.poly("facho", [(-30, 0), (30, 0), (dx + 70, -300), (dx - 70, -300)], "#FFD84A")
+                                 for dx in (-190, 0, 190)], op=0)
+    g = c.grupo(f"Presente · {nome}", cx, base, [luz] + corpo + [tampa], op=0, s=s)
+    c.nos.append(g)
+    c.mostra(g, t0, t1, pop=True)
+    if chacoalha:
+        ch = [(t0 + 0.45, 0, None)]
+        for t in chacoalha:
+            ch += [(t, 0, VAIVEM), (t + 0.1, -7, VAIVEM), (t + 0.22, 6, VAIVEM), (t + 0.34, -5, VAIVEM),
+                   (t + 0.46, 3, VAIVEM), (t + 0.58, 0, None)]
+        c.trilha(g, "rotation", ch)
+        # Um pulinho da tampa em cada chacoalhada, como se algo lá dentro empurrasse.
+        ct = [(t0 + 0.45, yt, None)]
+        for t in chacoalha:
+            ct += [(t + 0.08, yt, SUAVE), (t + 0.2, yt - 22, VAIVEM), (t + 0.36, yt, None)]
+        if abre:
+            ct += [(abre, yt, SUAVE), (abre + 0.25, yt - 120, VAIVEM), (abre + 0.55, yt - 70, None)]
+        c.trilha(tampa, "y", ct)
+    elif abre:
+        c.trilha(tampa, "y", [(abre, yt, SUAVE), (abre + 0.25, yt - 120, VAIVEM), (abre + 0.55, yt - 70, None)])
+    if abre:
+        c.trilha(tampa, "rotation", [(abre, 0, SUAVE), (abre + 0.3, -16, VAIVEM), (abre + 0.55, -11, None)])
+        c.trilha(tampa, "x", [(abre, -tw / 2, SUAVE), (abre + 0.3, -tw / 2 - 30, None)])
+        fim = t1 or (abre + 4)
+        c.trilha(luz, "opacity", [(abre + 0.1, 0, None), (abre + 0.35, 55, None), (abre + 0.9, 35, VAIVEM),
+                                  (min(fim, abre + 1.6), 50, VAIVEM), (fim, 0, None)])
+        raios(c, f"{nome} · luz", cx, base - (H + 120) * s, 150 * s, abre + 0.2, t1)
+        for k, (dx, dy, r) in enumerate(((-210, -330, 22), (0, -420, 28), (200, -340, 22), (-120, -470, 16),
+                                         (130, -480, 16))):
+            pts = []
+            for j in range(8):
+                a = -math.pi / 2 + j * math.pi / 4
+                rr = r if j % 2 == 0 else r * 0.38
+                pts.append((round(rr * math.cos(a), 1), round(rr * math.sin(a), 1)))
+            e = c.grupo(f"{nome} · brilho {k + 1}", cx + dx * s, base + dy * s, [c.poly("brilho", pts, BRANCO)], op=0)
+            c.nos.append(e)
+            c.mostra(e, abre + 0.3 + 0.12 * k, t1, pop=True)
+    return g
