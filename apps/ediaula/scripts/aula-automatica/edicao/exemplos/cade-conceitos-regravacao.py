@@ -74,6 +74,10 @@ def cena(nome, comeco, final):
     global fim_anterior
     t0, t1 = voz.trecho(comeco, final, depois=fim_anterior)
     t0 = max(t0, FIM_DA_CAPA)
+    # Menos de 1,5 s de tela entre duas cenas vira uma piscada (a tela entra e sai com duas transições, Cadê A2P1,
+    # 28/11/2026): a cena começa onde a anterior acaba. O place_cutaway põe uma cena por vez e não cobre essa sobra.
+    if fim_anterior and 0 < t0 - fim_anterior < 1.5:
+        t0 = fim_anterior
     fim_anterior = t1
     return Cena(f"Conceito · {nome}", t0, t1, BASE, BLOCOS, SAIDA, fundo="fundo-cade"), t0, t1
 
@@ -207,15 +211,16 @@ def a1p3():
     salvar(c, "acao-e-reacao")
 
     # 2. As cócegas: o vídeo de verdade (a mãe faz cócegas e a menina ri).
-    t0, _ = voz.trecho("Sabe quando alguém faz cócegas", "parar de rir?", depois=fim_anterior)
-    t_cocega = p("A cócega é a ação", t0)
+    t_frase, _ = voz.trecho("Sabe quando alguém faz cócegas", "parar de rir?", depois=fim_anterior)
+    t0 = fim_anterior if 0 < t_frase - fim_anterior < 1.5 else t_frase  # sem a piscada de tela entre as cenas
+    t_cocega = p("A cócega é a ação", t_frase)
     numero += 1
     video = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "artes", "videos",
                          "cocegas-acao-e-reacao.mp4")
     video_conceito("Cócegas", "cocegas", t0, round(t_cocega, 2), video, BASE, BLOCOS, SAIDA, numero,
-                   titulos=[([("As ", False), ("cócegas", True)], p("cócegas", t0)),
-                            ([("Não para de ", False), ("rir", True)], p("parar de rir", t0))])
-    fim_anterior = t_cocega - 0.08
+                   titulos=[([("As ", False), ("cócegas", True)], p("cócegas", t_frase)),
+                            ([("Não para de ", False), ("rir", True)], p("parar de rir", t_frase))])
+    fim_anterior = round(t_cocega, 2)
 
     # 3. A cócega é a ação, a risada é a reação: os dois quadros do vídeo lado a lado.
     c, t0, t1 = cena("Cócega e risada", "A cócega é a ação", "a risada é a reação.")

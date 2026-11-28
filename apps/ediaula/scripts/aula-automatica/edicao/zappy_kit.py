@@ -135,6 +135,9 @@ def registrar(c, pose):
     return anims
 
 
+PREFERIDA = {"pensando": "Voo pensativo"}
+
+
 def _instancia(c, pose, aid, altura, op):
     # Centrada no grupo: o pulinho de entrada (pop) cresce do meio do Zappy, não do canto.
     return {"id": nid(), "name": f"Zappy · {pose}", "tag": "g", "attrs": {}, "text": "",
@@ -164,7 +167,10 @@ def zappy_vivo(c, pose, x, y, altura, t0, t1=None, falas=(), pop=True):
             c.trilha(fala, "opacity", ch_f)
             c.trilha(calado, "opacity", ch_c)
     else:
-        nome = next(iter(anims))
+        # A animação de cada pose: a primeira do arquivo, menos no "pensando", que usa o "Voo pensativo". No
+        # "Pensando" um braço cruza a barriga até o queixo e, pequeno na cena, parece tudo embolado (Helena,
+        # 28/11/2026: "as mãozinhas ficam confusas, emboladas").
+        nome = PREFERIDA.get(pose) if PREFERIDA.get(pose) in anims else next(iter(anims))
         filhos = [_instancia(c, pose, anims[nome], altura, 100)]
     g = c.grupo(f"Zappy · {pose}", x + altura / 2, y + altura / 2, filhos)
     c.nos.append(g)
